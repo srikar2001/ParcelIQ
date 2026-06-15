@@ -1,0 +1,61 @@
+{
+  "_comment": "Manual sources (13-18) are NOT automated in this MVP. Per master prompt, these must display 'Manual Verification Required' in the report rather than faked results. This file is a template for the future Playwright-based collectors mentioned in 07_IMPLEMENTATION_PLAN.md.",
+  "manual_sources": [
+    {
+      "source_id": "13",
+      "source_name": "Tax Collector",
+      "url": "https://www.hillstaxfl.gov/records-search/",
+      "status": "manual_verification_required",
+      "confidence": "not_validated",
+      "notes": "Search by address. Verify amount due, latest payment, and annual bill history live before closing."
+    },
+    {
+      "source_id": "14A",
+      "source_name": "HCPA Sales History",
+      "url": "HCPA property record card",
+      "status": "manual_verification_required",
+      "confidence": "not_validated",
+      "notes": "Pull sales table from property record card. Flag $100/unqualified transfers as non-market."
+    },
+    {
+      "source_id": "14B",
+      "source_name": "Clerk Official Records",
+      "url": "https://publicaccess.hillsclerk.com/oripublicaccess/",
+      "status": "manual_verification_required",
+      "confidence": "not_validated",
+      "notes": "Search by instrument number from sales history to confirm deed type and parties."
+    },
+    {
+      "source_id": "15",
+      "source_name": "Code Violations / HillsGovHub Enforcement",
+      "url": "https://aca-prod.accela.com/HCFL/Cap/CapHome.aspx?TabName=Home&module=Enforcement",
+      "status": "manual_verification_required",
+      "confidence": "not_validated",
+      "notes": "Search by address and parcel variants. 'No results found' does not guarantee no violations exist."
+    },
+    {
+      "source_id": "16",
+      "source_name": "DOH eBridge OSTDS / Septic",
+      "url": "Florida DOH Hillsborough eBridge public records",
+      "status": "manual_verification_required",
+      "confidence": "not_validated",
+      "notes": "Search by address for OSTDS permit PDFs. Historical record only; current installation/condition must be verified."
+    },
+    {
+      "source_id": "17",
+      "source_name": "Well / Drinking Water Records",
+      "url": "Florida DOH Hillsborough eBridge public records",
+      "status": "manual_verification_required",
+      "confidence": "not_validated",
+      "notes": "Search drinking water categories. Absence of a record does not prove no well exists."
+    },
+    {
+      "source_id": "18",
+      "source_name": "EPC Environmental Records",
+      "url": "https://www.epchc.org/i-want-to/request-a-public-record",
+      "status": "manual_verification_required",
+      "confidence": "not_validated",
+      "notes": "If wetlands/lowlands detected by NWI/HCPA, recommend EPC/environmental consultant review."
+    }
+  ]
+}
