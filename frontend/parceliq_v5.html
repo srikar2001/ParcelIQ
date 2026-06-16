@@ -35,6 +35,7 @@ body{font-family:Inter,sans-serif;background:var(--w);color:var(--ink);line-heig
 .screen{display:none}
 #sh.active{display:flex;flex-direction:column;min-height:calc(100vh - 56px)}
 #sl.active{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 56px);padding:32px 20px;text-align:center;background:var(--w)}
+#sc.active{display:block}
 #sw.active{display:block}
 
 /* HOME */
@@ -290,6 +291,23 @@ body{font-family:Inter,sans-serif;background:var(--w);color:var(--ink);line-heig
 .lf-popup p{font-size:11px;color:var(--ink3);margin-bottom:2px;line-height:1.5}
 .lf-popup .pp{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--sg2);font-weight:600}
 
+/* TYPE-AHEAD DROPDOWN */
+.suggest-wrap{position:relative;width:100%;max-width:620px;margin-bottom:10px}
+.suggest-drop{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--w);border:1.5px solid var(--sg2);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.12);z-index:10000;overflow:hidden}
+.suggest-drop.open{display:block}
+.sug-item{padding:11px 16px;cursor:pointer;font-size:14px;color:var(--ink);display:flex;flex-direction:column;border-bottom:1px solid var(--sf);transition:background .1s}
+.sug-item:last-child{border-bottom:none}
+.sug-item:hover,.sug-item.focused{background:var(--sg3)}
+.sug-addr{font-weight:500;margin-bottom:2px}
+.sug-meta{font-size:11px;color:var(--ink4);font-family:"JetBrains Mono",monospace}
+.sug-loading{padding:12px 16px;font-size:13px;color:var(--ink4);text-align:center}
+
+/* AI NARRATIVE CARD */
+.narrative-card{background:linear-gradient(135deg,#0f1f14,#1a2f1e);border-radius:var(--rl);padding:20px 22px;margin-bottom:18px;border:1px solid #2a4030}
+.narrative-card h3{font-family:"Instrument Serif",serif;font-size:18px;color:#c8f0d8;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.narrative-card .nc-body{font-size:13.5px;color:#9ab8a4;line-height:1.85;white-space:pre-wrap}
+.narrative-card .nc-disc{font-size:11px;color:#4a7060;margin-top:12px;border-top:1px solid #2a4030;padding-top:10px}
+
 @media(max-width:900px){
   .ws{grid-template-columns:1fr}.sb{position:static;height:auto;flex-direction:row;flex-wrap:wrap;overflow-x:auto}
   .main{padding:16px 14px}.ig,.g3,.insg,.pr{grid-template-columns:1fr 1fr}.feat-row{grid-template-columns:1fr 1fr}
@@ -355,12 +373,15 @@ body{font-family:Inter,sans-serif;background:var(--w);color:var(--ink);line-heig
     <h1>Know the property.<br><em>Before you offer.</em></h1>
     <p class="hero-sub">Enter any US address. Every public record pulled, every risk flagged, every source cited — before you spend a dollar on inspections.</p>
     <div class="sw2">
-      <div class="si2">
-        <input id="mainSearch" placeholder="Address, parcel ID, or APN&#8230;" value="19931 Angel Ln, Odessa, FL 34655">
-        <button onclick="startSearch()">Run report &#8594;</button>
+      <div class="suggest-wrap">
+        <div class="si2">
+          <input id="mainSearch" placeholder="Address, folio, or parcel ID&#8230;" autocomplete="off">
+          <button onclick="startSearch()">Run report &#8594;</button>
+        </div>
+        <div class="suggest-drop" id="suggestDrop"></div>
       </div>
     </div>
-    <div class="sh">Press Enter or click Run report &mdash; results in seconds</div>
+    <div class="sh">Type to see suggestions &mdash; or press Enter to search</div>
     <div style="margin-bottom:14px;text-align:center">
       <div style="font-size:11px;color:#8a9690;margin-bottom:8px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.5px">Select property type</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center" id="homeTypeSel">
@@ -373,7 +394,7 @@ body{font-family:Inter,sans-serif;background:var(--w);color:var(--ink);line-heig
     <div class="chips">
       <div class="chip" onclick="setA('19931 Angel Ln, Odessa, FL')">Odessa vacant land</div>
       <div class="chip" onclick="setA('4802 W Longfellow Ave, Tampa, FL')">Tampa bungalow</div>
-      <div class="chip" onclick="setA('6210 Canal Blvd, New Port Richey, FL')">Canal-side lot</div>
+      <div class="chip" onclick="setA('3315 W Sligh Ave, Tampa, FL')">Tampa commercial lot</div>
     </div>
 
     <div class="feat-row">
@@ -485,6 +506,12 @@ body{font-family:Inter,sans-serif;background:var(--w);color:var(--ink);line-heig
     <div class="sbox"><div class="sl">Zoning</div><div class="sv">ASC-1</div><div class="ss">Ag single-family</div></div>
     <div class="sbox"><div class="sl">Flood Zone</div><div class="sv cup" style="font-size:17px">Zone X</div><div class="ss cup">Minimal hazard</div></div>
     <div class="sbox"><div class="sl">Plan Fit</div><div class="sv cw">54/100</div><div class="ss cw">Caution</div></div>
+  </div>
+
+  <div class="narrative-card" id="narrativeCard" style="display:none">
+    <h3>&#129302; AI Buyer Briefing</h3>
+    <div class="nc-body" id="narrativeBody">Loading briefing…</div>
+    <div class="nc-disc">Generated by Claude AI from verified public records only. Not legal or financial advice.</div>
   </div>
 
   <div class="card">
@@ -849,6 +876,108 @@ body{font-family:Inter,sans-serif;background:var(--w);color:var(--ink);line-heig
 // ── API BASE URL
 const API = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
+// ── TYPE-AHEAD SUGGEST
+let _suggestTimer = null;
+let _suggestFocus = -1;
+let _suggestResults = [];
+
+function debounce(fn, ms) {
+  return function(...args) {
+    clearTimeout(_suggestTimer);
+    _suggestTimer = setTimeout(() => fn(...args), ms);
+  };
+}
+
+const _doSuggest = debounce(async (q) => {
+  const drop = document.getElementById('suggestDrop');
+  if (!drop) return;
+  if (!q || q.length < 2) { drop.classList.remove('open'); return; }
+  drop.innerHTML = '<div class="sug-loading">Searching…</div>';
+  drop.classList.add('open');
+  try {
+    const resp = await fetch(API + '/api/suggest?' + new URLSearchParams({q}));
+    if (!resp.ok) { drop.classList.remove('open'); return; }
+    const data = await resp.json();
+    _suggestResults = data.results || [];
+    _suggestFocus = -1;
+    renderSuggestDrop(_suggestResults, drop);
+  } catch(_) {
+    drop.classList.remove('open');
+  }
+}, 300);
+
+function renderSuggestDrop(results, drop) {
+  if (!results.length) { drop.classList.remove('open'); return; }
+  drop.innerHTML = results.map((r, i) =>
+    '<div class="sug-item" data-idx="' + i + '" onclick="pickSuggest(' + i + ')">' +
+    '<div class="sug-addr">' + escHtml(r.full_address) + '</div>' +
+    '<div class="sug-meta">' +
+    (r.city ? escHtml(r.city) + (r.zip ? ' ' + escHtml(r.zip) : '') + ' · ' : '') +
+    (r.folio ? 'Folio ' + escHtml(r.folio) : '') +
+    '</div></div>'
+  ).join('');
+  drop.classList.add('open');
+}
+
+function pickSuggest(idx) {
+  const r = _suggestResults[idx];
+  if (!r) return;
+  const inp = document.getElementById('mainSearch');
+  if (inp) inp.value = r.full_address;
+  closeSuggestDrop();
+  if (r.folio) {
+    selectParcel(r.folio);
+  } else {
+    startSearch();
+  }
+}
+
+function closeSuggestDrop() {
+  const drop = document.getElementById('suggestDrop');
+  if (drop) drop.classList.remove('open');
+  _suggestFocus = -1;
+}
+
+function moveSuggestFocus(dir) {
+  const items = document.querySelectorAll('#suggestDrop .sug-item');
+  if (!items.length) return;
+  items.forEach(el => el.classList.remove('focused'));
+  _suggestFocus = Math.max(-1, Math.min(items.length - 1, _suggestFocus + dir));
+  if (_suggestFocus >= 0) {
+    items[_suggestFocus].classList.add('focused');
+    const inp = document.getElementById('mainSearch');
+    if (inp && _suggestResults[_suggestFocus]) inp.value = _suggestResults[_suggestFocus].full_address;
+  }
+}
+
+// ── AI NARRATIVE
+async function loadNarrative(folio) {
+  const card = document.getElementById('narrativeCard');
+  const body = document.getElementById('narrativeBody');
+  if (!card || !body) return;
+  card.style.display = 'block';
+  body.textContent = 'Loading AI briefing…';
+  try {
+    const resp = await fetch(API + '/api/narrative/' + encodeURIComponent(folio));
+    if (!resp.ok) { card.style.display = 'none'; return; }
+    const data = await resp.json();
+    body.textContent = data.narrative || '';
+  } catch(_) {
+    card.style.display = 'none';
+  }
+}
+
+// ── MAPBOX HERO IMAGE (uses centroid from parcel geometry)
+function setHeroImage(lat, lon) {
+  const img = document.querySelector('.ph .phi');
+  if (!img) return;
+  const tok = window._mapboxToken || '';
+  if (!tok || !lat || !lon) return;
+  const url = 'https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/' +
+    lon + ',' + lat + ',17,0/1100x255@2x?access_token=' + encodeURIComponent(tok);
+  img.src = url;
+}
+
 // ── APP STATE
 let appState = { report: null, insights: null, folio: null };
 
@@ -868,7 +997,7 @@ function showScreen(id) {
 }
 
 // ── HOME / NAVIGATION
-function goHome() { showScreen('sh'); }
+function goHome() { showScreen('sh'); const s = document.getElementById('mainSearch'); if (s) s.value = ''; }
 function setA(addr) { document.getElementById('mainSearch').value = addr; }
 
 // ── SEARCH → CANDIDATE SELECTION
@@ -901,9 +1030,15 @@ function renderCandidates(candidates, query) {
       '<div style="text-align:center;padding:48px 20px">' +
       '<div style="font-size:32px;margin-bottom:12px">&#128269;</div>' +
       '<div style="font-size:15px;color:var(--ink2);font-weight:600;margin-bottom:8px">No parcels found</div>' +
-      '<div style="font-size:13px;color:var(--ink4);max-width:380px;margin:0 auto;line-height:1.7">' +
-      'No matching parcel found in Hillsborough County for <strong>' + escHtml(query) + '</strong>.<br>' +
-      'Try a street address without city/state, or enter a folio number (e.g. 8.0000).' +
+      '<div style="font-size:13px;color:var(--ink4);max-width:420px;margin:0 auto;line-height:1.8">' +
+      'No parcel found in Hillsborough County for <strong>' + escHtml(query) + '</strong>.' +
+      '</div>' +
+      '<div style="margin-top:16px;max-width:420px;margin-left:auto;margin-right:auto;background:#f5f7f5;border-radius:10px;padding:14px 16px;text-align:left;font-size:12px;color:var(--ink3);line-height:1.9">' +
+      '<strong style="color:var(--ink2)">Tips:</strong><br>' +
+      '&#8226; Search by street name only &mdash; e.g. <em>Longfellow Ave</em><br>' +
+      '&#8226; Omit city/state and ZIP &mdash; the database is Hillsborough County only<br>' +
+      '&#8226; Use the folio number for exact match &mdash; e.g. <em>8.0000</em><br>' +
+      '&#8226; Look up the folio first at <a href="https://www.hcpafl.org/property-info/search-property-info" target="_blank" style="color:var(--bl)">hcpafl.org</a>, then paste it here' +
       '</div></div>';
     return;
   }
@@ -1017,6 +1152,10 @@ function populateWorkspace(data) {
   const label = bi.buildability.label;
   const zCode = pr.zoning ? pr.zoning.nzone : '';
 
+  // Update loading screen address label for future loads
+  const loadAddrEl = document.getElementById('loadAddr');
+  if (loadAddrEl) loadAddrEl.textContent = addr;
+
   document.getElementById('wsaddr').textContent = addr;
   const sbm = document.querySelector('.sbm');
   if (sbm) sbm.innerHTML = 'Hillsborough County &bull; Folio ' + escHtml(prop.folio) +
@@ -1043,11 +1182,49 @@ function populateWorkspace(data) {
 
   // Populate all sections
   renderOverview(pr, bi);
-  renderFlags(bi);
+  renderFlags(bi, pr);
   renderRecord(pr);
   renderPermits(pr);
   renderEnvironmental(pr);
   renderSources(pr);
+  renderOwnership(pr);
+  renderTimeline(pr, bi);
+  renderInsurance(pr);
+  updatePlanFit(pr, bi);
+  renderChecklist(bi, pr);
+  renderSellerDocs(pr, bi);
+  renderAgent(pr, bi);
+
+  // Sidebar nav badge updates
+  const _flagsBadge = document.querySelector(".ni[onclick*='flags'] .nb");
+  if (_flagsBadge) {
+    const fc = bi.top_findings.length;
+    _flagsBadge.textContent = fc;
+    _flagsBadge.className = fc > 0 ? 'nb nr' : 'nb';
+  }
+  const _perm = pr.permits;
+  const _permBadge = document.querySelector(".ni[onclick*='permits'] .nb");
+  if (_permBadge) {
+    if (_perm && (_perm.issued_permits_match_found || _perm.certificate_of_occupancy_match_found)) {
+      _permBadge.textContent = 'Match';
+      _permBadge.className = 'nb na';
+    } else {
+      _permBadge.textContent = '';
+      _permBadge.className = 'nb';
+    }
+  }
+
+  // Async: hero image from Mapbox centroid
+  if (prop.centroid) {
+    setHeroImage(prop.centroid.lat, prop.centroid.lon);
+  }
+
+  // Async: AI narrative (loads in background, shows when ready)
+  if (prop.folio) {
+    const narCard = document.getElementById('narrativeCard');
+    if (narCard) narCard.style.display = 'none';
+    loadNarrative(prop.folio);
+  }
 }
 
 // ── SCORE COLOR
@@ -1190,7 +1367,7 @@ function renderOverview(pr, bi) {
 }
 
 // ── FLAGS
-function renderFlags(bi) {
+function renderFlags(bi, pr) {
   const el = document.getElementById('view-flags');
   if (!el) return;
   const badge = el.querySelector('.badge');
@@ -1202,25 +1379,63 @@ function renderFlags(bi) {
 
   if (findings.length === 0) {
     body.innerHTML = '<div style="padding:24px;color:var(--ink4);text-align:center">No significant findings from automated screening.</div>';
-    return;
+  } else {
+    body.innerHTML = findings.map(f =>
+      '<div class="flag ' + riskFlagClass(f.risk_level) + '" style="margin-bottom:12px">' +
+      '<div class="fi">' + (f.risk_level === 'High' ? '&#9940;' : f.risk_level === 'Low' || f.risk_level === 'Positive' ? '&#9989;' : '&#9888;&#65039;') + '</div>' +
+      '<div>' +
+      '<h4>' + escHtml(f.title) + ' &nbsp;<span class="badge ' + riskBadgeClass(f.risk_level) + '">' + escHtml(f.risk_level) + '</span></h4>' +
+      '<p><strong>Finding:</strong> ' + escHtml(f.finding) + '</p>' +
+      '<p><strong>Buyer meaning:</strong> ' + escHtml(f.buyer_meaning) + '</p>' +
+      '<p><strong>Next step:</strong> ' + escHtml(f.next_step) + '</p>' +
+      '<div class="fsrc">Sources ' + f.source_ids.join(', ') + ' &bull; ' + escHtml(f.confidence) + '</div>' +
+      '</div></div>'
+    ).join('') +
+    '<div style="margin-top:14px;padding:11px 13px;background:var(--sf);border-radius:8px;font-size:11px;color:var(--ink4);line-height:1.7">' +
+    'These findings are from automated public record screening only. ' +
+    'Never interpret &ldquo;no record found&rdquo; as confirmation that no issue exists. ' +
+    'Tax, deeds, septic, well, and code violations require manual verification (see Source Evidence).' +
+    '</div>';
   }
 
-  body.innerHTML = findings.map(f =>
-    '<div class="flag ' + riskFlagClass(f.risk_level) + '" style="margin-bottom:12px">' +
-    '<div class="fi">' + (f.risk_level === 'High' ? '&#9940;' : f.risk_level === 'Low' || f.risk_level === 'Positive' ? '&#9989;' : '&#9888;&#65039;') + '</div>' +
-    '<div>' +
-    '<h4>' + escHtml(f.title) + ' &nbsp;<span class="badge ' + riskBadgeClass(f.risk_level) + '">' + escHtml(f.risk_level) + '</span></h4>' +
-    '<p><strong>Finding:</strong> ' + escHtml(f.finding) + '</p>' +
-    '<p><strong>Buyer meaning:</strong> ' + escHtml(f.buyer_meaning) + '</p>' +
-    '<p><strong>Next step:</strong> ' + escHtml(f.next_step) + '</p>' +
-    '<div class="fsrc">Sources ' + f.source_ids.join(', ') + ' &bull; ' + escHtml(f.confidence) + '</div>' +
-    '</div></div>'
-  ).join('') +
-  '<div style="margin-top:14px;padding:11px 13px;background:var(--sf);border-radius:8px;font-size:11px;color:var(--ink4);line-height:1.7">' +
-  'These findings are from automated public record screening only. ' +
-  'Never interpret &ldquo;no record found&rdquo; as confirmation that no issue exists. ' +
-  'Tax, deeds, septic, well, and code violations require manual verification (see Source Evidence).' +
-  '</div>';
+  // Update "What to do before you offer" second card
+  const allCards = el.querySelectorAll('.card');
+  const actionCard = allCards[1];
+  if (actionCard && pr) {
+    const env = pr.environmental || {};
+    const wetFound = env.wetlands && env.wetlands.found;
+    const waterOk = pr.utilities && pr.utilities.water_service_area && pr.utilities.water_service_area.found;
+    const sewerOk = pr.utilities && pr.utilities.sewer_service_area && pr.utilities.sewer_service_area.found;
+    const isLikelyTrust = pr.property && pr.property.owner && /TRUST|TRUSTEE/i.test(pr.property.owner);
+    const highFindings = findings.filter(f => (f.risk_level || '').toLowerCase() === 'high');
+
+    const actions = [];
+    if (wetFound) {
+      actions.push({ text: '<strong>Wetland delineation.</strong> Ask seller if a professional study exists. If not, make offer contingent or hire a licensed consultant ($1,500–$4,000) before offering.', tag: 'Consultant', cls: 'awp' });
+    }
+    if (!waterOk && !sewerOk) {
+      actions.push({ text: '<strong>Utility/septic feasibility.</strong> Call Hillsborough DOH at (813) 307-8059 with the folio number. Free. 10 minutes.', tag: 'HCDOH', cls: 'awc' });
+    }
+    for (const f of highFindings.slice(0, 2)) {
+      const alreadyCovered = wetFound && f.title.toLowerCase().includes('wetland');
+      if (!alreadyCovered && f.next_step) {
+        actions.push({ text: '<strong>' + escHtml(f.title) + '.</strong> ' + escHtml(f.next_step), tag: 'Priority', cls: 'awp' });
+      }
+    }
+    actions.push({ text: '<strong>Comparable sales per usable acre.</strong> Agent pulls closed similar parcels last 12–18 months. Price per usable — not gross — acre.', tag: 'Agent', cls: 'awb' });
+    if (isLikelyTrust) {
+      actions.push({ text: '<strong>Trust document.</strong> Request copy confirming trustee authority to sell. Standard step before any closing with trust ownership.', tag: 'Ask seller', cls: 'awo' });
+    }
+
+    const actionBody = actionCard.querySelector('.cb');
+    if (actionBody) {
+      actionBody.innerHTML = actions.map((a, i) =>
+        '<div class="action"><div class="an">' + String(i + 1).padStart(2, '0') + '</div>' +
+        '<div class="at">' + a.text + '</div>' +
+        '<div class="aw ' + a.cls + '">' + escHtml(a.tag) + '</div></div>'
+      ).join('');
+    }
+  }
 }
 
 // ── PROPERTY RECORD
@@ -1427,6 +1642,373 @@ function renderSources(pr) {
       : '');
 }
 
+// ── OWNERSHIP
+function renderOwnership(pr) {
+  const el = document.getElementById('view-own');
+  if (!el) return;
+  const body = el.querySelector('.cb');
+  if (!body) return;
+  const prop = pr.property;
+  const isLikelyTrust = prop.owner && /TRUST|TRUSTEE/i.test(prop.owner);
+
+  body.innerHTML =
+    '<div style="padding:12px 14px;background:var(--sf);border-radius:10px;border:1px solid var(--rule);margin-bottom:14px">' +
+    '<table class="dt"><tbody>' +
+    '<tr><td>Current Owner</td><td><strong>' + escHtml(prop.owner || '&mdash;') + '</strong></td></tr>' +
+    '<tr><td>Folio</td><td>' + escHtml(prop.folio) + '</td></tr>' +
+    (prop.strap ? '<tr><td>STRAP</td><td>' + escHtml(prop.strap) + '</td></tr>' : '') +
+    '<tr><td>Address</td><td>' + escHtml(prop.address || '&mdash;') + '</td></tr>' +
+    '<tr><td>Use</td><td>' + escHtml(prop.use || '&mdash;') + '</td></tr>' +
+    '</tbody></table></div>' +
+
+    (isLikelyTrust
+      ? '<div class="flag fw" style="margin-bottom:12px"><div class="fi">&#9888;&#65039;</div><div>' +
+        '<h4>Trust ownership detected</h4>' +
+        '<p>Owner name contains &ldquo;Trust&rdquo; or &ldquo;Trustee.&rdquo; Trustee authority to convey must be confirmed from the trust document before closing. Your attorney handles this at closing &mdash; it&rsquo;s a standard step.</p>' +
+        '<div class="fsrc">HCPA Owner field &mdash; legal verification required at closing</div>' +
+        '</div></div>'
+      : '') +
+
+    '<div class="flag fi2"><div class="fi">&#8505;&#65039;</div><div>' +
+    '<h4>Deed history and ownership chain require manual verification</h4>' +
+    '<p>Complete ownership history, prior transfers, liens, and lis pendens are not automated in this version. Verify at Hillsborough Clerk of Courts. Title insurance resolves definitively at closing.</p>' +
+    '<div class="fsrc"><a href="https://publicaccess.hillsclerk.com/oripublicaccess/" target="_blank" style="color:var(--bl)">HC Clerk of Courts &mdash; search by name or parcel address &#8594;</a></div>' +
+    '</div></div>';
+}
+
+// ── TIMELINE
+function renderTimeline(pr, bi) {
+  const el = document.getElementById('view-tl');
+  if (!el) return;
+  const body = el.querySelector('.cb');
+  if (!body) return;
+  const prop = pr.property;
+  const today = new Date().getFullYear();
+  const srcCount = (pr.source_evidence || []).length;
+
+  body.innerHTML =
+    '<div class="slbl">Property facts &mdash; from public records</div>' +
+    '<div class="tl">' +
+
+    '<div class="tli"><div class="tll"><div class="tlyr">HCPA</div></div>' +
+    '<div class="tlsp"><div class="tldot db"></div><div class="tlline"></div></div>' +
+    '<div class="tlr"><div class="tlt">Current assessed values</div>' +
+    '<div class="tld">' +
+    (prop.assessed_value ? 'Assessed value: <strong>$' + prop.assessed_value.toLocaleString() + '</strong>' : '') +
+    (prop.just_value ? ' &bull; Market value: $' + prop.just_value.toLocaleString() : '') +
+    (prop.land_value ? ' &bull; Land value: $' + prop.land_value.toLocaleString() : '') +
+    (prop.acreage_gross != null ? ' &bull; ' + prop.acreage_gross + ' ac gross' : '') +
+    '</div><div class="tlsrc">HCPA parcel record</div></div></div>' +
+
+    '<div class="tli"><div class="tll"><div class="tlyr">' + today + '</div></div>' +
+    '<div class="tlsp"><div class="tldot db"></div></div>' +
+    '<div class="tlr"><div class="tlt">This report generated &mdash; ' + srcCount + ' sources queried, ' +
+    bi.top_findings.length + ' finding' + (bi.top_findings.length !== 1 ? 's' : '') + '</div>' +
+    '<div class="tld">Owner: ' + escHtml(prop.owner || '&mdash;') + '</div>' +
+    '<div class="tlsrc">ParcelIQ automated screening</div></div></div>' +
+    '</div>' +
+
+    '<div class="div"></div>' +
+
+    '<div class="flag fi2" style="margin-bottom:14px"><div class="fi">&#8505;&#65039;</div><div>' +
+    '<h4>Sale history and comparable sales require manual research</h4>' +
+    '<p>Prior sale dates and prices, MLS comparable sales, and price-per-usable-acre analysis are not automated in this version. Your agent can pull closed comparable sales from MLS. Prior deed transfers are at HC Clerk of Courts.</p>' +
+    '<div class="fsrc"><a href="https://publicaccess.hillsclerk.com/oripublicaccess/" target="_blank" style="color:var(--bl)">HC Clerk &mdash; deed history</a></div>' +
+    '</div></div>' +
+
+    '<div class="slbl">Map &mdash; subject parcel location</div>' +
+    '<div class="comp-map-legend"><div class="cml"><div class="cmldot" style="background:#1e4a8c"></div>Subject property</div></div>' +
+    '<div class="comp-map-wrap"><div id="compMap"></div></div>' +
+
+    '<div style="font-size:11px;color:var(--ink4);line-height:1.7;padding:10px 12px;background:var(--sf);border-radius:8px;margin-top:10px">' +
+    'Comparable sales and development pipeline data require manual research by your agent. ' +
+    'Ask for closed similar parcels within 2 miles in the last 12&ndash;18 months, priced per usable (not gross) acre.' +
+    '</div>';
+}
+
+// ── INSURANCE
+function renderInsurance(pr) {
+  const el = document.getElementById('view-ins');
+  if (!el) return;
+  const body = el.querySelector('.cb');
+  if (!body) return;
+
+  const env   = pr.environmental || {};
+  const flood = env.flood || {};
+  const evac  = env.evacuation_zone || {};
+  const fldZone = flood.fld_zone || null;
+  const sfha    = flood.sfha;
+  const floodReq = sfha === true;
+
+  body.innerHTML =
+    '<div class="insg">' +
+
+    '<div class="inc"><div class="icl">Flood insurance required</div>' +
+    '<div class="icv ' + (floodReq ? 'cr' : (fldZone ? 'cup' : '')) + '">' +
+    (sfha == null ? 'Not returned' : (floodReq ? 'Yes &mdash; SFHA' : 'No &mdash; ' + escHtml(fldZone || 'Minimal'))) +
+    '</div><div class="icn">' +
+    (floodReq
+      ? 'Zone ' + escHtml(fldZone) + ' &mdash; lenders typically require flood insurance.'
+      : (fldZone ? 'Zone ' + escHtml(fldZone) + ' &mdash; flood insurance not typically required by lenders. Optional.' : 'Flood zone not returned at parcel centroid &mdash; verify manually.')) +
+    '</div></div>' +
+
+    '<div class="inc"><div class="icl">Wind / hurricane zone</div>' +
+    '<div class="icv cw">140 MPH zone</div>' +
+    '<div class="icn">Hillsborough County is in a 140 MPH wind-borne debris region. Affects new construction code and insurance cost.</div></div>' +
+
+    '<div class="inc"><div class="icl">CLUE claims history</div>' +
+    '<div class="icv cw">Not available</div>' +
+    '<div class="icn">Only the property owner can request from LexisNexis. Request from seller &mdash; see Seller Documents tab.</div></div>' +
+
+    '<div class="inc"><div class="icl">Hurricane evacuation zone</div>' +
+    '<div class="icv ' + (evac.found ? 'cw' : 'cup') + '">' +
+    (evac.found && evac.zone ? escHtml('Zone ' + evac.zone) : (evac.found ? 'Found' : 'Not mapped')) +
+    '</div><div class="icn">' +
+    (evac.found ? 'Evacuation zone ' + escHtml(evac.zone || '') + '. Check Hillsborough County HEAT for requirements.' : 'No evacuation zone at sampled point. Hurricane risk still exists &mdash; get insurance quote before closing.') +
+    '</div></div>' +
+
+    '</div>' +
+
+    '<div class="flag fw"><div class="fi">&#9888;&#65039;</div><div>' +
+    '<h4>Post-Ian Florida insurance warning</h4>' +
+    '<p>Even Zone X properties in Hillsborough County have seen premium increases of 40&ndash;80% since Hurricane Ian 2022. Get a binding insurance quote for your planned structure <strong>before</strong> you close. Do not assume insurability or affordability.</p>' +
+    '<div class="fsrc">Florida OIR market data &bull; post-Ian insurer exits &mdash; 2024</div>' +
+    '</div></div>';
+}
+
+// ── PLAN FIT (dynamic — populates iData based on actual parcel)
+function updatePlanFit(pr, bi) {
+  const base  = bi.buildability.score;
+  const env   = pr.environmental || {};
+  const wetFound  = env.wetlands && env.wetlands.found;
+  const floodSFHA = env.flood && env.flood.sfha;
+  const fldZone   = (env.flood && env.flood.fld_zone) || 'Unknown';
+  const waterOk   = pr.utilities && pr.utilities.water_service_area && pr.utilities.water_service_area.found;
+  const sewerOk   = pr.utilities && pr.utilities.sewer_service_area && pr.utilities.sewer_service_area.found;
+  const utilOk    = waterOk || sewerOk;
+  const zoning    = pr.zoning ? (pr.zoning.nzone || '').toUpperCase() : '';
+  const multiLimited = /ASC|AG|RSC|AR|A[12]|RU|RR/.test(zoning);
+
+  function clamp(v) { return Math.max(5, Math.min(100, Math.round(v))); }
+  function cls(s) { return s >= 70 ? 'ok' : s >= 55 ? 'caut' : 'risk'; }
+  function lbl(s) { return s >= 70 ? 'Manageable' : s >= 55 ? 'Caution' : 'High Risk'; }
+
+  const wetP  = wetFound  ? 14 : 0;
+  const flP   = floodSFHA ? 9  : 0;
+  const utlP  = utilOk    ? 0  : 7;
+
+  const scores = {
+    'Build one home':       clamp(base - wetP * 0.5 - flP * 0.5 - utlP * 0.5),
+    'Build multiple homes': clamp(base - 22 - (multiLimited ? 18 : 0) - wetP * 0.7),
+    'Recreational use':     clamp(base + (wetFound ? 5 : 0) - flP * 0.3 + 7),
+    'Horses / small farm':  clamp(base + 4 - wetP * 0.3 - flP * 0.2),
+    'Long-term hold':       clamp(base + 11 - flP * 0.2),
+    'Buy and resell':       clamp(base - 9 - wetP * 0.4),
+  };
+
+  function desc(plan, sc) {
+    const parts = [];
+    if (wetFound) parts.push('Mapped wetland signal found &mdash; buildable area and usable acreage unconfirmed.');
+    if (floodSFHA) parts.push('SFHA flood zone &mdash; insurance and permit costs elevated.');
+    if (!utilOk) parts.push('No utility service area confirmed &mdash; private well/septic likely required.');
+    if (plan === 'Build multiple homes' && multiLimited) parts.push('Zoning (' + zoning + ') typically limits to one residence per parcel &mdash; rezoning is not guaranteed.');
+    parts.push(sc >= 70
+      ? 'Generally manageable risk profile based on available public data.'
+      : sc >= 55
+      ? 'Proceed with caution. Confirm key unknowns before committing.'
+      : 'High-risk plan given current parcel characteristics. Verify unknowns before making any offer.');
+    return parts.join(' ');
+  }
+
+  for (const plan of Object.keys(scores)) {
+    const sc = scores[plan];
+    iData[plan] = { score: sc, cls: cls(sc), label: lbl(sc), text: desc(plan, sc) };
+  }
+
+  // Render current active plan (default to "Build one home")
+  const activeBtn = document.querySelector('#view-intent .ib.active') || document.querySelector('#view-intent .ib');
+  const activePlan = (activeBtn && activeBtn.textContent.trim()) || 'Build one home';
+  const d = iData[activePlan] || Object.values(iData)[0];
+  if (!d) return;
+
+  const iScoreEl = document.getElementById('iScore');
+  const iLabelEl = document.getElementById('iLabel');
+  const iTextEl  = document.getElementById('iText');
+  if (iScoreEl) iScoreEl.textContent = d.score;
+  if (iLabelEl) iLabelEl.textContent = d.label;
+  if (iTextEl)  iTextEl.textContent  = d.text;
+
+  // Rebuild score bars
+  const sbd = document.querySelector('#view-intent .sbd');
+  if (sbd) {
+    let bars = '';
+    if (wetFound)  bars += '<div class="sbr"><span class="sbl">Wetland signal detected</span><div class="sbt"><div class="sbf" style="width:' + Math.min(100, wetP * 4) + '%;background:var(--rd)"></div></div><span class="sbp">&minus;' + Math.round(wetP * 0.5) + '</span></div>';
+    if (!utilOk)   bars += '<div class="sbr"><span class="sbl">Utility service unconfirmed</span><div class="sbt"><div class="sbf" style="width:' + Math.min(100, utlP * 6) + '%;background:var(--am)"></div></div><span class="sbp">&minus;' + Math.round(utlP * 0.5) + '</span></div>';
+    if (floodSFHA) bars += '<div class="sbr"><span class="sbl">SFHA flood zone</span><div class="sbt"><div class="sbf" style="width:' + Math.min(100, flP * 5) + '%;background:var(--am)"></div></div><span class="sbp">&minus;' + Math.round(flP * 0.5) + '</span></div>';
+    bars += '<div class="sbr"><span class="sbl">Flood zone ' + escHtml(fldZone) + '</span><div class="sbt"><div class="sbf" style="width:' + (fldZone === 'X' ? '8' : '3') + '%;background:var(--sg2)"></div></div><span class="sbp">' + (fldZone === 'X' ? '+5' : '+2') + '</span></div>';
+    bars += '<div class="sbr"><span class="sbl">Tax and clean record base</span><div class="sbt"><div class="sbf" style="width:8%;background:var(--sg2)"></div></div><span class="sbp">+4</span></div>';
+
+    sbd.innerHTML =
+      '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px">' +
+      '<span style="font-family:\'Instrument Serif\',serif;font-size:50px;color:var(--ink)" id="iScore">' + d.score + '</span>' +
+      '<span style="font-size:14px;color:var(--ink3)">/ 100 &mdash; <span id="iLabel">' + d.label + '</span></span>' +
+      '</div>' +
+      '<p id="iText" style="font-size:13px;color:var(--ink3);margin-bottom:13px;line-height:1.6">' + escHtml(d.text) + '</p>' +
+      bars;
+  }
+
+  // Sync sidebar score to active plan
+  const wsScore = document.getElementById('wsscore');
+  if (wsScore) { wsScore.textContent = d.score; wsScore.className = 'scn ' + d.cls; }
+  const wsplan = document.getElementById('wsplan');
+  if (wsplan) wsplan.textContent = activePlan;
+}
+
+// ── CHECKLIST
+function renderChecklist(bi, pr) {
+  const el = document.getElementById('view-cl');
+  if (!el) return;
+  const body = el.querySelector('.cb');
+  if (!body) return;
+
+  const env     = (pr && pr.environmental) || {};
+  const wetFound = env.wetlands && env.wetlands.found;
+  const waterOk  = pr && pr.utilities && pr.utilities.water_service_area && pr.utilities.water_service_area.found;
+  const sewerOk  = pr && pr.utilities && pr.utilities.sewer_service_area && pr.utilities.sewer_service_area.found;
+  const utilOk   = waterOk || sewerOk;
+  const isLikelyTrust = pr && pr.property && pr.property.owner && /TRUST|TRUSTEE/i.test(pr.property.owner);
+  const sfha = env.flood && env.flood.sfha;
+  const findings = bi.top_findings || [];
+
+  const pre = [];
+  if (wetFound) pre.push({ title: 'Wetland delineation', desc: 'Ask seller if a professional study exists. If not, make the offer contingent or hire a licensed consultant ($1,500–$4,000) before offering.', tag: 'Consultant', cls: 'awp' });
+  if (!utilOk)  pre.push({ title: 'Utility/septic feasibility', desc: 'No utility service area confirmed. Call Hillsborough DOH (813) 307-8059 with the folio number to verify septic feasibility. Free call.', tag: 'HCDOH', cls: 'awc' });
+  pre.push({ title: 'Comparable sales per usable acre', desc: 'Agent pulls closed similar parcels last 12–18 months. Price per usable — not gross — acre.', tag: 'Agent', cls: 'awb' });
+  pre.push({ title: 'Insurance quote', desc: 'Binding quote for your planned structure before offer. Florida market is unpredictable post-Ian' + (sfha ? ' — especially important for SFHA zone properties' : '') + '.', tag: 'Ins. broker', cls: 'awp' });
+  if (isLikelyTrust) pre.push({ title: 'Trust document from seller', desc: 'Owner name indicates a trust. Request copy confirming trustee authority to sell before making an offer.', tag: 'Ask seller', cls: 'awo' });
+  for (const f of findings.filter(x => (x.risk_level || '').toLowerCase() === 'high').slice(0, 2)) {
+    const alreadyCovered = wetFound && f.title.toLowerCase().includes('wetland');
+    if (!alreadyCovered && f.next_step) pre.push({ title: 'Verify: ' + f.title, desc: f.next_step, tag: 'Priority', cls: 'awp' });
+  }
+
+  const post = [
+    { title: 'Boundary survey', desc: 'Licensed surveyor confirms parcel lines, frontage, encroachments.', tag: 'Surveyor', cls: 'awp' },
+    { title: 'Soil perc test', desc: 'Required before septic permit. Determines system size and cost.', tag: 'Contractor', cls: 'awp' },
+    { title: 'Title search and title insurance', desc: '30-year minimum chain. Resolves all lien, easement, and ownership questions definitively.', tag: 'Title co.', cls: 'awp' },
+    { title: 'CLUE report from seller', desc: '7 years insurance claims history. Only the owner can request from LexisNexis.', tag: 'Ask seller', cls: 'awo' },
+  ];
+
+  function itemHtml(items) {
+    return items.map(item =>
+      '<div class="cli"><div class="clck" onclick="tc(this)"></div><div class="clb">' +
+      '<div class="clt">' + escHtml(item.title) + '</div>' +
+      '<div class="cld">' + escHtml(item.desc) + '</div>' +
+      '<span class="clw ' + item.cls + '">' + escHtml(item.tag) + '</span>' +
+      '</div></div>'
+    ).join('');
+  }
+
+  body.innerHTML =
+    '<div class="slbl">Before making an offer</div>' +
+    '<div id="cl1">' + itemHtml(pre) + '</div>' +
+    '<div class="div"></div>' +
+    '<div class="slbl">After accepted offer</div>' +
+    '<div id="cl2">' + itemHtml(post) + '</div>' +
+    '<div class="air">' +
+    '<input class="ai2" id="addInp" placeholder="Add your own checklist item&hellip;" onkeydown="if(event.key===\'Enter\')addItem()">' +
+    '<button class="aib" onclick="addItem()">+ Add item</button>' +
+    '</div>';
+}
+
+// ── SELLER DOCS
+function renderSellerDocs(pr, bi) {
+  const el = document.getElementById('view-docs');
+  if (!el) return;
+  const body  = el.querySelector('.cb');
+  const badge = el.querySelector('.badge');
+  if (!body) return;
+
+  const prop = pr.property;
+  const env  = pr.environmental || {};
+  const wetFound = env.wetlands && env.wetlands.found;
+  const waterOk  = pr.utilities && pr.utilities.water_service_area && pr.utilities.water_service_area.found;
+  const sewerOk  = pr.utilities && pr.utilities.sewer_service_area && pr.utilities.sewer_service_area.found;
+  const isLikelyTrust = prop && prop.owner && /TRUST|TRUSTEE/i.test(prop.owner);
+
+  const docs = [];
+  docs.push({ name: 'Survey or plat map', note: 'Request: “Please provide any existing survey or plat map for this parcel.”' });
+  if (wetFound) docs.push({ name: 'Wetland delineation study', note: 'Request: “Has a professional wetland delineation been completed? Please provide the report.”' });
+  docs.push({ name: 'Seller disclosure statement', note: 'Request: “Please provide the completed seller disclosure per Florida Statute 689.261.”', status: 'dp' });
+  if (isLikelyTrust) docs.push({ name: 'Trust document — trustee authority', note: 'Request: “Please provide the trust document confirming trustee authority to sell this parcel.”' });
+  docs.push({ name: 'CLUE report — insurance claims history', note: 'Request: “Please request and provide your CLUE property report from LexisNexis.”' });
+  if (!waterOk && !sewerOk) docs.push({ name: 'Well or septic records (if any exist)', note: 'Request: “Please provide any existing well or septic permits or soil perc test results.”' });
+
+  const missingCount = docs.filter(d => d.status !== 'drv').length;
+  if (badge) badge.textContent = missingCount + ' to request';
+
+  // Update sidebar badge
+  const sidebarBadge = document.querySelector(".ni[onclick*='docs'] .nb");
+  if (sidebarBadge) {
+    sidebarBadge.textContent = missingCount + ' to request';
+    sidebarBadge.className = missingCount > 0 ? 'nb nr' : 'nb';
+  }
+
+  body.innerHTML =
+    '<div class="flag fi2" style="margin-bottom:14px"><div class="fi">&#8505;&#65039;</div><div>' +
+    '<h4>How this works — honest explanation</h4>' +
+    '<p><strong>Sellers do not upload documents here directly.</strong> This section shows which documents to request, why each matters, and the exact language to use. Mark each received when the seller delivers it.</p>' +
+    '</div></div>' +
+
+    '<div style="background:linear-gradient(135deg,var(--abg),#fff8f2);border:1px solid #f0c080;border-radius:var(--rl);padding:16px 18px">' +
+    '<div style="font-family:\'Instrument Serif\',serif;font-size:17px;color:var(--am);margin-bottom:5px">Documents to request from seller</div>' +
+    '<div style="font-size:13px;color:#5a2800;line-height:1.6;margin-bottom:12px">Use the exact language below with your agent or the seller&rsquo;s agent.</div>' +
+    docs.map(d =>
+      '<div class="docr"><div><div class="dn">' + escHtml(d.name) + '</div>' +
+      '<div class="dnt">' + escHtml(d.note) + '</div></div>' +
+      '<div class="dst ' + (d.status || 'dm') + '" onclick="markR(this)">' +
+      (d.status === 'dp' ? 'Requested — tap received' : 'Missing — tap received') +
+      '</div></div>'
+    ).join('') +
+    '</div>' +
+
+    '<div class="div"></div>' +
+    '<div class="flag fw"><div class="fi">&#9888;&#65039;</div><div>' +
+    '<h4>If the seller refuses</h4>' +
+    '<p>A seller who refuses a survey, wetland delineation, or disclosure statement is asking you to buy their uncertainty. Price that uncertainty into your offer or walk away. Refusal is not proof of a problem — but it is a negotiating signal.</p>' +
+    '</div></div>';
+}
+
+// ── AGENT PACKET
+function renderAgent(pr, bi) {
+  const el = document.getElementById('view-agent');
+  if (!el) return;
+  const prop     = pr.property;
+  const score    = bi.buildability.score;
+  const label    = bi.buildability.label;
+  const findings = bi.top_findings;
+  const topFlags = findings.slice(0, 3).map(f => f.title).join(' • ');
+  const srcCount = (pr.source_evidence || []).length;
+
+  const intro = el.querySelector('.at2 p');
+  if (intro) {
+    intro.textContent = (prop.address || '—') + ' — ' + findings.length + ' finding' +
+      (findings.length !== 1 ? 's' : '') + ' from ' + srcCount + ' automated sources. Share this summary with your agent before making an offer.';
+  }
+
+  const table = el.querySelector('.cb table');
+  if (table) {
+    table.innerHTML = '<tbody>' +
+      '<tr><td>Property</td><td>' + escHtml(prop.address || '—') + (prop.acreage_gross ? ' — ' + prop.acreage_gross + ' ac' : '') + '</td></tr>' +
+      '<tr><td>Folio</td><td>' + escHtml(prop.folio) + '</td></tr>' +
+      '<tr><td>Owner</td><td>' + escHtml(prop.owner || '—') + '</td></tr>' +
+      '<tr><td>Buyer intent</td><td id="agentIntent">Build one home</td></tr>' +
+      '<tr><td>Plan Fit Score</td><td id="agentScore">' + score + '/100 — ' + label + '</td></tr>' +
+      '<tr><td>Top findings</td><td>' + escHtml(topFlags || 'No significant findings') + '</td></tr>' +
+      '<tr><td>Sources queried</td><td>' + srcCount + ' automated sources</td></tr>' +
+      '</tbody>';
+  }
+}
+
 // ── MAPS
 let mainMap = null, compMap = null, currentTile = null;
 const tiles = {
@@ -1492,21 +2074,15 @@ function sv(n, b) {
   if (n === 'tl')  setTimeout(initCompMap, 80);
 }
 
-// ── INTENT (static / interactive — keep original logic)
-const iData = {
-  "Build one home":{score:54,cls:"caut",label:"Caution",text:"For building one home: wetland confirmation is critical. If the buildable envelope is small, the land economics change dramatically. Utility and septic is a hard requirement. These unknowns explain the caution score."},
-  "Build multiple homes":{score:28,cls:"risk",label:"High Risk",text:"ASC-1 zoning limits to one home per parcel. Rezoning not guaranteed. Wetland and utility issues compounded. This plan does not fit this parcel as currently zoned."},
-  "Recreational use":{score:74,cls:"ok",label:"Manageable",text:"Wetlands can be an asset for hunting or nature use. Utility need is minimal. Main risks are legal access and maintaining natural state."},
-  "Horses / small farm":{score:66,cls:"ok",label:"Manageable",text:"ASC-1 allows agricultural uses. Well manageable. Main risk is confirming dry usable area after wetland delineation."},
-  "Long-term hold":{score:70,cls:"ok",label:"Manageable",text:"Short-term buildability risks matter less. Clean title, no liens, active nearby development, possible future utility expansion make this reasonable if priced right."},
-  "Buy and resell":{score:48,cls:"caut",label:"Caution",text:"You take on the same unknowns the seller carries. Unless you confirm buildability and utilities first, you pass uncertainty to the next buyer at risk of price compression."}
-};
+// ── INTENT (populated dynamically per parcel in updatePlanFit)
+const iData = {};
 
 // ── INTENT
 function si(b,plan,score,cls){
   document.querySelectorAll(".ib").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
   const d=iData[plan];
+  if(!d){toast("Plan scores not yet loaded");return;}
   document.getElementById("iScore").textContent=d.score;
   document.getElementById("iLabel").textContent=d.label;
   document.getElementById("iText").textContent=d.text;
@@ -1592,7 +2168,23 @@ document.getElementById("pModal").addEventListener("click", function(e) {
   if (e.target === this) closeModal();
 });
 
-document.getElementById("mainSearch").addEventListener("keydown",e=>{if(e.key==="Enter")startSearch()});
+const _msi = document.getElementById("mainSearch");
+_msi.addEventListener("input", e => _doSuggest(e.target.value.trim()));
+_msi.addEventListener("keydown", e => {
+  if (e.key === "ArrowDown") { e.preventDefault(); moveSuggestFocus(1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); moveSuggestFocus(-1); }
+  else if (e.key === "Enter") {
+    if (_suggestFocus >= 0 && _suggestResults[_suggestFocus]) {
+      pickSuggest(_suggestFocus);
+    } else {
+      closeSuggestDrop();
+      startSearch();
+    }
+  } else if (e.key === "Escape") { closeSuggestDrop(); }
+});
+document.addEventListener("click", e => {
+  if (!e.target.closest('.suggest-wrap')) closeSuggestDrop();
+});
 </script>
 </body>
 </html>

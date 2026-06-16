@@ -41,10 +41,15 @@ def _build_where(query: str) -> str:
     if not q:
         return "1=0"
 
-    # FOLIO is typically numeric, e.g. "8.0000" or "000008-0000"
+    # FOLIO is typically numeric with a dot, e.g. "8.0000" or "121923.0000"
     if all(c.isdigit() or c in ".-" for c in q):
         folio_clean = q.replace("-", "")
-        return f"FOLIO = '{q}' OR FOLIO = '{folio_clean}'"
+        if "." in q:
+            # Has a decimal — definitely a folio
+            return f"FOLIO = '{q}' OR FOLIO = '{folio_clean}'"
+        # Pure integer (e.g. "4420") — could be a house number; search both
+        safe = q.replace("'", "")
+        return f"FOLIO = '{q}' OR FOLIO = '{folio_clean}' OR UPPER(SITE_ADDR) LIKE '{safe} %'"
 
     # STRAP / PIN: long alphanumeric strings WITHOUT spaces (addresses always have spaces)
     if len(q) >= 15 and any(c.isdigit() for c in q) and " " not in q:
@@ -62,6 +67,7 @@ async def search_parcels(query: str) -> list[ParcelCandidate]:
         "where": _build_where(query),
         "outFields": FIELDS,
         "returnGeometry": "false",
+        "resultRecordCount": "5",
         "f": "json",
     }
 
@@ -195,11 +201,27 @@ async def get_parcel_geometry(folio: str) -> tuple[Optional[dict], Optional[dict
     geometry = features[0].get("geometry")
 
     centroid = None
+    centroid_method = "none"
     if geometry and geometry.get("rings"):
-        ring = geometry["rings"][0]
-        lon = sum(pt[0] for pt in ring) / len(ring)
-        lat = sum(pt[1] for pt in ring) / len(ring)
-        centroid = {"lat": lat, "lon": lon}
+        try:
+            from shapely.geometry import Polygon
+            rings = geometry["rings"]
+            # Use exterior ring (index 0) for representative_point
+            exterior = rings[0]
+            poly = Polygon([(pt[0], pt[1]) for pt in exterior])
+            rp = poly.representative_point()
+            centroid = {"lat": rp.y, "lon": rp.x}
+            centroid_method = "shapely_representative_point"
+        except Exception:
+            # Fallback: bounding box center (better than vertex average)
+            ring = geometry["rings"][0]
+            lons = [pt[0] for pt in ring]
+            lats = [pt[1] for pt in ring]
+            centroid = {
+                "lat": (min(lats) + max(lats)) / 2,
+                "lon": (min(lons) + max(lons)) / 2,
+            }
+            centroid_method = "bbox_center_fallback"
 
     evidence = SourceEvidence(
         source_id="04",
@@ -208,7 +230,7 @@ async def get_parcel_geometry(folio: str) -> tuple[Optional[dict], Optional[dict
         status="verified_api",
         confidence="verified_api",
         url=settings.hcpa_parcel_url,
-        notes="Polygon rings in EPSG:4326. Centroid is approximate (ring vertex average).",
+        notes=f"Polygon rings in EPSG:4326. Interior point method: {centroid_method}.",
     )
 
     return geometry, centroid, evidence

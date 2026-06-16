@@ -41,6 +41,23 @@ class SourceEvidence(BaseModel):
     url: Optional[str] = None
     raw: Optional[dict] = None
     notes: Optional[str] = None
+    public_verify_url: Optional[str] = None
+    query_used: Optional[str] = None
+
+
+class SuggestResult(BaseModel):
+    full_address: str
+    folio: Optional[str] = None
+    strap: Optional[str] = None
+    city: Optional[str] = None
+    zip: Optional[str] = None
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+
+
+class SuggestResponse(BaseModel):
+    query: str
+    results: list[SuggestResult]
 
 
 # ──────────────────────────────────────────────────────────────────────────

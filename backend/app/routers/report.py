@@ -108,12 +108,13 @@ async def get_report(folio: str):
         pass
 
     # ── Steps 3-7: run remaining collectors concurrently
+    # Pass polygon geometry to flood/zoning so intersection uses parcel envelope
     results = await asyncio.gather(
-        flood.get_flood_info(lat, lon),
+        flood.get_flood_info(lat, lon, geometry),
         wetlands.get_wetland_info(lat, lon, geometry),
         evac.get_evac_zone_info(lat, lon),
-        zoning.get_zoning_info(lat, lon),
-        zoning.get_future_land_use(lat, lon),
+        zoning.get_zoning_info(lat, lon, geometry),
+        zoning.get_future_land_use(lat, lon, geometry),
         utilities.get_water_service(lat, lon),
         utilities.get_sewer_service(lat, lon),
         roads.get_road_info(summary.address),

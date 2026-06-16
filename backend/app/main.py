@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.routers import report, search
+from app.routers import narrative, report, search
 
 # frontend/ lives two levels above this file (repo root → frontend/)
 _FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
@@ -32,6 +32,7 @@ app.add_middleware(
 
 app.include_router(search.router)
 app.include_router(report.router)
+app.include_router(narrative.router)
 
 
 @app.get("/", include_in_schema=False)
