@@ -1,18 +1,21 @@
 """
-Claude AI buyer narrative generator.
+AI buyer narrative generator.
 
-Generates a concise, structured buyer briefing from structured report data.
-The AI is strictly constrained to facts in the report — it cannot assert
-anything not present in the data.
+Uses Google Gemini (gemini-1.5-flash) as the primary model.
+Falls back to Anthropic Claude (claude-sonnet-4-6) if ANTHROPIC_API_KEY is set.
+Returns None if neither key is configured.
 
-Model: claude-sonnet-4-6
+Safe wording rules (enforced via prompt):
+  - Never say property is safe or recommended
+  - Never assert facts not in the structured report data
+  - Plain English, first-time buyer level
 """
 from __future__ import annotations
 
 import json
-import os
 from typing import Optional
 
+from app.core.config import settings
 from app.models.schema import BuyerInsightsReport, PropertyReport
 
 
@@ -41,72 +44,88 @@ def _build_prompt(report: PropertyReport, insights: BuyerInsightsReport) -> str:
     if report.road and report.road.found:
         road = f"{report.road.street or 'unnamed'} ({report.road.maintained_by or 'authority unknown'})"
 
-    score_line = f"{insights.buildability.score}/100 ({insights.buildability.label})"
+    score = insights.buildability.score
+    label = insights.buildability.label
 
-    top_findings_text = "\n".join(
-        f"- [{f.risk_level}] {f.title}: {f.finding}" for f in insights.top_findings[:5]
+    findings_text = "\n".join(
+        f"- [{f.risk_level}] {f.title}: {f.buyer_meaning}"
+        for f in insights.top_findings[:5]
     )
 
-    data_block = json.dumps({
-        "folio": prop.folio,
-        "address": prop.address,
-        "acreage_gross": prop.acreage_gross,
-        "use": prop.use,
-        "zoning": f"{report.zoning.nzone} — {report.zoning.nzone_desc}" if report.zoning else "unknown",
-        "future_land_use": f"{report.future_land_use.flue} — {report.future_land_use.flu_desc}" if report.future_land_use else "unknown",
-        "just_value": prop.just_value,
-        "assessed_value": prop.assessed_value,
-        "flood_zone": flood_zone,
-        "wetland": wetland,
-        "water": water,
-        "sewer": sewer,
-        "road": road,
-        "buildability_score": score_line,
-    }, indent=2)
+    just_val = f"{prop.just_value:,.0f}" if prop.just_value else "unknown"
+    assessed_val = f"{prop.assessed_value:,.0f}" if prop.assessed_value else "unknown"
 
-    return f"""You are a property due diligence analyst writing a buyer briefing for a parcel in Hillsborough County, FL.
+    return f"""You are a property due diligence expert writing a plain-English buyer briefing.
 
-STRUCTURED DATA (only assert facts from this block):
-{data_block}
+PROPERTY DATA (only assert facts from this block):
+Address: {prop.address}, Hillsborough County FL
+Owner: {prop.owner or 'unknown'}
+Acreage: {prop.acreage_gross} acres (gross — usable area unconfirmed)
+Use classification: {prop.use or 'unspecified'}
+Zoning: {report.zoning.nzone + ' — ' + report.zoning.nzone_desc if report.zoning else 'unknown'}
+Future land use: {report.future_land_use.flue + ' — ' + (report.future_land_use.flu_desc or '') if report.future_land_use else 'unknown'}
+Just (market) value: ${just_val}
+Assessed value: ${assessed_val}
+Flood zone: {flood_zone}
+Wetland screening: {wetland}
+Water service area: {water}
+Sewer service area: {sewer}
+Road access: {road}
+Buildability Score: {score}/100 — {label}
 
-TOP FINDINGS:
-{top_findings_text}
+TOP FINDINGS FROM AUTOMATED SCREENING:
+{findings_text}
 
-Write a buyer briefing with these three sections:
-1. **Property at a Glance** (2–3 sentences): address, acreage, current use, zoning/FLU
-2. **Key Risks** (3–5 bullet points): only from the findings above, use exact safe wording for wetlands ("professional delineation required"), utilities ("active connection/cost not verified"), flood zones
-3. **Recommended Next Steps** (3–5 bullets): actionable due diligence steps before making an offer
+Write a buyer briefing with EXACTLY these 5 sections:
+1. SUMMARY (2-3 sentences: what kind of property, where, key concern)
+2. TOP RISKS (explain the 3 biggest concerns simply — what it means for a buyer, no jargon)
+3. POSITIVE SIGNALS (what looks good about this property from the data)
+4. WHAT TO DO NEXT (numbered checklist of 4-5 steps before making an offer)
+5. IMPORTANT (one sentence: this is screening only, verify with licensed professionals)
 
-RULES:
-- Only assert facts present in the structured data block above
-- Do not say "no liens exist", "no violations", or "property is buildable"
-- Use passive voice for uncertain items ("No records were found in the tested source")
-- Keep total response under 350 words
-- End with: "This is a screening-level briefing based on public records only. Engage licensed professionals before making a purchase decision."
-"""
+RULES — never violate:
+- Never say the property is safe, recommended, or buildable
+- Never claim facts not in the data block above
+- Never say "no liens exist" — only "no records found in tested source"
+- Plain English only — write for a first-time buyer
+- Be honest about what is unknown
+- Under 400 words total
+- This is a screening-level briefing based on public records only"""
 
 
 async def generate_narrative(
     report: PropertyReport,
     insights: BuyerInsightsReport,
 ) -> Optional[str]:
-    """
-    Call Claude API to generate the buyer briefing.
-    Returns None if ANTHROPIC_API_KEY is not set or call fails.
-    """
-    api_key = os.getenv("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        return None
+    prompt = _build_prompt(report, insights)
 
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
-        prompt = _build_prompt(report, insights)
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=600,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return message.content[0].text.strip()
-    except Exception:
-        return None
+    # Try Gemini first
+    google_key = settings.google_api_key
+    if google_key and google_key != "paste_your_NEW_gemini_key_here":
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=google_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            response = model.generate_content(prompt)
+            text = response.text.strip()
+            if text:
+                return text
+        except Exception as exc:
+            print(f"[Narrative] Gemini error: {exc}")
+
+    # Fallback: Anthropic Claude
+    anthropic_key = settings.anthropic_api_key
+    if anthropic_key:
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=anthropic_key)
+            message = client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=600,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return message.content[0].text.strip()
+        except Exception as exc:
+            print(f"[Narrative] Anthropic error: {exc}")
+
+    return None

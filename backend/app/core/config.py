@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     http_timeout: float = 15.0
     mapbox_token: str = ""
 
+    # ── External service credentials (optional — graceful fallback if missing)
+    supabase_url: str = ""
+    supabase_key: str = ""
+    google_api_key: str = ""
+    anthropic_api_key: str = ""
+
     # ── Source 01 / 04: HCPA Parcel Attributes + Geometry
     hcpa_parcel_url: str = (
         "https://gis.tpcmaps.org/arcgis/rest/services/Parcels/MapServer/2/query"

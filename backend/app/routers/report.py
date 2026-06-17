@@ -33,6 +33,7 @@ from app.collectors import (
     wetlands,
     zoning,
 )
+from app.core.database import cache_report, get_cached_report, log_search
 from app.core.insight_engine import run_insight_engine
 from app.models.schema import (
     BuyerInsightsReport,
@@ -69,6 +70,19 @@ def _load_manual_sources() -> list[SourceEvidence]:
 
 @router.get("/report/{folio}")
 async def get_report(folio: str):
+    from fastapi.responses import JSONResponse
+
+    # ── Cache check (Supabase, 24h TTL)
+    try:
+        cached = await get_cached_report(folio)
+        if cached and cached.get("report_json") and cached["report_json"].get("property_report"):
+            return JSONResponse(
+                content=cached["report_json"],
+                headers={"X-Cache": "HIT"},
+            )
+    except Exception:
+        pass  # Cache miss is fine
+
     # ── Step 1: Parcel attributes + geometry
     summary, attr_evidence = await parcel.get_parcel_attributes(folio)
     if summary is None:
@@ -200,7 +214,27 @@ async def get_report(folio: str):
         top_findings=insights,
     )
 
-    return {
+    full_response = {
         "property_report": report.model_dump(),
         "buyer_insights": buyer_insights.model_dump(),
     }
+
+    # ── Cache to Supabase (fire and forget — never block the response)
+    try:
+        await cache_report(
+            folio=folio,
+            address=summary.address or "",
+            report_json=full_response,
+            narrative="",
+            score=buildability.score,
+        )
+        await log_search(
+            query=folio,
+            folio=folio,
+            address=summary.address or "",
+        )
+    except Exception as exc:
+        print(f"[Cache] Write failed (non-fatal): {exc}")
+
+    from fastapi.responses import JSONResponse
+    return JSONResponse(content=full_response, headers={"X-Cache": "MISS"})
