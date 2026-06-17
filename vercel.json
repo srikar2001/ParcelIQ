@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://RAILWAY_URL_PLACEHOLDER/api/:path*"
+      "destination": "https://parceliq-production-fd20.up.railway.app/api/:path*"
     }
   ]
 }
