@@ -1,0 +1,9 @@
+{
+  "outputDirectory": "frontend",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://RAILWAY_URL_PLACEHOLDER/api/:path*"
+    }
+  ]
+}
