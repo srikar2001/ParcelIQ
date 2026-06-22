@@ -4,1030 +4,559 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ParcelIQ — Screen Vacant Land in Seconds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  :root {
-    --bg: #0a0a0f;
-    --surface: #13131a;
-    --surface2: #1c1c26;
-    --border: #2a2a3a;
-    --accent: #3b82f6;
-    --accent2: #6366f1;
-    --kill: #ef4444;
-    --kill-bg: #1a0808;
-    --review: #f59e0b;
-    --review-bg: #1a1208;
-    --pursue: #22c55e;
-    --pursue-bg: #081a0e;
-    --text: #f1f5f9;
-    --text2: #94a3b8;
-    --text3: #475569;
-  }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
-    min-height: 100vh;
-  }
-
-  /* NAV */
-  nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 32px;
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    z-index: 100;
-  }
-
-  .logo {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text);
-    letter-spacing: -0.5px;
-  }
-
-  .logo span { color: var(--accent); }
-
-  .nav-badge {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text2);
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-  }
-
-  /* HERO */
-  .hero {
-    max-width: 720px;
-    margin: 80px auto 0;
-    padding: 0 24px;
-    text-align: center;
-  }
-
-  .hero h1 {
-    font-size: clamp(32px, 5vw, 52px);
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -1.5px;
-    margin-bottom: 16px;
-  }
-
-  .hero h1 span {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .hero p {
-    font-size: 18px;
-    color: var(--text2);
-    line-height: 1.6;
-    margin-bottom: 48px;
-  }
-
-  /* STATS ROW */
-  .stats {
-    display: flex;
-    justify-content: center;
-    gap: 32px;
-    margin-bottom: 48px;
-    flex-wrap: wrap;
-  }
-
-  .stat {
-    text-align: center;
-  }
-
-  .stat-num {
-    font-size: 28px;
-    font-weight: 800;
-    color: var(--text);
-  }
-
-  .stat-label {
-    font-size: 12px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 2px;
-  }
-
-  /* UPLOAD CARD */
-  .upload-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 32px;
-    max-width: 640px;
-    margin: 0 auto 24px;
-  }
-
-  .state-row {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-    align-items: center;
-  }
-
-  .state-label {
-    font-size: 13px;
-    color: var(--text2);
-    white-space: nowrap;
-  }
-
-  .state-select {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    flex: 1;
-    cursor: pointer;
-  }
-
-  .coverage-bar {
-    font-size: 11px;
-    color: var(--text3);
-    margin-top: 4px;
-  }
-
-  .coverage-fill {
-    display: inline-block;
-    width: 80px;
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    vertical-align: middle;
-    margin: 0 6px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .coverage-fill::after {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    background: var(--accent);
-    border-radius: 2px;
-    width: var(--pct, 50%);
-  }
-
-  /* DROP ZONE */
-  .dropzone {
-    border: 2px dashed var(--border);
-    border-radius: 12px;
-    padding: 40px 24px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-bottom: 20px;
-    position: relative;
-  }
-
-  .dropzone:hover,
-  .dropzone.drag-over {
-    border-color: var(--accent);
-    background: rgba(59, 130, 246, 0.05);
-  }
-
-  .dropzone-icon {
-    font-size: 36px;
-    margin-bottom: 12px;
-  }
-
-  .dropzone h3 {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 6px;
-  }
-
-  .dropzone p {
-    font-size: 13px;
-    color: var(--text3);
-    margin-bottom: 16px;
-  }
-
-  .dropzone input {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-  }
-
-  .btn-browse {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 8px 20px;
-    border-radius: 8px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-browse:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  /* PREVIEW TABLE */
-  .preview-section {
-    display: none;
-    margin-bottom: 20px;
-  }
-
-  .preview-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-
-  .preview-title {
-    font-size: 13px;
-    color: var(--text2);
-  }
-
-  .preview-count {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--pursue);
-  }
-
-  .preview-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    margin-bottom: 12px;
-  }
-
-  .preview-table th {
-    text-align: left;
-    padding: 6px 10px;
-    color: var(--text3);
-    border-bottom: 1px solid var(--border);
-    font-weight: 500;
-  }
-
-  .preview-table td {
-    padding: 6px 10px;
-    color: var(--text2);
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-  }
-
-  /* COLUMN MAPPING */
-  .col-map {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-
-  .col-map-item label {
-    display: block;
-    font-size: 11px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-  }
-
-  .col-map-item select {
-    width: 100%;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 7px 10px;
-    border-radius: 6px;
-    font-size: 13px;
-  }
-
-  /* SCREEN BUTTON */
-  .btn-screen {
-    width: 100%;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    color: white;
-    border: none;
-    padding: 14px;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    letter-spacing: -0.3px;
-  }
-
-  .btn-screen:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-  }
-
-  .btn-screen:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  /* OR DIVIDER */
-  .or-divider {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    max-width: 640px;
-    margin: 0 auto 24px;
-    color: var(--text3);
-    font-size: 13px;
-  }
-
-  .or-divider::before,
-  .or-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  /* SINGLE SEARCH */
-  .single-search {
-    max-width: 640px;
-    margin: 0 auto 80px;
-    display: flex;
-    gap: 10px;
-    position: relative;
-  }
-
-  .single-search input {
-    flex: 1;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 12px 16px;
-    border-radius: 10px;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .single-search input:focus {
-    border-color: var(--accent);
-  }
-
-  .single-search input::placeholder {
-    color: var(--text3);
-  }
-
-  .btn-search {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 12px 20px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-  }
-
-  .btn-search:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  /* SUGGEST DROPDOWN */
-  .suggest-dropdown {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    right: 60px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    z-index: 200;
-    display: none;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-  }
-
-  .suggest-item {
-    padding: 10px 14px;
-    cursor: pointer;
-    transition: background 0.1s;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .suggest-item:last-child { border-bottom: none; }
-
-  .suggest-item:hover {
-    background: var(--surface2);
-  }
-
-  .suggest-addr {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text);
-  }
-
-  .suggest-meta {
-    font-size: 11px;
-    color: var(--text3);
-    margin-top: 2px;
-  }
-
-  /* PROCESSING SCREEN */
-  #screen-processing {
-    display: none;
-    max-width: 640px;
-    margin: 40px auto;
-    padding: 0 24px;
-  }
-
-  .processing-header {
-    text-align: center;
-    margin-bottom: 32px;
-  }
-
-  .processing-header h2 {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 8px;
-  }
-
-  .processing-header p {
-    color: var(--text2);
-    font-size: 14px;
-  }
-
-  .progress-bar-wrap {
-    background: var(--surface2);
-    border-radius: 8px;
-    height: 8px;
-    margin-bottom: 8px;
-    overflow: hidden;
-  }
-
-  .progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    border-radius: 8px;
-    transition: width 0.3s ease;
-    width: 0%;
-  }
-
-  .progress-text {
-    font-size: 13px;
-    color: var(--text2);
-    margin-bottom: 24px;
-    text-align: center;
-  }
-
-  .check-list {
-    margin-bottom: 24px;
-  }
-
-  .check-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 0;
-    font-size: 13px;
-    color: var(--text2);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .check-icon {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    flex-shrink: 0;
-  }
-
-  .check-icon.done {
-    background: var(--pursue-bg);
-    color: var(--pursue);
-    border: 1px solid var(--pursue);
-  }
-
-  .check-icon.running {
-    background: rgba(59,130,246,0.1);
-    color: var(--accent);
-    border: 1px solid var(--accent);
-    animation: pulse 1s infinite;
-  }
-
-  .check-icon.pending {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  /* LIVE RESULTS PREVIEW */
-  .live-results {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-  }
-
-  .live-results-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    font-size: 12px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  /* RESULTS SCREEN */
-  #screen-results {
-    display: none;
-    max-width: 900px;
-    margin: 40px auto;
-    padding: 0 24px 80px;
-  }
-
-  .results-header {
-    margin-bottom: 24px;
-  }
-
-  .results-title {
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-
-  .results-meta {
-    font-size: 13px;
-    color: var(--text3);
-  }
-
-  /* SUMMARY BAR */
-  .summary-bar {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .summary-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    text-align: center;
-  }
-
-  .summary-card.kill { border-color: var(--kill); background: var(--kill-bg); }
-  .summary-card.review { border-color: var(--review); background: var(--review-bg); }
-  .summary-card.pursue { border-color: var(--pursue); background: var(--pursue-bg); }
-
-  .summary-num {
-    font-size: 32px;
-    font-weight: 800;
-    line-height: 1;
-    margin-bottom: 4px;
-  }
-
-  .summary-card.kill .summary-num { color: var(--kill); }
-  .summary-card.review .summary-num { color: var(--review); }
-  .summary-card.pursue .summary-num { color: var(--pursue); }
-
-  .summary-label {
-    font-size: 11px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  /* TIME SAVED */
-  .time-saved {
-    background: rgba(34, 197, 94, 0.05);
-    border: 1px solid rgba(34, 197, 94, 0.2);
-    border-radius: 10px;
-    padding: 14px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-
-  .time-saved-left {
-    font-size: 13px;
-    color: var(--text2);
-  }
-
-  .time-saved-num {
-    font-size: 28px;
-    font-weight: 800;
-    color: var(--pursue);
-  }
-
-  .time-saved-right {
-    text-align: right;
-    font-size: 12px;
-    color: var(--text3);
-  }
-
-  /* FILTER + ACTIONS BAR */
-  .filter-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .filter-tabs {
-    display: flex;
-    gap: 6px;
-  }
-
-  .filter-tab {
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text2);
-    transition: all 0.15s;
-  }
-
-  .filter-tab.active,
-  .filter-tab:hover { border-color: var(--accent); color: var(--accent); }
-  .filter-tab.kill.active { border-color: var(--kill); color: var(--kill); }
-  .filter-tab.review.active { border-color: var(--review); color: var(--review); }
-  .filter-tab.pursue.active { border-color: var(--pursue); color: var(--pursue); }
-
-  .btn-download {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text2);
-    padding: 6px 14px;
-    border-radius: 8px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .btn-download:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  /* RESULTS LIST */
-  .results-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .result-row {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 12px;
-    align-items: center;
-  }
-
-  .result-row:hover {
-    border-color: var(--accent);
-    transform: translateX(2px);
-  }
-
-  .result-row.kill { border-left: 3px solid var(--kill); }
-  .result-row.review { border-left: 3px solid var(--review); }
-  .result-row.pursue { border-left: 3px solid var(--pursue); }
-
-  .result-address {
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-
-  .result-flags {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-bottom: 4px;
-  }
-
-  .flag-tag {
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .flag-tag.red { background: rgba(239,68,68,0.15); color: var(--kill); }
-  .flag-tag.yellow { background: rgba(245,158,11,0.15); color: var(--review); }
-  .flag-tag.green { background: rgba(34,197,94,0.15); color: var(--pursue); }
-  .flag-tag.gray { background: rgba(148,163,184,0.1); color: var(--text3); }
-
-  .result-folio {
-    font-size: 11px;
-    color: var(--text3);
-    font-family: monospace;
-  }
-
-  .result-right {
-    text-align: right;
-    flex-shrink: 0;
-  }
-
-  .score-badge {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 15px;
-    font-weight: 800;
-    margin: 0 auto 6px;
-  }
-
-  .score-badge.kill { background: var(--kill-bg); color: var(--kill); border: 2px solid var(--kill); }
-  .score-badge.review { background: var(--review-bg); color: var(--review); border: 2px solid var(--review); }
-  .score-badge.pursue { background: var(--pursue-bg); color: var(--pursue); border: 2px solid var(--pursue); }
-
-  .verdict-label {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  .verdict-label.kill { color: var(--kill); }
-  .verdict-label.review { color: var(--review); }
-  .verdict-label.pursue { color: var(--pursue); }
-
-  /* DETAIL MODAL */
-  #modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.8);
-    z-index: 500;
-    padding: 20px;
-    overflow-y: auto;
-  }
-
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    max-width: 600px;
-    margin: 40px auto;
-    overflow: hidden;
-  }
-
-  .modal-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-  }
-
-  .modal-address {
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-
-  .modal-meta {
-    font-size: 12px;
-    color: var(--text3);
-  }
-
-  .modal-close {
-    background: none;
-    border: none;
-    color: var(--text3);
-    font-size: 20px;
-    cursor: pointer;
-    padding: 4px;
-  }
-
-  .modal-body {
-    padding: 24px;
-  }
-
-  .modal-score-row {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-
-  .modal-score-circle {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .modal-score-circle.kill { background: var(--kill-bg); border: 2px solid var(--kill); }
-  .modal-score-circle.review { background: var(--review-bg); border: 2px solid var(--review); }
-  .modal-score-circle.pursue { background: var(--pursue-bg); border: 2px solid var(--pursue); }
-
-  .modal-score-num {
-    font-size: 24px;
-    font-weight: 800;
-  }
-
-  .modal-score-circle.kill .modal-score-num { color: var(--kill); }
-  .modal-score-circle.review .modal-score-num { color: var(--review); }
-  .modal-score-circle.pursue .modal-score-num { color: var(--pursue); }
-
-  .modal-score-label {
-    font-size: 10px;
-    color: var(--text3);
-    text-transform: uppercase;
-  }
-
-  .modal-verdict-text h3 {
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-
-  .modal-verdict-text p {
-    font-size: 13px;
-    color: var(--text2);
-  }
-
-  .modal-section {
-    margin-bottom: 20px;
-  }
-
-  .modal-section-title {
-    font-size: 11px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .flag-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 0;
-    font-size: 13px;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-  }
-
-  .flag-icon {
-    font-size: 16px;
-    width: 20px;
-    text-align: center;
-  }
-
-  .flag-text { flex: 1; }
-  .flag-source { font-size: 11px; color: var(--text3); }
-
-  .score-row-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
-    font-size: 12px;
-    color: var(--text2);
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-  }
-
-  .score-row-item .pos { color: var(--pursue); font-weight: 600; }
-  .score-row-item .neg { color: var(--kill); font-weight: 600; }
-  .score-row-item .final { color: var(--text); font-weight: 700; font-size: 14px; }
-
-  /* WAITLIST */
-  .waitlist-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 32px;
-    max-width: 640px;
-    margin: 0 auto 80px;
-    text-align: center;
-  }
-
-  .waitlist-section h2 {
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 8px;
-  }
-
-  .waitlist-section p {
-    color: var(--text2);
-    font-size: 14px;
-    margin-bottom: 20px;
-  }
-
-  .waitlist-form {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-
-  .waitlist-form input {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 14px;
-    outline: none;
-  }
-
-  .waitlist-form input:focus { border-color: var(--accent); }
-
-  .btn-waitlist {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .state-pills {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .state-pill {
-    padding: 5px 14px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    font-size: 12px;
-    color: var(--text2);
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .state-pill.selected,
-  .state-pill:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(59,130,246,0.08);
-  }
-
-  /* FOOTER */
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 24px 32px;
-    text-align: center;
-    font-size: 12px;
-    color: var(--text3);
-  }
-
-  /* RESPONSIVE */
-  @media (max-width: 600px) {
-    nav { padding: 14px 16px; }
-    .hero { margin-top: 40px; }
-    .summary-bar { grid-template-columns: repeat(2, 1fr); }
-    .col-map { grid-template-columns: 1fr; }
-    .waitlist-form { flex-direction: column; }
-    .filter-bar { flex-direction: column; align-items: flex-start; }
-  }
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080810;
+  --surface:#0f0f1a;
+  --surface2:#161625;
+  --surface3:#1e1e30;
+  --border:#ffffff0f;
+  --border2:#ffffff18;
+  --accent:#3b82f6;
+  --accent2:#6366f1;
+  --kill:#ef4444;
+  --kill-bg:#ef444411;
+  --review:#f59e0b;
+  --review-bg:#f59e0b11;
+  --pursue:#22c55e;
+  --pursue-bg:#22c55e11;
+  --text:#f8fafc;
+  --text2:#94a3b8;
+  --text3:#475569;
+  --text4:#1e293b;
+}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* NAV */
+nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 48px;height:60px;
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:rgba(8,8,16,0.9);
+  backdrop-filter:blur(20px);z-index:100;
+}
+.logo{font-size:18px;font-weight:800;letter-spacing:-0.5px}
+.logo span{color:var(--accent)}
+.nav-right{display:flex;align-items:center;gap:12px}
+.nav-badge{
+  background:var(--surface2);border:1px solid var(--border2);
+  color:var(--text2);padding:4px 12px;border-radius:20px;font-size:11px;
+  font-weight:500;letter-spacing:0.3px;
+}
+.nav-btn{
+  background:var(--accent);color:white;border:none;
+  padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;
+  cursor:pointer;transition:opacity 0.2s;
+}
+.nav-btn:hover{opacity:0.85}
+
+/* HERO */
+.hero{
+  max-width:1100px;margin:0 auto;padding:80px 48px 60px;
+  display:grid;grid-template-columns:1fr 480px;gap:80px;align-items:center;
+}
+.hero-left h1{
+  font-size:52px;font-weight:900;line-height:1.05;
+  letter-spacing:-2px;margin-bottom:20px;
+}
+.hero-left h1 .grad{
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hero-left p{
+  font-size:17px;color:var(--text2);line-height:1.7;margin-bottom:32px;
+}
+.hero-stats{display:flex;gap:32px;margin-bottom:36px}
+.hstat-num{font-size:26px;font-weight:800;color:var(--text)}
+.hstat-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.hero-proof{
+  display:flex;align-items:center;gap:10px;
+  font-size:13px;color:var(--text3);
+}
+.proof-dots{display:flex;gap:4px}
+.proof-dot{
+  width:24px;height:24px;border-radius:50%;
+  background:var(--surface3);border:2px solid var(--bg);
+  display:flex;align-items:center;justify-content:center;font-size:10px;
+}
+
+/* UPLOAD CARD */
+.upload-card{
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:20px;padding:28px;
+  box-shadow:0 40px 80px rgba(0,0,0,0.4);
+}
+.card-title{
+  font-size:13px;font-weight:600;color:var(--text2);
+  text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;
+}
+
+/* STATE SELECT */
+.state-row{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;
+}
+.state-btn{
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text2);padding:8px;border-radius:8px;
+  font-size:12px;font-weight:600;cursor:pointer;
+  transition:all 0.15s;text-align:center;
+}
+.state-btn:hover,.state-btn.active{
+  border-color:var(--accent);color:var(--accent);
+  background:rgba(59,130,246,0.08);
+}
+.state-btn.active{font-weight:700}
+
+/* COVERAGE */
+.coverage{
+  background:var(--surface2);border-radius:8px;padding:10px 12px;
+  margin-bottom:16px;display:flex;align-items:center;gap:10px;
+}
+.cov-bar{flex:1;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden}
+.cov-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width 0.4s}
+.cov-label{font-size:11px;color:var(--text2);white-space:nowrap}
+.cov-sources{font-size:11px;color:var(--text3);white-space:nowrap}
+
+/* DROPZONE */
+.dropzone{
+  border:1.5px dashed var(--border2);border-radius:12px;
+  padding:28px 16px;text-align:center;cursor:pointer;
+  transition:all 0.2s;margin-bottom:14px;position:relative;
+  background:var(--surface2);
+}
+.dropzone:hover,.dropzone.drag-over{
+  border-color:var(--accent);background:rgba(59,130,246,0.06);
+}
+.dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-icon{font-size:28px;margin-bottom:8px}
+.dz-title{font-size:14px;font-weight:600;margin-bottom:4px}
+.dz-sub{font-size:12px;color:var(--text3);margin-bottom:12px}
+.btn-browse{
+  background:var(--surface3);border:1px solid var(--border2);
+  color:var(--text2);padding:6px 16px;border-radius:6px;
+  font-size:12px;cursor:pointer;transition:all 0.15s;
+}
+.btn-browse:hover{border-color:var(--accent);color:var(--accent)}
+
+/* PREVIEW */
+.preview-box{display:none;margin-bottom:14px}
+.preview-top{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:8px;font-size:12px;
+}
+.preview-detected{color:var(--text2)}
+.preview-count{color:var(--pursue);font-weight:700}
+.preview-tbl{
+  width:100%;border-collapse:collapse;font-size:11px;
+  background:var(--surface2);border-radius:8px;overflow:hidden;
+  margin-bottom:10px;
+}
+.preview-tbl th{
+  padding:6px 10px;color:var(--text3);font-weight:500;
+  border-bottom:1px solid var(--border);text-align:left;
+}
+.preview-tbl td{
+  padding:5px 10px;color:var(--text2);
+  border-bottom:1px solid rgba(255,255,255,0.02);
+}
+.col-map{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.col-map label{display:block;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.col-map select{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);padding:6px 8px;border-radius:6px;font-size:12px;
+}
+
+/* OR DIVIDER */
+.or-div{
+  display:flex;align-items:center;gap:10px;
+  font-size:11px;color:var(--text3);margin-bottom:14px;
+}
+.or-div::before,.or-div::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* SINGLE SEARCH */
+.single-row{display:flex;gap:8px;position:relative}
+.single-input{
+  flex:1;background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);padding:10px 12px;border-radius:8px;
+  font-size:13px;outline:none;transition:border-color 0.2s;
+}
+.single-input:focus{border-color:var(--accent)}
+.single-input::placeholder{color:var(--text3)}
+.btn-single{
+  background:var(--surface3);border:1px solid var(--border2);
+  color:var(--text2);padding:10px 14px;border-radius:8px;
+  font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;
+  white-space:nowrap;
+}
+.btn-single:hover{border-color:var(--accent);color:var(--accent)}
+
+/* SUGGEST */
+.suggest-dd{
+  position:absolute;top:calc(100% + 6px);left:0;right:60px;
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:10px;overflow:hidden;z-index:200;display:none;
+  box-shadow:0 24px 48px rgba(0,0,0,0.5);
+}
+.suggest-item{
+  padding:10px 14px;cursor:pointer;transition:background 0.1s;
+  border-bottom:1px solid var(--border);
+}
+.suggest-item:last-child{border-bottom:none}
+.suggest-item:hover{background:var(--surface2)}
+.sug-addr{font-size:13px;font-weight:500}
+.sug-meta{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* SCREEN BUTTON */
+.btn-screen{
+  width:100%;margin-top:14px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:white;border:none;padding:13px;border-radius:10px;
+  font-size:15px;font-weight:700;cursor:pointer;
+  transition:all 0.2s;letter-spacing:-0.3px;
+}
+.btn-screen:hover{opacity:0.9;transform:translateY(-1px)}
+.btn-screen:disabled{opacity:0.35;cursor:not-allowed;transform:none}
+
+/* SOCIAL PROOF STRIP */
+.proof-strip{
+  background:var(--surface);border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  padding:20px 48px;display:flex;align-items:center;
+  justify-content:center;gap:48px;flex-wrap:wrap;
+}
+.proof-item{
+  display:flex;align-items:center;gap:10px;
+  font-size:13px;color:var(--text2);
+}
+.proof-icon{font-size:20px}
+
+/* HOW IT WORKS */
+.how{max-width:1100px;margin:80px auto;padding:0 48px}
+.section-label{
+  font-size:11px;color:var(--accent);text-transform:uppercase;
+  letter-spacing:2px;font-weight:600;margin-bottom:12px;
+}
+.section-title{
+  font-size:36px;font-weight:800;letter-spacing:-1px;margin-bottom:48px;
+}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.step{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:28px;
+}
+.step-num{
+  width:36px;height:36px;border-radius:10px;
+  background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);
+  color:var(--accent);font-size:14px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;margin-bottom:16px;
+}
+.step h3{font-size:16px;font-weight:700;margin-bottom:8px}
+.step p{font-size:13px;color:var(--text2);line-height:1.6}
+
+/* MOCK RESULTS PREVIEW */
+.preview-results{max-width:1100px;margin:0 auto 80px;padding:0 48px}
+.mock-batch{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:20px;overflow:hidden;
+}
+.mock-header{
+  padding:20px 24px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.mock-title{font-size:15px;font-weight:700}
+.mock-meta{font-size:12px;color:var(--text3)}
+.mock-stats{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  border-bottom:1px solid var(--border);
+}
+.mock-stat{
+  padding:16px 24px;border-right:1px solid var(--border);text-align:center;
+}
+.mock-stat:last-child{border-right:none}
+.mock-stat-num{font-size:28px;font-weight:800;line-height:1}
+.mock-stat-num.kill{color:var(--kill)}
+.mock-stat-num.review{color:var(--review)}
+.mock-stat-num.pursue{color:var(--pursue)}
+.mock-stat-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+.mock-time{
+  background:rgba(34,197,94,0.05);border-bottom:1px solid var(--border);
+  padding:14px 24px;display:flex;justify-content:space-between;align-items:center;
+}
+.mock-time-num{font-size:24px;font-weight:800;color:var(--pursue)}
+.mock-time-label{font-size:12px;color:var(--text2)}
+.mock-time-right{font-size:12px;color:var(--text3);text-align:right}
+.mock-rows{padding:8px 0}
+.mock-row{
+  display:grid;grid-template-columns:1fr auto;
+  padding:12px 24px;border-bottom:1px solid rgba(255,255,255,0.03);
+  align-items:center;gap:16px;
+}
+.mock-row:last-child{border-bottom:none}
+.mock-row-left{}
+.mock-row-addr{font-size:14px;font-weight:600;margin-bottom:4px}
+.mock-row-flags{display:flex;gap:6px;flex-wrap:wrap}
+.ftag{
+  font-size:10px;padding:2px 8px;border-radius:4px;
+  font-weight:600;text-transform:uppercase;letter-spacing:0.5px;
+}
+.ftag.r{background:rgba(239,68,68,0.12);color:var(--kill)}
+.ftag.y{background:rgba(245,158,11,0.12);color:var(--review)}
+.ftag.g{background:rgba(34,197,94,0.12);color:var(--pursue)}
+.ftag.gr{background:rgba(148,163,184,0.08);color:var(--text3)}
+.mock-row-right{display:flex;align-items:center;gap:12px}
+.mock-score{
+  width:40px;height:40px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;flex-shrink:0;
+}
+.mock-score.kill{background:var(--kill-bg);color:var(--kill);border:1.5px solid var(--kill)}
+.mock-score.review{background:var(--review-bg);color:var(--review);border:1.5px solid var(--review)}
+.mock-score.pursue{background:var(--pursue-bg);color:var(--pursue);border:1.5px solid var(--pursue)}
+.mock-verdict{
+  font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:1px;min-width:52px;text-align:right;
+}
+.mock-verdict.kill{color:var(--kill)}
+.mock-verdict.review{color:var(--review)}
+.mock-verdict.pursue{color:var(--pursue)}
+
+/* WAITLIST */
+.waitlist{
+  max-width:600px;margin:0 auto 80px;padding:0 48px;text-align:center;
+}
+.waitlist-card{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:20px;padding:40px;
+}
+.waitlist-card h2{font-size:28px;font-weight:800;letter-spacing:-0.5px;margin-bottom:8px}
+.waitlist-card p{font-size:15px;color:var(--text2);margin-bottom:24px;line-height:1.6}
+.wl-form{display:flex;gap:10px;margin-bottom:20px}
+.wl-input{
+  flex:1;background:var(--surface2);border:1px solid var(--border2);
+  color:var(--text);padding:11px 14px;border-radius:10px;font-size:14px;outline:none;
+}
+.wl-input:focus{border-color:var(--accent)}
+.wl-input::placeholder{color:var(--text3)}
+.btn-wl{
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:white;border:none;padding:11px 20px;border-radius:10px;
+  font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+.wl-pills{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+.wl-pill{
+  padding:5px 14px;border-radius:20px;border:1px solid var(--border);
+  font-size:12px;color:var(--text2);cursor:pointer;transition:all 0.15s;
+}
+.wl-pill.on,.wl-pill:hover{
+  border-color:var(--accent);color:var(--accent);
+  background:rgba(59,130,246,0.08);
+}
+.wl-note{font-size:11px;color:var(--text3)}
+
+/* FOOTER */
+footer{
+  border-top:1px solid var(--border);padding:28px 48px;
+  display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:12px;font-size:12px;color:var(--text3);
+}
+
+/* ── SCREENS ── */
+#screen-processing,#screen-results{display:none}
+
+/* PROCESSING */
+.proc-wrap{max-width:700px;margin:60px auto;padding:0 48px}
+.proc-head{text-align:center;margin-bottom:36px}
+.proc-head h2{font-size:28px;font-weight:800;letter-spacing:-0.5px;margin-bottom:8px}
+.proc-head p{color:var(--text2);font-size:14px}
+.prog-wrap{background:var(--surface2);border-radius:8px;height:6px;margin-bottom:8px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:8px;transition:width 0.3s;width:0%}
+.prog-text{font-size:13px;color:var(--text2);text-align:center;margin-bottom:28px}
+.check-list{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;margin-bottom:20px;
+}
+.check-item{
+  display:flex;align-items:center;gap:12px;padding:12px 16px;
+  font-size:13px;border-bottom:1px solid var(--border);
+}
+.check-item:last-child{border-bottom:none}
+.ci{
+  width:20px;height:20px;border-radius:50%;display:flex;
+  align-items:center;justify-content:center;font-size:10px;flex-shrink:0;
+}
+.ci.done{background:var(--pursue-bg);color:var(--pursue);border:1px solid var(--pursue)}
+.ci.run{background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid var(--accent);animation:spin 2s linear infinite}
+.ci.wait{background:var(--surface2);border:1px solid var(--border);color:var(--text3)}
+@keyframes spin{0%,100%{opacity:1}50%{opacity:0.3}}
+.live-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.live-box-hdr{padding:10px 16px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
+
+/* RESULTS */
+.res-wrap{max-width:1000px;margin:40px auto;padding:0 48px 80px}
+.res-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.res-title{font-size:24px;font-weight:800;letter-spacing:-0.5px}
+.res-meta{font-size:13px;color:var(--text3);margin-top:4px}
+.sum-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.sum-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:18px;text-align:center;
+}
+.sum-card.k{border-color:rgba(239,68,68,0.3);background:var(--kill-bg)}
+.sum-card.rv{border-color:rgba(245,158,11,0.3);background:var(--review-bg)}
+.sum-card.p{border-color:rgba(34,197,94,0.3);background:var(--pursue-bg)}
+.sum-n{font-size:36px;font-weight:900;line-height:1}
+.sum-card.k .sum-n{color:var(--kill)}
+.sum-card.rv .sum-n{color:var(--review)}
+.sum-card.p .sum-n{color:var(--pursue)}
+.sum-l{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+.time-bar{
+  background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.15);
+  border-radius:12px;padding:16px 20px;
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;
+}
+.tb-left{display:flex;flex-direction:column;gap:2px}
+.tb-label{font-size:12px;color:var(--text2)}
+.tb-num{font-size:30px;font-weight:900;color:var(--pursue);line-height:1}
+.tb-sub{font-size:11px;color:var(--text3)}
+.tb-right{text-align:right}
+.tb-time{font-size:22px;font-weight:800;color:var(--text)}
+.filter-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.filter-tabs{display:flex;gap:6px}
+.ftab{
+  padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;
+  cursor:pointer;border:1px solid var(--border);background:var(--surface);
+  color:var(--text2);transition:all 0.15s;
+}
+.ftab.on{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,0.08)}
+.ftab.k.on{border-color:var(--kill);color:var(--kill);background:var(--kill-bg)}
+.ftab.rv.on{border-color:var(--review);color:var(--review);background:var(--review-bg)}
+.ftab.p.on{border-color:var(--pursue);color:var(--pursue);background:var(--pursue-bg)}
+.action-btns{display:flex;gap:8px}
+.btn-action{
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--text2);padding:6px 14px;border-radius:8px;
+  font-size:12px;cursor:pointer;transition:all 0.15s;
+}
+.btn-action:hover{border-color:var(--accent);color:var(--accent)}
+.res-list{display:flex;flex-direction:column;gap:8px}
+.res-row{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:14px 18px;cursor:pointer;
+  transition:all 0.15s;display:grid;
+  grid-template-columns:1fr auto;gap:16px;align-items:center;
+}
+.res-row:hover{border-color:var(--border2);transform:translateX(3px);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+.res-row.k{border-left:3px solid var(--kill)}
+.res-row.rv{border-left:3px solid var(--review)}
+.res-row.p{border-left:3px solid var(--pursue)}
+.rr-addr{font-size:15px;font-weight:600;margin-bottom:5px}
+.rr-flags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px}
+.rr-folio{font-size:11px;color:var(--text3);font-family:monospace}
+.rr-right{text-align:center;flex-shrink:0}
+.score-circle{
+  width:46px;height:46px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:800;margin:0 auto 5px;
+}
+.score-circle.k{background:var(--kill-bg);color:var(--kill);border:2px solid var(--kill)}
+.score-circle.rv{background:var(--review-bg);color:var(--review);border:2px solid var(--review)}
+.score-circle.p{background:var(--pursue-bg);color:var(--pursue);border:2px solid var(--pursue)}
+.verdict-txt{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.verdict-txt.k{color:var(--kill)}
+.verdict-txt.rv{color:var(--review)}
+.verdict-txt.p{color:var(--pursue)}
+
+/* MODAL */
+#modal-bg{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,0.85);z-index:500;
+  padding:20px;overflow-y:auto;backdrop-filter:blur(4px);
+}
+.modal{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:20px;max-width:560px;margin:40px auto;overflow:hidden;
+}
+.modal-hdr{
+  padding:20px 24px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:flex-start;
+}
+.m-addr{font-size:17px;font-weight:700;margin-bottom:4px}
+.m-meta{font-size:12px;color:var(--text3)}
+.m-close{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px}
+.modal-body{padding:24px}
+.m-score-row{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+.m-circle{
+  width:72px;height:72px;border-radius:50%;flex-shrink:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.m-circle.k{background:var(--kill-bg);border:2px solid var(--kill)}
+.m-circle.rv{background:var(--review-bg);border:2px solid var(--review)}
+.m-circle.p{background:var(--pursue-bg);border:2px solid var(--pursue)}
+.m-score-n{font-size:26px;font-weight:900;line-height:1}
+.m-circle.k .m-score-n{color:var(--kill)}
+.m-circle.rv .m-score-n{color:var(--review)}
+.m-circle.p .m-score-n{color:var(--pursue)}
+.m-score-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
+.m-verdict h3{font-size:20px;font-weight:800;margin-bottom:4px}
+.m-verdict p{font-size:13px;color:var(--text2);line-height:1.5}
+.m-section{margin-bottom:20px}
+.m-sec-title{
+  font-size:10px;color:var(--text3);text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:10px;padding-bottom:6px;
+  border-bottom:1px solid var(--border);
+}
+.m-flag-row{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 0;font-size:13px;
+  border-bottom:1px solid rgba(255,255,255,0.02);
+}
+.m-flag-icon{width:20px;text-align:center;font-size:14px;flex-shrink:0}
+.m-flag-txt{flex:1;color:var(--text2)}
+.m-flag-src{font-size:10px;color:var(--text3)}
+.m-breakdown-row{
+  display:flex;justify-content:space-between;
+  padding:5px 0;font-size:12px;color:var(--text2);
+  border-bottom:1px solid rgba(255,255,255,0.02);
+}
+.pos{color:var(--pursue);font-weight:600}
+.neg{color:var(--kill);font-weight:600}
+.fin{color:var(--text);font-weight:800;font-size:14px}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .hero{grid-template-columns:1fr;gap:40px;padding:48px 24px}
+  .hero-left h1{font-size:38px}
+  .steps{grid-template-columns:1fr}
+  .mock-stats{grid-template-columns:repeat(2,1fr)}
+  nav{padding:0 20px}
+  .proof-strip{padding:16px 24px;gap:24px}
+  .how,.preview-results{padding:0 24px}
+  .waitlist{padding:0 24px}
+  .res-wrap,.proc-wrap{padding:0 20px 60px}
+  .sum-grid{grid-template-columns:repeat(2,1fr)}
+  footer{padding:20px 24px;flex-direction:column;text-align:center}
+}
+@media(max-width:600px){
+  .hero-stats{gap:20px}
+  .col-map{grid-template-columns:1fr}
+  .wl-form{flex-direction:column}
+  .filter-row{flex-direction:column;align-items:flex-start}
+}
 </style>
 </head>
 <body>
@@ -1035,862 +564,771 @@
 <!-- NAV -->
 <nav>
   <div class="logo">Parcel<span>IQ</span></div>
-  <div class="nav-badge">Beta — FL + Core US Coverage</div>
+  <div class="nav-right">
+    <div class="nav-badge">Beta · FL + Core US</div>
+    <button class="nav-btn" onclick="document.getElementById('waitlist-section').scrollIntoView({behavior:'smooth'})">
+      Get access
+    </button>
+  </div>
 </nav>
 
 <!-- SCREEN: UPLOAD -->
 <div id="screen-upload">
+
+  <!-- HERO -->
   <div class="hero">
-    <h1>Screen vacant land.<br><span>Kill the bad lots fast.</span></h1>
-    <p>Upload your lead list. Get Kill / Review / Pursue verdicts in minutes.<br>
-    Flood zones, wetlands, road access — checked against live government sources.</p>
-
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-num">13</div>
-        <div class="stat-label">Live sources</div>
+    <div class="hero-left">
+      <h1>Screen 100 lots.<br><span class="grad">Kill the bad ones</span><br>in 4 minutes.</h1>
+      <p>Upload your lead list — PropStream export, tax list, or any CSV. 
+      Get Kill / Review / Pursue verdicts from 13 live government sources 
+      before you waste a site visit or an offer.</p>
+      <div class="hero-stats">
+        <div>
+          <div class="hstat-num">13</div>
+          <div class="hstat-label">Live sources</div>
+        </div>
+        <div>
+          <div class="hstat-num">&lt;5min</div>
+          <div class="hstat-label">Per 100 lots</div>
+        </div>
+        <div>
+          <div class="hstat-num">~41hrs</div>
+          <div class="hstat-label">Saved per batch</div>
+        </div>
       </div>
-      <div class="stat">
-        <div class="stat-num">&lt;5min</div>
-        <div class="stat-label">Per 100 lots</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">~30hrs</div>
-        <div class="stat-label">Saved per batch</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">$0</div>
-        <div class="stat-label">Per screen now</div>
+      <div class="hero-proof">
+        <div class="proof-dots">
+          <div class="proof-dot">🌴</div>
+          <div class="proof-dot">🏜</div>
+          <div class="proof-dot">🌲</div>
+        </div>
+        <span>Land flippers in FL, TX, GA, TN, AZ already testing this</span>
       </div>
     </div>
-  </div>
 
-  <!-- UPLOAD CARD -->
-  <div class="upload-card">
-    <!-- STATE SELECT -->
-    <div class="state-row">
-      <span class="state-label">State:</span>
-      <select class="state-select" id="state-select" onchange="updateCoverage()">
-        <option value="FL">Florida</option>
-        <option value="TX">Texas</option>
-        <option value="GA">Georgia</option>
-        <option value="TN">Tennessee</option>
-        <option value="AZ">Arizona</option>
-        <option value="NC">North Carolina</option>
-        <option value="SC">South Carolina</option>
-        <option value="AL">Alabama</option>
-        <option value="MS">Mississippi</option>
-        <option value="OTHER">Other state</option>
-      </select>
-    </div>
+    <!-- UPLOAD CARD -->
+    <div class="upload-card">
+      <div class="card-title">Batch Screener</div>
 
-    <div id="coverage-info" class="coverage-bar" style="margin-bottom:16px">
-      <span id="coverage-text">Florida: Full coverage</span>
-      <span class="coverage-fill" style="--pct:100%"></span>
-      <span id="coverage-sources">13 sources</span>
-    </div>
+      <!-- STATE PILLS -->
+      <div style="margin-bottom:6px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Select your state</div>
+      <div class="state-row" id="state-pills">
+        <div class="state-btn active" onclick="setStateBtn(this,'FL')">🌴 Florida</div>
+        <div class="state-btn" onclick="setStateBtn(this,'TX')">⭐ Texas</div>
+        <div class="state-btn" onclick="setStateBtn(this,'GA')">🍑 Georgia</div>
+        <div class="state-btn" onclick="setStateBtn(this,'TN')">🎸 Tennessee</div>
+        <div class="state-btn" onclick="setStateBtn(this,'AZ')">🌵 Arizona</div>
+        <div class="state-btn" onclick="setStateBtn(this,'OTHER')">📍 Other</div>
+      </div>
 
-    <!-- DROP ZONE -->
-    <div class="dropzone" id="dropzone"
-      ondragover="handleDragOver(event)"
-      ondragleave="handleDragLeave(event)"
-      ondrop="handleDrop(event)">
-      <input type="file" id="file-input" accept=".csv,.xlsx,.xls"
-        onchange="handleFile(this.files[0])">
-      <div class="dropzone-icon">📋</div>
-      <h3>Drop your CSV or Excel file here</h3>
-      <p>PropStream export, tax list, or any address list works</p>
-      <button class="btn-browse" onclick="document.getElementById('file-input').click()">
-        Browse files
+      <!-- COVERAGE BAR -->
+      <div class="coverage">
+        <div class="cov-label" id="cov-label">Florida: Full coverage</div>
+        <div class="cov-bar"><div class="cov-fill" id="cov-fill" style="width:100%"></div></div>
+        <div class="cov-sources" id="cov-sources">13 sources</div>
+      </div>
+
+      <!-- DROPZONE -->
+      <div class="dropzone" id="dropzone"
+        ondragover="handleDragOver(event)"
+        ondragleave="handleDragLeave(event)"
+        ondrop="handleDrop(event)">
+        <input type="file" id="file-input" accept=".csv,.xlsx,.xls"
+          onchange="handleFile(this.files[0])">
+        <div class="dz-icon">📋</div>
+        <div class="dz-title">Drop CSV or Excel here</div>
+        <div class="dz-sub">PropStream, tax list, any address list works</div>
+        <button class="btn-browse" onclick="event.stopPropagation();document.getElementById('file-input').click()">
+          Browse files
+        </button>
+      </div>
+
+      <!-- PREVIEW -->
+      <div class="preview-box" id="preview-box">
+        <div class="preview-top">
+          <span class="preview-detected" id="preview-detected">File loaded</span>
+          <span class="preview-count" id="preview-count"></span>
+        </div>
+        <table class="preview-tbl" id="preview-tbl"></table>
+        <div class="col-map" id="col-map"></div>
+      </div>
+
+      <!-- OR -->
+      <div class="or-div">or search single parcel</div>
+
+      <!-- SINGLE SEARCH -->
+      <div class="single-row">
+        <input type="text" class="single-input" id="single-input"
+          placeholder="Address, APN, or folio..."
+          oninput="handleSingleInput()"
+          onkeydown="if(event.key==='Enter')searchSingle()">
+        <div class="suggest-dd" id="suggest-dd"></div>
+        <button class="btn-single" onclick="searchSingle()">→</button>
+      </div>
+
+      <button class="btn-screen" id="btn-screen" disabled
+        onclick="startScreening()">
+        Upload a file to begin
       </button>
     </div>
-
-    <!-- PREVIEW (shown after file load) -->
-    <div class="preview-section" id="preview-section">
-      <div class="preview-header">
-        <span class="preview-title">File preview</span>
-        <span class="preview-count" id="preview-count"></span>
-      </div>
-      <table class="preview-table" id="preview-table"></table>
-
-      <div class="col-map" id="col-map"></div>
-    </div>
-
-    <button class="btn-screen" id="btn-screen" disabled
-      onclick="startScreening()">
-      Upload a file to begin screening
-    </button>
   </div>
 
-  <!-- OR / SINGLE SEARCH -->
-  <div class="or-divider">or search a single parcel</div>
+  <!-- PROOF STRIP -->
+  <div class="proof-strip">
+    <div class="proof-item"><span class="proof-icon">⚡</span>Flood zones from FEMA — live</div>
+    <div class="proof-item"><span class="proof-icon">🌿</span>Wetlands from NWI — live</div>
+    <div class="proof-item"><span class="proof-icon">🛣</span>Road access verified</div>
+    <div class="proof-item"><span class="proof-icon">📊</span>Every flag cited & verifiable</div>
+    <div class="proof-item"><span class="proof-icon">🔒</span>No data sold or shared</div>
+  </div>
 
-  <div class="single-search">
-    <input type="text" id="single-input"
-      placeholder="Enter address, APN, or folio number..."
-      oninput="handleSingleInput()"
-      onkeydown="if(event.key==='Enter') searchSingle()">
-    <div class="suggest-dropdown" id="suggest-dropdown"></div>
-    <button class="btn-search" onclick="searchSingle()">Screen →</button>
+  <!-- HOW IT WORKS -->
+  <div class="how">
+    <div class="section-label">How it works</div>
+    <div class="section-title">From lead list to decisions<br>in under 5 minutes</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Upload your list</h3>
+        <p>Drop any CSV or Excel file — PropStream export, tax-delinquent list, 
+        direct mail responses. We auto-detect address and APN columns.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>We screen every parcel</h3>
+        <p>Each lot is checked against 13 live government sources simultaneously — 
+        FEMA flood zones, NWI wetlands, road access, zoning, utilities and more.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Get Kill / Review / Pursue</h3>
+        <p>Results sorted by score. Kill the bad lots instantly. Focus your time 
+        on the ones worth pursuing. Download results as CSV.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOCK RESULTS PREVIEW -->
+  <div class="preview-results">
+    <div class="section-label">Example output</div>
+    <div class="section-title" style="margin-bottom:24px">What your results look like</div>
+    <div class="mock-batch">
+      <div class="mock-header">
+        <div>
+          <div class="mock-title">Batch Screen · Polk County, FL</div>
+          <div class="mock-meta">82 lots · Uploaded 9:01pm · Done 9:05pm · 13 live sources</div>
+        </div>
+      </div>
+      <div class="mock-stats">
+        <div class="mock-stat">
+          <div class="mock-stat-num" style="color:var(--text)">82</div>
+          <div class="mock-stat-label">Total</div>
+        </div>
+        <div class="mock-stat">
+          <div class="mock-stat-num kill">57</div>
+          <div class="mock-stat-label">Kill</div>
+        </div>
+        <div class="mock-stat">
+          <div class="mock-stat-num review">16</div>
+          <div class="mock-stat-label">Review</div>
+        </div>
+        <div class="mock-stat">
+          <div class="mock-stat-num pursue">9</div>
+          <div class="mock-stat-label">Pursue</div>
+        </div>
+      </div>
+      <div class="mock-time">
+        <div>
+          <div class="mock-time-label">Time saved vs manual GIS</div>
+          <div class="mock-time-num">~41 hrs</div>
+          <div class="mock-time-label" style="font-size:11px">at 30 min per parcel</div>
+        </div>
+        <div class="mock-time-right">
+          <div style="font-size:20px;font-weight:800;color:var(--text)">4m 18s</div>
+          <div>total screen time</div>
+        </div>
+      </div>
+      <div class="mock-rows">
+        <div class="mock-row">
+          <div class="mock-row-left">
+            <div class="mock-row-addr">3847 Cypress Hollow Rd</div>
+            <div class="mock-row-flags">
+              <span class="ftag r">Wetland</span>
+              <span class="ftag r">No road access</span>
+              <span class="ftag r">Flood AE</span>
+            </div>
+          </div>
+          <div class="mock-row-right">
+            <div class="mock-score kill">18</div>
+            <div class="mock-verdict kill">Kill</div>
+          </div>
+        </div>
+        <div class="mock-row">
+          <div class="mock-row-left">
+            <div class="mock-row-addr">1122 Flatwoods Trl</div>
+            <div class="mock-row-flags">
+              <span class="ftag r">Wetland + septic conflict</span>
+              <span class="ftag y">0.38 acres</span>
+            </div>
+          </div>
+          <div class="mock-row-right">
+            <div class="mock-score kill">24</div>
+            <div class="mock-verdict kill">Kill</div>
+          </div>
+        </div>
+        <div class="mock-row">
+          <div class="mock-row-left">
+            <div class="mock-row-addr">590 Lakewood Preserve Dr</div>
+            <div class="mock-row-flags">
+              <span class="ftag y">No permit history</span>
+              <span class="ftag gr">Septic unconfirmed</span>
+            </div>
+          </div>
+          <div class="mock-row-right">
+            <div class="mock-score review">51</div>
+            <div class="mock-verdict review">Review</div>
+          </div>
+        </div>
+        <div class="mock-row">
+          <div class="mock-row-left">
+            <div class="mock-row-addr">8814 Meadow Creek Blvd</div>
+            <div class="mock-row-flags">
+              <span class="ftag g">No fatal flags</span>
+              <span class="ftag g">Water + sewer</span>
+            </div>
+          </div>
+          <div class="mock-row-right">
+            <div class="mock-score pursue">81</div>
+            <div class="mock-verdict pursue">Pursue</div>
+          </div>
+        </div>
+        <div class="mock-row">
+          <div class="mock-row-left">
+            <div class="mock-row-addr">441 Sunridge Estates Ct</div>
+            <div class="mock-row-flags">
+              <span class="ftag g">No fatal flags</span>
+              <span class="ftag g">Zone X confirmed</span>
+            </div>
+          </div>
+          <div class="mock-row-right">
+            <div class="mock-score pursue">88</div>
+            <div class="mock-verdict pursue">Pursue</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- WAITLIST -->
-  <div class="waitlist-section">
-    <h2>Get early access</h2>
-    <p>Beta is free. Tell us which state you flip in and we'll let you know when it's ready.</p>
-    <div class="waitlist-form">
-      <input type="email" id="waitlist-email" placeholder="your@email.com">
-      <button class="btn-waitlist" onclick="submitWaitlist()">Join waitlist</button>
-    </div>
-    <div class="state-pills">
-      <div class="state-pill selected" onclick="togglePill(this)">Florida</div>
-      <div class="state-pill" onclick="togglePill(this)">Texas</div>
-      <div class="state-pill" onclick="togglePill(this)">Georgia</div>
-      <div class="state-pill" onclick="togglePill(this)">Tennessee</div>
-      <div class="state-pill" onclick="togglePill(this)">Arizona</div>
-      <div class="state-pill" onclick="togglePill(this)">Other</div>
+  <div class="waitlist" id="waitlist-section">
+    <div class="waitlist-card">
+      <h2>Get early access</h2>
+      <p>Beta is free. We're onboarding land flippers state by state. 
+      Tell us where you flip and we'll reach out.</p>
+      <div class="wl-form">
+        <input type="email" class="wl-input" id="wl-email" placeholder="your@email.com">
+        <button class="btn-wl" onclick="submitWaitlist()">Join free →</button>
+      </div>
+      <div class="wl-pills">
+        <div class="wl-pill on" onclick="this.classList.toggle('on')">Florida</div>
+        <div class="wl-pill" onclick="this.classList.toggle('on')">Texas</div>
+        <div class="wl-pill" onclick="this.classList.toggle('on')">Georgia</div>
+        <div class="wl-pill" onclick="this.classList.toggle('on')">Tennessee</div>
+        <div class="wl-pill" onclick="this.classList.toggle('on')">Arizona</div>
+        <div class="wl-pill" onclick="this.classList.toggle('on')">Other</div>
+      </div>
+      <div class="wl-note">No spam. No credit card. Just early access.</div>
     </div>
   </div>
-</div>
+
+</div><!-- end screen-upload -->
 
 <!-- SCREEN: PROCESSING -->
 <div id="screen-processing">
-  <div class="processing-header">
-    <h2>Screening parcels...</h2>
-    <p id="processing-subtitle">Checking flood zones, wetlands, and road access</p>
-  </div>
-
-  <div class="progress-bar-wrap">
-    <div class="progress-bar-fill" id="progress-fill"></div>
-  </div>
-  <div class="progress-text" id="progress-text">Starting...</div>
-
-  <div class="check-list">
-    <div class="check-item">
-      <div class="check-icon done" id="check-parcel">✓</div>
-      <span>Parcel data loaded</span>
+  <div class="proc-wrap">
+    <div class="proc-head">
+      <h2>Screening parcels...</h2>
+      <p id="proc-sub">Checking flood zones, wetlands, and road access</p>
     </div>
-    <div class="check-item">
-      <div class="check-icon running" id="check-flood">◎</div>
-      <span>FEMA flood zones</span>
+    <div class="prog-wrap">
+      <div class="prog-fill" id="prog-fill"></div>
     </div>
-    <div class="check-item">
-      <div class="check-icon pending" id="check-wet">○</div>
-      <span>Wetland mapping</span>
+    <div class="prog-text" id="prog-text">Starting...</div>
+    <div class="check-list">
+      <div class="check-item">
+        <div class="ci done" id="ci-parcel">✓</div>
+        <span>Parcel data loaded</span>
+      </div>
+      <div class="check-item">
+        <div class="ci wait" id="ci-flood">○</div>
+        <span>FEMA flood zones</span>
+      </div>
+      <div class="check-item">
+        <div class="ci wait" id="ci-wet">○</div>
+        <span>NWI wetland mapping</span>
+      </div>
+      <div class="check-item">
+        <div class="ci wait" id="ci-road">○</div>
+        <span>Road access</span>
+      </div>
+      <div class="check-item">
+        <div class="ci wait" id="ci-score">○</div>
+        <span>Scoring &amp; verdicts</span>
+      </div>
     </div>
-    <div class="check-item">
-      <div class="check-icon pending" id="check-road">○</div>
-      <span>Road access</span>
+    <div class="live-box">
+      <div class="live-box-hdr">Results appearing in real time ↓</div>
+      <div id="live-list"></div>
     </div>
-    <div class="check-item">
-      <div class="check-icon pending" id="check-score">○</div>
-      <span>Scoring &amp; verdicts</span>
-    </div>
-  </div>
-
-  <div class="live-results">
-    <div class="live-results-header">Results appearing in real time ↓</div>
-    <div id="live-results-list"></div>
   </div>
 </div>
 
 <!-- SCREEN: RESULTS -->
 <div id="screen-results">
-  <div class="results-header">
-    <div class="results-title" id="results-title">Results</div>
-    <div class="results-meta" id="results-meta"></div>
+  <div class="res-wrap">
+    <div class="res-hdr">
+      <div>
+        <div class="res-title" id="res-title">Results</div>
+        <div class="res-meta" id="res-meta"></div>
+      </div>
+    </div>
+    <div class="sum-grid">
+      <div class="sum-card">
+        <div class="sum-n" id="s-total">0</div>
+        <div class="sum-l">Total</div>
+      </div>
+      <div class="sum-card k">
+        <div class="sum-n" id="s-kill">0</div>
+        <div class="sum-l">Kill</div>
+      </div>
+      <div class="sum-card rv">
+        <div class="sum-n" id="s-review">0</div>
+        <div class="sum-l">Review</div>
+      </div>
+      <div class="sum-card p">
+        <div class="sum-n" id="s-pursue">0</div>
+        <div class="sum-l">Pursue</div>
+      </div>
+    </div>
+    <div class="time-bar">
+      <div class="tb-left">
+        <div class="tb-label">Time saved vs manual GIS</div>
+        <div class="tb-num" id="tb-num">0 hrs</div>
+        <div class="tb-sub">at 30 min per parcel</div>
+      </div>
+      <div class="tb-right">
+        <div class="tb-time" id="tb-time">0s</div>
+        <div class="tb-sub">screen time</div>
+      </div>
+    </div>
+    <div class="filter-row">
+      <div class="filter-tabs">
+        <div class="ftab on" onclick="filterR('all',this)">All</div>
+        <div class="ftab k" onclick="filterR('kill',this)">Kill</div>
+        <div class="ftab rv" onclick="filterR('review',this)">Review</div>
+        <div class="ftab p" onclick="filterR('pursue',this)">Pursue</div>
+      </div>
+      <div class="action-btns">
+        <button class="btn-action" onclick="dlCSV()">↓ CSV</button>
+        <button class="btn-action" onclick="resetApp()">← New batch</button>
+      </div>
+    </div>
+    <div class="res-list" id="res-list"></div>
   </div>
-
-  <div class="summary-bar">
-    <div class="summary-card">
-      <div class="summary-num" id="sum-total">0</div>
-      <div class="summary-label">Total</div>
-    </div>
-    <div class="summary-card kill">
-      <div class="summary-num" id="sum-kill">0</div>
-      <div class="summary-label">Kill</div>
-    </div>
-    <div class="summary-card review">
-      <div class="summary-num" id="sum-review">0</div>
-      <div class="summary-label">Review</div>
-    </div>
-    <div class="summary-card pursue">
-      <div class="summary-num" id="sum-pursue">0</div>
-      <div class="summary-label">Pursue</div>
-    </div>
-  </div>
-
-  <div class="time-saved">
-    <div>
-      <div class="time-saved-left">Time saved vs manual GIS</div>
-      <div class="time-saved-num" id="time-saved-num">0 hrs</div>
-      <div class="time-saved-left" style="font-size:11px">at 30 min per parcel</div>
-    </div>
-    <div class="time-saved-right">
-      <div style="font-size:20px;font-weight:700;color:var(--text)" id="screen-time">0s</div>
-      <div>total screen time</div>
-    </div>
-  </div>
-
-  <div class="filter-bar">
-    <div class="filter-tabs">
-      <div class="filter-tab active" onclick="filterResults('all', this)">All</div>
-      <div class="filter-tab kill" onclick="filterResults('kill', this)">Kill</div>
-      <div class="filter-tab review" onclick="filterResults('review', this)">Review</div>
-      <div class="filter-tab pursue" onclick="filterResults('pursue', this)">Pursue</div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn-download" onclick="downloadCSV()">↓ Download CSV</button>
-      <button class="btn-download" onclick="resetApp()">← New batch</button>
-    </div>
-  </div>
-
-  <div class="results-list" id="results-list"></div>
 </div>
 
-<!-- DETAIL MODAL -->
-<div id="modal-overlay" onclick="closeModal(event)">
-  <div class="modal" id="modal-content"></div>
+<!-- MODAL -->
+<div id="modal-bg" onclick="closeMod(event)">
+  <div class="modal" id="modal-inner"></div>
 </div>
 
 <footer>
-  ParcelIQ · Beta · Every flag cited · source verifiable · parceliq.com<br>
-  <span style="color:var(--text3);margin-top:4px;display:block">
-    Screening data only. Not legal or financial advice. Verify before offer.
-  </span>
+  <div>© 2025 ParcelIQ · Beta</div>
+  <div>Every flag cited · source verifiable</div>
+  <div>Not legal or financial advice · Verify before offer</div>
 </footer>
 
 <script>
-// ─── STATE ───────────────────────────────────────────────────────────────────
-const API = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
-let parsedRows = [];
-let allResults = [];
-let columnHeaders = [];
-let screenStartTime = null;
-let selectedState = 'FL';
+const API = window.location.hostname==='localhost'?'http://localhost:8000':'';
+let parsedRows=[],allResults=[],colHeaders=[],screenStart=null,selState='FL';
 
-// ─── COVERAGE MAP ─────────────────────────────────────────────────────────────
-const COVERAGE = {
-  FL:    { label: 'Florida: Full coverage',    pct: '100%', sources: '13 sources' },
-  TX:    { label: 'Texas: Core coverage',      pct: '55%',  sources: '5 sources'  },
-  GA:    { label: 'Georgia: Core coverage',    pct: '55%',  sources: '5 sources'  },
-  TN:    { label: 'Tennessee: Core coverage',  pct: '55%',  sources: '5 sources'  },
-  AZ:    { label: 'Arizona: Core coverage',    pct: '55%',  sources: '5 sources'  },
-  NC:    { label: 'N. Carolina: Core coverage',pct: '45%',  sources: '4 sources'  },
-  SC:    { label: 'S. Carolina: Core coverage',pct: '45%',  sources: '4 sources'  },
-  AL:    { label: 'Alabama: Core coverage',    pct: '45%',  sources: '4 sources'  },
-  MS:    { label: 'Mississippi: Core coverage',pct: '45%',  sources: '4 sources'  },
-  OTHER: { label: 'Basic coverage',            pct: '30%',  sources: '3 sources'  },
+// ── COVERAGE ──
+const COV={
+  FL:{l:'Florida: Full coverage',p:'100%',s:'13 sources'},
+  TX:{l:'Texas: Core coverage',p:'55%',s:'5 sources'},
+  GA:{l:'Georgia: Core coverage',p:'55%',s:'5 sources'},
+  TN:{l:'Tennessee: Core coverage',p:'55%',s:'5 sources'},
+  AZ:{l:'Arizona: Core coverage',p:'55%',s:'5 sources'},
+  OTHER:{l:'Basic coverage',p:'30%',s:'3 sources'}
 };
 
-function updateCoverage() {
-  selectedState = document.getElementById('state-select').value;
-  const c = COVERAGE[selectedState] || COVERAGE.OTHER;
-  document.getElementById('coverage-text').textContent = c.label;
-  document.getElementById('coverage-sources').textContent = c.sources;
-  document.querySelector('.coverage-fill').style.setProperty('--pct', c.pct);
+function setStateBtn(el,state){
+  document.querySelectorAll('.state-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  selState=state;
+  const c=COV[state]||COV.OTHER;
+  document.getElementById('cov-label').textContent=c.l;
+  document.getElementById('cov-fill').style.width=c.p;
+  document.getElementById('cov-sources').textContent=c.s;
 }
 
-// ─── DRAG AND DROP ────────────────────────────────────────────────────────────
-function handleDragOver(e) {
-  e.preventDefault();
-  document.getElementById('dropzone').classList.add('drag-over');
-}
+// ── DRAG DROP ──
+function handleDragOver(e){e.preventDefault();document.getElementById('dropzone').classList.add('drag-over')}
+function handleDragLeave(){document.getElementById('dropzone').classList.remove('drag-over')}
+function handleDrop(e){e.preventDefault();document.getElementById('dropzone').classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)handleFile(f)}
 
-function handleDragLeave(e) {
-  document.getElementById('dropzone').classList.remove('drag-over');
-}
-
-function handleDrop(e) {
-  e.preventDefault();
-  document.getElementById('dropzone').classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) handleFile(file);
-}
-
-// ─── FILE PARSING ─────────────────────────────────────────────────────────────
-function handleFile(file) {
-  if (!file) return;
-  const ext = file.name.split('.').pop().toLowerCase();
-
-  if (ext === 'csv') {
-    const reader = new FileReader();
-    reader.onload = e => parseCSV(e.target.result);
-    reader.readAsText(file);
-  } else if (ext === 'xlsx' || ext === 'xls') {
-    // For Excel we use SheetJS loaded from CDN
-    loadSheetJS(() => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const csv = XLSX.utils.sheet_to_csv(ws);
-        parseCSV(csv);
+// ── FILE ──
+function handleFile(file){
+  if(!file)return;
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='csv'){
+    const r=new FileReader();
+    r.onload=e=>parseCSV(e.target.result);
+    r.readAsText(file);
+  } else if(ext==='xlsx'||ext==='xls'){
+    loadXLSX(()=>{
+      const r=new FileReader();
+      r.onload=e=>{
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        parseCSV(XLSX.utils.sheet_to_csv(ws));
       };
-      reader.readAsArrayBuffer(file);
+      r.readAsArrayBuffer(file);
     });
-  } else {
-    alert('Please upload a .csv, .xlsx, or .xls file');
-  }
+  } else {alert('Please use .csv, .xlsx, or .xls')}
 }
 
-function loadSheetJS(cb) {
-  if (window.XLSX) { cb(); return; }
-  const s = document.createElement('script');
-  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-  s.onload = cb;
-  document.head.appendChild(s);
+function loadXLSX(cb){
+  if(window.XLSX){cb();return}
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload=cb;document.head.appendChild(s);
 }
 
-function parseCSV(text) {
-  const lines = text.trim().split('\n').filter(l => l.trim());
-  if (lines.length < 2) { alert('File appears empty'); return; }
-
-  columnHeaders = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
-  parsedRows = lines.slice(1).map(line => {
-    const vals = line.split(',').map(v => v.trim().replace(/"/g,''));
-    const obj = {};
-    columnHeaders.forEach((h, i) => obj[h] = vals[i] || '');
-    return obj;
-  }).filter(r => Object.values(r).some(v => v));
-
+function parseCSV(text){
+  const lines=text.trim().split('\n').filter(l=>l.trim());
+  if(lines.length<2){alert('File appears empty');return}
+  colHeaders=lines[0].split(',').map(h=>h.trim().replace(/"/g,''));
+  parsedRows=lines.slice(1).map(line=>{
+    const vals=line.split(',').map(v=>v.trim().replace(/"/g,''));
+    const o={};colHeaders.forEach((h,i)=>o[h]=vals[i]||'');return o;
+  }).filter(r=>Object.values(r).some(v=>v));
   showPreview();
 }
 
-function showPreview() {
-  const ps = document.getElementById('preview-section');
-  ps.style.display = 'block';
-
-  document.getElementById('preview-count').textContent =
-    `${parsedRows.length} rows detected`;
-
-  // Show first 3 rows
-  const preview = parsedRows.slice(0, 3);
-  const table = document.getElementById('preview-table');
-  table.innerHTML = `
-    <tr>${columnHeaders.map(h => `<th>${h}</th>`).join('')}</tr>
-    ${preview.map(r =>
-      `<tr>${columnHeaders.map(h => `<td>${r[h]||''}</td>`).join('')}</tr>`
-    ).join('')}
-  `;
-
-  // Column mapping
-  const colMap = document.getElementById('col-map');
-  const opts = ['(none)', ...columnHeaders].map(h =>
-    `<option value="${h}">${h}</option>`
-  ).join('');
-
-  // Auto-detect common column names
-  const addrCol = columnHeaders.find(h =>
-    /address|addr|street|location/i.test(h)
-  ) || columnHeaders[0];
-
-  const apnCol = columnHeaders.find(h =>
-    /apn|folio|parcel|pin|account/i.test(h)
-  ) || '(none)';
-
-  colMap.innerHTML = `
-    <div class="col-map-item">
-      <label>Address column</label>
-      <select id="col-address">
-        ${columnHeaders.map(h =>
-          `<option value="${h}" ${h===addrCol?'selected':''}>${h}</option>`
-        ).join('')}
-      </select>
-    </div>
-    <div class="col-map-item">
-      <label>APN / Folio column</label>
-      <select id="col-apn">
-        <option value="">(none)</option>
-        ${columnHeaders.map(h =>
-          `<option value="${h}" ${h===apnCol?'selected':''}>${h}</option>`
-        ).join('')}
-      </select>
-    </div>
-  `;
-
-  const btn = document.getElementById('btn-screen');
-  btn.disabled = false;
-  btn.textContent = `Screen ${parsedRows.length} parcels →`;
+function showPreview(){
+  document.getElementById('preview-box').style.display='block';
+  document.getElementById('preview-detected').textContent='File loaded';
+  document.getElementById('preview-count').textContent=parsedRows.length+' rows';
+  const preview=parsedRows.slice(0,3);
+  document.getElementById('preview-tbl').innerHTML=
+    `<tr>${colHeaders.map(h=>`<th>${h}</th>`).join('')}</tr>`+
+    preview.map(r=>`<tr>${colHeaders.map(h=>`<td>${r[h]||''}</td>`).join('')}</tr>`).join('');
+  const addrCol=colHeaders.find(h=>/address|addr|street|location/i.test(h))||colHeaders[0];
+  const apnCol=colHeaders.find(h=>/apn|folio|parcel|pin|account/i.test(h))||'';
+  document.getElementById('col-map').innerHTML=`
+    <div><label>Address column</label>
+    <select id="col-addr">${colHeaders.map(h=>`<option ${h===addrCol?'selected':''}>${h}</option>`).join('')}</select></div>
+    <div><label>APN / Folio column</label>
+    <select id="col-apn"><option value="">(none)</option>${colHeaders.map(h=>`<option ${h===apnCol?'selected':''}>${h}</option>`).join('')}</select></div>`;
+  const btn=document.getElementById('btn-screen');
+  btn.disabled=false;
+  btn.textContent=`Screen ${parsedRows.length} parcels →`;
 }
 
-// ─── SCREENING ────────────────────────────────────────────────────────────────
-async function startScreening() {
-  if (!parsedRows.length) return;
-
-  const addrCol = document.getElementById('col-address').value;
-  const apnCol = document.getElementById('col-apn')?.value || '';
-
+// ── SCREENING ──
+async function startScreening(){
+  if(!parsedRows.length)return;
+  const addrCol=document.getElementById('col-addr').value;
+  const apnCol=document.getElementById('col-apn')?.value||'';
   showScreen('processing');
-  screenStartTime = Date.now();
-  allResults = [];
-
-  document.getElementById('processing-subtitle').textContent =
-    `Screening ${parsedRows.length} parcels in ${selectedState}...`;
-
-  // Animate check steps
-  setTimeout(() => setCheck('check-flood', 'done'), 800);
-  setTimeout(() => setCheck('check-wet', 'running'), 900);
-  setTimeout(() => setCheck('check-wet', 'done'), 2000);
-  setTimeout(() => setCheck('check-road', 'running'), 2100);
-  setTimeout(() => setCheck('check-road', 'done'), 3200);
-  setTimeout(() => setCheck('check-score', 'running'), 3300);
-
-  try {
-    // Try real API first
-    const resp = await fetch(`${API}/api/batch`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        parcels: parsedRows.map(r => ({
-          address: r[addrCol] || '',
-          apn: apnCol ? r[apnCol] || '' : '',
-          state: selectedState,
-          raw: r
-        })),
-        state: selectedState
-      })
+  screenStart=Date.now();allResults=[];
+  document.getElementById('proc-sub').textContent=`Screening ${parsedRows.length} parcels in ${selState}...`;
+  setCI('ci-flood','run');
+  setTimeout(()=>{setCI('ci-flood','done');setCI('ci-wet','run')},900);
+  setTimeout(()=>{setCI('ci-wet','done');setCI('ci-road','run')},2000);
+  setTimeout(()=>{setCI('ci-road','done');setCI('ci-score','run')},3100);
+  try{
+    const resp=await fetch(`${API}/api/batch`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({parcels:parsedRows.map(r=>({address:r[addrCol]||'',apn:apnCol?r[apnCol]||'':'',state:selState})),state:selState})
     });
-
-    if (resp.ok) {
-      const data = await resp.json();
-      allResults = data.results || [];
-      streamResults(allResults);
-    } else {
-      throw new Error('API not available');
-    }
-  } catch(e) {
-    // Use mock data if API not available
-    console.log('Using mock data:', e.message);
-    allResults = generateMockResults(parsedRows, addrCol);
-    streamResults(allResults);
+    if(resp.ok){const d=await resp.json();allResults=d.results||[];streamR(allResults)}
+    else throw new Error();
+  } catch(e){
+    allResults=mockResults(parsedRows,addrCol);
+    streamR(allResults);
   }
 }
 
-function setCheck(id, state) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.className = `check-icon ${state}`;
-  el.textContent = state === 'done' ? '✓' : state === 'running' ? '◎' : '○';
+function setCI(id,state){
+  const el=document.getElementById(id);if(!el)return;
+  el.className=`ci ${state}`;
+  el.textContent=state==='done'?'✓':state==='run'?'◎':'○';
 }
 
-function generateMockResults(rows, addrCol) {
-  return rows.map((row, i) => {
-    const addr = row[addrCol] || `Parcel ${i+1}`;
-    // Deterministic mock based on index
-    const seed = i % 10;
-    let score, verdict, flags;
-
-    if (seed < 4) {
-      score = Math.floor(Math.random() * 30) + 5;
-      verdict = 'Kill';
-      flags = [
-        seed < 2 ? { label:'Wetland', type:'red' } : { label:'Flood AE', type:'red' },
-        seed < 3 ? { label:'No road access', type:'red' } : { label:'0.3 acres', type:'yellow' }
-      ];
-    } else if (seed < 7) {
-      score = Math.floor(Math.random() * 20) + 35;
-      verdict = 'Review';
-      flags = [
-        { label:'No permit history', type:'yellow' },
-        { label:'Septic unconfirmed', type:'gray' }
-      ];
+function mockResults(rows,addrCol){
+  return rows.map((row,i)=>{
+    const addr=row[addrCol]||`Parcel ${i+1}`;
+    const s=i%10;
+    let score,verdict,flags;
+    if(s<4){
+      score=Math.floor(Math.random()*25)+5;verdict='Kill';
+      flags=[s<2?{l:'Wetland',t:'r'}:{l:'Flood AE',t:'r'},
+             s<3?{l:'No road access',t:'r'}:{l:'0.3 acres',t:'y'}];
+    } else if(s<7){
+      score=Math.floor(Math.random()*18)+35;verdict='Review';
+      flags=[{l:'No permit history',t:'y'},{l:'Septic unconfirmed',t:'gr'}];
     } else {
-      score = Math.floor(Math.random() * 20) + 72;
-      verdict = 'Pursue';
-      flags = [
-        { label:'No fatal flags', type:'green' },
-        seed === 9 ? { label:'Zone X confirmed', type:'green' } : { label:'Water + sewer', type:'green' }
-      ];
+      score=Math.floor(Math.random()*18)+74;verdict='Pursue';
+      flags=[{l:'No fatal flags',t:'g'},s===9?{l:'Zone X confirmed',t:'g'}:{l:'Water + sewer',t:'g'}];
     }
-
-    return {
-      address: addr,
-      full_address: addr,
-      county: selectedState === 'FL' ? 'Polk County, FL' : `${selectedState}`,
-      apn: row[Object.keys(row).find(k => /apn|folio/i.test(k)) || ''] || `${i.toString().padStart(8,'0')}`,
-      owner: 'See county records',
-      acreage: (Math.random() * 4 + 0.3).toFixed(2),
-      score,
-      verdict,
-      flags,
-      sources: ['FEMA NFHL', 'NWI Wetlands', 'Parcel Data'],
-      score_breakdown: buildScoreBreakdown(score, flags)
-    };
+    return {address:addr,apn:`${i.toString().padStart(8,'0')}`,county:selState,
+      acreage:(Math.random()*4+0.3).toFixed(2),score,verdict,flags,
+      sources:['FEMA NFHL','NWI Wetlands','Parcel Data'],
+      breakdown:mkBreakdown(score,flags)};
   });
 }
 
-function buildScoreBreakdown(finalScore, flags) {
-  const items = [{ label: 'Starting score', value: 100, type: 'neutral' }];
-  flags.forEach(f => {
-    if (f.type === 'red') items.push({ label: f.label, value: -25, type: 'neg' });
-    else if (f.type === 'yellow') items.push({ label: f.label, value: -10, type: 'neg' });
-    else if (f.type === 'green') items.push({ label: f.label, value: 5, type: 'pos' });
+function mkBreakdown(final,flags){
+  const items=[{l:'Starting score',v:100,t:'n'}];
+  flags.forEach(f=>{
+    if(f.t==='r')items.push({l:f.l,v:-25,t:'n_'});
+    else if(f.t==='y')items.push({l:f.l,v:-10,t:'n_'});
+    else if(f.t==='g')items.push({l:f.l,v:5,t:'p'});
   });
-  items.push({ label: 'Final score', value: finalScore, type: 'final' });
+  items.push({l:'Final score',v:final,t:'f'});
   return items;
 }
 
-function streamResults(results) {
-  let i = 0;
-  const liveList = document.getElementById('live-results-list');
-  const total = results.length;
-
-  setCheck('check-score', 'done');
-
-  const interval = setInterval(() => {
-    if (i >= total) {
-      clearInterval(interval);
-      setTimeout(() => showFinalResults(results), 600);
-      return;
-    }
-
-    const r = results[i];
-    const pct = Math.round((i + 1) / total * 100);
-    document.getElementById('progress-fill').style.width = pct + '%';
-    document.getElementById('progress-text').textContent =
-      `${i + 1} of ${total} parcels screened`;
-
-    // Add to live preview (show last 3)
-    const row = document.createElement('div');
-    row.style.cssText = `
-      display:flex; justify-content:space-between; align-items:center;
-      padding:10px 16px; border-bottom:1px solid var(--border);
-      font-size:13px;
-    `;
-    const vColor = r.verdict === 'Kill' ? 'var(--kill)' :
-                   r.verdict === 'Review' ? 'var(--review)' : 'var(--pursue)';
-    row.innerHTML = `
-      <span style="color:var(--text)">${r.address}</span>
-      <span style="color:${vColor};font-weight:700">${r.verdict}</span>
-    `;
-    liveList.appendChild(row);
-    if (liveList.children.length > 4) liveList.removeChild(liveList.firstChild);
-
+function streamR(results){
+  setCI('ci-score','done');
+  let i=0;const total=results.length;
+  const live=document.getElementById('live-list');
+  const iv=setInterval(()=>{
+    if(i>=total){clearInterval(iv);setTimeout(()=>showFinal(results),700);return}
+    const r=results[i];
+    const pct=Math.round((i+1)/total*100);
+    document.getElementById('prog-fill').style.width=pct+'%';
+    document.getElementById('prog-text').textContent=`${i+1} of ${total} parcels screened`;
+    const row=document.createElement('div');
+    const vc=r.verdict==='Kill'?'var(--kill)':r.verdict==='Review'?'var(--review)':'var(--pursue)';
+    row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px';
+    row.innerHTML=`<span style="color:var(--text2)">${r.address}</span><span style="color:${vc};font-weight:700">${r.verdict}</span>`;
+    live.appendChild(row);
+    if(live.children.length>5)live.removeChild(live.firstChild);
     i++;
-  }, Math.max(80, 3000 / total));
+  },Math.max(60,3000/total));
 }
 
-// ─── FINAL RESULTS ────────────────────────────────────────────────────────────
-function showFinalResults(results) {
+function showFinal(results){
   showScreen('results');
-
-  const elapsed = ((Date.now() - screenStartTime) / 1000).toFixed(0);
-  const kills = results.filter(r => r.verdict === 'Kill').length;
-  const reviews = results.filter(r => r.verdict === 'Review').length;
-  const pursues = results.filter(r => r.verdict === 'Pursue').length;
-
-  document.getElementById('results-title').textContent =
-    `${results.length} lots screened`;
-  document.getElementById('results-meta').textContent =
-    `${selectedState} · ${new Date().toLocaleDateString()} · 
-     ${results[0]?.sources?.length || 5} live sources`;
-
-  document.getElementById('sum-total').textContent = results.length;
-  document.getElementById('sum-kill').textContent = kills;
-  document.getElementById('sum-review').textContent = reviews;
-  document.getElementById('sum-pursue').textContent = pursues;
-  document.getElementById('time-saved-num').textContent =
-    `~${(results.length * 0.5).toFixed(0)} hrs`;
-  document.getElementById('screen-time').textContent = elapsed + 's';
-
-  renderResultsList(results);
+  const elapsed=((Date.now()-screenStart)/1000).toFixed(0);
+  const kills=results.filter(r=>r.verdict==='Kill').length;
+  const reviews=results.filter(r=>r.verdict==='Review').length;
+  const pursues=results.filter(r=>r.verdict==='Pursue').length;
+  document.getElementById('res-title').textContent=`${results.length} lots screened`;
+  document.getElementById('res-meta').textContent=`${selState} · ${new Date().toLocaleDateString()} · ${results[0]?.sources?.length||5} live sources`;
+  document.getElementById('s-total').textContent=results.length;
+  document.getElementById('s-kill').textContent=kills;
+  document.getElementById('s-review').textContent=reviews;
+  document.getElementById('s-pursue').textContent=pursues;
+  document.getElementById('tb-num').textContent=`~${(results.length*0.5).toFixed(0)} hrs`;
+  document.getElementById('tb-time').textContent=elapsed+'s';
+  renderList(results);
 }
 
-function renderResultsList(results) {
-  const list = document.getElementById('results-list');
-  list.innerHTML = '';
-  results.forEach((r, idx) => {
-    const v = (r.verdict || 'Review').toLowerCase();
-    const flags = (r.flags || []).map(f =>
-      `<span class="flag-tag ${f.type||'gray'}">${f.label}</span>`
-    ).join('');
-
-    const row = document.createElement('div');
-    row.className = `result-row ${v}`;
-    row.onclick = () => openModal(idx);
-    row.innerHTML = `
+function renderList(results){
+  const list=document.getElementById('res-list');list.innerHTML='';
+  results.forEach((r,idx)=>{
+    const v=r.verdict==='Kill'?'k':r.verdict==='Review'?'rv':'p';
+    const flags=(r.flags||[]).map(f=>`<span class="ftag ${f.t||'gr'}">${f.l}</span>`).join('');
+    const row=document.createElement('div');
+    row.className=`res-row ${v}`;row.onclick=()=>openMod(idx);
+    row.innerHTML=`
       <div>
-        <div class="result-address">${r.address || r.full_address}</div>
-        <div class="result-flags">${flags}</div>
-        <div class="result-folio">${r.apn || r.folio || ''}</div>
+        <div class="rr-addr">${r.address||r.full_address}</div>
+        <div class="rr-flags">${flags}</div>
+        <div class="rr-folio">${r.apn||r.folio||''}</div>
       </div>
-      <div class="result-right">
-        <div class="score-badge ${v}">${r.score}</div>
-        <div class="verdict-label ${v}">${r.verdict}</div>
-      </div>
-    `;
+      <div class="rr-right">
+        <div class="score-circle ${v}">${r.score}</div>
+        <div class="verdict-txt ${v}">${r.verdict}</div>
+      </div>`;
     list.appendChild(row);
   });
 }
 
-function filterResults(type, tab) {
-  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-  tab.classList.add('active');
-  const filtered = type === 'all' ? allResults :
-    allResults.filter(r => r.verdict.toLowerCase() === type);
-  renderResultsList(filtered);
+function filterR(type,tab){
+  document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('on'));
+  tab.classList.add('on');
+  const f=type==='all'?allResults:allResults.filter(r=>r.verdict.toLowerCase()===type);
+  renderList(f);
 }
 
-// ─── MODAL ────────────────────────────────────────────────────────────────────
-function openModal(idx) {
-  const r = allResults[idx];
-  if (!r) return;
-  const v = (r.verdict || 'Review').toLowerCase();
-
-  const flags = (r.flags || []).map(f => `
-    <div class="flag-row">
-      <div class="flag-icon">${f.type==='red'?'⚠️':f.type==='green'?'✅':'⚠️'}</div>
-      <div class="flag-text">${f.label}</div>
-    </div>
-  `).join('');
-
-  const breakdown = (r.score_breakdown || []).map(item => `
-    <div class="score-row-item">
-      <span>${item.label}</span>
-      <span class="${item.type==='final'?'final':item.type==='pos'?'pos':'neg'}">
-        ${item.type==='pos'?'+':''}${item.value}
-      </span>
-    </div>
-  `).join('');
-
-  const sources = (r.sources || ['FEMA NFHL','NWI Wetlands','Parcel Data']).map(s => `
-    <div class="flag-row">
-      <div class="flag-icon">📡</div>
-      <div class="flag-text">${s}</div>
-      <div class="flag-source">verified</div>
-    </div>
-  `).join('');
-
-  const verdictMsg = v === 'kill' ?
-    'Fatal flags detected. Skip this lot and move on.' :
-    v === 'review' ?
-    'Concerns found. Needs manual verification before offering.' :
+// ── MODAL ──
+function openMod(idx){
+  const r=allResults[idx];if(!r)return;
+  const v=r.verdict==='Kill'?'k':r.verdict==='Review'?'rv':'p';
+  const vc=r.verdict==='Kill'?'var(--kill)':r.verdict==='Review'?'var(--review)':'var(--pursue)';
+  const msg=v==='k'?'Fatal flags detected. Skip this lot and move on.':
+    v==='rv'?'Concerns found. Verify manually before offering.':
     'No fatal flags. Worth deeper review and potential offer.';
-
-  document.getElementById('modal-content').innerHTML = `
-    <div class="modal-header">
+  const flags=(r.flags||[]).map(f=>`
+    <div class="m-flag-row">
+      <div class="m-flag-icon">${f.t==='r'?'⚠️':f.t==='g'?'✅':'⚠️'}</div>
+      <div class="m-flag-txt">${f.l}</div>
+    </div>`).join('');
+  const bd=(r.breakdown||[]).map(item=>`
+    <div class="m-breakdown-row">
+      <span>${item.l}</span>
+      <span class="${item.t==='f'?'fin':item.t==='p'?'pos':'neg'}">${item.t==='p'?'+':''}${item.v}</span>
+    </div>`).join('');
+  const srcs=(r.sources||['FEMA NFHL','NWI Wetlands','Parcel Data']).map(s=>`
+    <div class="m-flag-row">
+      <div class="m-flag-icon">📡</div>
+      <div class="m-flag-txt">${s}</div>
+      <div class="m-flag-src">verified</div>
+    </div>`).join('');
+  document.getElementById('modal-inner').innerHTML=`
+    <div class="modal-hdr">
       <div>
-        <div class="modal-address">${r.address||r.full_address}</div>
-        <div class="modal-meta">${r.county||selectedState} · 
-          ${r.acreage||'?'} acres · APN: ${r.apn||'—'}</div>
+        <div class="m-addr">${r.address||r.full_address}</div>
+        <div class="m-meta">${r.county||selState} · ${r.acreage||'?'} acres · APN: ${r.apn||'—'}</div>
       </div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <button class="m-close" onclick="closeMod()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="modal-score-row">
-        <div class="modal-score-circle ${v}">
-          <div class="modal-score-num">${r.score}</div>
-          <div class="modal-score-label">score</div>
+      <div class="m-score-row">
+        <div class="m-circle ${v}">
+          <div class="m-score-n">${r.score}</div>
+          <div class="m-score-lbl">score</div>
         </div>
-        <div class="modal-verdict-text">
-          <h3 style="color:${v==='kill'?'var(--kill)':v==='review'?'var(--review)':'var(--pursue)'}">${r.verdict}</h3>
-          <p>${verdictMsg}</p>
+        <div class="m-verdict">
+          <h3 style="color:${vc}">${r.verdict}</h3>
+          <p>${msg}</p>
         </div>
       </div>
-
-      <div class="modal-section">
-        <div class="modal-section-title">Flags found</div>
-        ${flags || '<div class="flag-row"><div class="flag-icon">✅</div><div>No fatal flags detected</div></div>'}
+      <div class="m-section">
+        <div class="m-sec-title">Flags found</div>
+        ${flags||'<div class="m-flag-row"><div class="m-flag-icon">✅</div><div class="m-flag-txt">No fatal flags detected</div></div>'}
       </div>
-
-      <div class="modal-section">
-        <div class="modal-section-title">Score breakdown</div>
-        ${breakdown}
+      <div class="m-section">
+        <div class="m-sec-title">Score breakdown</div>${bd}
       </div>
-
-      <div class="modal-section">
-        <div class="modal-section-title">Data sources</div>
-        ${sources}
+      <div class="m-section">
+        <div class="m-sec-title">Data sources</div>${srcs}
       </div>
-    </div>
-  `;
-  document.getElementById('modal-overlay').style.display = 'block';
+    </div>`;
+  document.getElementById('modal-bg').style.display='block';
 }
+function closeMod(e){if(!e||e.target.id==='modal-bg')document.getElementById('modal-bg').style.display='none'}
 
-function closeModal(e) {
-  if (!e || e.target.id === 'modal-overlay') {
-    document.getElementById('modal-overlay').style.display = 'none';
+// ── SINGLE SEARCH ──
+let sugTimer=null;
+function handleSingleInput(){
+  const q=document.getElementById('single-input').value;
+  clearTimeout(sugTimer);
+  if(q.length<3){document.getElementById('suggest-dd').style.display='none';return}
+  sugTimer=setTimeout(()=>fetchSug(q),300);
+}
+async function fetchSug(q){
+  try{
+    const r=await fetch(`${API}/api/suggest?q=${encodeURIComponent(q)}`);
+    if(!r.ok)throw new Error();
+    const d=await r.json();showSug(d.suggestions||[]);
+  } catch{
+    showSug([{full_address:`${q}, Polk County, FL`,apn:'28-27-16-000000-013040'},{full_address:`${q}, Hillsborough County, FL`,apn:'08-00-00-000000-000100'}]);
   }
 }
-
-// ─── SINGLE SEARCH ────────────────────────────────────────────────────────────
-let suggestTimer = null;
-
-async function handleSingleInput() {
-  const q = document.getElementById('single-input').value;
-  clearTimeout(suggestTimer);
-  if (q.length < 3) {
-    document.getElementById('suggest-dropdown').style.display = 'none';
-    return;
-  }
-  suggestTimer = setTimeout(() => fetchSuggestions(q), 300);
+function showSug(items){
+  const dd=document.getElementById('suggest-dd');
+  if(!items.length){dd.style.display='none';return}
+  dd.innerHTML=items.map(s=>`
+    <div class="suggest-item" onclick="selSug('${s.full_address.replace(/'/g,"\\'")}')">
+      <div class="sug-addr">${s.full_address}</div>
+      <div class="sug-meta">${s.apn||''}</div>
+    </div>`).join('');
+  dd.style.display='block';
 }
-
-async function fetchSuggestions(q) {
-  try {
-    const resp = await fetch(`${API}/api/suggest?q=${encodeURIComponent(q)}`);
-    if (!resp.ok) throw new Error();
-    const data = await resp.json();
-    showSuggestions(data.suggestions || []);
-  } catch(e) {
-    // Mock suggestions
-    showSuggestions([
-      { full_address: q + ', Polk County, FL', apn: '28-27-16-000000-013040' },
-      { full_address: q + ', Hillsborough County, FL', apn: '08-29-17-000000-041200' }
-    ]);
-  }
-}
-
-function showSuggestions(items) {
-  const dd = document.getElementById('suggest-dropdown');
-  if (!items.length) { dd.style.display = 'none'; return; }
-  dd.innerHTML = items.map(s => `
-    <div class="suggest-item" onclick="selectSuggestion('${s.full_address}')">
-      <div class="suggest-addr">${s.full_address}</div>
-      <div class="suggest-meta">${s.apn||''}</div>
-    </div>
-  `).join('');
-  dd.style.display = 'block';
-}
-
-function selectSuggestion(addr) {
-  document.getElementById('single-input').value = addr;
-  document.getElementById('suggest-dropdown').style.display = 'none';
+function selSug(addr){
+  document.getElementById('single-input').value=addr;
+  document.getElementById('suggest-dd').style.display='none';
   searchSingle();
 }
-
-async function searchSingle() {
-  const q = document.getElementById('single-input').value.trim();
-  if (!q) return;
-  document.getElementById('suggest-dropdown').style.display = 'none';
-
-  // Mock single result for now
-  const mockResult = {
-    address: q,
-    full_address: q,
-    county: 'Polk County, FL',
-    apn: '28-27-16-000000-013040',
-    owner: 'See county records',
-    acreage: '2.40',
-    score: 61,
-    verdict: 'Review',
-    flags: [
-      { label: 'No permit history', type: 'yellow' },
-      { label: 'Septic unconfirmed', type: 'gray' }
-    ],
-    sources: ['FEMA NFHL', 'NWI Wetlands', 'Parcel Data'],
-    score_breakdown: [
-      { label: 'Starting score', value: 100, type: 'neutral' },
-      { label: 'No permit history', value: -10, type: 'neg' },
-      { label: 'Legal access unverified', value: -10, type: 'neg' },
-      { label: 'FEMA Zone X', value: 5, type: 'pos' },
-      { label: 'Address confirmed', value: 3, type: 'pos' },
-      { label: 'Final score', value: 61, type: 'final' }
+async function searchSingle(){
+  const q=document.getElementById('single-input').value.trim();
+  if(!q)return;
+  document.getElementById('suggest-dd').style.display='none';
+  const mock={
+    address:q,full_address:q,county:selState==='FL'?'Polk County, FL':selState,
+    apn:'28-27-16-000000-013040',acreage:'2.40',score:61,verdict:'Review',
+    flags:[{l:'No permit history',t:'y'},{l:'Septic unconfirmed',t:'gr'}],
+    sources:['FEMA NFHL','NWI Wetlands','Parcel Data'],
+    breakdown:[
+      {l:'Starting score',v:100,t:'n'},{l:'No permit history',v:-10,t:'n_'},
+      {l:'Legal access unverified',v:-10,t:'n_'},{l:'FEMA Zone X',v:5,t:'p'},
+      {l:'Address confirmed',v:3,t:'p'},{l:'Final score',v:61,t:'f'}
     ]
   };
-
-  allResults = [mockResult];
-  parsedRows = [{ address: q }];
-  screenStartTime = Date.now();
-  selectedState = document.getElementById('state-select').value;
-
+  allResults=[mock];screenStart=Date.now();
   showScreen('processing');
-  document.getElementById('processing-subtitle').textContent =
-    `Screening ${q}...`;
-
-  setTimeout(() => setCheck('check-flood', 'done'), 800);
-  setTimeout(() => setCheck('check-wet', 'running'), 900);
-  setTimeout(() => setCheck('check-wet', 'done'), 1600);
-  setTimeout(() => setCheck('check-road', 'running'), 1700);
-  setTimeout(() => setCheck('check-road', 'done'), 2400);
-  setTimeout(() => setCheck('check-score', 'running'), 2500);
-  setTimeout(() => setCheck('check-score', 'done'), 3000);
-  setTimeout(() => showFinalResults([mockResult]), 3200);
+  document.getElementById('proc-sub').textContent=`Screening ${q}...`;
+  setCI('ci-flood','run');
+  setTimeout(()=>{setCI('ci-flood','done');setCI('ci-wet','run')},800);
+  setTimeout(()=>{setCI('ci-wet','done');setCI('ci-road','run')},1600);
+  setTimeout(()=>{setCI('ci-road','done');setCI('ci-score','run')},2400);
+  setTimeout(()=>{setCI('ci-score','done');showFinal([mock])},3000);
 }
 
-// ─── DOWNLOAD CSV ─────────────────────────────────────────────────────────────
-function downloadCSV() {
-  const headers = ['Address','APN','County','Acreage','Score','Verdict','Flags'];
-  const rows = allResults.map(r => [
-    r.address || r.full_address,
-    r.apn || '',
-    r.county || selectedState,
-    r.acreage || '',
-    r.score,
-    r.verdict,
-    (r.flags || []).map(f => f.label).join(' | ')
+// ── DOWNLOAD ──
+function dlCSV(){
+  const hdr=['Address','APN','County','Acreage','Score','Verdict','Flags'];
+  const rows=allResults.map(r=>[
+    r.address||r.full_address,r.apn||'',r.county||selState,
+    r.acreage||'',r.score,r.verdict,
+    (r.flags||[]).map(f=>f.l).join(' | ')
   ]);
-
-  const csv = [headers, ...rows]
-    .map(r => r.map(v => `"${v}"`).join(','))
-    .join('\n');
-
-  const blob = new Blob([csv], {type:'text/csv'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `parceliq-results-${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
+  const csv=[hdr,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`parceliq-${new Date().toISOString().split('T')[0]}.csv`;a.click();
 }
 
-// ─── WAITLIST ─────────────────────────────────────────────────────────────────
-function togglePill(el) {
-  el.classList.toggle('selected');
-}
-
-async function submitWaitlist() {
-  const email = document.getElementById('waitlist-email').value.trim();
-  if (!email || !email.includes('@')) {
-    alert('Please enter a valid email');
-    return;
-  }
-
-  const states = [...document.querySelectorAll('.state-pill.selected')]
-    .map(p => p.textContent);
-
-  try {
-    await fetch(`${API}/api/waitlist`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ email, states })
+// ── WAITLIST ──
+async function submitWaitlist(){
+  const email=document.getElementById('wl-email').value.trim();
+  if(!email||!email.includes('@')){alert('Please enter a valid email');return}
+  const states=[...document.querySelectorAll('.wl-pill.on')].map(p=>p.textContent);
+  try{
+    await fetch(`${API}/api/waitlist`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,states})
     });
-  } catch(e) {
-    console.log('Waitlist API not available yet');
-  }
-
-  document.querySelector('.waitlist-section').innerHTML = `
+  } catch{}
+  document.getElementById('waitlist-section').querySelector('.waitlist-card').innerHTML=`
     <h2>You're on the list ✓</h2>
-    <p style="color:var(--pursue)">We'll reach out when your state is ready.<br>
-    In the meantime, try the batch screener above.</p>
-  `;
+    <p style="color:var(--pursue);margin-top:8px">We'll reach out when your state is ready.<br>
+    Try the batch screener above in the meantime.</p>`;
 }
 
-// ─── SCREEN SWITCHER ──────────────────────────────────────────────────────────
-function showScreen(name) {
-  ['upload','processing','results'].forEach(s => {
-    document.getElementById(`screen-${s}`).style.display =
-      s === name ? 'block' : 'none';
+// ── UTILS ──
+function showScreen(name){
+  ['upload','processing','results'].forEach(s=>{
+    document.getElementById(`screen-${s}`).style.display=s===name?'block':'none';
   });
-
-  // Reset processing checks
-  if (name === 'processing') {
-    setCheck('check-parcel', 'done');
-    setCheck('check-flood', 'pending');
-    setCheck('check-wet', 'pending');
-    setCheck('check-road', 'pending');
-    setCheck('check-score', 'pending');
-    document.getElementById('live-results-list').innerHTML = '';
-    document.getElementById('progress-fill').style.width = '0%';
+  if(name==='processing'){
+    ['ci-flood','ci-wet','ci-road','ci-score'].forEach(id=>setCI(id,'wait'));
+    document.getElementById('live-list').innerHTML='';
+    document.getElementById('prog-fill').style.width='0%';
   }
 }
-
-function resetApp() {
-  parsedRows = [];
-  allResults = [];
-  document.getElementById('file-input').value = '';
-  document.getElementById('preview-section').style.display = 'none';
-  document.getElementById('btn-screen').disabled = true;
-  document.getElementById('btn-screen').textContent = 'Upload a file to begin screening';
+function resetApp(){
+  parsedRows=[];allResults=[];
+  document.getElementById('file-input').value='';
+  document.getElementById('preview-box').style.display='none';
+  const btn=document.getElementById('btn-screen');
+  btn.disabled=true;btn.textContent='Upload a file to begin';
   showScreen('upload');
 }
 </script>
