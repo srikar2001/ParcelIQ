@@ -915,26 +915,45 @@ window.addEventListener('focus', async () => {
   router();
 })();
 
-// Profile data — writes both local var and window.userProfile for compat
 async function loadUserProfile() {
-  if (!sb || !currentUser) return;
+  if (!currentUser) return;
   try {
-    const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
-    if (!profile) {
-      const newP = {
-        id: currentUser.id, email: currentUser.email,
-        full_name: currentUser.email.split('@')[0],
-        created_at: new Date().toISOString()
-      };
-      await sb.from('profiles').upsert(newP);
-      userProfile = newP; window.userProfile = newP;
-    } else {
-      userProfile = profile; window.userProfile = profile;
+    const { data: existing } = await sb
+      .from('profiles')
+      .select('*')
+      .eq('id', currentUser.id)
+      .single();
+    if (existing) {
+      userProfile = existing; window.userProfile = existing;
+      updateUIWithProfile();
+      return;
     }
+    const name = currentUser.email.split('@')[0];
+    const { data: created } = await sb
+      .from('profiles')
+      .upsert({ id: currentUser.id, email: currentUser.email,
+                full_name: name, created_at: new Date().toISOString() })
+      .select().single();
+    userProfile = created; window.userProfile = created;
+    updateUIWithProfile();
   } catch(e) {
+    console.error('Profile error:', e);
     const fallback = { id: currentUser?.id, email: currentUser?.email, full_name: currentUser?.email?.split('@')[0] };
     userProfile = fallback; window.userProfile = fallback;
+    updateUIWithProfile();
   }
+}
+
+function updateUIWithProfile() {
+  const p = userProfile;
+  if (!p) return;
+  const firstName = (p.full_name || p.email || '').split(/[\s@]/)[0] || '—';
+  const initial   = (p.full_name || p.email || '?').charAt(0).toUpperCase();
+  const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setEl('dashWelcome', 'Welcome back, ' + firstName);
+  setEl('dashAvatar',  initial);
+  setEl('dashName',    p.full_name || p.email || '—');
+  setEl('dashEmail',   p.email || '—');
 }
 
 // FIX 3: DOR code descriptions
@@ -1009,17 +1028,7 @@ function getAccessText(r) {
 // FIX 5: Load dashboard sidebar + stats
 async function loadDashboardData() {
   const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  const p = window.userProfile;
-  const email = currentUser?.email || '';
-  const profile = p || { email, full_name: email.split('@')[0] };
-
-  const initials = (profile.full_name || profile.email || '?').charAt(0).toUpperCase();
-  setEl('dashAvatar', initials);
-  setEl('dashName', profile.full_name || profile.email || '—');
-  setEl('dashEmail', profile.email || email || '—');
-
-  const firstName = (profile.full_name || profile.email || 'there').split(/[@\s]/)[0];
-  setEl('dashWelcome', 'Welcome back, ' + firstName);
+  updateUIWithProfile();
   setEl('dashDate', new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }));
 
   if (sb && currentUser) {
