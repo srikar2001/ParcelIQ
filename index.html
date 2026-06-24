@@ -317,6 +317,32 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .ptier-ul li::before{content:"✓";color:var(--green);font-weight:700;flex-shrink:0}
 .pricing-all{text-align:center;font-size:13px;color:var(--t3);line-height:2}
 
+/* ══ OUTSIDE COVERAGE verdict badge */
+.vb-outside{background:rgba(100,116,139,.1);color:#64748B;border:1px solid #2A2D3A}
+.res-trow.row-outside{opacity:.6}
+
+/* ══ NON-FL WARNING BANNER */
+.nonfl-banner{background:var(--abg);border:1px solid rgba(245,158,11,.25);border-radius:var(--rs);padding:10px 16px;font-size:13px;color:var(--amber);margin-bottom:14px;display:none}
+.nonfl-banner.show{display:block}
+
+/* ══ ESTIMATED TAG */
+.tag-est{font-size:10px;font-weight:600;padding:1px 6px;border-radius:var(--rp);background:rgba(245,158,11,.1);color:var(--amber);border:1px solid rgba(245,158,11,.2);margin-left:6px;vertical-align:middle}
+
+/* ══ CONFIRMATION PANEL */
+.confirm-panel{background:var(--card);border:1px solid rgba(245,158,11,.35);border-radius:var(--r);padding:20px;margin-bottom:20px}
+.confirm-hdr{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.confirm-icon{font-size:18px}
+.confirm-title{font-size:14px;font-weight:700;color:var(--amber)}
+.confirm-item{background:var(--bg);border:1px solid var(--b);border-radius:var(--rs);padding:12px 14px;margin-bottom:8px}
+.confirm-item.skipped{opacity:.45}
+.confirm-original{font-size:12px;color:var(--t3);margin-bottom:4px}
+.confirm-guess{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px}
+.confirm-item-btns{display:flex;gap:8px}
+.cbtn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:4px 12px;border-radius:var(--rp);border:1px solid var(--b);cursor:pointer;background:transparent;color:var(--t2);transition:all .15s}
+.cbtn.use{background:var(--gbg);color:var(--green);border-color:rgba(34,197,94,.3)}
+.cbtn.skip{background:var(--rbg);color:var(--red);border-color:rgba(239,68,68,.25)}
+.confirm-footer{display:flex;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--b)}
+
 /* RESPONSIVE */
 @media(max-width:1024px){
   .res-sidebar{display:none}
@@ -539,6 +565,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <button class="run-btn" id="runBatchBtn" onclick="runBatch()">Screen Parcels →</button>
         <div class="src-hint">Each parcel screened against FEMA · NWI · USFWS · EPA · OSM · FL DOR</div>
       </div>
+      <!-- Confirmation panel — shown when incomplete addresses are detected -->
+      <div id="confirmPanel" class="confirm-panel" style="display:none">
+        <div class="confirm-hdr">
+          <span class="confirm-icon">⚠</span>
+          <span class="confirm-title" id="confirmTitle">addresses need confirmation before screening</span>
+        </div>
+        <div id="confirmItems"></div>
+        <div class="confirm-footer">
+          <button class="btn-p btn-sm" onclick="confirmAllGuesses()">Confirm all guesses</button>
+          <button class="btn-o btn-sm" onclick="skipAllIncomplete()">Skip all incomplete</button>
+          <button class="btn-o btn-sm" onclick="hideConfirmPanel()">Cancel</button>
+        </div>
+      </div>
+
       <div class="past-sec">
         <div class="past-lbl">Recent Batches</div>
         <div id="pastBatches"><div class="past-empty">No batches yet. Screen your first batch above.</div></div>
@@ -638,6 +678,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           <button class="sumchip pursue" onclick="filterResults('PURSUE',this)">Pursue</button>
         </div>
       </div>
+      <div class="nonfl-banner" id="nonflBanner"></div>
       <div class="res-table-wrap">
         <table class="res-table">
           <thead>
@@ -1053,7 +1094,14 @@ async function loadDashboardData() {
   loadPastBatches();
 }
 
-// ── FILE UPLOAD
+// ── SMART FILE UPLOAD — FIX 1
+const _HEADER_KW = ['address','property','street','parcel','owner','name','apn','folio','site','strap','col','field'];
+
+function _isHeaderRow(text) {
+  const l = text.toLowerCase();
+  return _HEADER_KW.some(k => l === k || l.startsWith(k + ' ') || l.startsWith(k + ','));
+}
+
 function handleFileUpload(e) {
   const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
@@ -1063,13 +1111,126 @@ function handleFileUpload(e) {
       const wb = XLSX.read(ev.target.result, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      const lines = rows.map(r => String(r[0] || '').trim()).filter(l => l && !l.toLowerCase().startsWith('address'));
-      document.getElementById('batchInput').value = lines.join('\n');
-      toast('Loaded ' + lines.length + ' addresses from ' + file.name);
+
+      let skipped = 0;
+      const seen  = new Set();
+      const valid = [];
+
+      for (const row of rows) {
+        // Join up to 4 cells to handle split-column formats (street | city | state | zip)
+        const text = row.slice(0, 4).map(c => String(c || '').trim()).filter(Boolean).join(', ');
+        if (!text)                          { skipped++; continue; }
+        if (_isHeaderRow(text))             { skipped++; continue; }
+        if (text.length < 10)              { skipped++; continue; }
+        if (!/\d/.test(text))              { skipped++; continue; }
+        const key = text.toLowerCase();
+        if (seen.has(key))                  { skipped++; continue; }
+        seen.add(key);
+        valid.push(text);
+      }
+
+      document.getElementById('batchInput').value = valid.join('\n');
+      let msg = 'Found ' + valid.length + ' valid addresses from ' + file.name;
+      if (skipped > 0) msg += ' · Skipped ' + skipped + ' invalid rows';
+      toast(msg, 5000);
     } catch(err) { toast('Could not parse file: ' + err.message); }
   };
   reader.readAsBinaryString(file);
   e.target.value = '';
+}
+
+// ── ADDRESS HELPERS — FIX 2 + FIX 3
+
+function isCompleteAddress(addr) {
+  const words = addr.trim().split(/\s+/);
+  const hasNum   = /^\d/.test(addr.trim());
+  const hasState = /\b[A-Z]{2}\b/.test(addr) || /\bFlorida\b/i.test(addr);
+  return hasNum && hasState && words.length >= 3;
+}
+
+function isFloridaAddress(addr) {
+  return /,\s*FL\b/i.test(addr) ||
+         /\bFlorida\b/i.test(addr) ||
+         /\b3[2-4]\d{3}\b/.test(addr);
+}
+
+function bestGuess(addr) {
+  // No state at all → append FL
+  if (!/\b[A-Z]{2}\b/.test(addr) && !/\bFlorida\b/i.test(addr)) return addr + ', FL';
+  return addr;
+}
+
+// ── CONFIRMATION PANEL STATE — FIX 2
+
+let _pendingLines   = [];
+let _incompleteItems = []; // { idx, original, guess, use }
+
+function showConfirmPanel(lines) {
+  _pendingLines    = lines;
+  _incompleteItems = lines
+    .map((l, i) => !isCompleteAddress(l) ? { idx: i, original: l, guess: bestGuess(l), use: true } : null)
+    .filter(Boolean);
+
+  const titleEl = document.getElementById('confirmTitle');
+  if (titleEl) titleEl.textContent = _incompleteItems.length + ' address' +
+    (_incompleteItems.length !== 1 ? 'es' : '') + ' need confirmation before screening';
+
+  _renderConfirmItems();
+  const panel = document.getElementById('confirmPanel');
+  if (panel) { panel.style.display = 'block'; panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+}
+
+function _renderConfirmItems() {
+  const el = document.getElementById('confirmItems');
+  if (!el) return;
+  el.innerHTML = _incompleteItems.map((item, i) => {
+    const cls = item.use ? '' : ' skipped';
+    return '<div class="confirm-item' + cls + '" id="ci-' + i + '">' +
+      '<div class="confirm-original">Row ' + (item.idx + 1) + ': "' + escHtml(item.original) + '"</div>' +
+      '<div class="confirm-guess">Best guess: ' + escHtml(item.guess) + '?</div>' +
+      '<div class="confirm-item-btns">' +
+        '<button class="cbtn use" onclick="setConfirmItem(' + i + ', true)">✓ Use this</button>' +
+        '<button class="cbtn skip" onclick="setConfirmItem(' + i + ', false)">✗ Skip</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+function setConfirmItem(i, use) {
+  if (_incompleteItems[i]) _incompleteItems[i].use = use;
+  const el = document.getElementById('ci-' + i);
+  if (el) el.className = 'confirm-item' + (use ? '' : ' skipped');
+}
+
+function confirmAllGuesses() {
+  _incompleteItems.forEach((item, i) => { item.use = true; setConfirmItem(i, true); });
+}
+
+function skipAllIncomplete() {
+  _incompleteItems.forEach((item, i) => { item.use = false; setConfirmItem(i, false); });
+}
+
+function hideConfirmPanel() {
+  const panel = document.getElementById('confirmPanel');
+  if (panel) panel.style.display = 'none';
+}
+
+function proceedAfterConfirm() {
+  const estimated = new Set();
+  const finalLines = [];
+
+  for (let i = 0; i < _pendingLines.length; i++) {
+    const item = _incompleteItems.find(x => x.idx === i);
+    if (item) {
+      if (item.use) { finalLines.push(item.guess); estimated.add(item.guess.toLowerCase()); }
+      // else: skip this address
+    } else {
+      finalLines.push(_pendingLines[i]);
+    }
+  }
+
+  hideConfirmPanel();
+  if (!finalLines.length) { toast('No addresses to screen after filtering'); return; }
+  _executeBatch(finalLines, estimated);
 }
 
 // ── PAST BATCHES
@@ -1153,20 +1314,54 @@ async function saveBatchToSupabase(batchName, results) {
   } catch(e) { console.error('Save error:', e); return null; }
 }
 
-// ── RUN BATCH
+// ── RUN BATCH — FIX 2: checks incomplete addresses first
+let _estimatedAddresses = new Set();
+
 async function runBatch() {
   const raw = (document.getElementById('batchInput').value || '').trim();
   if (!raw) { toast('Paste at least one address'); return; }
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
   if (!lines.length) { toast('No valid addresses found'); return; }
 
+  const incomplete = lines.filter(l => !isCompleteAddress(l));
+  if (incomplete.length > 0) {
+    showConfirmPanel(lines);
+    return; // wait for user to confirm
+  }
+
+  _executeBatch(lines, new Set());
+}
+
+async function _executeBatch(lines, estimatedSet) {
+  _estimatedAddresses = estimatedSet || new Set();
+
+  // FIX 3: Separate FL vs non-FL before sending to API
+  const flLines  = lines.filter(isFloridaAddress);
+  const nonFlLines = lines.filter(l => !isFloridaAddress(l));
+
+  const outsideResults = nonFlLines.map(addr => ({
+    address: addr, verdict: 'OUTSIDE_COVERAGE',
+    score: null, flags: [], sources: [], positives: [], auto_kill: false,
+  }));
+
+  if (nonFlLines.length >= 5) {
+    toast(nonFlLines.length + ' addresses outside Florida were skipped. Other states coming soon.', 6000);
+  } else if (nonFlLines.length > 0) {
+    toast(nonFlLines.length + ' non-Florida address' + (nonFlLines.length > 1 ? 'es' : '') + ' skipped — FL only during beta', 4000);
+  }
+
+  if (!flLines.length) {
+    batchState.results = outsideResults; batchState.filtered = 'all'; batchState.elapsed = 0;
+    renderBatchResults(); goTo('results'); return;
+  }
+
   const btn = document.getElementById('runBatchBtn');
   btn.disabled = true; btn.textContent = 'Screening…';
 
   const countEl = document.getElementById('procCount');
-  if (countEl) countEl.textContent = 'Screening ' + lines.length + ' parcel' + (lines.length !== 1 ? 's' : '');
+  if (countEl) countEl.textContent = 'Screening ' + flLines.length + ' parcel' + (flLines.length !== 1 ? 's' : '');
 
-  window.location.hash = '#processing';
+  goTo('processing');
 
   const circ = document.getElementById('batchRingCirc');
   const pct  = document.getElementById('batchPct');
@@ -1204,7 +1399,7 @@ async function runBatch() {
   }, 1800);
 
   try {
-    const payload = { parcels: lines.map(a => ({ address: a })), state: 'FL' };
+    const payload = { parcels: flLines.map(a => ({ address: a })), state: 'FL' };
     const resp = await fetch(API + '/api/batch', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     });
@@ -1217,13 +1412,19 @@ async function runBatch() {
     if (stat) stat.textContent = 'Screening complete';
     if (sub)  sub.textContent  = data.summary.total + ' parcels screened';
     dots.forEach(d => d.classList.add('done'));
-    batchState.results = data.results || [];
+
+    // Tag estimated addresses; merge with outside-coverage results
+    const apiResults = (data.results || []).map(r => ({
+      ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase())
+    }));
+    batchState.results = [...outsideResults, ...apiResults];
     batchState.filtered = 'all';
-    await saveBatchToSupabase(null, data);
-    setTimeout(() => { renderBatchResults(); window.location.hash = '#results'; }, 600);
+
+    await saveBatchToSupabase(null, { summary: data.summary, results: apiResults });
+    setTimeout(() => { renderBatchResults(); goTo('results'); }, 600);
   } catch(err) {
     clearInterval(iv);
-    window.location.hash = '#dashboard';
+    goTo('dashboard');
     toast('Batch failed: ' + err.message);
   } finally {
     btn.disabled = false; btn.textContent = 'Screen Parcels →';
@@ -1232,14 +1433,16 @@ async function runBatch() {
 
 // ── RENDER RESULTS (FIX 4)
 function renderBatchResults() {
-  const results = batchState.results;
-  const kills   = results.filter(r => r.verdict === 'KILL').length;
-  const reviews = results.filter(r => r.verdict === 'REVIEW').length;
-  const pursues = results.filter(r => r.verdict === 'PURSUE').length;
-  const total   = results.length;
-  const setEl   = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const results  = batchState.results;
+  const flOnly   = results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
+  const outside  = results.filter(r => r.verdict === 'OUTSIDE_COVERAGE');
+  const kills    = flOnly.filter(r => r.verdict === 'KILL').length;
+  const reviews  = flOnly.filter(r => r.verdict === 'REVIEW').length;
+  const pursues  = flOnly.filter(r => r.verdict === 'PURSUE').length;
+  const total    = flOnly.length;
+  const setEl    = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
-  setEl('resTitleCount', total + ' lot' + (total !== 1 ? 's' : '') + ' screened');
+  setEl('resTitleCount', results.length + ' lot' + (results.length !== 1 ? 's' : '') + ' screened');
   setEl('resMeta', (batchState.elapsed ? 'Done in ' + batchState.elapsed + 's · ' : '') + '6 live sources · ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }));
   setEl('statTotal', total); setEl('statKill', kills); setEl('statReview', reviews); setEl('statPursue', pursues);
   setEl('sbKill', kills); setEl('sbReview', reviews); setEl('sbPursue', pursues);
@@ -1250,12 +1453,24 @@ function renderBatchResults() {
   setEl('timeSaved', ts); setEl('sbTimeSaved', ts);
   setEl('screenTime', (batchState.elapsed || '—') + 's screen time');
 
+  // Non-FL banner
+  const banner = document.getElementById('nonflBanner');
+  if (banner) {
+    if (outside.length > 0) {
+      banner.textContent = outside.length + ' address' + (outside.length > 1 ? 'es' : '') +
+        ' outside Florida coverage were skipped — other states coming soon.';
+      banner.classList.add('show');
+    } else {
+      banner.classList.remove('show');
+    }
+  }
+
   document.querySelectorAll('.sumchip').forEach(c => c.classList.remove('on'));
   const a = document.querySelector('.sumchip.all'); if (a) a.classList.add('on');
   updateSidebarActive('all');
 
   const sorted = [...results].sort((a, b) => {
-    const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3 };
+    const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3, OUTSIDE_COVERAGE:10 };
     return (o[a.verdict]??4) - (o[b.verdict]??4);
   });
   renderTable(sorted);
@@ -1268,8 +1483,8 @@ function updateSidebarActive(verdict) {
   if (el) el.classList.add('active');
 }
 
-function verdictClass(v) { return v==='KILL'?'vb-kill':v==='REVIEW'?'vb-review':v==='PURSUE'?'vb-pursue':'vb-error'; }
-function verdictColor(v) { return v==='KILL'?'var(--rd)':v==='REVIEW'?'var(--am)':v==='PURSUE'?'var(--sg2)':'var(--ink4)'; }
+function verdictClass(v) { return v==='KILL'?'vb-kill':v==='REVIEW'?'vb-review':v==='PURSUE'?'vb-pursue':v==='OUTSIDE_COVERAGE'?'vb-outside':'vb-error'; }
+function verdictColor(v) { return v==='KILL'?'var(--rd)':v==='REVIEW'?'var(--am)':v==='PURSUE'?'var(--sg2)':v==='OUTSIDE_COVERAGE'?'var(--ink4)':'var(--ink4)'; }
 
 // FIX 4: Table render
 function renderTable(results) {
@@ -1280,25 +1495,31 @@ function renderTable(results) {
     return;
   }
   tbody.innerHTML = results.map((r, i) => {
+    const isOutside = r.verdict === 'OUTSIDE_COVERAGE';
+    const isEst     = !isOutside && _estimatedAddresses.has((r.address || '').toLowerCase());
     const vc = verdictClass(r.verdict);
-    const scoreStr   = r.auto_kill ? '⛔' : (r.score != null ? r.score : '—');
-    const scoreColor = r.auto_kill ? 'var(--red)' : verdictColor(r.verdict);
+    const rowClass = 'res-trow' + (isOutside ? ' row-outside' : '');
+    const scoreStr   = isOutside ? '—' : r.auto_kill ? '⛔' : (r.score != null ? r.score : '—');
+    const scoreColor = isOutside ? 'var(--ink4)' : r.auto_kill ? 'var(--red)' : verdictColor(r.verdict);
     const pi = r.parcel_info || {};
 
-    const flags = (r.flags || []).map(translateFlag);
+    const estBadge = isEst ? '<span class="tag-est">Address estimated</span>' : '';
+    const flags = isOutside ? [] : (r.flags || []).map(translateFlag);
     const vis   = flags.slice(0, 3);
     const more  = flags.length - 3;
-    const flagHtml = vis.map(f => '<span class="tbl-pill tbl-pill-r">' + escHtml(f) + '</span>').join('') +
-      (more > 0 ? '<span class="tbl-pill tbl-pill-m">+' + more + ' more</span>' : '');
+    const flagHtml = isOutside
+      ? '<span style="color:var(--t3);font-size:12px">Outside FL coverage</span>'
+      : vis.map(f => '<span class="tbl-pill tbl-pill-r">' + escHtml(f) + '</span>').join('') +
+        (more > 0 ? '<span class="tbl-pill tbl-pill-m">+' + more + ' more</span>' : '');
 
     const expId = 'exp-' + i;
-    return '<tr class="res-trow" onclick="toggleExpand(\'' + expId + '\')">' +
-      '<td class="tbl-parcel">' + escHtml(r.address) + (pi.parcel_id ? '<div class="tbl-apn">' + escHtml(pi.parcel_id) + '</div>' : '') + '</td>' +
+    return '<tr class="' + rowClass + '" onclick="toggleExpand(\'' + expId + '\')">' +
+      '<td class="tbl-parcel">' + escHtml(r.address) + estBadge + (pi.parcel_id ? '<div class="tbl-apn">' + escHtml(pi.parcel_id) + '</div>' : '') + '</td>' +
       '<td class="tbl-score-cell" style="color:' + scoreColor + '">' + escHtml(String(scoreStr)) + '</td>' +
       '<td class="tbl-flags-cell">' + flagHtml + '</td>' +
-      '<td class="tbl-flood">' + escHtml(getFloodText(r)) + '</td>' +
-      '<td class="tbl-access">' + escHtml(getAccessText(r)) + '</td>' +
-      '<td><span class="verdict-badge ' + vc + '">' + escHtml(r.verdict) + '</span></td>' +
+      '<td class="tbl-flood">' + (isOutside ? '—' : escHtml(getFloodText(r))) + '</td>' +
+      '<td class="tbl-access">' + (isOutside ? '—' : escHtml(getAccessText(r))) + '</td>' +
+      '<td><span class="verdict-badge ' + vc + '">' + escHtml(isOutside ? 'OUTSIDE' : r.verdict) + '</span></td>' +
       '</tr>' +
       '<tr id="' + expId + '" class="res-expand-row" style="display:none"><td colspan="6">' + buildExpandHtml(r) + '</td></tr>';
   }).join('');
