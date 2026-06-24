@@ -739,6 +739,7 @@ try {
 let currentSession = null;
 let currentUser = null;
 let userProfile = null;
+let currentBatchResults = [];
 
 // ── HELPERS
 function goTo(page) { window.location.hash = '#' + page; }
@@ -1033,14 +1034,16 @@ async function loadDashboardData() {
 
   if (sb && currentUser) {
     try {
-      const { data } = await sb.from('batch_history').select('total,kill,review,pursue').eq('user_id', currentUser.id);
+      const { data } = await sb.from('batches').select('total,kills,reviews,pursues').eq('user_id', currentUser.id);
       if (data && data.length) {
         const tot = data.reduce((a, b) => ({
-          total:(a.total||0)+(b.total||0), kill:(a.kill||0)+(b.kill||0),
-          review:(a.review||0)+(b.review||0), pursue:(a.pursue||0)+(b.pursue||0)
-        }), {total:0,kill:0,review:0,pursue:0});
-        setEl('dqTotal', tot.total); setEl('dqKill', tot.kill);
-        setEl('dqReview', tot.review); setEl('dqPursue', tot.pursue);
+          total:  (a.total||0)  + (b.total||0),
+          kills:  (a.kills||0)  + (b.kills||0),
+          reviews:(a.reviews||0)+ (b.reviews||0),
+          pursues:(a.pursues||0)+ (b.pursues||0),
+        }), {total:0,kills:0,reviews:0,pursues:0});
+        setEl('dqTotal', tot.total); setEl('dqKill', tot.kills);
+        setEl('dqReview', tot.reviews); setEl('dqPursue', tot.pursues);
         setEl('dashUsed', tot.total);
         const fill = document.getElementById('dashUsageFill');
         if (fill) fill.style.width = Math.min(Math.round(tot.total/500*100),100) + '%';
@@ -1071,48 +1074,84 @@ function handleFileUpload(e) {
 
 // ── PAST BATCHES
 async function loadPastBatches() {
+  if (!currentUser) return;
+  try {
+    const { data: batches } = await sb.from('batches').select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false }).limit(10);
+    if (!batches || batches.length === 0) { showEmptyBatchState(); return; }
+    renderPastBatches(batches);
+  } catch(e) { console.error('Load batches error:', e); showEmptyBatchState(); }
+}
+
+function showEmptyBatchState() {
+  const el = document.getElementById('pastBatches');
+  if (el) el.innerHTML = '<div class="past-empty">No batches yet. Screen your first batch above.</div>';
+}
+
+function renderPastBatches(batches) {
   const el = document.getElementById('pastBatches');
   if (!el) return;
-  if (!sb || !currentUser) { el.innerHTML = '<div class="past-empty">No batches yet. Screen your first batch above.</div>'; return; }
-  try {
-    const { data, error } = await sb.from('batch_history')
-      .select('*').eq('user_id', currentUser.id)
-      .order('created_at', { ascending: false }).limit(5);
-    if (error || !data || !data.length) { el.innerHTML = '<div class="past-empty">No batches yet. Screen your first batch above.</div>'; return; }
-    el.innerHTML = data.map(b => {
-      const d = new Date(b.created_at);
-      const ds = d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-      return '<div class="batch-card" onclick="loadPastBatch(\'' + b.id + '\')">' +
-        '<div class="batch-info"><div class="batch-name">' + (b.total||0) + ' lots screened</div><div class="batch-date">' + ds + '</div></div>' +
-        '<div class="batch-stats">' +
-          '<span style="color:var(--red)">■ ' + (b.kill||0) + ' kill</span>' +
-          '<span style="color:var(--amber)">■ ' + (b.review||0) + ' review</span>' +
-          '<span style="color:var(--green)">■ ' + (b.pursue||0) + ' pursue</span>' +
-        '</div><div class="batch-arr">→</div></div>';
-    }).join('');
-  } catch(e) { el.innerHTML = '<div class="past-empty">No batches yet. Screen your first batch above.</div>'; }
+  el.innerHTML = batches.map(b => {
+    const d  = new Date(b.created_at);
+    const ds = d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    const name = escHtml(b.name || (b.total||0) + ' lots screened');
+    return '<div class="batch-card" onclick="loadBatchResults(\'' + b.id + '\')">' +
+      '<div class="batch-info"><div class="batch-name">' + name + '</div><div class="batch-date">' + ds + '</div></div>' +
+      '<div class="batch-stats">' +
+        '<span style="color:var(--red)">■ ' + (b.kills||0) + ' kill</span>' +
+        '<span style="color:var(--amber)">■ ' + (b.reviews||0) + ' review</span>' +
+        '<span style="color:var(--green)">■ ' + (b.pursues||0) + ' pursue</span>' +
+      '</div><div class="batch-arr">→</div></div>';
+  }).join('');
 }
 
-async function loadPastBatch(id) {
-  if (!sb) return;
+async function loadBatchResults(batchId) {
+  if (!currentUser) return;
   try {
-    const { data } = await sb.from('batch_history').select('results_json').eq('id', id).single();
-    if (data && data.results_json) {
-      batchState.results = data.results_json; batchState.filtered = 'all'; batchState.elapsed = 0;
-      renderBatchResults(); window.location.hash = '#results';
-    }
-  } catch(e) { toast('Could not load batch'); }
+    const { data: results } = await sb.from('parcel_results').select('*')
+      .eq('batch_id', batchId).eq('user_id', currentUser.id)
+      .order('score', { ascending: true });
+    if (!results) return;
+    currentBatchResults = results;
+    batchState.results  = results;
+    batchState.filtered = 'all';
+    batchState.elapsed  = 0;
+    renderBatchResults();
+    goTo('results');
+  } catch(e) { console.error('Load results error:', e); toast('Could not load batch'); }
 }
 
-async function saveBatch(results, summary) {
-  if (!sb || !currentUser) return;
+async function saveBatchToSupabase(batchName, results) {
+  if (!currentUser) return null;
   try {
-    await sb.from('batch_history').insert({
-      user_id: currentUser.id, total: summary.total,
-      kill: summary.kill, review: summary.review, pursue: summary.pursue,
-      results_json: results,
-    });
-  } catch(e) {}
+    const summary = results.summary || {};
+    const { data: batch } = await sb.from('batches').insert({
+      user_id:  currentUser.id,
+      name:     batchName || 'Batch ' + new Date().toLocaleDateString(),
+      state:    'FL',
+      total:    summary.total    || results.results?.length || 0,
+      kills:    summary.kill     || 0,
+      reviews:  summary.review   || 0,
+      pursues:  summary.pursue   || 0,
+      status:   'complete',
+      created_at: new Date().toISOString()
+    }).select().single();
+    if (!batch) return null;
+    const rows = (results.results || []).map(r => ({
+      batch_id:   batch.id,
+      user_id:    currentUser.id,
+      address:    r.address,
+      score:      r.score,
+      verdict:    r.verdict,
+      flags:      r.flags    || [],
+      sources:    r.sources  || [],
+      parcel_info: r.parcel_info || {},
+      created_at: new Date().toISOString()
+    }));
+    if (rows.length > 0) await sb.from('parcel_results').insert(rows);
+    return batch.id;
+  } catch(e) { console.error('Save error:', e); return null; }
 }
 
 // ── RUN BATCH
@@ -1181,7 +1220,7 @@ async function runBatch() {
     dots.forEach(d => d.classList.add('done'));
     batchState.results = data.results || [];
     batchState.filtered = 'all';
-    await saveBatch(data.results, data.summary);
+    await saveBatchToSupabase(null, data);
     setTimeout(() => { renderBatchResults(); window.location.hash = '#results'; }, 600);
   } catch(err) {
     clearInterval(iv);
