@@ -39,6 +39,12 @@ def score_parcel(
     if land_use in PUBLIC_CODES:
         return _kill("Public/conservation land", flags, sources_checked)
 
+    # FIX 1 — Critical habitat is auto-kill
+    if habitat.get("habitat_found") is True:
+        species = habitat.get("species") or []
+        sp = ", ".join(species[:2]) if species else "listed species"
+        return _kill(f"Critical habitat: {sp}", flags, sources_checked)
+
     # ── STEP 2: Scoring
     score = 100
 
@@ -53,17 +59,10 @@ def score_parcel(
         score -= 25
         flags.append("EPA contamination record found")
 
-    # Critical habitat — heavy penalty but not auto-kill (habitat often aquatic/regional)
-    if habitat.get("habitat_found") is True:
-        species = habitat.get("species") or []
-        species_str = ", ".join(species[:2]) if species else "unknown species"
-        score -= 40
-        flags.append(f"Critical habitat nearby: {species_str}")
-
-    # Road access (not auto-kill — OSM coverage is incomplete in rural FL)
+    # FIX 4 — OSM gaps in rural FL are common, not the same as landlocked
     if roads.get("road_surface") == "none":
-        score -= 25
-        flags.append("No road detected in OSM (possible rural gap or landlocked)")
+        score -= 5
+        flags.append("Road data unavailable — verify access")
 
     if acreage is not None and acreage < 0.25:
         score -= 20
@@ -77,33 +76,37 @@ def score_parcel(
         score -= 15
         flags.append(f"Agricultural land use code ({land_use})")
 
+    # FIX 2 — Data gap is not the same as a bad parcel
     if not parcel.get("found"):
-        score -= 30
-        flags.append("No parcel record found in FL cadastral")
+        score -= 5
+        flags.append("County data unavailable")
 
+    # FIX 3 — Nearby wetlands penalty reduced
     if wetlands.get("wetland_nearby") is True:
-        score -= 15
+        score -= 8
         flags.append("Wetlands nearby (within ~100m)")
 
+    # FIX 4 — Updated flag text for unknown surface
     if roads.get("road_surface") == "unknown":
         score -= 8
-        flags.append("Road surface unverified (unpaved or unmapped)")
+        flags.append("Road type unconfirmed")
 
     if roads.get("road_surface") == "dirt":
         score -= 8
         flags.append("Dirt/unpaved road access")
 
+    # FIX 5 — Reduce noise flag weights
     if building_count == 0 and last_sale_price is None:
-        score -= 5
+        score -= 2
         flags.append("Vacant lot with no sale history")
 
     if last_sale_price is not None and last_sale_price < 1000:
-        score -= 5
+        score -= 2
         flags.append(f"Last sale price very low (${last_sale_price:,.0f})")
 
     if just_value and land_value and just_value > 0:
         if abs(just_value - land_value) / max(just_value, 1) > 0.15:
-            score -= 5
+            score -= 2
             flags.append("Just value and land value diverge >15%")
 
     # Additions
@@ -141,6 +144,14 @@ def score_parcel(
     else:
         verdict = "PURSUE"
 
+    # FIX 6 — Flag categories
+    kill_flags   = [f for f in flags if any(x in f.lower() for x in
+                    ["wetland", "flood", "habitat", "public", "contamination"])]
+    review_flags = [f for f in flags if f not in kill_flags
+                    and any(x in f.lower() for x in
+                    ["road", "small", "agricultural", "zone a", "dirt"])]
+    info_flags   = [f for f in flags if f not in kill_flags + review_flags]
+
     return {
         "verdict": verdict,
         "score": score,
@@ -149,6 +160,9 @@ def score_parcel(
         "flags": flags,
         "positives": positives,
         "sources_checked": sources_checked,
+        "kill_flags": kill_flags,
+        "review_flags": review_flags,
+        "info_flags": info_flags,
     }
 
 
@@ -162,6 +176,9 @@ def _kill(reason: str, flags: list[str], sources_checked: list[str]) -> dict:
         "flags": flags,
         "positives": [],
         "sources_checked": sources_checked,
+        "kill_flags": flags,
+        "review_flags": [],
+        "info_flags": [],
     }
 
 
