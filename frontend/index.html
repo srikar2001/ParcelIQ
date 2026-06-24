@@ -1381,62 +1381,58 @@ async function _executeBatch(lines, estimatedSet) {
 
   updateProgress(0, flLines.length, null);
   dots.forEach(d => d.classList.remove('done'));
-  const subEl = document.getElementById('batchSub');
-  if (subEl) subEl.textContent = 'Checking 6 live data sources per parcel';
+  const subEl0 = document.getElementById('batchSub');
+  if (subEl0) subEl0.textContent = 'Checking 6 live data sources per parcel';
+
+  // Split into pairs; fire all in parallel so total time ≈ one big call
+  // but progress updates as each pair finishes
+  const SUB = 2;
+  const groups = [];
+  for (let i = 0; i < flLines.length; i += SUB) groups.push(flLines.slice(i, i + SUB));
+
+  let done = 0;
+  const rawResults = [];
 
   try {
-    const payload = { parcels: flLines.map(a => ({ address: a })), state: 'FL' };
-    const resp = await fetch(API + '/api/batch/stream', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(currentSession?.access_token ? { 'Authorization': 'Bearer ' + currentSession.access_token } : {}),
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!resp.ok) throw new Error('Server error ' + resp.status);
-
-    const reader  = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        let ev;
-        try { ev = JSON.parse(line.slice(6)); } catch { continue; }
-
-        if (ev.type === 'progress') {
-          updateProgress(ev.completed, ev.total, ev.latest?.address);
-          const dotIdx = Math.floor((ev.completed / ev.total) * dots.length);
-          for (let d = 0; d < dotIdx && d < dots.length; d++) dots[d].classList.add('done');
-        }
-
-        if (ev.type === 'complete') {
-          batchState.elapsed = Math.round((Date.now() - t0) / 1000);
-          updateProgress(ev.summary.total, ev.summary.total, null);
-          dots.forEach(d => d.classList.add('done'));
-          const statEl2 = document.getElementById('batchStat');
-          const subEl2  = document.getElementById('batchSub');
-          if (statEl2) statEl2.textContent = 'Screening complete';
-          if (subEl2)  subEl2.textContent  = ev.summary.total + ' parcels screened';
-
-          const apiResults = (ev.results || []).map(r => ({
-            ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase())
-          }));
-          batchState.results  = [...outsideResults, ...apiResults];
-          batchState.filtered = 'all';
-
-          await saveBatchToSupabase(null, { summary: ev.summary, results: apiResults });
-          setTimeout(() => { renderBatchResults(); goTo('results'); }, 600);
-        }
+    await Promise.all(groups.map(async (group) => {
+      const resp = await fetch(API + '/api/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parcels: group.map(a => ({ address: a })), state: 'FL' }),
+      });
+      if (!resp.ok) throw new Error('Server error ' + resp.status);
+      const data = await resp.json();
+      for (const r of (data.results || [])) {
+        rawResults.push(r);
+        done++;
+        updateProgress(done, flLines.length, r.address);
+        const dotIdx = Math.floor((done / flLines.length) * dots.length);
+        for (let d = 0; d < dotIdx && d < dots.length; d++) dots[d].classList.add('done');
       }
-    }
+    }));
+
+    batchState.elapsed = Math.round((Date.now() - t0) / 1000);
+    updateProgress(flLines.length, flLines.length, null);
+    dots.forEach(d => d.classList.add('done'));
+    const statEl = document.getElementById('batchStat');
+    const subEl  = document.getElementById('batchSub');
+    if (statEl) statEl.textContent = 'Screening complete';
+    if (subEl)  subEl.textContent  = rawResults.length + ' parcels screened';
+
+    const apiResults = rawResults.map(r => ({
+      ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase())
+    }));
+    batchState.results  = [...outsideResults, ...apiResults];
+    batchState.filtered = 'all';
+
+    const summary = {
+      total:  apiResults.length,
+      kill:   apiResults.filter(r => r.verdict === 'KILL').length,
+      review: apiResults.filter(r => r.verdict === 'REVIEW').length,
+      pursue: apiResults.filter(r => r.verdict === 'PURSUE').length,
+    };
+    await saveBatchToSupabase(null, { summary, results: apiResults });
+    setTimeout(() => { renderBatchResults(); goTo('results'); }, 600);
   } catch(err) {
     goTo('dashboard');
     toast('Batch failed: ' + err.message);
