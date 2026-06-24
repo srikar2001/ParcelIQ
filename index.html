@@ -170,6 +170,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .dash-qs-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:16px;text-align:center}
 .dash-qs-num{font-size:28px;font-weight:800;line-height:1;margin-bottom:4px}
 .dash-qs-lbl{font-size:11px;color:var(--t2);text-transform:uppercase;letter-spacing:.5px}
+.dq-zero{color:var(--t3)!important}
+.stats-hint{text-align:center;color:var(--t3);font-size:12px;margin-top:-16px;margin-bottom:16px}
+.gs-card{background:var(--card);border:1px solid rgba(34,197,94,.2);border-radius:var(--r);padding:18px 20px;margin-bottom:16px}
+.gs-title{font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.gs-desc{font-size:13px;color:var(--t2);line-height:1.55;margin-bottom:12px}
+.gs-steps{display:flex;flex-direction:column;gap:7px}
+.gs-step{font-size:13px;color:var(--t2);display:flex;align-items:flex-start;gap:10px;line-height:1.4}
+.gs-n{min-width:20px;height:20px;border-radius:50%;background:var(--green);color:#000;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
 .dash-form-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:28px;margin-bottom:24px}
 .dash-lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:10px}
 .dash-title{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
@@ -539,10 +547,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <div class="dash-welcome-date" id="dashDate">—</div>
       </div>
       <div class="dash-qs-grid">
-        <div class="dash-qs-card"><div class="dash-qs-num" id="dqTotal">—</div><div class="dash-qs-lbl">Total Screened</div></div>
-        <div class="dash-qs-card"><div class="dash-qs-num c-r" id="dqKill">—</div><div class="dash-qs-lbl">Killed</div></div>
-        <div class="dash-qs-card"><div class="dash-qs-num c-a" id="dqReview">—</div><div class="dash-qs-lbl">Review</div></div>
-        <div class="dash-qs-card"><div class="dash-qs-num c-g" id="dqPursue">—</div><div class="dash-qs-lbl">Pursue</div></div>
+        <div class="dash-qs-card"><div class="dash-qs-num dq-zero" id="dqTotal">0</div><div class="dash-qs-lbl">Batches Run</div></div>
+        <div class="dash-qs-card"><div class="dash-qs-num dq-zero" id="dqKill">0</div><div class="dash-qs-lbl">Parcels Screened</div></div>
+        <div class="dash-qs-card"><div class="dash-qs-num dq-zero" id="dqReview">0</div><div class="dash-qs-lbl">Kills</div></div>
+        <div class="dash-qs-card"><div class="dash-qs-num dq-zero" id="dqPursue">0 hrs</div><div class="dash-qs-lbl">Hours Saved</div></div>
+      </div>
+      <div id="statsHint" class="stats-hint" style="display:none">Screen your first batch to see your stats here</div>
+      <div id="gettingStarted" class="gs-card" style="display:none">
+        <div class="gs-title">Getting Started</div>
+        <div class="gs-desc">ParcelIQ screens vacant land parcels for flood risk, wetlands, wildlife, contamination, and road access — in seconds.</div>
+        <div class="gs-steps">
+          <div class="gs-step"><span class="gs-n">1</span><span>Paste FL addresses below (one per line) or upload a CSV</span></div>
+          <div class="gs-step"><span class="gs-n">2</span><span>Click Screen Parcels</span></div>
+          <div class="gs-step"><span class="gs-n">3</span><span>Review Kill / Review / Pursue verdicts</span></div>
+        </div>
       </div>
       <div class="dash-form-card">
         <div class="dash-lbl">New Batch Screen</div>
@@ -1075,23 +1093,50 @@ async function loadDashboardData() {
 
   if (sb && currentUser) {
     try {
-      const { data } = await sb.from('batches').select('total,kills,reviews,pursues').eq('user_id', currentUser.id);
+      const { data } = await sb.from('batches').select('total,kills').eq('user_id', currentUser.id);
       if (data && data.length) {
-        const tot = data.reduce((a, b) => ({
-          total:  (a.total||0)  + (b.total||0),
-          kills:  (a.kills||0)  + (b.kills||0),
-          reviews:(a.reviews||0)+ (b.reviews||0),
-          pursues:(a.pursues||0)+ (b.pursues||0),
-        }), {total:0,kills:0,reviews:0,pursues:0});
-        setEl('dqTotal', tot.total); setEl('dqKill', tot.kills);
-        setEl('dqReview', tot.reviews); setEl('dqPursue', tot.pursues);
-        setEl('dashUsed', tot.total);
+        const batchCount   = data.length;
+        const totalParcels = data.reduce((a, b) => a + (b.total || 0), 0);
+        const totalKills   = data.reduce((a, b) => a + (b.kills || 0), 0);
+        const hrsSaved     = (Math.round(totalParcels * 0.25 * 10) / 10) + ' hrs';
+
+        ['dqTotal','dqKill','dqReview','dqPursue'].forEach(id => {
+          const el = document.getElementById(id); if (el) el.classList.remove('dq-zero');
+        });
+        setEl('dqTotal', batchCount);
+        setEl('dqKill',  totalParcels);
+        setEl('dqReview', totalKills);
+        setEl('dqPursue', hrsSaved);
+
+        const hint = document.getElementById('statsHint');
+        if (hint) hint.style.display = 'none';
+        const gs = document.getElementById('gettingStarted');
+        if (gs) gs.style.display = 'none';
+
+        setEl('dashUsed', totalParcels);
         const fill = document.getElementById('dashUsageFill');
-        if (fill) fill.style.width = Math.min(Math.round(tot.total/500*100),100) + '%';
+        if (fill) fill.style.width = Math.min(Math.round(totalParcels / 500 * 100), 100) + '%';
+      } else {
+        _dashEmptyState();
       }
-    } catch(e) {}
+    } catch(e) { _dashEmptyState(); }
+  } else {
+    _dashEmptyState();
   }
   loadPastBatches();
+}
+
+function _dashEmptyState() {
+  ['dqTotal','dqKill','dqReview'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = '0'; el.classList.add('dq-zero'); }
+  });
+  const pEl = document.getElementById('dqPursue');
+  if (pEl) { pEl.textContent = '0 hrs'; pEl.classList.add('dq-zero'); }
+  const hint = document.getElementById('statsHint');
+  if (hint) hint.style.display = 'block';
+  const gs = document.getElementById('gettingStarted');
+  if (gs && !localStorage.getItem('parceliq-first-batch-done')) gs.style.display = 'block';
 }
 
 // ── SMART FILE UPLOAD — FIX 1
@@ -1261,6 +1306,7 @@ async function loadPastBatches() {
 function showEmptyBatchState() {
   const el = document.getElementById('pastBatches');
   if (el) el.innerHTML = '<div class="past-empty">No batches yet. Screen your first batch above.</div>';
+  _dashEmptyState();
 }
 
 function renderPastBatches(batches) {
@@ -1432,6 +1478,9 @@ async function _executeBatch(lines, estimatedSet) {
       pursue: apiResults.filter(r => r.verdict === 'PURSUE').length,
     };
     await saveBatchToSupabase(null, { summary, results: apiResults });
+    localStorage.setItem('parceliq-first-batch-done', 'true');
+    const gsCard = document.getElementById('gettingStarted');
+    if (gsCard) gsCard.style.display = 'none';
     setTimeout(() => { renderBatchResults(); goTo('results'); }, 600);
   } catch(err) {
     goTo('dashboard');
