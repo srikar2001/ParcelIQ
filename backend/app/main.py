@@ -6,15 +6,18 @@ Run with:
 """
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.routers import narrative, report, search
+from app.routers import narrative, report, search, batch
 
 # frontend/ lives two levels above this file (repo root → frontend/)
 _FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
-_HTML = _FRONTEND_DIR / "parceliq_v5.html"
+_HTML = _FRONTEND_DIR / "index.html"
 
 app = FastAPI(
     title="ParcelIQ API",
@@ -33,6 +36,7 @@ app.add_middleware(
 app.include_router(search.router)
 app.include_router(report.router)
 app.include_router(narrative.router)
+app.include_router(batch.router)
 
 
 @app.get("/", include_in_schema=False)

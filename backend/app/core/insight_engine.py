@@ -1,27 +1,180 @@
-"""
-Insight Engine v2 — Cross-source pattern detection + buildability scoring.
-
-Safe wording rules (never violate):
-  - "No records found in tested source" (never "no liens exist")
-  - "Mapped wetland signal found; professional delineation required"
-  - "Service area found; active connection/cost not verified"
-  - "This is a screening-level score based on public records only"
-"""
 from __future__ import annotations
 
 from app.models.schema import BuildabilityScore, Insight, PropertyReport
 
+SFHA_ZONES = {"AE", "VE", "V", "AO", "AH", "A"}
+AGRI_CODES = {"50", "51", "52", "53", "54", "55", "56", "57", "58", "59"}
+PUBLIC_CODES = {"86", "87", "88", "89", "99"}
 
-# ── Scoring constants
+
+def score_parcel(
+    flood: dict,
+    wetlands: dict,
+    habitat: dict,
+    epa: dict,
+    roads: dict,
+    parcel: dict,
+) -> dict:
+    flags: list[str] = []
+    positives: list[str] = []
+
+    sources_checked = [
+        flood.get("source", "FEMA NFHL"),
+        wetlands.get("source", "USFWS NWI"),
+        habitat.get("source", "USFWS Critical Habitat"),
+        epa.get("source", "EPA ECHO Superfund"),
+        roads.get("source", "OpenStreetMap"),
+        parcel.get("source", "FL DOR Cadastral"),
+    ]
+
+    # ── STEP 1: Auto-kill checks
+    flood_zone = flood.get("zone") or ""
+    if flood_zone in SFHA_ZONES and flood.get("sfha") is True:
+        return _kill(f"FEMA Flood Zone {flood_zone}", flags, sources_checked)
+
+    if wetlands.get("wetland_on_parcel") is True:
+        return _kill("Wetlands on parcel (USFWS NWI)", flags, sources_checked)
+
+    land_use = str(parcel.get("land_use_code") or "")
+    if land_use in PUBLIC_CODES:
+        return _kill("Public/conservation land", flags, sources_checked)
+
+    # ── STEP 2: Scoring
+    score = 100
+
+    acreage = parcel.get("acreage")
+    just_value = parcel.get("just_value")
+    land_value = parcel.get("land_value")
+    last_sale_price = parcel.get("last_sale_price")
+    building_count = parcel.get("building_count") or 0
+
+    # Deductions
+    if epa.get("contamination_found"):
+        score -= 25
+        flags.append("EPA contamination record found")
+
+    # Critical habitat — heavy penalty but not auto-kill (habitat often aquatic/regional)
+    if habitat.get("habitat_found") is True:
+        species = habitat.get("species") or []
+        species_str = ", ".join(species[:2]) if species else "unknown species"
+        score -= 40
+        flags.append(f"Critical habitat nearby: {species_str}")
+
+    # Road access (not auto-kill — OSM coverage is incomplete in rural FL)
+    if roads.get("road_surface") == "none":
+        score -= 25
+        flags.append("No road detected in OSM (possible rural gap or landlocked)")
+
+    if acreage is not None and acreage < 0.25:
+        score -= 20
+        flags.append(f"Parcel very small ({round(acreage, 3)} ac)")
+
+    if flood_zone == "A" and flood.get("sfha") is not True:
+        score -= 15
+        flags.append("FEMA Zone A (undetermined flood risk)")
+
+    if land_use in AGRI_CODES:
+        score -= 15
+        flags.append(f"Agricultural land use code ({land_use})")
+
+    if not parcel.get("found"):
+        score -= 30
+        flags.append("No parcel record found in FL cadastral")
+
+    if wetlands.get("wetland_nearby") is True:
+        score -= 15
+        flags.append("Wetlands nearby (within ~100m)")
+
+    if roads.get("road_surface") == "unknown":
+        score -= 8
+        flags.append("Road surface unverified (unpaved or unmapped)")
+
+    if roads.get("road_surface") == "dirt":
+        score -= 8
+        flags.append("Dirt/unpaved road access")
+
+    if building_count == 0 and last_sale_price is None:
+        score -= 5
+        flags.append("Vacant lot with no sale history")
+
+    if last_sale_price is not None and last_sale_price < 1000:
+        score -= 5
+        flags.append(f"Last sale price very low (${last_sale_price:,.0f})")
+
+    if just_value and land_value and just_value > 0:
+        if abs(just_value - land_value) / max(just_value, 1) > 0.15:
+            score -= 5
+            flags.append("Just value and land value diverge >15%")
+
+    # Additions
+    if flood_zone == "X":
+        score += 5
+        positives.append("FEMA Zone X — minimal flood hazard")
+
+    if not wetlands.get("wetland_on_parcel") and not wetlands.get("wetland_nearby"):
+        score += 5
+        positives.append("No wetlands on parcel or nearby")
+
+    if roads.get("road_surface") == "paved":
+        score += 3
+        positives.append("Paved road access")
+
+    if acreage is not None and 0.5 <= acreage <= 5:
+        score += 3
+        positives.append(f"Ideal parcel size ({round(acreage, 2)} ac)")
+
+    if last_sale_price is not None and last_sale_price >= 10000:
+        score += 3
+        positives.append(f"Recent market sale (${last_sale_price:,.0f})")
+
+    if building_count == 0:
+        score += 2
+        positives.append("Vacant/unimproved lot")
+
+    # ── STEP 3: Clamp + verdict
+    score = max(0, min(100, score))
+
+    if score <= 34:
+        verdict = "KILL"
+    elif score <= 54:
+        verdict = "REVIEW"
+    else:
+        verdict = "PURSUE"
+
+    return {
+        "verdict": verdict,
+        "score": score,
+        "auto_kill": False,
+        "auto_kill_reason": None,
+        "flags": flags,
+        "positives": positives,
+        "sources_checked": sources_checked,
+    }
+
+
+def _kill(reason: str, flags: list[str], sources_checked: list[str]) -> dict:
+    flags.append(reason)
+    return {
+        "verdict": "KILL",
+        "score": 0,
+        "auto_kill": True,
+        "auto_kill_reason": reason,
+        "flags": flags,
+        "positives": [],
+        "sources_checked": sources_checked,
+    }
+
+
+# ── Legacy engine for report.py / narrative.py (Hillsborough single-parcel flow)
+
 _D_WETLAND          = -30
 _D_SFHA             = -15
-_D_WETLAND_SEPTIC   = -12  # Pattern 1
-_D_UTIL_GAP_WET     = -8   # Pattern 2
+_D_WETLAND_SEPTIC   = -12
+_D_UTIL_GAP_WET     = -8
 _D_NO_UTILITY       = -5
-_D_NO_ROAD          = -10  # Pattern 7
+_D_NO_ROAD          = -10
 _D_NO_PERMITS       = -3
-_D_VALUE_GAP        = -2   # Pattern 3
-
+_D_VALUE_GAP        = -2
 _A_ZONE_X           = +5
 _A_BOTH_UTILITIES   = +4
 _A_ONE_UTILITY      = +2
@@ -38,7 +191,6 @@ def run_insight_engine(report: PropertyReport) -> tuple[list[Insight], Buildabil
     env  = report.environmental
     prop = report.property
 
-    # ── 1. Wetlands (Source 03)
     wetland_found = bool(env.wetlands and env.wetlands.found)
     if wetland_found:
         wt = env.wetlands
@@ -48,30 +200,23 @@ def run_insight_engine(report: PropertyReport) -> tuple[list[Insight], Buildabil
             risk_level="High",
             finding=(
                 f"NWI polygon intersects parcel: {wt.wetland_type or 'wetland features'} "
-                f"({wt.attribute or 'type unspecified'}). "
-                "Polygon acreage is the NWI polygon size, not parcel acreage."
+                f"({wt.attribute or 'type unspecified'})."
             ),
             buyer_meaning=(
                 "Mapped wetland signal found; professional delineation required. "
                 "Buildable area, septic drainfield placement, clearing, fill, and "
-                "drainage permits may all be affected. Gross acreage is not usable acreage."
+                "drainage permits may all be affected."
             ),
             next_step=(
                 "Ask seller for any existing wetland delineation study. "
-                "If none exists, engage a licensed environmental consultant before offering. "
-                "This is the critical unknown for pricing this parcel."
+                "If none exists, engage a licensed environmental consultant before offering."
             ),
             source_ids=["03"],
             confidence="screening",
         ))
         score += _D_WETLAND
-        deductions.append({
-            "reason": "Mapped wetland signal — NWI polygon intersects parcel",
-            "amount": _D_WETLAND,
-            "source": "03",
-        })
+        deductions.append({"reason": "Mapped wetland signal — NWI polygon intersects parcel", "amount": _D_WETLAND, "source": "03"})
 
-    # ── 2. Flood Zone (Source 02)
     flood_sfha   = bool(env.flood and env.flood.sfha is True)
     flood_zone_x = bool(env.flood and env.flood.fld_zone == "X" and not env.flood.sfha)
 
@@ -84,56 +229,30 @@ def run_insight_engine(report: PropertyReport) -> tuple[list[Insight], Buildabil
             finding=f"FEMA Zone {zone} (SFHA: True). Flood insurance typically required by lenders.",
             buyer_meaning=(
                 "Property is in a Special Flood Hazard Area. Flood insurance will likely "
-                "be required and is priced by FEMA actuarial tables. Elevation certificate "
-                "may be required. Construction standards are elevated."
+                "be required and is priced by FEMA actuarial tables."
             ),
-            next_step=(
-                "Get a flood insurance quote BEFORE making an offer. "
-                "Request elevation certificate from seller. "
-                "Verify Base Flood Elevation at msc.fema.gov."
-            ),
+            next_step="Get a flood insurance quote BEFORE making an offer. Request elevation certificate from seller.",
             source_ids=["02"],
             confidence="verified_api",
         ))
         score += _D_SFHA
-        deductions.append({
-            "reason": f"SFHA flood zone {zone}",
-            "amount": _D_SFHA,
-            "source": "02",
-        })
+        deductions.append({"reason": f"SFHA flood zone {zone}", "amount": _D_SFHA, "source": "02"})
     elif flood_zone_x:
         insights.append(Insight(
             title="FEMA Zone X — minimal flood hazard at sampled area",
             category="environmental",
             risk_level="Low",
             finding="FEMA Zone X; SFHA: False. Minimal flood hazard at parcel area.",
-            buyer_meaning=(
-                "Zone X is a positive signal at the sampled parcel area, but does not "
-                "clear wetland, drainage, or septic risks. Does not certify every point "
-                "on large or irregular parcels."
-            ),
-            next_step="Verify lender flood insurance requirements. Zone X can border SFHA zones on adjacent parcels.",
+            buyer_meaning="Zone X is a positive signal but does not clear wetland, drainage, or septic risks.",
+            next_step="Verify lender flood insurance requirements.",
             source_ids=["02"],
             confidence="verified_api",
         ))
         score += _A_ZONE_X
-        additions.append({
-            "reason": "FEMA Zone X / SFHA False",
-            "amount": _A_ZONE_X,
-            "source": "02",
-        })
+        additions.append({"reason": "FEMA Zone X / SFHA False", "amount": _A_ZONE_X, "source": "02"})
 
-    # ── 3. Utilities (Sources 07A/07B)
-    water_found = bool(
-        report.utilities
-        and report.utilities.water_service_area
-        and report.utilities.water_service_area.found
-    )
-    sewer_found = bool(
-        report.utilities
-        and report.utilities.sewer_service_area
-        and report.utilities.sewer_service_area.found
-    )
+    water_found = bool(report.utilities and report.utilities.water_service_area and report.utilities.water_service_area.found)
+    sewer_found = bool(report.utilities and report.utilities.sewer_service_area and report.utilities.sewer_service_area.found)
 
     if water_found or sewer_found:
         services = []
@@ -144,19 +263,9 @@ def run_insight_engine(report: PropertyReport) -> tuple[list[Insight], Buildabil
             title=f"{svc_str} service area found",
             category="utilities",
             risk_level="Low",
-            finding=(
-                f"Hillsborough County {', '.join(services)} service area found at parcel. "
-                "Service area found; active connection/cost not verified."
-            ),
-            buyer_meaning=(
-                "Service area presence is a positive signal but does not guarantee an active "
-                "connection, meter, main extension, or affordable connection cost. "
-                "Tap fees and main extension costs vary significantly."
-            ),
-            next_step=(
-                "Confirm active connection, tap fee, meter status, and any required main "
-                "extension with the county utility office before offer."
-            ),
+            finding=f"Hillsborough County {', '.join(services)} service area found at parcel. Service area found; active connection/cost not verified.",
+            buyer_meaning="Service area presence is a positive signal but does not guarantee an active connection or affordable connection cost.",
+            next_step="Confirm active connection, tap fee, meter status with the county utility office before offer.",
             source_ids=["07A", "07B"],
             confidence="verified_api",
         ))
@@ -172,95 +281,58 @@ def run_insight_engine(report: PropertyReport) -> tuple[list[Insight], Buildabil
             category="utilities",
             risk_level="Medium",
             finding="No water or sewer service area record returned at sampled point.",
-            buyer_meaning=(
-                "No public utility service area returned. Private well and/or septic likely required. "
-                "Well and septic have upfront costs ($8,000–$22,000+), permitting requirements, "
-                "and are not guaranteed on all soil types."
-            ),
-            next_step=(
-                "Call Hillsborough County DOH (813) 307-8059 with the folio number to verify "
-                "septic feasibility. Get well and septic cost estimates before making an offer."
-            ),
+            buyer_meaning="No public utility service area returned. Private well and/or septic likely required.",
+            next_step="Call Hillsborough County DOH with the folio number to verify septic feasibility.",
             source_ids=["07A", "07B"],
             confidence="verified_api",
         ))
         score += _D_NO_UTILITY
         deductions.append({"reason": "No utility service area at sampled point", "amount": _D_NO_UTILITY, "source": "07A+07B"})
 
-    # ── PATTERN 1: Wetland + Septic Stack (worst-case combination)
     if wetland_found and not water_found and not sewer_found:
         insights.insert(0, Insight(
             title="Wetland + no utilities: compounded development risk",
             category="environmental",
             risk_level="High",
-            finding=(
-                "Mapped wetland signal detected AND no public utility service area at parcel. "
-                "Private septic is likely required, but wetland presence creates drainfield placement uncertainty."
-            ),
-            buyer_meaning=(
-                "This is the highest-risk combination for any build plan. Wetlands may conflict "
-                "with septic drainfield setback requirements. Buildable area may be severely constrained. "
-                "An engineered septic system may be required at significantly higher cost."
-            ),
-            next_step=(
-                "Do not make an offer without: (1) a professional wetland delineation confirming "
-                "buildable area, and (2) a pre-application meeting with Hillsborough DOH on septic "
-                "feasibility. These two steps define what you are actually buying."
-            ),
+            finding="Mapped wetland signal detected AND no public utility service area at parcel.",
+            buyer_meaning="This is the highest-risk combination for any build plan.",
+            next_step="Do not make an offer without a professional wetland delineation and pre-application meeting with DOH on septic feasibility.",
             source_ids=["03", "07A", "07B"],
             confidence="screening",
         ))
         score += _D_WETLAND_SEPTIC
         deductions.append({"reason": "PATTERN 1: Wetland + no-utility compounded risk", "amount": _D_WETLAND_SEPTIC, "source": "03+07A+07B"})
-
-    # ── PATTERN 2: Utility Gap (partial utilities + wetland)
     elif wetland_found and (water_found != sewer_found):
         score += _D_UTIL_GAP_WET
         deductions.append({"reason": "PATTERN 2: Partial utilities + wetland detected", "amount": _D_UTIL_GAP_WET, "source": "03+07A+07B"})
 
-    # ── 4. Road access (Source 08)
     if report.road and report.road.found:
         insights.append(Insight(
             title="County road record found",
             category="access",
             risk_level="Low",
-            finding=(
-                f"Road record: {report.road.street or '—'}, "
-                f"maintained by {report.road.maintained_by or '—'}, "
-                f"authority: {report.road.authority or '—'}."
-            ),
-            buyer_meaning=(
-                "County road maintenance signal found. Road-level data only — does NOT verify "
-                "legal ingress/egress, parcel frontage, driveway permit, or easements."
-            ),
-            next_step="Verify legal access, frontage, and driveway permit rights through title search.",
+            finding=f"Road record: {report.road.street or '—'}, maintained by {report.road.maintained_by or '—'}.",
+            buyer_meaning="County road maintenance signal found. Does NOT verify legal ingress/egress or easements.",
+            next_step="Verify legal access and frontage through title search.",
             source_ids=["08"],
             confidence="partial",
         ))
         score += _A_ROAD_FOUND
         additions.append({"reason": "County road record found", "amount": _A_ROAD_FOUND, "source": "08"})
     else:
-        # PATTERN 7: Possible landlocked parcel
         insights.append(Insight(
             title="No county road record found — access risk",
             category="access",
             risk_level="High",
-            finding="No county road record returned for this parcel address. Screening only — does not confirm landlocked status.",
-            buyer_meaning=(
-                "No county road record found at this address. Parcel may lack confirmed legal access. "
-                "A parcel without confirmed legal access cannot be financed or permitted."
-            ),
-            next_step=(
-                "Verify access, easements, and road frontage in title search BEFORE making any offer. "
-                "This is a dealbreaker risk if unresolved."
-            ),
+            finding="No county road record returned for this parcel address.",
+            buyer_meaning="No county road record found at this address. Parcel may lack confirmed legal access.",
+            next_step="Verify access and easements in title search BEFORE making any offer.",
             source_ids=["08"],
             confidence="not_validated",
         ))
         score += _D_NO_ROAD
         deductions.append({"reason": "PATTERN 7: No road record — access risk", "amount": _D_NO_ROAD, "source": "08"})
 
-    # ── 5. Permits / CO (Sources 09/10)
     if report.permits:
         if not report.permits.issued_permits_match_found and not report.permits.certificate_of_occupancy_match_found:
             insights.append(Insight(
@@ -268,18 +340,14 @@ def run_insight_engine(report: PropertyReport) -> tuple[list[Insight], Buildabil
                 category="permits",
                 risk_level="Unknown",
                 finding="No confirmed records found in tested source.",
-                buyer_meaning=(
-                    "No match found in county GIS permit layer. This does not mean no permits exist — "
-                    "GIS address matching is unreliable. Search directly by folio for complete history."
-                ),
-                next_step="Search HillsGovHub permit portal directly by folio/parcel number for complete permit history.",
+                buyer_meaning="No match found in county GIS permit layer. Search directly by folio for complete history.",
+                next_step="Search HillsGovHub permit portal directly by folio/parcel number.",
                 source_ids=["09", "10"],
                 confidence="screening",
             ))
             score += _D_NO_PERMITS
             deductions.append({"reason": "No confirmed permit match in tested source", "amount": _D_NO_PERMITS, "source": "09+10"})
 
-    # ── PATTERN 3: Value/Assessment divergence
     if prop.just_value and prop.assessed_value and prop.just_value > 0:
         divergence = abs(prop.just_value - prop.assessed_value) / prop.just_value
         if divergence > 0.15:
@@ -287,35 +355,20 @@ def run_insight_engine(report: PropertyReport) -> tuple[list[Insight], Buildabil
                 title=f"Assessed value diverges {round(divergence * 100)}% from market value",
                 category="tax",
                 risk_level="Medium",
-                finding=(
-                    f"Just (market) value ${prop.just_value:,.0f} vs assessed ${prop.assessed_value:,.0f} — "
-                    f"{round(divergence * 100)}% gap."
-                ),
-                buyer_meaning=(
-                    "Significant divergence between market and assessed value may indicate homestead, "
-                    "agricultural, or other exemption. If the exemption is lost at sale, tax burden "
-                    "may increase substantially."
-                ),
-                next_step=(
-                    "Verify with Hillsborough Tax Collector: does this parcel carry homestead, "
-                    "Greenbelt, or other exemption that will be removed at sale?"
-                ),
+                finding=f"Just (market) value ${prop.just_value:,.0f} vs assessed ${prop.assessed_value:,.0f} — {round(divergence * 100)}% gap.",
+                buyer_meaning="Significant divergence may indicate homestead or agricultural exemption that will be removed at sale.",
+                next_step="Verify with Hillsborough Tax Collector whether this parcel carries an exemption that will be removed at sale.",
                 source_ids=["01"],
                 confidence="verified_api",
             ))
             score += _D_VALUE_GAP
             deductions.append({"reason": "PATTERN 3: Value/assessment gap > 15%", "amount": _D_VALUE_GAP, "source": "01"})
 
-    # ── 6. Address point confirmed (Source 12)
-    addr_confirmed = any(
-        e.source_id == "12" and e.status == "verified_api"
-        for e in report.source_evidence
-    )
+    addr_confirmed = any(e.source_id == "12" and e.status == "verified_api" for e in report.source_evidence)
     if addr_confirmed:
         score += _A_ADDR_CONFIRMED
         additions.append({"reason": "Official address confirmed in address point layer", "amount": _A_ADDR_CONFIRMED, "source": "12"})
 
-    # ── Clamp and label
     score = max(0, min(100, score))
 
     if   score >= 90: label = "Excellent"
@@ -324,11 +377,5 @@ def run_insight_engine(report: PropertyReport) -> tuple[list[Insight], Buildabil
     elif score >= 35: label = "Caution"
     else:             label = "High Risk"
 
-    buildability = BuildabilityScore(
-        score=score,
-        label=label,
-        deductions=deductions,
-        additions=additions,
-    )
-
+    buildability = BuildabilityScore(score=score, label=label, deductions=deductions, additions=additions)
     return insights, buildability

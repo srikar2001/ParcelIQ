@@ -228,3 +228,38 @@ class BuyerInsightsReport(BaseModel):
     folio: str
     buildability: BuildabilityScore
     top_findings: list[Insight]
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Batch screening
+# ──────────────────────────────────────────────────────────────────────────
+
+class ParcelInput(BaseModel):
+    address: str
+    apn: Optional[str] = None
+
+
+class BatchRequest(BaseModel):
+    parcels: list[ParcelInput]
+    state: str = "FL"
+
+
+class ParcelResult(BaseModel):
+    address: str
+    verdict: str  # KILL | REVIEW | PURSUE | ERROR
+    score: Optional[int] = None
+    auto_kill: bool = False
+    auto_kill_reason: Optional[str] = None
+    flags: list[str] = []
+    positives: list[str] = []
+    parcel_info: dict = {}
+    sources: list[str] = []
+    error: Optional[str] = None
+
+
+class BatchResponse(BaseModel):
+    total: int
+    kills: int
+    reviews: int
+    pursues: int
+    results: list[ParcelResult]

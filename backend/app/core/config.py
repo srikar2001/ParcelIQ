@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     supabase_key: str = ""
     google_api_key: str = ""
     anthropic_api_key: str = ""
+    geocodio_api_key: str = ""
 
     # ── Source 01 / 04: HCPA Parcel Attributes + Geometry
     hcpa_parcel_url: str = (
