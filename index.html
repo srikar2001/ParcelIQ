@@ -1146,7 +1146,6 @@ async function saveBatchToSupabase(batchName, results) {
       verdict:    r.verdict,
       flags:      r.flags    || [],
       sources:    r.sources  || [],
-      parcel_info: r.parcel_info || {},
       created_at: new Date().toISOString()
     }));
     if (rows.length > 0) await sb.from('parcel_results').insert(rows);
