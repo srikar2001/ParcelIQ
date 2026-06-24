@@ -16,7 +16,6 @@
   --amber:#F59E0B;--abg:rgba(245,158,11,.1);
   --t1:#F1F5F9;--t2:#64748B;--t3:#3D4157;
   --r:12px;--rs:8px;--rp:999px;
-  /* compat vars used in JS-injected inline styles */
   --rd:#EF4444;--am:#F59E0B;--sg2:#22C55E;--sg:#16A34A;--ink4:#64748B;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -29,6 +28,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 #page-landing.active{display:flex;flex-direction:column;min-height:100vh}
 #page-login.active,#page-signup.active{display:flex;align-items:center;justify-content:center;min-height:100vh;padding-top:58px}
 #page-processing.active{display:flex;align-items:center;justify-content:center;min-height:100vh}
+#page-dashboard.active,#page-results.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* NAV */
@@ -36,7 +36,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .nav-logo{font-size:18px;font-weight:800;cursor:pointer;letter-spacing:-.3px;display:flex;align-items:center}
 .nav-logo .iq{color:var(--green)}
 .nav-right{display:flex;align-items:center;gap:10px}
-.nav-user{font-size:12px;color:var(--t2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-user{font-size:12px;color:var(--t2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-link{font-size:13px;font-weight:500;color:var(--t2);cursor:pointer;padding:4px 0;transition:color .15s}
+.nav-link:hover{color:var(--t1)}
 .fl-pill{font-size:11px;font-weight:600;letter-spacing:.5px;padding:3px 10px;border-radius:var(--rp);background:var(--gbg);color:var(--green);border:1px solid rgba(34,197,94,.2)}
 
 /* BUTTONS */
@@ -53,7 +55,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .inp::placeholder{color:var(--t3)}
 .inp:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(34,197,94,.1)}
 
-/* VERDICT BADGES — injected by JS */
+/* VERDICT BADGES */
 .verdict-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:.5px;padding:3px 10px;border-radius:var(--rp)}
 .vb-kill{background:var(--rbg);color:var(--red);border:1px solid rgba(239,68,68,.2)}
 .vb-review{background:var(--abg);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
@@ -77,8 +79,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .hero-ctas .btn-p{font-size:16px;padding:14px 28px}
 .hero-ctas .btn-o{font-size:16px;padding:14px 28px}
 .hero-fine{font-size:12px;color:var(--t3)}
-
-/* Mock preview */
 .mock-wrap{width:100%;max-width:660px;margin:56px auto 0}
 .mock-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);overflow:hidden}
 .mock-head{padding:14px 20px;border-bottom:1px solid var(--b);display:flex;justify-content:space-between;align-items:center}
@@ -107,8 +107,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .mock-fl{font-size:11px;color:var(--t3)}
 .mock-fr{font-size:12px;font-weight:600;color:var(--green);cursor:pointer}
 .mock-fr:hover{text-decoration:underline}
-
-/* How it works */
 .how{background:rgba(22,24,32,.6);border-top:1px solid var(--b);border-bottom:1px solid var(--b);padding:64px 24px}
 .how-inner{max-width:840px;margin:0 auto}
 .sec-lbl{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--green);text-align:center;margin-bottom:10px}
@@ -118,8 +116,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .step-n{width:30px;height:30px;border-radius:var(--rs);background:var(--gbg);color:var(--green);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:14px;border:1px solid rgba(34,197,94,.2)}
 .step-t{font-size:15px;font-weight:700;color:var(--t1);margin-bottom:6px}
 .step-s{font-size:13px;color:var(--t2);line-height:1.6}
-
-/* Footer */
 .lfooter{padding:18px 28px;border-top:1px solid var(--b);display:flex;justify-content:space-between;align-items:center}
 .lfooter span{font-size:12px;color:var(--t2)}
 .lfooter span:last-child{color:var(--t3)}
@@ -142,13 +138,43 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .auth-link a{color:var(--green);cursor:pointer}
 .auth-link a:hover{text-decoration:underline}
 
-/* ══════════════════ DASHBOARD ══════════════════ */
-#page-dashboard{padding-top:58px}
-.dash-wrap{max-width:720px;margin:0 auto;padding:48px 24px}
+/* ══════════════════ DASHBOARD LAYOUT (FIX 5) ══════════════════ */
+#page-dashboard{padding-top:58px;min-height:100vh}
+.dash-layout{display:flex;min-height:calc(100vh - 58px)}
+
+/* Dashboard Sidebar */
+.dash-sidebar{width:240px;flex-shrink:0;background:var(--card);border-right:1px solid var(--b);padding:28px 16px 24px;display:flex;flex-direction:column;align-items:center;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto}
+.dash-avatar{width:52px;height:52px;border-radius:50%;background:var(--gbg);border:2px solid rgba(34,197,94,.3);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:var(--green);margin-bottom:10px;flex-shrink:0}
+.dash-uname{font-size:14px;font-weight:700;color:var(--t1);text-align:center;margin-bottom:3px;word-break:break-all}
+.dash-uemail{font-size:11px;color:var(--t3);text-align:center;margin-bottom:10px;word-break:break-all}
+.dash-plan{font-size:10px;font-weight:700;letter-spacing:.5px;padding:3px 10px;border-radius:var(--rp);background:var(--gbg);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.dsb-divider{width:100%;height:1px;background:var(--b);margin:18px 0}
+.dsb-nav{width:100%;display:flex;flex-direction:column;gap:2px}
+.dsb-nav-item{font-size:13px;font-weight:500;color:var(--t2);padding:8px 12px;border-radius:var(--rs);cursor:pointer;transition:all .15s;width:100%}
+.dsb-nav-item:hover{background:var(--card-h);color:var(--t1)}
+.dsb-nav-item.active{background:var(--card-h);color:var(--t1);font-weight:600}
+.dsb-signout{color:var(--t3);margin-top:4px}
+.dsb-usage{width:100%;margin-top:auto;padding-top:18px}
+.dsb-usage-top{display:flex;justify-content:space-between;margin-bottom:6px}
+.dsb-usage-lbl{font-size:11px;color:var(--t3)}
+.dsb-usage-val{font-size:11px;font-weight:600;color:var(--t2)}
+.dsb-usage-track{height:4px;background:var(--b);border-radius:var(--rp);overflow:hidden}
+.dsb-usage-fill{height:100%;background:var(--green);border-radius:var(--rp);transition:width .4s}
+
+/* Dashboard Main */
+.dash-main{flex:1;min-width:0;padding:32px 32px 80px}
+.dash-top{margin-bottom:24px}
+.dash-welcome-name{font-size:24px;font-weight:800;color:var(--t1);letter-spacing:-.02em;margin-bottom:4px}
+.dash-welcome-date{font-size:13px;color:var(--t3)}
+.dash-qs-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
+.dash-qs-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:16px;text-align:center}
+.dash-qs-num{font-size:28px;font-weight:800;line-height:1;margin-bottom:4px}
+.dash-qs-lbl{font-size:11px;color:var(--t2);text-transform:uppercase;letter-spacing:.5px}
+.dash-form-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:28px;margin-bottom:24px}
 .dash-lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:10px}
-.dash-title{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
-.dash-sub{font-size:14px;color:var(--t2);margin-bottom:24px}
-.addr-box{font-family:'Courier New',monospace;font-size:13px;width:100%;min-height:180px;background:var(--card);border:1px solid var(--b);border-radius:var(--r);color:var(--t1);padding:16px;outline:none;resize:vertical;line-height:1.75;transition:border-color .15s,box-shadow .15s}
+.dash-title{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+.dash-sub{font-size:14px;color:var(--t2);margin-bottom:18px}
+.addr-box{font-family:'Courier New',monospace;font-size:13px;width:100%;min-height:160px;background:var(--bg);border:1px solid var(--b);border-radius:var(--r);color:var(--t1);padding:16px;outline:none;resize:vertical;line-height:1.75;transition:border-color .15s,box-shadow .15s}
 .addr-box::placeholder{color:var(--t3)}
 .addr-box:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(34,197,94,.1)}
 .up-row{display:flex;align-items:center;gap:12px;margin:12px 0}
@@ -159,10 +185,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .run-btn:hover{background:var(--gd)}
 .run-btn:disabled{opacity:.5;cursor:not-allowed}
 .src-hint{font-size:12px;color:var(--t3);text-align:center;margin-top:10px}
-.past-sec{margin-top:48px;padding-top:36px;border-top:1px solid var(--b)}
-.past-lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);margin-bottom:18px}
-.past-empty{font-size:14px;color:var(--t3);padding:28px 0;text-align:center}
-.batch-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .15s}
+.past-sec{padding-top:8px}
+.past-lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);margin-bottom:14px}
+.past-empty{font-size:14px;color:var(--t3);padding:24px 0;text-align:center}
+.batch-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .15s}
 .batch-card:hover{background:var(--card-h);border-color:var(--bh);transform:translateY(-1px)}
 .batch-info{flex:1}
 .batch-name{font-size:14px;font-weight:600;margin-bottom:2px}
@@ -187,25 +213,44 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .proc-dot{width:8px;height:8px;border-radius:50%;background:var(--card-h);border:1px solid var(--b);transition:all .3s}
 .proc-dot.done{background:var(--green);border-color:var(--green);box-shadow:0 0 8px rgba(34,197,94,.4)}
 
-/* ══════════════════ RESULTS ══════════════════ */
+/* ══════════════════ RESULTS LAYOUT (FIX 4) ══════════════════ */
 #page-results{padding-top:58px;min-height:100vh}
-.res-wrap{max-width:800px;margin:0 auto;padding:32px 24px 80px}
-.res-eyebrow{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--t2);margin-bottom:8px}
-.res-title{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
-.res-meta-txt{font-size:13px;color:var(--t3);margin-bottom:24px}
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.res-layout{display:flex;min-height:calc(100vh - 58px)}
+
+/* Results Sidebar */
+.res-sidebar{width:240px;flex-shrink:0;background:var(--card);border-right:1px solid var(--b);padding:24px 16px;display:flex;flex-direction:column;gap:20px;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto}
+.rsb-section{display:flex;flex-direction:column;gap:4px}
+.rsb-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
+.rsb-nav-item{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:500;color:var(--t2);padding:8px 10px;border-radius:var(--rs);cursor:pointer;transition:all .15s}
+.rsb-nav-item:hover{background:var(--card-h);color:var(--t1)}
+.rsb-nav-item.active{background:var(--card-h);color:var(--t1);font-weight:600}
+.rsb-kill.active{color:var(--red)}
+.rsb-review.active{color:var(--amber)}
+.rsb-pursue.active{color:var(--green)}
+.rsb-count{font-size:11px;font-weight:700;background:var(--bg);padding:1px 7px;border-radius:var(--rp);color:var(--t3)}
+.rsb-time-val{font-size:22px;font-weight:800;color:var(--green);letter-spacing:-.02em}
+.rsb-time-sub{font-size:11px;color:var(--t3)}
+.rsb-state-val{font-size:13px;font-weight:600;color:var(--t1)}
+.rsb-new-btn{margin-top:auto;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;padding:9px 14px;border-radius:var(--rs);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;text-align:left;transition:all .15s;width:100%}
+.rsb-new-btn:hover{border-color:var(--bh);color:var(--t1)}
+
+/* Results Main */
+.res-main{flex:1;min-width:0;padding:24px 28px 80px}
+.res-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.res-title{font-size:24px;font-weight:800;letter-spacing:-.02em;margin-bottom:3px}
+.res-meta-txt{font-size:13px;color:var(--t3)}
+.res-header-btns{display:flex;gap:8px;flex-shrink:0;margin-top:4px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
 .stat-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;text-align:center}
-.stat-num{font-size:30px;font-weight:800;line-height:1;margin-bottom:4px}
+.stat-num{font-size:28px;font-weight:800;line-height:1;margin-bottom:4px}
 .stat-lbl{font-size:11px;color:var(--t2);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
 .stat-num.c-r{color:var(--red)}.stat-num.c-a{color:var(--amber)}.stat-num.c-g{color:var(--green)}
-
-.time-banner{background:rgba(22,163,74,.08);border:1px solid rgba(34,197,94,.2);border-radius:var(--r);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.time-banner{background:rgba(22,163,74,.08);border:1px solid rgba(34,197,94,.2);border-radius:var(--r);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .tb-cap{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--t2);margin-bottom:3px}
-.tb-num{font-size:30px;font-weight:900;color:var(--green);line-height:1;letter-spacing:-.03em}
+.tb-num{font-size:28px;font-weight:900;color:var(--green);line-height:1;letter-spacing:-.03em}
 .tb-sub{font-size:12px;color:var(--t2);margin-top:2px}
 .tb-right{font-size:13px;color:var(--t2);text-align:right}
-
-.ctrl-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.res-filter-row{margin-bottom:12px}
 .filter-pills{display:flex;gap:6px;flex-wrap:wrap}
 .sumchip{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:6px 14px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s}
 .sumchip:hover{border-color:var(--bh);color:var(--t1)}
@@ -213,21 +258,29 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .sumchip.kill.on{background:var(--red);color:#fff;border-color:var(--red)}
 .sumchip.review.on{background:var(--amber);color:#000;border-color:var(--amber)}
 .sumchip.pursue.on{background:var(--green);color:#000;border-color:var(--green)}
-.ctrl-btns{display:flex;gap:8px}
-.res-sec-lbl{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--t2);margin-bottom:12px}
 
-/* Result cards — class names injected by JS */
-.rcard{background:var(--card);border:1px solid var(--b);border-radius:var(--r);margin-bottom:8px;overflow:hidden;transition:border-color .15s;cursor:pointer}
-.rcard:hover{border-color:var(--bh)}
-.rcard[data-verdict="KILL"]{border-left:3px solid var(--red)}
-.rcard[data-verdict="REVIEW"]{border-left:3px solid var(--amber)}
-.rcard[data-verdict="PURSUE"]{border-left:3px solid var(--green)}
-.rcard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px 16px}
-.rcard-addr{font-size:14px;font-weight:600;color:var(--t1);margin-top:5px;line-height:1.3}
-.rcard-score{text-align:right;flex-shrink:0}
-.sc-lbl{font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--t2);margin-bottom:2px}
-.rcard-body{padding:0 16px 14px;display:none}
-.rcard.expanded .rcard-body{display:block}
+/* Results Table */
+.res-table-wrap{border:1px solid var(--b);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.res-table{width:100%;border-collapse:collapse}
+.res-table thead{background:rgba(13,15,18,.7)}
+.res-table th{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--t3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--b);white-space:nowrap}
+.res-trow{cursor:pointer;border-bottom:1px solid var(--b);transition:background .12s}
+.res-trow:hover{background:var(--card-h)}
+.res-trow.expanded{background:var(--card-h)}
+.res-trow td{padding:11px 14px;vertical-align:middle}
+.tbl-parcel{font-size:13px;font-weight:600;color:var(--t1);max-width:200px}
+.tbl-apn{font-size:11px;color:var(--t3);font-weight:400;margin-top:2px}
+.tbl-score-cell{font-size:18px;font-weight:800;white-space:nowrap}
+.tbl-flags-cell{max-width:200px;vertical-align:top;padding-top:10px!important}
+.tbl-flood{font-size:12px;color:var(--t2);white-space:nowrap}
+.tbl-access{font-size:12px;color:var(--t2);white-space:nowrap}
+.tbl-pill{display:inline-flex;font-size:10px;font-weight:600;padding:2px 7px;border-radius:var(--rp);margin:1px 2px 1px 0}
+.tbl-pill-r{background:var(--rbg);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.tbl-pill-m{background:var(--card-h);color:var(--t3);border:1px solid var(--b)}
+.res-expand-row td{background:rgba(13,15,18,.5);border-bottom:1px solid var(--b);padding:0}
+.expand-inner{padding:16px 18px}
+
+/* Expand inner cards/tags */
 .autokill-banner{background:var(--rbg);border:1px solid rgba(239,68,68,.2);border-radius:var(--rs);padding:10px 14px;font-size:13px;font-weight:600;color:var(--red);margin-bottom:12px}
 .tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
 .tag{font-size:11px;font-weight:500;padding:3px 9px;border-radius:var(--rp)}
@@ -243,7 +296,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .mv-cb{width:14px;height:14px;border:1.5px solid var(--bh);border-radius:3px;flex-shrink:0;margin-top:1px}
 .mv-lbl{font-weight:600;color:var(--t1)}
 .mv-src{color:var(--t3)}
-.res-footer{display:flex;justify-content:space-between;margin-top:40px;padding-top:18px;border-top:1px solid var(--b);font-size:12px;color:var(--t3)}
+.res-footer{display:flex;justify-content:space-between;margin-top:32px;padding-top:16px;border-top:1px solid var(--b);font-size:12px;color:var(--t3)}
 
 /* ══════════════════ PRICING ══════════════════ */
 #page-pricing{padding-top:58px}
@@ -265,6 +318,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .pricing-all{text-align:center;font-size:13px;color:var(--t3);line-height:2}
 
 /* RESPONSIVE */
+@media(max-width:1024px){
+  .res-sidebar{display:none}
+  .dash-sidebar{display:none}
+  .res-main{padding:20px 16px 60px}
+  .dash-main{padding:20px 16px 60px}
+  .dash-qs-grid{grid-template-columns:repeat(2,1fr)}
+}
 @media(max-width:768px){
   .nav{padding:0 16px}
   .hide-mob{display:none}
@@ -274,10 +334,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
   .steps{grid-template-columns:1fr}
   .how{padding:44px 16px}
   .stats-row{grid-template-columns:1fr 1fr}
+  .dash-qs-grid{grid-template-columns:1fr 1fr}
   .ptier-grid{grid-template-columns:1fr}
-  .ctrl-row{flex-direction:column;align-items:flex-start}
-  .dash-wrap{padding:28px 16px}
-  .res-wrap{padding:20px 16px 60px}
+  .res-main{padding:16px 12px 60px}
   .time-banner{flex-direction:column;gap:8px}
   .mock-wrap{margin:36px auto 0}
   .mock-tags{display:none}
@@ -328,19 +387,19 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           </div>
           <div class="mock-row">
             <div class="mock-bar" style="width:36%"></div>
-            <div class="mock-tags"><span class="mock-tag r">WETLAND+SEPTIC</span><span class="mock-tag a">0.38 AC</span></div>
+            <div class="mock-tags"><span class="mock-tag r">WETLAND</span><span class="mock-tag a">0.38 AC</span></div>
             <div class="mock-score" style="color:var(--red)">24</div>
             <span class="mock-badge r">KILL</span>
           </div>
           <div class="mock-row">
             <div class="mock-bar" style="width:40%"></div>
-            <div class="mock-tags"><span class="mock-tag a">NO PERMIT HIST</span><span class="mock-tag a">SEPTIC UNCONF</span></div>
+            <div class="mock-tags"><span class="mock-tag a">VALUE GAP</span><span class="mock-tag a">NO SALE</span></div>
             <div class="mock-score" style="color:var(--amber)">51</div>
             <span class="mock-badge a">REVIEW</span>
           </div>
           <div class="mock-row">
             <div class="mock-bar" style="width:38%"></div>
-            <div class="mock-tags"><span class="mock-tag g">NO FATAL FLAGS</span><span class="mock-tag g">ZONE X</span></div>
+            <div class="mock-tags"><span class="mock-tag g">ZONE X</span><span class="mock-tag g">PAVED</span></div>
             <div class="mock-score" style="color:var(--green)">81</div>
             <span class="mock-badge g">PURSUE</span>
           </div>
@@ -422,37 +481,69 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
   </div>
 </div>
 
-<!-- ════════ DASHBOARD ════════ -->
+<!-- ════════ DASHBOARD (FIX 5) ════════ -->
 <div id="page-dashboard" class="screen">
-  <div class="dash-wrap">
-    <div class="dash-lbl">New Batch Screen</div>
-    <div class="dash-title">Screen your parcels</div>
-    <div class="dash-sub">Florida statewide · 6 live sources · Kill / Review / Pursue in seconds</div>
-
-    <textarea id="batchInput" class="addr-box" placeholder="Paste addresses here, one per line:
+  <div class="dash-layout">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-avatar" id="dashAvatar">?</div>
+      <div class="dash-uname" id="dashName">—</div>
+      <div class="dash-uemail" id="dashEmail">—</div>
+      <div class="dash-plan">Beta · Free</div>
+      <div class="dsb-divider"></div>
+      <nav class="dsb-nav">
+        <div class="dsb-nav-item active">Dashboard</div>
+        <div class="dsb-nav-item" onclick="window.location.hash='#pricing'">Pricing</div>
+        <div class="dsb-nav-item dsb-signout" onclick="doSignout()">Sign out</div>
+      </nav>
+      <div class="dsb-usage">
+        <div class="dsb-usage-top">
+          <span class="dsb-usage-lbl">Parcels used</span>
+          <span class="dsb-usage-val"><span id="dashUsed">0</span>/500</span>
+        </div>
+        <div class="dsb-usage-track">
+          <div class="dsb-usage-fill" id="dashUsageFill" style="width:0%"></div>
+        </div>
+      </div>
+    </aside>
+    <!-- Main -->
+    <main class="dash-main">
+      <div class="dash-top">
+        <div class="dash-welcome-name" id="dashWelcome">Welcome back</div>
+        <div class="dash-welcome-date" id="dashDate">—</div>
+      </div>
+      <div class="dash-qs-grid">
+        <div class="dash-qs-card"><div class="dash-qs-num" id="dqTotal">—</div><div class="dash-qs-lbl">Total Screened</div></div>
+        <div class="dash-qs-card"><div class="dash-qs-num c-r" id="dqKill">—</div><div class="dash-qs-lbl">Killed</div></div>
+        <div class="dash-qs-card"><div class="dash-qs-num c-a" id="dqReview">—</div><div class="dash-qs-lbl">Review</div></div>
+        <div class="dash-qs-card"><div class="dash-qs-num c-g" id="dqPursue">—</div><div class="dash-qs-lbl">Pursue</div></div>
+      </div>
+      <div class="dash-form-card">
+        <div class="dash-lbl">New Batch Screen</div>
+        <div class="dash-title">Screen your parcels</div>
+        <div class="dash-sub">Florida statewide · 6 live sources · Kill / Review / Pursue in seconds</div>
+        <textarea id="batchInput" class="addr-box" placeholder="Paste addresses here, one per line:
 
 123 Main St, Tampa FL 33601
 456 Oak Ave, Orlando FL 32801
 789 Pine Rd, Okeechobee FL 33801"></textarea>
-
-    <div class="up-row">
-      <div class="up-line"></div><span class="up-or">or</span><div class="up-line"></div>
-      <input type="file" id="csvUpload" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleFileUpload(event)">
-      <button class="btn-o btn-sm" onclick="document.getElementById('csvUpload').click()">↑ Upload CSV / Excel</button>
-    </div>
-
-    <select class="state-sel">
-      <option value="FL">Florida ▾</option>
-      <option disabled>Other states — Coming Soon</option>
-    </select>
-
-    <button class="run-btn" id="runBatchBtn" onclick="runBatch()">Screen Parcels →</button>
-    <div class="src-hint">Each parcel screened against FEMA · NWI · USFWS · EPA · OSM · FL DOR</div>
-
-    <div class="past-sec">
-      <div class="past-lbl">Past Batches</div>
-      <div id="pastBatches"><div class="past-empty">No batches yet. Screen your first batch above.</div></div>
-    </div>
+        <div class="up-row">
+          <div class="up-line"></div><span class="up-or">or</span><div class="up-line"></div>
+          <input type="file" id="csvUpload" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleFileUpload(event)">
+          <button class="btn-o btn-sm" onclick="document.getElementById('csvUpload').click()">↑ Upload CSV / Excel</button>
+        </div>
+        <select class="state-sel">
+          <option value="FL">Florida ▾</option>
+          <option disabled>Other states — Coming Soon</option>
+        </select>
+        <button class="run-btn" id="runBatchBtn" onclick="runBatch()">Screen Parcels →</button>
+        <div class="src-hint">Each parcel screened against FEMA · NWI · USFWS · EPA · OSM · FL DOR</div>
+      </div>
+      <div class="past-sec">
+        <div class="past-lbl">Recent Batches</div>
+        <div id="pastBatches"><div class="past-empty">No batches yet. Screen your first batch above.</div></div>
+      </div>
+    </main>
   </div>
 </div>
 
@@ -475,60 +566,99 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
     <div class="proc-srcsub" id="batchSub">Connecting to data sources</div>
     <div class="proc-dots" id="procDots">
       <div class="proc-dot" title="Geocodio"></div>
-      <div class="proc-dot" title="FEMA NFHL"></div>
-      <div class="proc-dot" title="USFWS NWI"></div>
-      <div class="proc-dot" title="USFWS Habitat"></div>
-      <div class="proc-dot" title="EPA ECHO"></div>
-      <div class="proc-dot" title="OpenStreetMap"></div>
-      <div class="proc-dot" title="FL DOR"></div>
+      <div class="proc-dot" title="FEMA"></div>
+      <div class="proc-dot" title="Wetlands"></div>
+      <div class="proc-dot" title="Wildlife"></div>
+      <div class="proc-dot" title="EPA"></div>
+      <div class="proc-dot" title="Roads"></div>
+      <div class="proc-dot" title="County Records"></div>
     </div>
   </div>
 </div>
 
-<!-- ════════ RESULTS ════════ -->
+<!-- ════════ RESULTS (FIX 4) ════════ -->
 <div id="page-results" class="screen">
-  <div class="res-wrap">
-    <div class="res-eyebrow">Batch Screen · Florida</div>
-    <div class="res-title" id="resTitleCount">Results</div>
-    <div class="res-meta-txt" id="resMeta"></div>
-
-    <div class="stats-row">
-      <div class="stat-card"><div class="stat-num" id="statTotal">—</div><div class="stat-lbl">Total</div></div>
-      <div class="stat-card"><div class="stat-num c-r" id="statKill">—</div><div class="stat-lbl">Kill</div></div>
-      <div class="stat-card"><div class="stat-num c-a" id="statReview">—</div><div class="stat-lbl">Review</div></div>
-      <div class="stat-card"><div class="stat-num c-g" id="statPursue">—</div><div class="stat-lbl">Pursue</div></div>
-    </div>
-
-    <div class="time-banner">
-      <div>
-        <div class="tb-cap">Time saved vs. manual screening</div>
-        <div class="tb-num" id="timeSaved">—</div>
-        <div class="tb-sub">at 30 min per parcel</div>
+  <div class="res-layout">
+    <!-- Sidebar -->
+    <aside class="res-sidebar">
+      <div class="rsb-section">
+        <div class="rsb-label">Workspace</div>
+        <div class="rsb-nav-item rsb-all active" onclick="filterResults('all',null)">All Parcels</div>
+        <div class="rsb-nav-item rsb-kill" onclick="filterResults('KILL',null)">
+          <span>Kill</span><span class="rsb-count" id="sbKill">—</span>
+        </div>
+        <div class="rsb-nav-item rsb-review" onclick="filterResults('REVIEW',null)">
+          <span>Review</span><span class="rsb-count" id="sbReview">—</span>
+        </div>
+        <div class="rsb-nav-item rsb-pursue" onclick="filterResults('PURSUE',null)">
+          <span>Pursue</span><span class="rsb-count" id="sbPursue">—</span>
+        </div>
       </div>
-      <div class="tb-right" id="screenTime"></div>
-    </div>
-
-    <div class="ctrl-row">
-      <div class="filter-pills">
-        <button class="sumchip all on" onclick="filterResults('all',this)">All</button>
-        <button class="sumchip kill" onclick="filterResults('KILL',this)">Kill</button>
-        <button class="sumchip review" onclick="filterResults('REVIEW',this)">Review</button>
-        <button class="sumchip pursue" onclick="filterResults('PURSUE',this)">Pursue</button>
+      <div class="rsb-section">
+        <div class="rsb-label">Time Saved</div>
+        <div class="rsb-time-val" id="sbTimeSaved">—</div>
+        <div class="rsb-time-sub">at 30 min/parcel</div>
       </div>
-      <div class="ctrl-btns">
-        <button class="btn-o btn-sm" onclick="downloadCSV()">↓ Download CSV</button>
-        <button class="btn-o btn-sm" onclick="window.location.hash='#dashboard'">← New batch</button>
+      <div class="rsb-section">
+        <div class="rsb-label">State</div>
+        <div class="rsb-state-val">Florida · Live Data</div>
       </div>
-    </div>
-
-    <div class="res-sec-lbl">Results · Sorted by score</div>
-    <div id="resCards"></div>
-    <div id="resSummary" style="display:none"></div>
-
-    <div class="res-footer">
-      <span>Every flag cited · source verifiable</span>
-      <span>parceliq.com · FL Beta</span>
-    </div>
+      <button class="rsb-new-btn" onclick="window.location.hash='#dashboard'">← New Batch</button>
+    </aside>
+    <!-- Main -->
+    <main class="res-main">
+      <div class="res-header">
+        <div>
+          <div class="res-title" id="resTitleCount">Results</div>
+          <div class="res-meta-txt" id="resMeta"></div>
+        </div>
+        <div class="res-header-btns">
+          <button class="btn-o btn-sm" onclick="downloadCSV()">↓ Export CSV</button>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-num" id="statTotal">—</div><div class="stat-lbl">Total</div></div>
+        <div class="stat-card"><div class="stat-num c-r" id="statKill">—</div><div class="stat-lbl">Kill</div></div>
+        <div class="stat-card"><div class="stat-num c-a" id="statReview">—</div><div class="stat-lbl">Review</div></div>
+        <div class="stat-card"><div class="stat-num c-g" id="statPursue">—</div><div class="stat-lbl">Pursue</div></div>
+      </div>
+      <div class="time-banner">
+        <div>
+          <div class="tb-cap">Time saved vs. manual screening</div>
+          <div class="tb-num" id="timeSaved">—</div>
+          <div class="tb-sub">at 30 min per parcel</div>
+        </div>
+        <div class="tb-right" id="screenTime"></div>
+      </div>
+      <div class="res-filter-row">
+        <div class="filter-pills">
+          <button class="sumchip all on" onclick="filterResults('all',this)">All</button>
+          <button class="sumchip kill" onclick="filterResults('KILL',this)">Kill</button>
+          <button class="sumchip review" onclick="filterResults('REVIEW',this)">Review</button>
+          <button class="sumchip pursue" onclick="filterResults('PURSUE',this)">Pursue</button>
+        </div>
+      </div>
+      <div class="res-table-wrap">
+        <table class="res-table">
+          <thead>
+            <tr>
+              <th>PARCEL</th>
+              <th>SCORE</th>
+              <th>FLAGS</th>
+              <th>FLOOD</th>
+              <th>ACCESS</th>
+              <th>DECISION</th>
+            </tr>
+          </thead>
+          <tbody id="resTableBody"></tbody>
+        </table>
+      </div>
+      <div id="resSummary" style="display:none"></div>
+      <div class="res-footer">
+        <span>Every flag cited · source verifiable</span>
+        <span>ParcelIQ · FL Beta</span>
+      </div>
+    </main>
   </div>
 </div>
 
@@ -591,9 +721,13 @@ const API = window.location.hostname === 'localhost' ? 'http://localhost:8000' :
 const SUPA_URL = 'https://gsibkklidfvfckageqcj.supabase.co';
 const SUPA_KEY = 'sb_publishable_srvVsdVSFmJ_OXG4ztGHvQ_lkNbxxen';
 
-// ── SUPABASE
-let sb = null, currentUser = null;
-try { sb = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY) : null; } catch(e) {}
+// ── SUPABASE — FIX 1: persistSession
+let sb = null, currentSession = null, currentUser = null;
+try {
+  sb = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'parceliq-auth' }
+  }) : null;
+} catch(e) {}
 
 // ── UTILS
 function escHtml(s) {
@@ -601,7 +735,6 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function fmt$(n) { return n != null ? '$' + Number(n).toLocaleString() : '—'; }
-function fmtAc(n) { return n != null ? n + ' ac' : '—'; }
 
 function toast(msg, ms = 3000) {
   const el = document.getElementById('toast');
@@ -611,7 +744,6 @@ function toast(msg, ms = 3000) {
   setTimeout(() => el.classList.remove('show'), ms);
 }
 
-// ── SCREENS
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(id);
@@ -627,27 +759,32 @@ const HASH_MAP = {
 };
 
 const batchState = { results: [], filtered: 'all', elapsed: 0 };
+const PROTECTED = new Set(['#dashboard', '#results', '#processing']);
 
+// FIX 1: session guards
 function router() {
   const hash = window.location.hash || '#landing';
+  if (PROTECTED.has(hash) && !currentSession) {
+    window.location.hash = '#login'; return;
+  }
   if (hash === '#results' && !batchState.results.length) {
     window.location.hash = '#dashboard'; return;
   }
-  if (hash === '#dashboard') { loadPastBatches(); updateNav(); }
+  if (hash === '#dashboard') { loadDashboardData(); updateNav(); }
   showScreen(HASH_MAP[hash] || 'page-landing');
 }
 
-window.addEventListener('load', router);
 window.addEventListener('hashchange', router);
 
-// ── NAV
+// ── NAV — FIX 6: consistent auth-aware nav
 function updateNav() {
   const el = document.getElementById('navRight');
   if (!el) return;
   if (currentUser) {
     el.innerHTML =
       '<span class="fl-pill">FL Beta</span>' +
-      '<span class="nav-user">' + escHtml(currentUser.email) + '</span>' +
+      '<a class="nav-link hide-mob" onclick="window.location.hash=\'#dashboard\'">Dashboard</a>' +
+      '<span class="nav-user hide-mob">' + escHtml(currentUser.email) + '</span>' +
       '<button class="btn-o btn-sm" onclick="doSignout()">Sign out</button>';
   } else {
     el.innerHTML =
@@ -670,7 +807,9 @@ async function doLogin() {
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
     if (error) throw error;
-    currentUser = data.user; updateNav();
+    currentSession = data.session; currentUser = data.user;
+    await loadUserProfile();
+    updateNav();
     window.location.hash = '#dashboard';
   } catch(e) {
     err.textContent = e.message || 'Login failed.'; err.classList.add('show');
@@ -692,7 +831,9 @@ async function doSignup() {
   try {
     const { data, error } = await sb.auth.signUp({ email, password: pw });
     if (error) throw error;
-    currentUser = data.user; updateNav();
+    currentSession = data.session; currentUser = data.user;
+    await loadUserProfile();
+    updateNav();
     toast('Welcome to ParcelIQ!');
     window.location.hash = '#dashboard';
   } catch(e) {
@@ -702,18 +843,162 @@ async function doSignup() {
 
 async function doSignout() {
   if (sb) await sb.auth.signOut().catch(() => {});
-  currentUser = null; updateNav();
+  currentSession = null; currentUser = null; window.userProfile = null;
+  updateNav();
   window.location.hash = '#landing';
 }
 
-// Session restore
+// FIX 1: onAuthStateChange — handle token refresh and signout
+if (sb) {
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'TOKEN_REFRESHED') {
+      currentSession = session;
+      currentUser = session?.user || null;
+    } else if (event === 'SIGNED_OUT') {
+      currentSession = null; currentUser = null; window.userProfile = null;
+      updateNav();
+      window.location.hash = '#landing';
+    }
+  });
+}
+
+// FIX 1: Restore session on load — call router AFTER session is known
 (async () => {
-  if (!sb) return;
+  if (!sb) { router(); return; }
   try {
-    const { data } = await sb.auth.getSession();
-    if (data.session) { currentUser = data.session.user; updateNav(); }
+    const { data: { session } } = await sb.auth.getSession();
+    currentSession = session;
+    currentUser = session?.user || null;
+    if (currentUser) await loadUserProfile();
+    updateNav();
   } catch(e) {}
+  router();
 })();
+
+// FIX 2: Profile data
+async function loadUserProfile() {
+  if (!sb || !currentUser) return;
+  try {
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+    if (!profile) {
+      const newP = {
+        id: currentUser.id, email: currentUser.email,
+        full_name: currentUser.email.split('@')[0],
+        created_at: new Date().toISOString()
+      };
+      await sb.from('profiles').upsert(newP);
+      window.userProfile = newP;
+    } else {
+      window.userProfile = profile;
+    }
+  } catch(e) {
+    window.userProfile = { id: currentUser?.id, email: currentUser?.email, full_name: currentUser?.email?.split('@')[0] };
+  }
+}
+
+// FIX 3: DOR code descriptions
+function getDORDescription(code) {
+  const c = parseInt(code);
+  const MAP = {
+    0:'Vacant Residential',1:'Single Family',2:'Mobile Home',3:'Multi-Family <10',4:'Condominium',5:'Cooperatives',6:'Retirement Homes',7:'Misc Residential',8:'Multi-Family 10+',9:'Vacant Multi-Family',
+    10:'Vacant Commercial',11:'Stores, One Story',12:'Mixed Use',13:'Dept Store',14:'Supermarket',15:'Regional Mall',16:'Community Shop Ctr',17:'Office, 1 Story',18:'Office, Multi-Story',19:'Professional Bldg',
+    20:'Airport/Marina',21:'Restaurant/Cafe',22:'Drive-In Restaurant',23:'Financial Inst',24:'Insurance Bldg',25:'Repair Shop',26:'Service Station',27:'Auto Sales',28:'Parking Lot',29:'Wholesale/Produce',
+    30:'Florist/Greenhouse',31:'Drive-In Theater',32:'Enclosed Theater',33:'Night Clubs',34:'Bowling/Skating',35:'Tourist Attraction',36:'Race Track',37:'Golf Course',38:'Hotels/Motels',39:'Vacant Hotel/Motel',
+    40:'Vacant Industrial',41:'Light Manufacture',42:'Heavy Industrial',43:'Lumber Yard',44:'Packing Plant',45:'Cannery/Brewery',46:'Other Food Proc',47:'Mineral Processing',48:'Warehousing',49:'Open Storage',
+    50:'Improved Agric',51:'Cropland',52:'Timberland',53:'Poultry/Egg',54:'Livestock',55:'Feed Lots',56:'Dairies',57:'Ornamentals',58:'Specialty Farm',59:'Truck Crops',
+    60:'Grazing Land',61:'Ornamental/Tree',62:'Poultry',63:'Livestock Grazed',64:'Timberland Grazed',65:'Row Crops Grazed',66:'Fallow Land',67:'Non-agric Acreage',68:'Barren Land',69:'Marshes/Wetlands',
+    70:'Vacant Institutional',71:'Churches',72:'Private Schools',73:'Private Hospitals',74:'Homes for Aged',75:'Orphanages',76:'Mortuaries',77:'Clubs/Lodges',78:'Camp Sites',79:'Nonprofit Homes',
+    80:'Govt Parks',81:'Military',82:'Forest/Recreation',83:'Public Schools',84:'Colleges',85:'Hospitals',86:'Counties',87:'State',88:'Federal',89:'Municipal',
+    90:'Leasehold',91:'Utility',92:'Mining',93:'Subsurface Rights',94:'Right of Way',95:'Rivers/Lakes',96:'Sewage Disposal',97:'Outdoor Recreation',98:'Centrally Assessed',99:'Acreage not zoned agric'
+  };
+  return MAP[c] != null ? MAP[c] : ('DOR code ' + code);
+}
+
+// FIX 3: Flag + source translation
+function translateFlag(f) {
+  const exact = {
+    'Wetlands nearby (within ~100m)': 'Wetlands nearby',
+    'Road surface unverified (unpaved or unmapped)': 'Road unknown',
+    'Last sale price very low ($0)': 'No sale history',
+    'Just value and land value diverge >15%': 'Value gap',
+    'FEMA Zone X — minimal flood hazard': 'Zone X — clean',
+    'No road detected in OSM (possible rural gap or landlocked)': 'No road found',
+    'No parcel record found in FL cadastral': 'No county record',
+    'Vacant lot with no sale history': 'No sale history',
+    'Ideal parcel size': 'Good size',
+    'Recent market sale': 'Market sale',
+    'Vacant/unimproved lot': 'Vacant lot',
+  };
+  if (exact[f]) return exact[f];
+  if (f.startsWith('Critical habitat nearby:')) return f.replace('Critical habitat nearby:', 'Wildlife:');
+  return f;
+}
+
+function translateSource(s) {
+  const MAP = { 'FEMA NFHL':'FEMA','USFWS NWI':'Wetlands','USFWS Critical Habitat':'Wildlife','EPA ECHO Superfund':'EPA','OpenStreetMap':'Roads','FL DOR Cadastral':'County Records' };
+  return MAP[s] || s;
+}
+
+// FIX 4: Extract flood/access from result data
+function getFloodText(r) {
+  for (const f of (r.flags || [])) {
+    if (/FEMA Zone/i.test(f)) {
+      const m = f.match(/Zone\s+([A-Z0-9]+)/i);
+      return m ? 'Zone ' + m[1] : f.replace('FEMA ', '');
+    }
+  }
+  for (const p of (r.positives || [])) {
+    if (/Zone X/i.test(p)) return 'Zone X';
+  }
+  return '—';
+}
+
+function getAccessText(r) {
+  for (const f of (r.flags || [])) {
+    const fl = f.toLowerCase();
+    if (fl.includes('no road')) return 'None';
+    if (fl.includes('road surface') || fl.includes('unpaved') || fl.includes('road unknown')) return 'Unverified';
+  }
+  for (const p of (r.positives || [])) {
+    if (/road|access|paved/i.test(p)) return 'Paved';
+  }
+  return '—';
+}
+
+// FIX 5: Load dashboard sidebar + stats
+async function loadDashboardData() {
+  const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const p = window.userProfile;
+  const email = currentUser?.email || '';
+  const profile = p || { email, full_name: email.split('@')[0] };
+
+  const initials = (profile.full_name || profile.email || '?').charAt(0).toUpperCase();
+  setEl('dashAvatar', initials);
+  setEl('dashName', profile.full_name || profile.email || '—');
+  setEl('dashEmail', profile.email || email || '—');
+
+  const firstName = (profile.full_name || profile.email || 'there').split(/[@\s]/)[0];
+  setEl('dashWelcome', 'Welcome back, ' + firstName);
+  setEl('dashDate', new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }));
+
+  if (sb && currentUser) {
+    try {
+      const { data } = await sb.from('batch_history').select('total,kill,review,pursue').eq('user_id', currentUser.id);
+      if (data && data.length) {
+        const tot = data.reduce((a, b) => ({
+          total:(a.total||0)+(b.total||0), kill:(a.kill||0)+(b.kill||0),
+          review:(a.review||0)+(b.review||0), pursue:(a.pursue||0)+(b.pursue||0)
+        }), {total:0,kill:0,review:0,pursue:0});
+        setEl('dqTotal', tot.total); setEl('dqKill', tot.kill);
+        setEl('dqReview', tot.review); setEl('dqPursue', tot.pursue);
+        setEl('dashUsed', tot.total);
+        const fill = document.getElementById('dashUsageFill');
+        if (fill) fill.style.width = Math.min(Math.round(tot.total/500*100),100) + '%';
+      }
+    } catch(e) {}
+  }
+  loadPastBatches();
+}
 
 // ── FILE UPLOAD
 function handleFileUpload(e) {
@@ -742,7 +1027,7 @@ async function loadPastBatches() {
   try {
     const { data, error } = await sb.from('batch_history')
       .select('*').eq('user_id', currentUser.id)
-      .order('created_at', { ascending: false }).limit(10);
+      .order('created_at', { ascending: false }).limit(5);
     if (error || !data || !data.length) { el.innerHTML = '<div class="past-empty">No batches yet. Screen your first batch above.</div>'; return; }
     el.innerHTML = data.map(b => {
       const d = new Date(b.created_at);
@@ -804,12 +1089,12 @@ async function runBatch() {
 
   const steps = [
     ['Geocoding addresses…','Geocodio API'],
-    ['Checking FEMA flood zones…','FEMA NFHL'],
-    ['Scanning USFWS wetlands…','NWI via Esri'],
-    ['Querying critical habitat…','USFWS via Esri'],
-    ['Checking EPA superfund…','EPA ECHO'],
-    ['Checking road access…','OpenStreetMap Overpass'],
-    ['Pulling FL parcel data…','FL DOR Cadastral'],
+    ['Checking FEMA flood zones…','FEMA'],
+    ['Scanning wetlands…','Wetlands via Esri'],
+    ['Querying wildlife habitat…','USFWS via Esri'],
+    ['Checking EPA superfund…','EPA'],
+    ['Checking road access…','Roads via OSM'],
+    ['Pulling county records…','County Records'],
     ['Running scoring engine…','ParcelIQ Insight Engine'],
   ];
 
@@ -857,114 +1142,149 @@ async function runBatch() {
   }
 }
 
-// ── RENDER RESULTS
+// ── RENDER RESULTS (FIX 4)
 function renderBatchResults() {
   const results = batchState.results;
   const kills   = results.filter(r => r.verdict === 'KILL').length;
   const reviews = results.filter(r => r.verdict === 'REVIEW').length;
   const pursues = results.filter(r => r.verdict === 'PURSUE').length;
-  const errors  = results.filter(r => r.verdict === 'ERROR').length;
   const total   = results.length;
+  const setEl   = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
-  const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   setEl('resTitleCount', total + ' lot' + (total !== 1 ? 's' : '') + ' screened');
   setEl('resMeta', (batchState.elapsed ? 'Done in ' + batchState.elapsed + 's · ' : '') + '6 live sources · ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }));
-  setEl('statTotal',  total);
-  setEl('statKill',   kills);
-  setEl('statReview', reviews);
-  setEl('statPursue', pursues);
+  setEl('statTotal', total); setEl('statKill', kills); setEl('statReview', reviews); setEl('statPursue', pursues);
+  setEl('sbKill', kills); setEl('sbReview', reviews); setEl('sbPursue', pursues);
 
   const mins = total * 30;
   const hrs  = Math.round(mins / 6) / 10;
-  setEl('timeSaved', '~' + (hrs >= 1 ? hrs + ' hrs' : mins + ' min'));
-  setEl('screenTime', (batchState.elapsed || '—') + 's total screen time');
-
-  const summEl = document.getElementById('resSummary');
-  if (summEl) summEl.innerHTML =
-    '<span>' + total + ' total</span>' +
-    '<span style="color:var(--rd)">■ ' + kills   + ' kill</span>' +
-    '<span style="color:var(--am)">■ ' + reviews + ' review</span>' +
-    '<span style="color:var(--sg)">■ ' + pursues + ' pursue</span>' +
-    (errors ? '<span style="color:var(--ink4)">■ ' + errors + ' error</span>' : '');
+  const ts = '~' + (hrs >= 1 ? hrs + ' hrs' : mins + ' min');
+  setEl('timeSaved', ts); setEl('sbTimeSaved', ts);
+  setEl('screenTime', (batchState.elapsed || '—') + 's screen time');
 
   document.querySelectorAll('.sumchip').forEach(c => c.classList.remove('on'));
   const a = document.querySelector('.sumchip.all'); if (a) a.classList.add('on');
+  updateSidebarActive('all');
 
   const sorted = [...results].sort((a, b) => {
     const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3 };
     return (o[a.verdict]??4) - (o[b.verdict]??4);
   });
-  renderCards(sorted);
+  renderTable(sorted);
+}
+
+function updateSidebarActive(verdict) {
+  document.querySelectorAll('.rsb-nav-item').forEach(el => el.classList.remove('active'));
+  const map = { all:'.rsb-all', KILL:'.rsb-kill', REVIEW:'.rsb-review', PURSUE:'.rsb-pursue' };
+  const el = document.querySelector(map[verdict]);
+  if (el) el.classList.add('active');
 }
 
 function verdictClass(v) { return v==='KILL'?'vb-kill':v==='REVIEW'?'vb-review':v==='PURSUE'?'vb-pursue':'vb-error'; }
 function verdictColor(v) { return v==='KILL'?'var(--rd)':v==='REVIEW'?'var(--am)':v==='PURSUE'?'var(--sg2)':'var(--ink4)'; }
 
-function renderCards(results) {
-  const el = document.getElementById('resCards');
-  if (!el) return;
+// FIX 4: Table render
+function renderTable(results) {
+  const tbody = document.getElementById('resTableBody');
+  if (!tbody) return;
   if (!results.length) {
-    el.innerHTML = '<div style="text-align:center;padding:48px;color:var(--t3)">No results match this filter.</div>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--t3)">No results match this filter.</td></tr>';
     return;
   }
-  el.innerHTML = results.map(r => {
+  tbody.innerHTML = results.map((r, i) => {
     const vc = verdictClass(r.verdict);
-    const scoreStr   = r.auto_kill ? 'AUTO-KILL' : (r.score != null ? r.score : '—');
+    const scoreStr   = r.auto_kill ? '⛔' : (r.score != null ? r.score : '—');
     const scoreColor = r.auto_kill ? 'var(--red)' : verdictColor(r.verdict);
-
-    const mvHtml = `<div class="mv-section">
-      <div class="mv-title">Manual Verification Required Before Offer</div>
-      <div class="mv-note">These items cannot be verified automatically.</div>
-      <div class="mv-item"><div class="mv-cb"></div><div><span class="mv-lbl">Utilities</span> (water/sewer/electric)<span class="mv-src"> — check county utility district</span></div></div>
-      <div class="mv-item"><div class="mv-cb"></div><div><span class="mv-lbl">Septic feasibility</span><span class="mv-src"> — check FL DOH eBridge</span></div></div>
-      <div class="mv-item"><div class="mv-cb"></div><div><span class="mv-lbl">Permits &amp; code violations</span><span class="mv-src"> — check county building dept</span></div></div>
-      <div class="mv-item"><div class="mv-cb"></div><div><span class="mv-lbl">Easements on title</span><span class="mv-src"> — requires title search</span></div></div>
-      <div class="mv-item"><div class="mv-cb"></div><div><span class="mv-lbl">HOA / deed restrictions</span><span class="mv-src"> — requires title search</span></div></div>
-    </div>`;
-
-    const flagsHtml = (r.flags||[]).length ? '<div class="tags">' + r.flags.map(f=>'<span class="tag tag-flag">'+escHtml(f)+'</span>').join('') + '</div>' : '';
-    const posHtml   = (r.positives||[]).length ? '<div class="tags">' + r.positives.map(p=>'<span class="tag tag-pos">'+escHtml(p)+'</span>').join('') + '</div>' : '';
-    const akBanner  = r.auto_kill && r.auto_kill_reason ? '<div class="autokill-banner">⛔ ' + escHtml(r.auto_kill_reason) + '</div>' : '';
-
     const pi = r.parcel_info || {};
-    const meta = [
-      pi.acreage!=null ? '🌍 '+pi.acreage+' ac' : '',
-      pi.owner ? '👤 '+escHtml(pi.owner) : '',
-      pi.last_sale_price!=null && pi.last_sale_price>0 ? '💰 Last sale '+fmt$(pi.last_sale_price) : '',
-      pi.land_use_code ? '🏢 DOR code '+escHtml(pi.land_use_code) : '',
-    ].filter(Boolean);
-    const metaHtml = meta.length ? '<div class="rcard-meta">'+meta.map(m=>'<span>'+m+'</span>').join('')+'</div>' : '';
-    const srcHtml  = (r.sources||[]).length ? '<div class="sources-row">Sources: '+r.sources.map(s=>escHtml(s)).join(' · ')+'</div>' : '';
 
-    return `<div class="rcard" data-verdict="${escHtml(r.verdict)}" onclick="this.classList.toggle('expanded')">
-      <div class="rcard-top">
-        <div style="flex:1;min-width:0">
-          <span class="verdict-badge ${vc}">${escHtml(r.verdict)}</span>
-          <div class="rcard-addr">${escHtml(r.address)}</div>
-        </div>
-        <div class="rcard-score">
-          <div class="sc-lbl">Score</div>
-          <div style="font-size:22px;font-weight:800;color:${scoreColor}">${escHtml(String(scoreStr))}</div>
-        </div>
-      </div>
-      <div class="rcard-body">${akBanner}${flagsHtml}${posHtml}${metaHtml}${srcHtml}${mvHtml}</div>
-    </div>`;
+    const flags = (r.flags || []).map(translateFlag);
+    const vis   = flags.slice(0, 3);
+    const more  = flags.length - 3;
+    const flagHtml = vis.map(f => '<span class="tbl-pill tbl-pill-r">' + escHtml(f) + '</span>').join('') +
+      (more > 0 ? '<span class="tbl-pill tbl-pill-m">+' + more + ' more</span>' : '');
+
+    const expId = 'exp-' + i;
+    return '<tr class="res-trow" onclick="toggleExpand(\'' + expId + '\')">' +
+      '<td class="tbl-parcel">' + escHtml(r.address) + (pi.parcel_id ? '<div class="tbl-apn">' + escHtml(pi.parcel_id) + '</div>' : '') + '</td>' +
+      '<td class="tbl-score-cell" style="color:' + scoreColor + '">' + escHtml(String(scoreStr)) + '</td>' +
+      '<td class="tbl-flags-cell">' + flagHtml + '</td>' +
+      '<td class="tbl-flood">' + escHtml(getFloodText(r)) + '</td>' +
+      '<td class="tbl-access">' + escHtml(getAccessText(r)) + '</td>' +
+      '<td><span class="verdict-badge ' + vc + '">' + escHtml(r.verdict) + '</span></td>' +
+      '</tr>' +
+      '<tr id="' + expId + '" class="res-expand-row" style="display:none"><td colspan="6">' + buildExpandHtml(r) + '</td></tr>';
   }).join('');
+}
+
+function toggleExpand(id) {
+  const row = document.getElementById(id);
+  if (!row) return;
+  const isOpen = row.style.display !== 'none';
+  document.querySelectorAll('.res-expand-row').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.res-trow.expanded').forEach(el => el.classList.remove('expanded'));
+  if (!isOpen) {
+    row.style.display = 'table-row';
+    const prev = row.previousElementSibling;
+    if (prev) prev.classList.add('expanded');
+  }
+}
+
+// FIX 3 + FIX 4: Expand detail with translated flags, DOR desc, "Verify Before Offer"
+function buildExpandHtml(r) {
+  const pi       = r.parcel_info || {};
+  const flags    = (r.flags     || []).map(translateFlag);
+  const positives= (r.positives || []).map(translateFlag);
+  const sources  = (r.sources   || []).map(translateSource);
+
+  const akBanner = r.auto_kill && r.auto_kill_reason
+    ? '<div class="autokill-banner">⛔ ' + escHtml(r.auto_kill_reason) + '</div>' : '';
+  const flagsHtml = flags.length
+    ? '<div class="tags">' + flags.map(f => '<span class="tag tag-flag">' + escHtml(f) + '</span>').join('') + '</div>' : '';
+  const posHtml = positives.length
+    ? '<div class="tags">' + positives.map(p => '<span class="tag tag-pos">' + escHtml(p) + '</span>').join('') + '</div>' : '';
+
+  const meta = [
+    pi.acreage != null ? '🌍 ' + pi.acreage + ' ac' : '',
+    pi.owner ? '👤 ' + escHtml(pi.owner) : '',
+    pi.last_sale_price != null && pi.last_sale_price > 0 ? '💰 Last sale ' + fmt$(pi.last_sale_price) : '',
+    pi.land_use_code ? '🏢 ' + escHtml(getDORDescription(pi.land_use_code)) : '',
+  ].filter(Boolean);
+  const metaHtml = meta.length ? '<div class="rcard-meta">' + meta.map(m => '<span>' + m + '</span>').join('') + '</div>' : '';
+  const srcHtml  = sources.length ? '<div class="sources-row">Sources: ' + sources.map(s => escHtml(s)).join(' · ') + '</div>' : '';
+
+  const mvHtml = '<div class="mv-section">' +
+    '<div class="mv-title">Verify Before Offer</div>' +
+    '<div class="mv-note">These items cannot be verified automatically.</div>' +
+    '<div class="mv-item"><div class="mv-cb"></div><div><span class="mv-lbl">Utilities</span> (water/sewer/electric)<span class="mv-src"> — check county utility district</span></div></div>' +
+    '<div class="mv-item"><div class="mv-cb"></div><div><span class="mv-lbl">Septic feasibility</span><span class="mv-src"> — check FL DOH eBridge</span></div></div>' +
+    '<div class="mv-item"><div class="mv-cb"></div><div><span class="mv-lbl">Permits &amp; code violations</span><span class="mv-src"> — check county building dept</span></div></div>' +
+    '<div class="mv-item"><div class="mv-cb"></div><div><span class="mv-lbl">Easements on title</span><span class="mv-src"> — requires title search</span></div></div>' +
+    '<div class="mv-item"><div class="mv-cb"></div><div><span class="mv-lbl">HOA / deed restrictions</span><span class="mv-src"> — requires title search</span></div></div>' +
+    '</div>';
+
+  return '<div class="expand-inner">' + akBanner + flagsHtml + posHtml + metaHtml + srcHtml + mvHtml + '</div>';
 }
 
 function filterResults(verdict, btn) {
   document.querySelectorAll('.sumchip').forEach(c => c.classList.remove('on'));
-  if (btn) btn.classList.add('on');
+  if (btn) {
+    btn.classList.add('on');
+  } else {
+    const map = { all:'.sumchip.all', KILL:'.sumchip.kill', REVIEW:'.sumchip.review', PURSUE:'.sumchip.pursue' };
+    const chip = document.querySelector(map[verdict]);
+    if (chip) chip.classList.add('on');
+  }
   batchState.filtered = verdict;
+  updateSidebarActive(verdict);
   const sorted = [...batchState.results].sort((a, b) => {
     const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3 };
     return (o[a.verdict]??4) - (o[b.verdict]??4);
   });
-  renderCards(verdict === 'all' ? sorted : sorted.filter(r => r.verdict === verdict));
+  renderTable(verdict === 'all' ? sorted : sorted.filter(r => r.verdict === verdict));
 }
 
 function downloadCSV() {
-  const rows = [['Address','Verdict','Score','Auto Kill','Kill Reason','Flags','Positives','Acreage','Owner','Last Sale']];
+  const rows = [['Address','Verdict','Score','Auto Kill','Kill Reason','Flags','Positives','Acreage','Owner','Last Sale','Land Use']];
   batchState.results.forEach(r => {
     const pi = r.parcel_info || {};
     rows.push([
@@ -972,11 +1292,12 @@ function downloadCSV() {
       r.score != null ? r.score : '',
       r.auto_kill ? 'YES' : 'NO',
       r.auto_kill_reason || '',
-      (r.flags||[]).join('; '),
-      (r.positives||[]).join('; '),
+      (r.flags||[]).map(translateFlag).join('; '),
+      (r.positives||[]).map(translateFlag).join('; '),
       pi.acreage != null ? pi.acreage : '',
       pi.owner || '',
       pi.last_sale_price != null ? pi.last_sale_price : '',
+      pi.land_use_code ? getDORDescription(pi.land_use_code) : '',
     ]);
   });
   const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\n');
