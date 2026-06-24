@@ -759,6 +759,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           <button class="sumchip pursue" onclick="filterResults('PURSUE',this)">Pursue</button>
         </div>
       </div>
+      <div class="limit-banner" id="resLimitBanner"></div>
       <div class="nonfl-banner" id="nonflBanner"></div>
       <div class="res-table-wrap">
         <table class="res-table">
@@ -1774,6 +1775,27 @@ function renderBatchResults() {
     } else {
       banner.classList.remove('show');
     }
+  }
+
+  // Weekly usage banner on results page
+  if (sb && currentUser) {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    sb.from('parcel_results').select('*', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id).gte('created_at', weekAgo)
+      .then(({ count }) => {
+        const remaining = 1000 - (count || 0);
+        const rb = document.getElementById('resLimitBanner');
+        if (!rb) return;
+        if (remaining <= 0) {
+          rb.textContent = 'Weekly limit reached (1,000 parcels). Resets Monday. Upgrade for more.';
+          rb.classList.add('show');
+        } else if (remaining <= 100) {
+          rb.textContent = remaining + ' parcels remaining this week. Limit resets Monday.';
+          rb.classList.add('show');
+        } else {
+          rb.classList.remove('show');
+        }
+      }).catch(() => {});
   }
 
   document.querySelectorAll('.sumchip').forEach(c => c.classList.remove('on'));
