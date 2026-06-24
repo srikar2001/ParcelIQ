@@ -362,7 +362,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
     <h1>Know which lots to kill<br><span class="gr">before you make an offer.</span></h1>
     <p class="hero-sub">Upload your lead list. Every parcel screened against FEMA, wetlands, wildlife, EPA, and road data. Kill / Review / Pursue in seconds. Any Florida county.</p>
     <div class="hero-ctas">
-      <button class="btn-p" onclick="window.location.hash='#signup'">Start screening free →</button>
+      <button class="btn-p" onclick="startScreening()">Start screening free →</button>
       <button class="btn-o" onclick="document.getElementById('howSec').scrollIntoView({behavior:'smooth'})">See how it works</button>
     </div>
     <p class="hero-fine">Free during beta · No credit card required</p>
@@ -721,13 +721,38 @@ const API = window.location.hostname === 'localhost' ? 'http://localhost:8000' :
 const SUPA_URL = 'https://gsibkklidfvfckageqcj.supabase.co';
 const SUPA_KEY = 'sb_publishable_srvVsdVSFmJ_OXG4ztGHvQ_lkNbxxen';
 
-// ── SUPABASE — FIX 1: persistSession
-let sb = null, currentSession = null, currentUser = null;
+// ── SUPABASE — FIX 1: storage: localStorage + versioned key
+let sb = null;
 try {
   sb = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'parceliq-auth' }
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage,
+      storageKey: 'parceliq-auth-v1'
+    }
   }) : null;
 } catch(e) {}
+
+// ── GLOBAL AUTH STATE — FIX 2
+let currentSession = null;
+let currentUser = null;
+let userProfile = null;
+
+// ── HELPERS
+function goTo(page) { window.location.hash = '#' + page; }
+
+// ── FIX 3: single initAuth — always reads from localStorage
+async function initAuth() {
+  if (!sb) return null;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    currentSession = session;
+    currentUser = session?.user || null;
+    return session;
+  } catch(e) { return null; }
+}
 
 // ── UTILS
 function escHtml(s) {
@@ -761,14 +786,15 @@ const HASH_MAP = {
 const batchState = { results: [], filtered: 'all', elapsed: 0 };
 const PROTECTED = new Set(['#dashboard', '#results', '#processing']);
 
-// FIX 1: session guards
-function router() {
+// FIX 6: router is async — calls initAuth() before allowing protected pages
+async function router() {
   const hash = window.location.hash || '#landing';
-  if (PROTECTED.has(hash) && !currentSession) {
-    window.location.hash = '#login'; return;
+  if (PROTECTED.has(hash)) {
+    const session = await initAuth();
+    if (!session) { goTo('login'); return; }
   }
   if (hash === '#results' && !batchState.results.length) {
-    window.location.hash = '#dashboard'; return;
+    goTo('dashboard'); return;
   }
   if (hash === '#dashboard') { loadDashboardData(); updateNav(); }
   showScreen(HASH_MAP[hash] || 'page-landing');
@@ -843,39 +869,53 @@ async function doSignup() {
 
 async function doSignout() {
   if (sb) await sb.auth.signOut().catch(() => {});
-  currentSession = null; currentUser = null; window.userProfile = null;
+  currentSession = null; currentUser = null; userProfile = null; window.userProfile = null;
   updateNav();
-  window.location.hash = '#landing';
+  goTo('landing');
 }
 
-// FIX 1: onAuthStateChange — handle token refresh and signout
+// FIX 7: Start Screening checks auth first — never assumes logged out
+async function startScreening() {
+  const session = await initAuth();
+  goTo(session ? 'dashboard' : 'login');
+}
+
+// FIX 4: full onAuthStateChange — SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED
 if (sb) {
   sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'TOKEN_REFRESHED') {
-      currentSession = session;
-      currentUser = session?.user || null;
-    } else if (event === 'SIGNED_OUT') {
-      currentSession = null; currentUser = null; window.userProfile = null;
+    currentSession = session;
+    currentUser = session?.user || null;
+    if (event === 'SIGNED_IN') {
+      await loadUserProfile();
       updateNav();
-      window.location.hash = '#landing';
+      goTo('dashboard');
+    } else if (event === 'SIGNED_OUT') {
+      currentSession = null; currentUser = null; userProfile = null; window.userProfile = null;
+      updateNav();
+      goTo('landing');
+    } else if (event === 'TOKEN_REFRESHED') {
+      updateNav();
     }
   });
 }
 
-// FIX 1: Restore session on load — call router AFTER session is known
+// FIX 5: window focus re-validates session so tab switching never loses auth
+window.addEventListener('focus', async () => {
+  if (!sb) return;
+  const session = await initAuth();
+  updateNav();
+  if (!session && PROTECTED.has(window.location.hash)) goTo('login');
+});
+
+// App startup — restore session then route
 (async () => {
-  if (!sb) { router(); return; }
-  try {
-    const { data: { session } } = await sb.auth.getSession();
-    currentSession = session;
-    currentUser = session?.user || null;
-    if (currentUser) await loadUserProfile();
-    updateNav();
-  } catch(e) {}
+  const session = await initAuth();
+  if (session) { await loadUserProfile(); }
+  updateNav();
   router();
 })();
 
-// FIX 2: Profile data
+// Profile data — writes both local var and window.userProfile for compat
 async function loadUserProfile() {
   if (!sb || !currentUser) return;
   try {
@@ -887,12 +927,13 @@ async function loadUserProfile() {
         created_at: new Date().toISOString()
       };
       await sb.from('profiles').upsert(newP);
-      window.userProfile = newP;
+      userProfile = newP; window.userProfile = newP;
     } else {
-      window.userProfile = profile;
+      userProfile = profile; window.userProfile = profile;
     }
   } catch(e) {
-    window.userProfile = { id: currentUser?.id, email: currentUser?.email, full_name: currentUser?.email?.split('@')[0] };
+    const fallback = { id: currentUser?.id, email: currentUser?.email, full_name: currentUser?.email?.split('@')[0] };
+    userProfile = fallback; window.userProfile = fallback;
   }
 }
 
