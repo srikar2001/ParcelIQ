@@ -566,6 +566,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <div class="dash-lbl">New Batch Screen</div>
         <div class="dash-title">Screen your parcels</div>
         <div class="dash-sub">Florida statewide · 6 live sources · Kill / Review / Pursue in seconds</div>
+        <label style="font-size:12px;color:var(--t2);font-weight:500;display:block;margin-bottom:6px">Batch name (optional)</label>
+        <input type="text" id="batchNameInput" class="inp" placeholder="e.g. Polk County June leads" style="margin-bottom:12px">
         <textarea id="batchInput" class="addr-box" placeholder="Paste addresses here, one per line:
 
 123 Main St, Tampa FL 33601
@@ -843,7 +845,7 @@ const HASH_MAP = {
   '#results': 'page-results', '#pricing': 'page-pricing',
 };
 
-const batchState = { results: [], filtered: 'all', elapsed: 0 };
+const batchState = { results: [], filtered: 'all', elapsed: 0, name: '' };
 const PROTECTED = new Set(['#dashboard', '#results', '#processing']);
 
 // FIX 6: router is async — calls initAuth() before allowing protected pages
@@ -1382,6 +1384,10 @@ async function runBatch() {
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
   if (!lines.length) { toast('No valid addresses found'); return; }
 
+  // Read batch name before navigating away from dashboard
+  const nameInput = (document.getElementById('batchNameInput')?.value || '').trim();
+  batchState.name = nameInput || 'Batch · ' + new Date().toLocaleDateString();
+
   const incomplete = lines.filter(l => !isCompleteAddress(l));
   if (incomplete.length > 0) {
     showConfirmPanel(lines);
@@ -1477,7 +1483,7 @@ async function _executeBatch(lines, estimatedSet) {
       review: apiResults.filter(r => r.verdict === 'REVIEW').length,
       pursue: apiResults.filter(r => r.verdict === 'PURSUE').length,
     };
-    await saveBatchToSupabase(null, { summary, results: apiResults });
+    await saveBatchToSupabase(batchState.name, { summary, results: apiResults });
     localStorage.setItem('parceliq-first-batch-done', 'true');
     const gsCard = document.getElementById('gettingStarted');
     if (gsCard) gsCard.style.display = 'none';
@@ -1514,7 +1520,8 @@ function renderBatchResults() {
   const total    = flOnly.length;
   const setEl    = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
-  setEl('resTitleCount', results.length + ' lot' + (results.length !== 1 ? 's' : '') + ' screened');
+  const titleName = batchState.name ? 'Results — ' + batchState.name : results.length + ' lot' + (results.length !== 1 ? 's' : '') + ' screened';
+  setEl('resTitleCount', titleName);
   setEl('resMeta', (batchState.elapsed ? 'Done in ' + batchState.elapsed + 's · ' : '') + '6 live sources · ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }));
   setEl('statTotal', total); setEl('statKill', kills); setEl('statReview', reviews); setEl('statPursue', pursues);
   setEl('sbKill', kills); setEl('sbReview', reviews); setEl('sbPursue', pursues);
@@ -1684,7 +1691,10 @@ function downloadCSV() {
   const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = 'parceliq-' + new Date().toISOString().slice(0,10) + '.csv';
+  const csvName = batchState.name
+    ? batchState.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.csv'
+    : 'parceliq-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.download = csvName;
   a.click();
 }
 </script>
