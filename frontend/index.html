@@ -1142,11 +1142,17 @@ function handleFileUpload(e) {
 
 // ── ADDRESS HELPERS — FIX 2 + FIX 3
 
+const _STATE_ABBR = /\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b/;
+const _STATE_NAME = /\b(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New\s+Hampshire|New\s+Jersey|New\s+Mexico|New\s+York|North\s+Carolina|North\s+Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode\s+Island|South\s+Carolina|South\s+Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West\s+Virginia|Wisconsin|Wyoming)\b/i;
+
+function _hasAnyState(addr) {
+  return _STATE_ABBR.test(addr) || _STATE_NAME.test(addr);
+}
+
 function isCompleteAddress(addr) {
-  const words = addr.trim().split(/\s+/);
-  const hasNum   = /^\d/.test(addr.trim());
-  const hasState = /\b[A-Z]{2}\b/.test(addr) || /\bFlorida\b/i.test(addr);
-  return hasNum && hasState && words.length >= 3;
+  const words  = addr.trim().split(/\s+/);
+  const hasNum = /^\d/.test(addr.trim());
+  return hasNum && _hasAnyState(addr) && words.length >= 3;
 }
 
 function isFloridaAddress(addr) {
@@ -1156,8 +1162,7 @@ function isFloridaAddress(addr) {
 }
 
 function bestGuess(addr) {
-  // No state at all → append FL
-  if (!/\b[A-Z]{2}\b/.test(addr) && !/\bFlorida\b/i.test(addr)) return addr + ', FL';
+  if (!_hasAnyState(addr)) return addr + ', FL';
   return addr;
 }
 
@@ -1177,6 +1182,7 @@ function showConfirmPanel(lines) {
     (_incompleteItems.length !== 1 ? 'es' : '') + ' need confirmation before screening';
 
   _renderConfirmItems();
+  _incompleteItems.forEach((_, i) => setConfirmItem(i, _incompleteItems[i].use));
   const panel = document.getElementById('confirmPanel');
   if (panel) { panel.style.display = 'block'; panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
 }
@@ -1199,7 +1205,12 @@ function _renderConfirmItems() {
 function setConfirmItem(i, use) {
   if (_incompleteItems[i]) _incompleteItems[i].use = use;
   const el = document.getElementById('ci-' + i);
-  if (el) el.className = 'confirm-item' + (use ? '' : ' skipped');
+  if (!el) return;
+  el.className = 'confirm-item' + (use ? '' : ' skipped');
+  const useBtn  = el.querySelector('.cbtn.use');
+  const skipBtn = el.querySelector('.cbtn.skip');
+  if (useBtn)  useBtn.style.outline  = use  ? '2px solid var(--green)' : '';
+  if (skipBtn) skipBtn.style.outline = !use ? '2px solid var(--red)'   : '';
 }
 
 function confirmAllGuesses() {
