@@ -1,7 +1,9 @@
 import asyncio
+import json
 from typing import Optional
 
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.collectors.geocodio import geocode
@@ -108,6 +110,43 @@ async def _process_parcel_safe(parcel: ParcelInput) -> dict:
             "sources": [],
             "error": str(e),
         }
+
+
+@router.post("/batch/stream")
+async def batch_screen_stream(request: BatchRequest):
+    async def event_generator():
+        parcels = request.parcels
+        total = len(parcels)
+        all_results = []
+        completed = 0
+
+        yield f'data: {json.dumps({"type":"start","total":total})}\n\n'
+
+        for i in range(0, total, BATCH_SIZE):
+            chunk = parcels[i:i + BATCH_SIZE]
+            chunk_results = await asyncio.gather(
+                *[_process_parcel_safe(p) for p in chunk]
+            )
+            for result in chunk_results:
+                all_results.append(result)
+                completed += 1
+                pct = int((completed / total) * 100)
+                yield f'data: {json.dumps({"type":"progress","completed":completed,"total":total,"percent":pct,"latest":result})}\n\n'
+
+        summary = {
+            "total":   len(all_results),
+            "kill":    sum(1 for r in all_results if r["verdict"] == "KILL"),
+            "review":  sum(1 for r in all_results if r["verdict"] == "REVIEW"),
+            "pursue":  sum(1 for r in all_results if r["verdict"] == "PURSUE"),
+            "error":   sum(1 for r in all_results if r["verdict"] == "ERROR"),
+        }
+        yield f'data: {json.dumps({"type":"complete","summary":summary,"results":all_results})}\n\n'
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/batch")

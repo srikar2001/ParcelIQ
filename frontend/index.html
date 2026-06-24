@@ -1376,72 +1376,86 @@ async function _executeBatch(lines, estimatedSet) {
 
   goTo('processing');
 
-  const circ = document.getElementById('batchRingCirc');
-  const pct  = document.getElementById('batchPct');
-  const stat = document.getElementById('batchStat');
-  const sub  = document.getElementById('batchSub');
   const dots = document.querySelectorAll('#procDots .proc-dot');
-  const C = 251.3;
+  const t0   = Date.now();
 
-  const steps = [
-    ['Geocoding addresses…','Geocodio API'],
-    ['Checking FEMA flood zones…','FEMA'],
-    ['Scanning wetlands…','Wetlands via Esri'],
-    ['Querying wildlife habitat…','USFWS via Esri'],
-    ['Checking EPA superfund…','EPA'],
-    ['Checking road access…','Roads via OSM'],
-    ['Pulling county records…','County Records'],
-    ['Running scoring engine…','ParcelIQ Insight Engine'],
-  ];
-
-  let step = 0;
-  const t0 = Date.now();
-  if (circ) circ.style.strokeDashoffset = C;
-  if (pct)  pct.textContent = '0%';
-  if (stat) stat.textContent = steps[0][0];
-  if (sub)  sub.textContent  = steps[0][1];
-
-  const iv = setInterval(() => {
-    step = Math.min(step + 1, steps.length - 1);
-    if (stat) stat.textContent = steps[step][0];
-    if (sub)  sub.textContent  = steps[step][1];
-    const prog = step / steps.length;
-    if (circ) circ.style.strokeDashoffset = C - C * prog * 0.85;
-    if (pct)  pct.textContent = Math.round(prog * 85) + '%';
-    if (dots[step]) dots[step].classList.add('done');
-  }, 1800);
+  updateProgress(0, flLines.length, null);
+  dots.forEach(d => d.classList.remove('done'));
+  const subEl = document.getElementById('batchSub');
+  if (subEl) subEl.textContent = 'Checking 6 live data sources per parcel';
 
   try {
     const payload = { parcels: flLines.map(a => ({ address: a })), state: 'FL' };
-    const resp = await fetch(API + '/api/batch', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    const resp = await fetch(API + '/api/batch/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(currentSession?.access_token ? { 'Authorization': 'Bearer ' + currentSession.access_token } : {}),
+      },
+      body: JSON.stringify(payload),
     });
-    clearInterval(iv);
-    batchState.elapsed = Math.round((Date.now() - t0) / 1000);
     if (!resp.ok) throw new Error('Server error ' + resp.status);
-    const data = await resp.json();
-    if (circ) circ.style.strokeDashoffset = 0;
-    if (pct)  pct.textContent = '100%';
-    if (stat) stat.textContent = 'Screening complete';
-    if (sub)  sub.textContent  = data.summary.total + ' parcels screened';
-    dots.forEach(d => d.classList.add('done'));
 
-    // Tag estimated addresses; merge with outside-coverage results
-    const apiResults = (data.results || []).map(r => ({
-      ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase())
-    }));
-    batchState.results = [...outsideResults, ...apiResults];
-    batchState.filtered = 'all';
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-    await saveBatchToSupabase(null, { summary: data.summary, results: apiResults });
-    setTimeout(() => { renderBatchResults(); goTo('results'); }, 600);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let ev;
+        try { ev = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (ev.type === 'progress') {
+          updateProgress(ev.completed, ev.total, ev.latest?.address);
+          const dotIdx = Math.floor((ev.completed / ev.total) * dots.length);
+          for (let d = 0; d < dotIdx && d < dots.length; d++) dots[d].classList.add('done');
+        }
+
+        if (ev.type === 'complete') {
+          batchState.elapsed = Math.round((Date.now() - t0) / 1000);
+          updateProgress(ev.summary.total, ev.summary.total, null);
+          dots.forEach(d => d.classList.add('done'));
+          const statEl2 = document.getElementById('batchStat');
+          const subEl2  = document.getElementById('batchSub');
+          if (statEl2) statEl2.textContent = 'Screening complete';
+          if (subEl2)  subEl2.textContent  = ev.summary.total + ' parcels screened';
+
+          const apiResults = (ev.results || []).map(r => ({
+            ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase())
+          }));
+          batchState.results  = [...outsideResults, ...apiResults];
+          batchState.filtered = 'all';
+
+          await saveBatchToSupabase(null, { summary: ev.summary, results: apiResults });
+          setTimeout(() => { renderBatchResults(); goTo('results'); }, 600);
+        }
+      }
+    }
   } catch(err) {
-    clearInterval(iv);
     goTo('dashboard');
     toast('Batch failed: ' + err.message);
   } finally {
     btn.disabled = false; btn.textContent = 'Screen Parcels →';
   }
+}
+
+function updateProgress(completed, total, latestAddress) {
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const C   = 2 * Math.PI * 40;
+  const ring    = document.getElementById('batchRingCirc');
+  const pctEl   = document.getElementById('batchPct');
+  const titleEl = document.getElementById('procCount');
+  const srcEl   = document.getElementById('batchStat');
+  if (ring)    ring.style.strokeDashoffset = C - (C * pct / 100);
+  if (pctEl)   pctEl.textContent = pct + '%';
+  if (titleEl) titleEl.textContent = 'Screening ' + completed + ' of ' + total + ' parcels';
+  if (latestAddress && srcEl) srcEl.textContent = latestAddress;
 }
 
 // ── RENDER RESULTS (FIX 4)
