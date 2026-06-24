@@ -573,9 +573,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         </div>
         <div id="confirmItems"></div>
         <div class="confirm-footer">
-          <button class="btn-p btn-sm" onclick="confirmAllGuesses()">Confirm all guesses</button>
-          <button class="btn-o btn-sm" onclick="skipAllIncomplete()">Skip all incomplete</button>
-          <button class="btn-p btn-sm" onclick="proceedAfterConfirm()">Screen now →</button>
+          <button class="btn-p btn-sm" onclick="confirmAllGuesses()">Use all guesses &amp; screen →</button>
+          <button class="btn-o btn-sm" onclick="skipAllIncomplete()">Skip all &amp; screen remaining →</button>
           <button class="btn-o btn-sm" onclick="hideConfirmPanel()">Cancel</button>
         </div>
       </div>
@@ -1193,11 +1192,11 @@ function _renderConfirmItems() {
   el.innerHTML = _incompleteItems.map((item, i) => {
     const cls = item.use ? '' : ' skipped';
     return '<div class="confirm-item' + cls + '" id="ci-' + i + '">' +
-      '<div class="confirm-original">Row ' + (item.idx + 1) + ': "' + escHtml(item.original) + '"</div>' +
-      '<div class="confirm-guess">Best guess: ' + escHtml(item.guess) + '?</div>' +
+      '<div class="confirm-original">You typed: <strong>' + escHtml(item.original) + '</strong></div>' +
+      '<div class="confirm-guess">Will screen as: <strong>' + escHtml(item.guess) + '</strong></div>' +
       '<div class="confirm-item-btns">' +
-        '<button class="cbtn use" onclick="setConfirmItem(' + i + ', true)">✓ Use this</button>' +
-        '<button class="cbtn skip" onclick="setConfirmItem(' + i + ', false)">✗ Skip</button>' +
+        '<button class="cbtn use" onclick="setConfirmItem(' + i + ', true); proceedAfterConfirm();">✓ Use this &amp; screen</button>' +
+        '<button class="cbtn skip" onclick="setConfirmItem(' + i + ', false); proceedAfterConfirm();">✗ Skip this address</button>' +
       '</div></div>';
   }).join('');
 }
