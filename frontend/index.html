@@ -575,6 +575,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <div class="confirm-footer">
           <button class="btn-p btn-sm" onclick="confirmAllGuesses()">Confirm all guesses</button>
           <button class="btn-o btn-sm" onclick="skipAllIncomplete()">Skip all incomplete</button>
+          <button class="btn-p btn-sm" onclick="proceedAfterConfirm()">Screen now →</button>
           <button class="btn-o btn-sm" onclick="hideConfirmPanel()">Cancel</button>
         </div>
       </div>
@@ -1203,10 +1204,12 @@ function setConfirmItem(i, use) {
 
 function confirmAllGuesses() {
   _incompleteItems.forEach((item, i) => { item.use = true; setConfirmItem(i, true); });
+  proceedAfterConfirm();
 }
 
 function skipAllIncomplete() {
   _incompleteItems.forEach((item, i) => { item.use = false; setConfirmItem(i, false); });
+  proceedAfterConfirm();
 }
 
 function hideConfirmPanel() {
