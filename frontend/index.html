@@ -1331,14 +1331,18 @@ function renderPastBatches(batches) {
 async function loadBatchResults(batchId) {
   if (!currentUser) return;
   try {
-    const { data: results } = await sb.from('parcel_results').select('*')
-      .eq('batch_id', batchId).eq('user_id', currentUser.id)
-      .order('score', { ascending: true });
+    const [{ data: batch }, { data: results }] = await Promise.all([
+      sb.from('batches').select('name').eq('id', batchId).single(),
+      sb.from('parcel_results').select('*')
+        .eq('batch_id', batchId).eq('user_id', currentUser.id)
+        .order('score', { ascending: true }),
+    ]);
     if (!results) return;
     currentBatchResults = results;
     batchState.results  = results;
     batchState.filtered = 'all';
     batchState.elapsed  = 0;
+    batchState.name     = batch?.name || '';
     renderBatchResults();
     goTo('results');
   } catch(e) { console.error('Load results error:', e); toast('Could not load batch'); }
@@ -1520,8 +1524,7 @@ function renderBatchResults() {
   const total    = flOnly.length;
   const setEl    = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
-  const titleName = batchState.name ? 'Results — ' + batchState.name : results.length + ' lot' + (results.length !== 1 ? 's' : '') + ' screened';
-  setEl('resTitleCount', titleName);
+  setEl('resTitleCount', batchState.name || results.length + ' lot' + (results.length !== 1 ? 's' : '') + ' screened');
   setEl('resMeta', (batchState.elapsed ? 'Done in ' + batchState.elapsed + 's · ' : '') + '6 live sources · ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }));
   setEl('statTotal', total); setEl('statKill', kills); setEl('statReview', reviews); setEl('statPursue', pursues);
   setEl('sbKill', kills); setEl('sbReview', reviews); setEl('sbPursue', pursues);
