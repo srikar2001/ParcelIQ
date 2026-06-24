@@ -1240,10 +1240,23 @@ async function loadDashboardData() {
         const gs = document.getElementById('gettingStarted');
         if (gs) gs.style.display = 'none';
 
-        const wc = weeklyCount || 0;
+        const wc        = weeklyCount || 0;
+        const remaining = 1000 - wc;
         setEl('dashUsed', wc);
         const fill = document.getElementById('dashUsageFill');
         if (fill) fill.style.width = Math.min(Math.round(wc / 1000 * 100), 100) + '%';
+        const banner = document.getElementById('limitBanner');
+        if (banner) {
+          if (remaining <= 0) {
+            banner.textContent = 'Weekly limit reached (1,000 parcels). Resets Monday.';
+            banner.classList.add('show');
+          } else if (remaining <= 100) {
+            banner.textContent = remaining + ' parcels remaining this week. Limit resets Monday.';
+            banner.classList.add('show');
+          } else {
+            banner.classList.remove('show');
+          }
+        }
       } else {
         _dashEmptyState();
       }
