@@ -829,15 +829,15 @@ async function doLogin() {
   const btn   = document.getElementById('loginBtn');
   err.classList.remove('show');
   if (!email || !pw) { err.textContent = 'Email and password required.'; err.classList.add('show'); return; }
-  if (!sb) { window.location.hash = '#dashboard'; return; }
+  if (!sb) { goTo('dashboard'); return; }
   btn.disabled = true; btn.textContent = 'Signing in…';
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
     if (error) throw error;
     currentSession = data.session; currentUser = data.user;
-    await loadUserProfile();
     updateNav();
-    window.location.hash = '#dashboard';
+    loadUserProfile(); // fire-and-forget — never blocks navigation
+    goTo('dashboard');
   } catch(e) {
     err.textContent = e.message || 'Login failed.'; err.classList.add('show');
   } finally { btn.disabled = false; btn.textContent = 'Log in'; }
@@ -853,16 +853,16 @@ async function doSignup() {
   if (!email || !pw) { err.textContent = 'Email and password required.'; err.classList.add('show'); return; }
   if (pw !== confirm) { err.textContent = 'Passwords do not match.'; err.classList.add('show'); return; }
   if (pw.length < 8)  { err.textContent = 'Password must be at least 8 characters.'; err.classList.add('show'); return; }
-  if (!sb) { window.location.hash = '#dashboard'; return; }
+  if (!sb) { goTo('dashboard'); return; }
   btn.disabled = true; btn.textContent = 'Creating account…';
   try {
     const { data, error } = await sb.auth.signUp({ email, password: pw });
     if (error) throw error;
     currentSession = data.session; currentUser = data.user;
-    await loadUserProfile();
     updateNav();
+    loadUserProfile(); // fire-and-forget
     toast('Welcome to ParcelIQ!');
-    window.location.hash = '#dashboard';
+    goTo('dashboard');
   } catch(e) {
     err.textContent = e.message || 'Signup failed.'; err.classList.add('show');
   } finally { btn.disabled = false; btn.textContent = 'Create account →'; }
@@ -881,15 +881,14 @@ async function startScreening() {
   goTo(session ? 'dashboard' : 'login');
 }
 
-// FIX 4: full onAuthStateChange — SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED
+// onAuthStateChange — update state only; navigation is handled by doLogin/doSignup/startup
 if (sb) {
-  sb.auth.onAuthStateChange(async (event, session) => {
+  sb.auth.onAuthStateChange((event, session) => {
     currentSession = session;
     currentUser = session?.user || null;
     if (event === 'SIGNED_IN') {
-      await loadUserProfile();
+      loadUserProfile(); // fire-and-forget
       updateNav();
-      goTo('dashboard');
     } else if (event === 'SIGNED_OUT') {
       currentSession = null; currentUser = null; userProfile = null; window.userProfile = null;
       updateNav();
@@ -900,7 +899,7 @@ if (sb) {
   });
 }
 
-// FIX 5: window focus re-validates session so tab switching never loses auth
+// window focus re-validates session silently
 window.addEventListener('focus', async () => {
   if (!sb) return;
   const session = await initAuth();
@@ -908,22 +907,23 @@ window.addEventListener('focus', async () => {
   if (!session && PROTECTED.has(window.location.hash)) goTo('login');
 });
 
-// App startup — restore session then route
+// App startup — getSession first, then route; profile loads in background
 (async () => {
   const session = await initAuth();
-  if (session) { await loadUserProfile(); }
+  if (session) loadUserProfile(); // fire-and-forget — never delays routing
   updateNav();
   router();
 })();
 
 async function loadUserProfile() {
-  if (!currentUser) return;
+  if (!sb || !currentUser) return;
+  // 6-second timeout so a slow/blocked Supabase query never freezes the app
+  const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000));
   try {
-    const { data: existing } = await sb
-      .from('profiles')
-      .select('*')
-      .eq('id', currentUser.id)
-      .single();
+    const { data: existing } = await Promise.race([
+      sb.from('profiles').select('*').eq('id', currentUser.id).single(),
+      timeout
+    ]);
     if (existing) {
       userProfile = existing; window.userProfile = existing;
       updateUIWithProfile();
