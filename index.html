@@ -129,6 +129,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .auth-sub{font-size:14px;color:var(--t2);margin-bottom:24px}
 .auth-err{font-size:13px;color:var(--red);background:var(--rbg);border:1px solid rgba(239,68,68,.2);padding:10px 14px;border-radius:var(--rs);margin-bottom:14px;display:none}
 .auth-err.show{display:block}
+.upgrade-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;align-items:center;justify-content:center;padding:24px}
+.upgrade-overlay.show{display:flex}
+.upgrade-modal{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:36px 32px;max-width:420px;width:100%;text-align:center}
+.upgrade-modal-icon{font-size:36px;margin-bottom:12px}
+.upgrade-modal-title{font-size:20px;font-weight:800;color:var(--t1);margin-bottom:10px}
+.upgrade-modal-body{font-size:14px;color:var(--t2);line-height:1.7;margin-bottom:24px}
+.upgrade-modal-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.limit-banner{display:none;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.3);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:#ca8a04;margin-bottom:12px}
+.limit-banner.show{display:block}
 .auth-fields{display:flex;flex-direction:column;gap:12px;margin-bottom:18px}
 .auth-lbl{display:block;font-size:11px;font-weight:600;color:var(--t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
 .auth-div{display:flex;align-items:center;gap:12px;margin:14px 0}
@@ -577,8 +586,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </nav>
       <div class="dsb-usage">
         <div class="dsb-usage-top">
-          <span class="dsb-usage-lbl">Parcels used</span>
-          <span class="dsb-usage-val"><span id="dashUsed">0</span>/500</span>
+          <span class="dsb-usage-lbl">This week</span>
+          <span class="dsb-usage-val"><span id="dashUsed">0</span> / 1,000</span>
         </div>
         <div class="dsb-usage-track">
           <div class="dsb-usage-fill" id="dashUsageFill" style="width:0%"></div>
@@ -627,6 +636,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           <option value="FL">Florida ▾</option>
           <option disabled>Other states — Coming Soon</option>
         </select>
+        <div id="limitBanner" class="limit-banner"></div>
         <button class="run-btn" id="runBatchBtn" onclick="runBatch()">Screen Parcels →</button>
         <div class="src-hint">Each parcel screened against FEMA · NWI · USFWS · EPA · OSM · FL DOR</div>
       </div>
@@ -1205,7 +1215,12 @@ async function loadDashboardData() {
 
   if (sb && currentUser) {
     try {
-      const { data } = await sb.from('batches').select('total,kills').eq('user_id', currentUser.id);
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const [{ data }, { count: weeklyCount }] = await Promise.all([
+        sb.from('batches').select('total,kills').eq('user_id', currentUser.id),
+        sb.from('parcel_results').select('*', { count: 'exact', head: true })
+          .eq('user_id', currentUser.id).gte('created_at', weekAgo),
+      ]);
       if (data && data.length) {
         const batchCount   = data.length;
         const totalParcels = data.reduce((a, b) => a + (b.total || 0), 0);
@@ -1225,9 +1240,10 @@ async function loadDashboardData() {
         const gs = document.getElementById('gettingStarted');
         if (gs) gs.style.display = 'none';
 
-        setEl('dashUsed', totalParcels);
+        const wc = weeklyCount || 0;
+        setEl('dashUsed', wc);
         const fill = document.getElementById('dashUsageFill');
-        if (fill) fill.style.width = Math.min(Math.round(totalParcels / 500 * 100), 100) + '%';
+        if (fill) fill.style.width = Math.min(Math.round(wc / 1000 * 100), 100) + '%';
       } else {
         _dashEmptyState();
       }
@@ -1489,6 +1505,13 @@ async function saveBatchToSupabase(batchName, results) {
   } catch(e) { console.error('Save error:', e); return null; }
 }
 
+function showUpgradeModal() {
+  document.getElementById('upgradeModal')?.classList.add('show');
+}
+function hideUpgradeModal() {
+  document.getElementById('upgradeModal')?.classList.remove('show');
+}
+
 // ── RUN BATCH — FIX 2: checks incomplete addresses first
 let _estimatedAddresses = new Set();
 let _lastBatchLines     = [];
@@ -1499,6 +1522,29 @@ async function runBatch() {
   if (!raw) { toast('Paste at least one address'); return; }
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
   if (!lines.length) { toast('No valid addresses found'); return; }
+
+  // Usage limit check
+  if (sb && currentUser) {
+    try {
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { count } = await sb.from('parcel_results')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id)
+        .gte('created_at', weekAgo);
+      const used      = count || 0;
+      const remaining = 1000 - used;
+      if (remaining <= 0) { showUpgradeModal(); return; }
+      const banner = document.getElementById('limitBanner');
+      if (banner) {
+        if (remaining <= 100) {
+          banner.textContent = remaining + ' parcels remaining this week. Limit resets Monday.';
+          banner.classList.add('show');
+        } else {
+          banner.classList.remove('show');
+        }
+      }
+    } catch(e) { /* fail open — never block screening on a check error */ }
+  }
 
   // Read batch name before navigating away from dashboard
   const nameInput = (document.getElementById('batchNameInput')?.value || '').trim();
@@ -1565,11 +1611,16 @@ async function _executeBatch(lines, estimatedSet) {
 
   try {
     await Promise.all(groups.map(async (group) => {
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentSession?.access_token) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
       const resp = await fetch(API + '/api/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers,
         body: JSON.stringify({ parcels: group.map(a => ({ address: a })), state: 'FL' }),
       });
+      if (resp.status === 429) {
+        const e = Object.assign(new Error('limit_exceeded'), { isLimitExceeded: true });
+        throw e;
+      }
       if (!resp.ok) throw new Error('Server error ' + resp.status);
       const data = await resp.json();
       for (const r of (data.results || [])) {
@@ -1607,11 +1658,16 @@ async function _executeBatch(lines, estimatedSet) {
     if (gsCard) gsCard.style.display = 'none';
     setTimeout(() => { renderBatchResults(); goTo('results'); }, 600);
   } catch(err) {
-    const isNetwork = (err instanceof TypeError) || (err.message || '').toLowerCase().includes('failed to fetch') || (err.message || '').toLowerCase().includes('networkerror');
-    showProcError(
-      isNetwork ? 'Cannot reach the screening service.' : 'Something went wrong screening your batch.',
-      isNetwork ? 'Check your internet connection.' : 'Your addresses were not lost.'
-    );
+    if (err.isLimitExceeded) {
+      goTo('dashboard');
+      setTimeout(() => showUpgradeModal(), 150);
+    } else {
+      const isNetwork = (err instanceof TypeError) || (err.message || '').toLowerCase().includes('failed to fetch') || (err.message || '').toLowerCase().includes('networkerror');
+      showProcError(
+        isNetwork ? 'Cannot reach the screening service.' : 'Something went wrong screening your batch.',
+        isNetwork ? 'Check your internet connection.' : 'Your addresses were not lost.'
+      );
+    }
   } finally {
     const btn2 = document.getElementById('runBatchBtn');
     if (btn2) { btn2.disabled = false; btn2.textContent = 'Screen Parcels →'; }
@@ -1892,5 +1948,22 @@ function downloadCSV() {
   a.click();
 }
 </script>
+
+<!-- ════════ UPGRADE MODAL ════════ -->
+<div id="upgradeModal" class="upgrade-overlay" onclick="if(event.target===this)hideUpgradeModal()">
+  <div class="upgrade-modal">
+    <div class="upgrade-modal-icon">🚫</div>
+    <div class="upgrade-modal-title">Weekly limit reached</div>
+    <div class="upgrade-modal-body">
+      You have screened 1,000 parcels this week.<br>
+      Your limit resets every Monday.<br><br>
+      Upgrade to Pro for 2,000 parcels/week or Unlimited for no limits.
+    </div>
+    <div class="upgrade-modal-btns">
+      <button class="btn-p btn-sm" onclick="hideUpgradeModal();goTo('pricing')">View pricing</button>
+      <button class="btn-o btn-sm" onclick="hideUpgradeModal()">OK</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
