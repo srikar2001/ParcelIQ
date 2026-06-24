@@ -989,38 +989,57 @@ async function doSignout() {
 }
 
 async function doForgot() {
-  if (!sb) return;
+  if (!sb) { toast('Auth not ready — reload the page'); return; }
   const email = (document.getElementById('forgotEmail')?.value || '').trim();
   const err   = document.getElementById('forgotErr');
   const btn   = document.getElementById('forgotBtn');
   const ok    = document.getElementById('forgotSuccess');
-  if (err) err.textContent = '';
-  if (!email) { if (err) err.textContent = 'Enter your email address.'; return; }
+  if (err) { err.textContent = ''; err.classList.remove('show'); }
+  if (!email) {
+    if (err) { err.textContent = 'Enter your email address.'; err.classList.add('show'); }
+    return;
+  }
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
-  const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://parcel-iq-nine.vercel.app/#reset-password',
-  });
-  if (btn) { btn.disabled = false; btn.textContent = 'Send reset link'; }
-  if (error) { if (err) err.textContent = error.message; return; }
-  if (ok) ok.style.display = 'block';
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://parcel-iq-nine.vercel.app',
+    });
+    if (error) throw error;
+    if (ok) ok.style.display = 'block';
+  } catch(e) {
+    if (err) { err.textContent = e.message || 'Failed to send reset email.'; err.classList.add('show'); }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send reset link'; }
+  }
 }
 
 async function doResetPassword() {
-  if (!sb) return;
+  if (!sb) { toast('Auth not ready — reload the page'); return; }
   const pw      = (document.getElementById('resetPw')?.value || '');
   const confirm = (document.getElementById('resetConfirm')?.value || '');
   const err     = document.getElementById('resetErr');
   const btn     = document.getElementById('resetBtn');
   const ok      = document.getElementById('resetSuccess');
-  if (err) err.textContent = '';
-  if (pw !== confirm) { if (err) err.textContent = 'Passwords do not match.'; return; }
-  if (pw.length < 8)  { if (err) err.textContent = 'Password must be at least 8 characters.'; return; }
+  if (err) { err.textContent = ''; err.classList.remove('show'); }
+  if (pw !== confirm) {
+    if (err) { err.textContent = 'Passwords do not match.'; err.classList.add('show'); }
+    return;
+  }
+  if (pw.length < 8) {
+    if (err) { err.textContent = 'Password must be at least 8 characters.'; err.classList.add('show'); }
+    return;
+  }
   if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
-  const { error } = await sb.auth.updateUser({ password: pw });
-  if (btn) { btn.disabled = false; btn.textContent = 'Update password'; }
-  if (error) { if (err) err.textContent = error.message; return; }
-  if (ok) ok.style.display = 'block';
-  setTimeout(() => goTo('login'), 2000);
+  try {
+    const { error } = await sb.auth.updateUser({ password: pw });
+    if (error) throw error;
+    if (ok) ok.style.display = 'block';
+    setTimeout(() => goTo('login'), 2000);
+  } catch(e) {
+    if (err) { err.textContent = e.message || 'Failed to update password.'; err.classList.add('show'); }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Update password'; }
+  }
 }
 
 // FIX 7: Start Screening checks auth first — never assumes logged out
