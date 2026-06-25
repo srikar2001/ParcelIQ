@@ -1510,8 +1510,13 @@ let _openParcel     = null;
 async function router() {
   closeDetailPanel();
   const hash = window.location.hash || '#landing';
+  // If already logged in and navigating to a login/signup/landing page, skip straight to dashboard
+  if (_AUTH_PAGES && _AUTH_PAGES.has(hash) && currentSession) {
+    goTo('dashboard'); return;
+  }
   if (PROTECTED.has(hash)) {
-    const session = await initAuth();
+    // Trust currentSession first (already resolved by _authReadyPromise); fall back to getSession
+    const session = currentSession || await initAuth();
     if (!session) { goTo('login'); return; }
   }
   if (hash === '#results' && !batchState.results.length) {
@@ -1656,16 +1661,23 @@ async function startScreening() {
   goTo(session ? 'dashboard' : 'login');
 }
 
+// _authReadyPromise resolves on the FIRST onAuthStateChange event (session restore or null).
+// This is the reliable way to get the initial session — getSession() alone can return null
+// before Supabase has finished restoring from localStorage.
+let _authResolve;
+const _authReadyPromise = new Promise(resolve => { _authResolve = resolve; });
+
 // onAuthStateChange — handles OAuth callbacks, explicit logins, and sign-outs
 if (sb) {
   sb.auth.onAuthStateChange(async (event, session) => {
     currentSession = session;
     currentUser = session?.user || null;
+    // Resolve initial auth promise on the very first event (INITIAL_SESSION, SIGNED_IN, or SIGNED_OUT)
+    if (_authResolve) { _authResolve(session); _authResolve = null; }
     if (event === 'SIGNED_IN') {
       await loadUserProfile();
       updateNav();
-      // Only navigate to dashboard when on an auth/landing page or after OAuth callback.
-      // Do NOT navigate when Supabase restores an existing session on a non-auth page (e.g. #results).
+      // Navigate to dashboard only for explicit logins or OAuth callback — not session restores on protected pages
       const h = window.location.hash;
       if (_AUTH_PAGES.has(h) || h.includes('access_token=')) goTo('dashboard');
     } else if (event === 'TOKEN_REFRESHED') {
@@ -1704,20 +1716,24 @@ async function signInWithGoogle() {
 
 const _AUTH_PAGES = new Set(['', '#', '#login', '#signup', '#landing', '#forgot']);
 
-// App startup — getSession first, then route; profile loads in background
+// App startup — wait for the first onAuthStateChange event (reliable session source)
 async function initApp() {
-  // FIX — OAuth callback: access_token lands in the hash fragment after Google redirect.
-  // Supabase auto-processes it; replace the hash with #dashboard after a tick.
+  // OAuth callback: access_token in hash — Supabase auto-processes it, then fires SIGNED_IN
   if (window.location.hash.includes('access_token=')) {
     setTimeout(() => {
       window.history.replaceState({}, document.title, window.location.pathname + '#dashboard');
     }, 500);
-    return; // onAuthStateChange SIGNED_IN will handle navigation
+    return;
   }
-  const session = await initAuth();
+  // Wait for Supabase to restore session (onAuthStateChange fires before getSession is reliable)
+  // 3-second timeout so page doesn't hang if Supabase fails to initialize
+  const session = await Promise.race([
+    _authReadyPromise,
+    new Promise(r => setTimeout(() => r(currentSession), 3000)),
+  ]);
   updateNav();
   if (session) {
-    loadUserProfile(); // fire-and-forget — never delays routing
+    loadUserProfile(); // fire-and-forget
     if (_AUTH_PAGES.has(window.location.hash)) {
       goTo('dashboard');
       return;
