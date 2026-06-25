@@ -1079,6 +1079,7 @@ if (sb) {
     if (event === 'SIGNED_IN') {
       loadUserProfile(); // fire-and-forget
       updateNav();
+      if (_AUTH_PAGES.has(window.location.hash)) goTo('dashboard');
     } else if (event === 'SIGNED_OUT') {
       currentSession = null; currentUser = null; userProfile = null; window.userProfile = null;
       updateNav();
@@ -1105,24 +1106,25 @@ async function signInWithGoogle() {
   if (!sb) { toast('Auth not ready — reload the page'); return; }
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: 'https://parcel-iq-nine.vercel.app/#dashboard' },
+    options: { redirectTo: 'https://parcel-iq-nine.vercel.app' },
   });
   if (error) toast('Google sign-in failed: ' + error.message);
 }
 
+const _AUTH_PAGES = new Set(['', '#', '#login', '#signup', '#landing', '#forgot']);
+
 // App startup — getSession first, then route; profile loads in background
 (async () => {
   const session = await initAuth();
+  updateNav();
   if (session) {
     loadUserProfile(); // fire-and-forget — never delays routing
-    // User just returned from Google OAuth redirect
-    if (window.location.hash === '#dashboard' || window.location.hash === '') {
-      updateNav();
+    // If on an auth/landing page (including post-OAuth redirect with no hash), go to dashboard
+    if (_AUTH_PAGES.has(window.location.hash)) {
       goTo('dashboard');
       return;
     }
   }
-  updateNav();
   router();
 })();
 
