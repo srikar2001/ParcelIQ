@@ -6,7 +6,10 @@ from datetime import datetime, timedelta, timezone
 import httpx
 
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-_SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+_SUPABASE_KEY = (
+    os.environ.get("SUPABASE_ANON_KEY")
+    or os.environ.get("SUPABASE_SERVICE_KEY", "")
+)
 
 
 async def get_cached_result(address: str) -> dict | None:
