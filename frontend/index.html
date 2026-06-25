@@ -1002,6 +1002,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <div class="rsb-usage-sub">Resets Monday · Free trial</div>
       </div>
       <button class="rsb-new-btn" onclick="window.location.hash='#dashboard'">← New Batch</button>
+      <button class="rsb-new-btn" style="margin-top:6px" onclick="window.location.hash='#settings'">⚙ Settings</button>
     </aside>
     <!-- Main -->
     <main class="res-main">
@@ -1218,8 +1219,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       <div class="dsb-nav" style="margin-top:12px">
         <div class="dsb-nav-item" onclick="window.location.hash='#dashboard'">← Dashboard</div>
         <div class="dsb-nav-item active" style="margin-top:8px">Account</div>
-        <div class="dsb-nav-item" onclick="toast('Password section below')">Password</div>
-        <div class="dsb-nav-item" onclick="toast('Preferences section below')">Preferences</div>
+        <div class="dsb-nav-item" onclick="scrollSettSection('sett-sec-security')">Password</div>
+        <div class="dsb-nav-item" onclick="scrollSettSection('sett-sec-preferences')">Preferences</div>
+        <div class="dsb-nav-item" onclick="scrollSettSection('sett-sec-notifications')">Notifications</div>
         <div class="dsb-nav-item" onclick="window.location.hash='#pricing'">Upgrade Plan</div>
       </div>
     </aside>
@@ -1230,28 +1232,37 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       <div class="sett-section">
         <div class="sett-section-title">Account</div>
         <div class="sett-field">
-          <span class="sett-lbl">Name</span>
-          <span class="sett-val" id="nameDisplay">—</span>
+          <span class="sett-lbl">First Name</span>
+          <span class="sett-val" id="firstNameDisplay">—</span>
           <button class="sett-link" id="nameEditLink" onclick="toggleNameEdit(true)">Edit</button>
-          <div class="sett-edit-row" id="nameEditRow">
-            <input class="inp" id="nameInput" placeholder="Your name" style="flex:1;background:var(--bg)" onkeydown="if(event.key==='Enter')saveName(this.value)">
-            <button class="btn-p btn-sm" onclick="saveName(document.getElementById('nameInput').value)">Save</button>
-            <button class="sett-link" onclick="toggleNameEdit(false)">Cancel</button>
-          </div>
         </div>
         <div class="sett-field">
+          <span class="sett-lbl">Last Name</span>
+          <span class="sett-val" id="lastNameDisplay">—</span>
+        </div>
+        <div class="sett-edit-row" id="nameEditRow" style="display:none;margin-top:4px;flex-wrap:wrap;gap:8px">
+          <input class="inp" id="firstNameInput" placeholder="First name" style="flex:1;min-width:130px;background:var(--bg)">
+          <input class="inp" id="lastNameInput" placeholder="Last name" style="flex:1;min-width:130px;background:var(--bg)" onkeydown="if(event.key==='Enter')saveName()">
+          <button class="btn-p btn-sm" onclick="saveName()">Save</button>
+          <button class="sett-link" onclick="toggleNameEdit(false)">Cancel</button>
+        </div>
+        <div class="sett-field" style="margin-top:4px">
           <span class="sett-lbl">Email</span>
           <span class="sett-val" id="settEmail" style="color:var(--t3)">—</span>
+        </div>
+        <div class="sett-field">
+          <span class="sett-lbl">Member since</span>
+          <span class="sett-val" id="settMemberSince" style="color:var(--t3)">—</span>
         </div>
       </div>
 
       <!-- SECURITY -->
-      <div class="sett-section">
+      <div class="sett-section" id="sett-sec-security">
         <div class="sett-section-title">Security</div>
         <div class="sett-field">
           <span class="sett-lbl">Password</span>
           <span class="sett-val" style="color:var(--t3)">••••••••</span>
-          <button class="sett-link" onclick="document.getElementById('pwSection').classList.toggle('open')">Change</button>
+          <button class="sett-link" onclick="const s=document.getElementById('pwSection');s.classList.toggle('open');if(s.classList.contains('open'))s.scrollIntoView({behavior:'smooth',block:'nearest'})">Change</button>
         </div>
         <div class="sett-pw-section" id="pwSection">
           <div class="auth-err" id="settPwErr" style="margin-bottom:12px"></div>
@@ -1260,6 +1271,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
             <input class="inp" type="password" id="settConfPw" placeholder="Confirm new password" style="background:var(--bg)">
             <button class="btn-p btn-sm" style="align-self:flex-start" onclick="saveSettingsPassword()">Update password</button>
           </div>
+        </div>
+        <div class="sett-field" style="margin-top:12px">
+          <span class="sett-lbl">Two-factor auth</span>
+          <span class="sett-val" style="color:var(--t3)">Not enabled</span>
+          <span class="sett-val" style="font-size:11px;color:var(--t3);margin-left:6px">(coming soon)</span>
         </div>
       </div>
 
@@ -1275,10 +1291,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           <span class="sett-lbl">Limit</span>
           <span class="sett-val" style="color:var(--t3)">1,000 parcels / week · Resets Monday</span>
         </div>
+        <div class="sett-field">
+          <span class="sett-lbl">Used this week</span>
+          <span class="sett-val" id="settUsage" style="color:var(--t3)">—</span>
+        </div>
       </div>
 
       <!-- PREFERENCES -->
-      <div class="sett-section">
+      <div class="sett-section" id="sett-sec-preferences">
         <div class="sett-section-title">Preferences</div>
         <div class="sett-field">
           <span class="sett-lbl">Rows per page</span>
@@ -1287,6 +1307,46 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
             <option value="50">50</option>
             <option value="100">100</option>
           </select>
+        </div>
+        <div class="sett-field">
+          <span class="sett-lbl">Default sort</span>
+          <select class="state-sel" id="settDefaultSort" onchange="localStorage.setItem('piq-default-sort',this.value)" style="width:auto;background:var(--bg)">
+            <option value="default">Kill → Review → Pursue</option>
+            <option value="score_desc">Score: High → Low</option>
+            <option value="score_asc">Score: Low → High</option>
+          </select>
+        </div>
+        <div class="sett-field">
+          <span class="sett-lbl">Export format</span>
+          <select class="state-sel" id="settExportFmt" onchange="localStorage.setItem('piq-export-fmt',this.value)" style="width:auto;background:var(--bg)">
+            <option value="csv">CSV (Excel-compatible)</option>
+            <option value="tsv">TSV (Tab-separated)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- NOTIFICATIONS -->
+      <div class="sett-section" id="sett-sec-notifications">
+        <div class="sett-section-title">Notifications</div>
+        <div class="sett-field">
+          <span class="sett-lbl">Batch complete</span>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="settNotifBatch" onchange="localStorage.setItem('piq-notif-batch',this.checked?'1':'')" style="width:16px;height:16px;accent-color:var(--green)">
+            <span class="sett-val" style="color:var(--t3)">Show browser notification when a batch finishes</span>
+          </label>
+        </div>
+        <div class="sett-field">
+          <span class="sett-lbl">Email alerts</span>
+          <span class="sett-val" style="color:var(--t3)">Coming soon</span>
+        </div>
+      </div>
+
+      <!-- DANGER ZONE -->
+      <div class="sett-section" style="border-color:rgba(239,68,68,.25)">
+        <div class="sett-section-title" style="color:#ef4444">Danger Zone</div>
+        <div class="sett-field">
+          <span class="sett-lbl">Sign out</span>
+          <button class="sett-link" style="color:#ef4444" onclick="doSignout()">Sign out of all devices</button>
         </div>
       </div>
     </main>
@@ -3605,21 +3665,42 @@ function processUploadedFile(file) {
 }
 
 // ── SETTINGS (Task 24)
+function scrollSettSection(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function _splitFullName(full) {
+  const parts = (full || '').trim().split(/\s+/);
+  const first = parts[0] || '';
+  const last  = parts.slice(1).join(' ');
+  return { first, last };
+}
+
 function toggleNameEdit(editing) {
-  const display  = document.getElementById('nameDisplay');
   const editLink = document.getElementById('nameEditLink');
   const editRow  = document.getElementById('nameEditRow');
-  if (display)  display.style.display  = editing ? 'none' : '';
+  const firstD   = document.getElementById('firstNameDisplay');
+  const lastD    = document.getElementById('lastNameDisplay');
   if (editLink) editLink.style.display = editing ? 'none' : '';
   if (editRow)  editRow.style.display  = editing ? 'flex' : 'none';
+  if (firstD)   firstD.style.opacity   = editing ? '0.4' : '1';
+  if (lastD)    lastD.style.opacity    = editing ? '0.4' : '1';
   if (editing) {
-    const inp = document.getElementById('nameInput');
-    if (inp) { inp.value = userProfile?.full_name || ''; inp.focus(); }
+    const { first, last } = _splitFullName(userProfile?.full_name || '');
+    const fi = document.getElementById('firstNameInput');
+    const li = document.getElementById('lastNameInput');
+    if (fi) { fi.value = first; fi.focus(); }
+    if (li)   li.value = last;
   }
 }
 
-async function saveName(newName) {
-  if (!currentUser || !currentSession || !(newName || '').trim()) return;
+async function saveName() {
+  if (!currentUser || !currentSession) return;
+  const first = (document.getElementById('firstNameInput')?.value || '').trim();
+  const last  = (document.getElementById('lastNameInput')?.value  || '').trim();
+  if (!first) { toast('First name is required'); return; }
+  const fullName = last ? first + ' ' + last : first;
   try {
     const resp = await fetch(
       SUPA_URL + '/rest/v1/profiles?id=eq.' + currentUser.id,
@@ -3631,14 +3712,17 @@ async function saveName(newName) {
           'Authorization': 'Bearer ' + currentSession.access_token,
           'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({ full_name: newName.trim() }),
+        body: JSON.stringify({ full_name: fullName }),
       }
     );
     if (resp.ok || resp.status === 204) {
-      userProfile = { ...userProfile, full_name: newName.trim() };
+      userProfile = { ...userProfile, full_name: fullName };
       updateUIWithProfile();
-      const disp = document.getElementById('nameDisplay');
-      if (disp) disp.textContent = newName.trim();
+      const { first: f, last: l } = _splitFullName(fullName);
+      const fd = document.getElementById('firstNameDisplay');
+      const ld = document.getElementById('lastNameDisplay');
+      if (fd) fd.textContent = f || '—';
+      if (ld) ld.textContent = l || '—';
       toggleNameEdit(false);
       toast('Name saved');
     } else {
@@ -3647,7 +3731,6 @@ async function saveName(newName) {
   } catch(e) { toast('Error: ' + e.message); }
 }
 
-async function saveSettingsName() { await saveName(document.getElementById('nameInput')?.value || ''); }
 async function saveSettingsPassword() {
   if (!sb) return;
   const np = (document.getElementById('settNewPw')?.value || '');
@@ -3660,16 +3743,51 @@ async function saveSettingsPassword() {
     const { error } = await sb.auth.updateUser({ password: np });
     if (error) throw error;
     toast('Password updated');
+    document.getElementById('settNewPw').value = '';
+    document.getElementById('settConfPw').value = '';
+    document.getElementById('pwSection').classList.remove('open');
   } catch(e) { if (errEl) { errEl.textContent=e.message; errEl.classList.add('show'); } }
 }
+
 function loadSettingsPage() {
-  const nameDisp = document.getElementById('nameDisplay');
-  const emailEl  = document.getElementById('settEmail');
-  if (nameDisp) nameDisp.textContent = userProfile?.full_name || currentUser?.email?.split('@')[0] || '—';
-  if (emailEl)  emailEl.textContent  = currentUser?.email || '—';
+  const { first, last } = _splitFullName(userProfile?.full_name || currentUser?.email?.split('@')[0] || '');
+  const fd = document.getElementById('firstNameDisplay');
+  const ld = document.getElementById('lastNameDisplay');
+  if (fd) fd.textContent = first || '—';
+  if (ld) ld.textContent = last  || '—';
+  const emailEl = document.getElementById('settEmail');
+  if (emailEl) emailEl.textContent = currentUser?.email || '—';
+  const memberEl = document.getElementById('settMemberSince');
+  if (memberEl) {
+    const created = currentUser?.created_at;
+    memberEl.textContent = created ? new Date(created).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }) : '—';
+  }
   toggleNameEdit(false);
   const rppEl = document.getElementById('settRpp');
   if (rppEl) rppEl.value = String(_rowsPerPage);
+  const sortEl = document.getElementById('settDefaultSort');
+  if (sortEl) sortEl.value = localStorage.getItem('piq-default-sort') || 'default';
+  const fmtEl = document.getElementById('settExportFmt');
+  if (fmtEl) fmtEl.value = localStorage.getItem('piq-export-fmt') || 'csv';
+  const notifEl = document.getElementById('settNotifBatch');
+  if (notifEl) notifEl.checked = !!localStorage.getItem('piq-notif-batch');
+  const usageEl = document.getElementById('settUsage');
+  if (usageEl) usageEl.textContent = 'Loading…';
+  _loadWeeklyUsage(usageEl);
+}
+
+async function _loadWeeklyUsage(el) {
+  if (!el || !currentUser) return;
+  try {
+    const since = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+    const r = await fetch(
+      SUPA_URL + '/rest/v1/parcel_results?select=id&user_id=eq.' + currentUser.id + '&created_at=gte.' + since,
+      { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + (currentSession?.access_token || SUPA_KEY), 'Prefer': 'count=exact', 'Range': '0-0' } }
+    );
+    const cr = r.headers.get('content-range') || '';
+    const total = cr.includes('/') ? cr.split('/')[1] : '?';
+    el.textContent = total + ' / 1,000 parcels';
+  } catch(e) { el.textContent = '—'; }
 }
 
 // ── SHARE (Task 21)
