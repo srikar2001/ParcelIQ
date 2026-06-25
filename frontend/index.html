@@ -296,6 +296,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .tbl-pill{display:inline-flex;font-size:10px;font-weight:600;padding:2px 7px;border-radius:var(--rp);margin:1px 2px 1px 0}
 .tbl-pill-r{background:var(--rbg);color:var(--red);border:1px solid rgba(239,68,68,.2)}
 .tbl-pill-m{background:var(--card-h);color:var(--t3);border:1px solid var(--b)}
+.sig-pill{display:inline-flex;font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--rp);margin:1px 2px 1px 0;white-space:nowrap}
+.sig-pill-k{background:var(--rbg);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.sig-pill-p{background:var(--gbg);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.sig-pill-a{background:var(--abg);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+.sig-pill-m{background:var(--card-h);color:var(--t3);border:1px solid var(--b)}
+.tbl-addr-street{font-size:13px;font-weight:600;color:var(--t1)}
+.tbl-addr-city{font-size:11px;color:var(--t3);margin-top:2px}
+.tbl-county{font-size:12px;color:var(--t2);white-space:nowrap}
+.tbl-size{font-size:12px;color:var(--t2);white-space:nowrap}
+.tbl-size-amber{color:var(--amber)}
+.tbl-signals{max-width:180px;vertical-align:middle}
 .res-expand-row td{background:rgba(13,15,18,.5);border-bottom:1px solid var(--b);padding:0}
 .expand-inner{padding:16px 18px}
 
@@ -777,11 +788,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <table class="res-table">
           <thead>
             <tr>
-              <th>PARCEL</th>
+              <th>ADDRESS</th>
+              <th>COUNTY</th>
+              <th>SIZE</th>
+              <th>SIGNALS</th>
               <th>SCORE</th>
-              <th>FLAGS</th>
-              <th>FLOOD</th>
-              <th>ACCESS</th>
               <th>DECISION</th>
             </tr>
           </thead>
@@ -1237,6 +1248,116 @@ function getAccessText(r) {
     if (/road|access|paved/i.test(p)) return 'Paved';
   }
   return '—';
+}
+
+// ── ADDRESS PARSING
+function splitAddress(addr) {
+  const parts = (addr || '').split(',').map(s => s.trim());
+  if (parts.length >= 3 && /^FL\b/i.test(parts[parts.length - 1])) {
+    return { street: parts[0], city: parts[parts.length - 2] };
+  }
+  if (parts.length === 2) {
+    const m = parts[1].match(/^(.+?)\s+FL\b/i);
+    if (m) return { street: parts[0], city: m[1].trim() };
+  }
+  return { street: parts[0] || addr, city: '' };
+}
+
+const _CITY_COUNTY = {
+  'tampa':'Hillsborough','brandon':'Hillsborough','plant city':'Hillsborough','riverview':'Hillsborough','valrico':'Hillsborough','seffner':'Hillsborough',
+  'orlando':'Orange','apopka':'Orange','winter garden':'Orange','ocoee':'Orange','windermere':'Orange',
+  'kissimmee':'Osceola','st cloud':'Osceola','celebration':'Osceola',
+  'miami':'Miami-Dade','hialeah':'Miami-Dade','coral gables':'Miami-Dade','homestead':'Miami-Dade','miami beach':'Miami-Dade','north miami':'Miami-Dade','florida city':'Miami-Dade',
+  'fort lauderdale':'Broward','hollywood':'Broward','pembroke pines':'Broward','miramar':'Broward','pompano beach':'Broward','deerfield beach':'Broward','margate':'Broward','coral springs':'Broward','sunrise':'Broward','plantation':'Broward',
+  'jacksonville':'Duval','st augustine':'St. Johns','ponte vedra':'St. Johns',
+  'tallahassee':'Leon','pensacola':'Escambia','gulf breeze':'Santa Rosa','navarre':'Santa Rosa','milton':'Santa Rosa',
+  'gainesville':'Alachua','ocala':'Marion',
+  'daytona beach':'Volusia','deltona':'Volusia','port orange':'Volusia','new smyrna beach':'Volusia','edgewater':'Volusia',
+  'fort myers':'Lee','cape coral':'Lee','bonita springs':'Lee','estero':'Lee','lehigh acres':'Lee',
+  'naples':'Collier','marco island':'Collier',
+  'sarasota':'Sarasota','venice':'Sarasota','north port':'Sarasota','englewood':'Sarasota',
+  'bradenton':'Manatee','palmetto':'Manatee',
+  'clearwater':'Pinellas','st petersburg':'Pinellas','largo':'Pinellas','pinellas park':'Pinellas','dunedin':'Pinellas','tarpon springs':'Pinellas','palm harbor':'Pinellas',
+  'lakeland':'Polk','winter haven':'Polk','bartow':'Polk','haines city':'Polk','auburndale':'Polk',
+  'west palm beach':'Palm Beach','boca raton':'Palm Beach','delray beach':'Palm Beach','boynton beach':'Palm Beach','palm beach gardens':'Palm Beach','jupiter':'Palm Beach','wellington':'Palm Beach','lake worth':'Palm Beach','belle glade':'Palm Beach','pahokee':'Palm Beach',
+  'palm bay':'Brevard','melbourne':'Brevard','titusville':'Brevard','cocoa':'Brevard','rockledge':'Brevard','merritt island':'Brevard',
+  'vero beach':'Indian River','sebastian':'Indian River',
+  'fort pierce':'St. Lucie','port st lucie':'St. Lucie',
+  'stuart':'Martin','hobe sound':'Martin','jensen beach':'Martin',
+  'okeechobee':'Okeechobee','sebring':'Highlands','avon park':'Highlands','arcadia':'DeSoto',
+  'lake city':'Columbia','panama city':'Bay','panama city beach':'Bay',
+  'fort walton beach':'Okaloosa','destin':'Okaloosa','niceville':'Okaloosa','crestview':'Okaloosa',
+  'leesburg':'Lake','clermont':'Lake','mount dora':'Lake','eustis':'Lake','tavares':'Lake',
+  'sanford':'Seminole','oviedo':'Seminole','longwood':'Seminole','altamonte springs':'Seminole','casselberry':'Seminole','winter springs':'Seminole',
+  'new port richey':'Pasco','zephyrhills':'Pasco','dade city':'Pasco','holiday':'Pasco',
+  'punta gorda':'Charlotte','port charlotte':'Charlotte',
+  'labelle':'Hendry','clewiston':'Hendry',
+  'key west':'Monroe','marathon':'Monroe','key largo':'Monroe',
+  'inverness':'Citrus','crystal river':'Citrus','homosassa':'Citrus',
+  'brooksville':'Hernando','spring hill':'Hernando',
+  'fernandina beach':'Nassau','yulee':'Nassau',
+  'live oak':'Suwannee','starke':'Bradford','palatka':'Putnam','chiefland':'Levy','wauchula':'Hardee',
+};
+
+function extractCounty(addr) {
+  const lower = (addr || '').toLowerCase();
+  for (const [city, county] of Object.entries(_CITY_COUNTY)) {
+    if (lower.includes(city)) return county;
+  }
+  return '';
+}
+
+// ── SIGNAL PILLS
+function shortenFlag(f) {
+  f = String(f || '');
+  const m = f.match(/FEMA Flood Zone\s+(\w+)/i); if (m) return 'Flood ' + m[1];
+  if (/Wetlands on parcel/i.test(f))        return 'Wetlands';
+  if (/Critical habitat/i.test(f))          return 'Wildlife';
+  if (/Public.conservation/i.test(f))       return 'Public land';
+  if (/EPA contamination/i.test(f))         return 'Contamination';
+  if (/Road data unavailable/i.test(f))     return 'No road data';
+  if (/Parcel very small/i.test(f))         { const a = f.match(/([\d.]+)\s*ac/i); return a ? a[1] + ' ac' : 'Very small'; }
+  if (/FEMA Zone A/i.test(f))               return 'Zone A';
+  if (/Agricultural land use/i.test(f))     return 'Agricultural';
+  if (/County data unavailable/i.test(f))   return 'No county data';
+  if (/Wetlands nearby/i.test(f))           return 'Wetlands nearby';
+  if (/Road type unconfirmed/i.test(f))     return 'Road unknown';
+  if (/Dirt.unpaved road/i.test(f))         return 'Dirt road';
+  if (/Vacant lot with no sale/i.test(f))   return 'No sale history';
+  if (/Last sale price very low/i.test(f))  return 'Low sale price';
+  if (/value.*diverge/i.test(f))            return 'Value gap';
+  if (/FEMA Zone X/i.test(f))               return 'Zone X';
+  if (/No wetlands on parcel/i.test(f))     return 'No wetlands';
+  if (/Paved road/i.test(f))                return 'Paved road';
+  if (/Ideal parcel size/i.test(f))         { const a = f.match(/([\d.]+)\s*ac/i); return a ? a[1] + ' ac' : 'Good size'; }
+  if (/Recent market sale/i.test(f))        return 'Market sale';
+  if (/Vacant.unimproved lot/i.test(f))     return 'Vacant lot';
+  return f.length > 18 ? f.slice(0, 16) + '…' : f;
+}
+
+function buildSignals(r) {
+  const v = r.verdict;
+  if (v === 'OUTSIDE_COVERAGE') return '<span style="color:var(--t3);font-size:11px">Outside FL</span>';
+  if (v === 'ERROR') {
+    const isGeo = (r.error || '').toLowerCase().includes('geocod');
+    return '<span style="color:var(--t3);font-size:11px">' + (isGeo ? 'Not found' : 'Timed out') + '</span>';
+  }
+  let src = [], pillClass = '';
+  if (v === 'KILL') {
+    src = r.auto_kill_reason ? [r.auto_kill_reason]
+      : (r.kill_flags && r.kill_flags.length ? r.kill_flags : r.flags || []);
+    pillClass = 'sig-pill-k';
+  } else if (v === 'PURSUE') {
+    src = r.positives || [];
+    pillClass = 'sig-pill-p';
+  } else {
+    src = (r.review_flags && r.review_flags.length) ? r.review_flags : (r.flags || []);
+    pillClass = 'sig-pill-a';
+  }
+  const pills = src.slice(0, 2);
+  const more  = Math.max(0, src.length - 2);
+  return pills.map(f => '<span class="sig-pill ' + pillClass + '">' + escHtml(shortenFlag(f)) + '</span>').join('') +
+    (more > 0 ? '<span class="sig-pill sig-pill-m">+' + more + '</span>' : '');
 }
 
 // FIX 5: Load dashboard sidebar + stats
@@ -1835,7 +1956,10 @@ function renderBatchResults() {
 
   const sorted = [...results].sort((a, b) => {
     const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3, OUTSIDE_COVERAGE:10 };
-    return (o[a.verdict]??4) - (o[b.verdict]??4);
+    const ga = o[a.verdict] ?? 4, gb = o[b.verdict] ?? 4;
+    if (ga !== gb) return ga - gb;
+    if (a.auto_kill !== b.auto_kill) return a.auto_kill ? -1 : 1;
+    return (a.score ?? 101) - (b.score ?? 101);
   });
   renderTable(sorted);
 }
@@ -1864,33 +1988,43 @@ function renderTable(results) {
     const isGeoFail = isError && (r.error || '').toLowerCase().includes('geocod');
     const isTimeout = isError && !isGeoFail;
     const isEst     = !isOutside && !isError && _estimatedAddresses.has((r.address || '').toLowerCase());
-    const vc = verdictClass(r.verdict);
-    const rowClass = 'res-trow' + (isOutside ? ' row-outside' : '') + (isError ? ' row-error' : '');
-    const scoreStr   = (isOutside || isError) ? '—' : r.auto_kill ? '⛔' : (r.score != null ? r.score : '—');
-    const scoreColor = (isOutside || isError) ? 'var(--ink4)' : r.auto_kill ? 'var(--red)' : verdictColor(r.verdict);
-    const pi = r.parcel_info || {};
+    const rowClass  = 'res-trow' + (isOutside ? ' row-outside' : '') + (isError ? ' row-error' : '');
+    const vc        = verdictClass(r.verdict);
+    const pi        = r.parcel_info || {};
 
-    const estBadge = isEst ? '<span class="tag-est">Address estimated</span>' : '';
-    const flags = (isOutside || isError) ? [] : (r.flags || []).map(translateFlag);
-    const vis   = flags.slice(0, 3);
-    const more  = flags.length - 3;
-    const flagHtml = isOutside
-      ? '<span style="color:var(--t3);font-size:12px">Outside FL coverage</span>'
-      : isGeoFail
-        ? '<span style="color:var(--t3);font-size:12px">Address not found</span>'
-        : isTimeout
-          ? '<span style="color:var(--t3);font-size:12px">Timed out</span>'
-          : vis.map(f => '<span class="tbl-pill tbl-pill-r">' + escHtml(f) + '</span>').join('') +
-            (more > 0 ? '<span class="tbl-pill tbl-pill-m">+' + more + ' more</span>' : '');
-    const verdictLabel = isOutside ? 'OUTSIDE' : isGeoFail ? 'Not found' : isTimeout ? 'Timeout' : r.verdict;
+    // Address: split street / city
+    const { street, city } = splitAddress(r.address || '');
+    const addrHtml = '<div class="tbl-addr-street">' + escHtml(street) +
+      (isEst ? ' <span class="tag-est" style="font-size:9px;padding:1px 5px">~est</span>' : '') + '</div>' +
+      (city && !isOutside ? '<div class="tbl-addr-city">' + escHtml(city) + ', FL</div>' : '');
+
+    // County (empty for outside/error rows)
+    const county = (!isOutside && !isError) ? extractCounty(r.address || '') : '';
+
+    // Size — round to 1 decimal, amber if < 0.25 ac
+    let sizeHtml = '';
+    if (!isOutside && !isError && pi.acreage != null) {
+      const ac = Math.round(pi.acreage * 10) / 10;
+      sizeHtml = '<span' + (pi.acreage < 0.25 ? ' class="tbl-size-amber"' : '') + '>' + ac + ' ac</span>';
+    }
+
+    // Signals — colored pills by verdict
+    const signalsHtml = buildSignals(r);
+
+    // Score
+    const scoreStr   = (isOutside || isError) ? '' : r.auto_kill ? '⛔' : (r.score != null ? String(r.score) : '');
+    const scoreColor = (isOutside || isError) ? '' : r.auto_kill ? 'var(--red)' : verdictColor(r.verdict);
+
+    // Decision label
+    const verdictLabel = isOutside ? 'Not FL' : isGeoFail ? 'Not found' : isTimeout ? 'Timeout' : r.verdict;
 
     const expId = 'exp-' + i;
     return '<tr class="' + rowClass + '" onclick="toggleExpand(\'' + expId + '\')">' +
-      '<td class="tbl-parcel">' + escHtml(r.address) + estBadge + (pi.parcel_id ? '<div class="tbl-apn">' + escHtml(pi.parcel_id) + '</div>' : '') + '</td>' +
-      '<td class="tbl-score-cell" style="color:' + scoreColor + '">' + escHtml(String(scoreStr)) + '</td>' +
-      '<td class="tbl-flags-cell">' + flagHtml + '</td>' +
-      '<td class="tbl-flood">' + (isOutside || isError ? '—' : escHtml(getFloodText(r))) + '</td>' +
-      '<td class="tbl-access">' + (isOutside || isError ? '—' : escHtml(getAccessText(r))) + '</td>' +
+      '<td class="tbl-parcel">' + addrHtml + '</td>' +
+      '<td class="tbl-county">' + escHtml(county) + '</td>' +
+      '<td class="tbl-size">' + sizeHtml + '</td>' +
+      '<td class="tbl-signals">' + signalsHtml + '</td>' +
+      '<td class="tbl-score-cell"' + (scoreColor ? ' style="color:' + scoreColor + '"' : '') + '>' + escHtml(scoreStr) + '</td>' +
       '<td><span class="verdict-badge ' + vc + '">' + escHtml(verdictLabel) + '</span></td>' +
       '</tr>' +
       '<tr id="' + expId + '" class="res-expand-row" style="display:none"><td colspan="6">' + buildExpandHtml(r, expId) + '</td></tr>';
@@ -1981,8 +2115,11 @@ function filterResults(verdict, btn) {
   batchState.filtered = verdict;
   updateSidebarActive(verdict);
   const sorted = [...batchState.results].sort((a, b) => {
-    const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3 };
-    return (o[a.verdict]??4) - (o[b.verdict]??4);
+    const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3, OUTSIDE_COVERAGE:10 };
+    const ga = o[a.verdict] ?? 4, gb = o[b.verdict] ?? 4;
+    if (ga !== gb) return ga - gb;
+    if (a.auto_kill !== b.auto_kill) return a.auto_kill ? -1 : 1;
+    return (a.score ?? 101) - (b.score ?? 101);
   });
   renderTable(verdict === 'all' ? sorted : sorted.filter(r => r.verdict === verdict));
 }
