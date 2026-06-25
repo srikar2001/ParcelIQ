@@ -1306,7 +1306,7 @@ let userProfile = null;
 let currentBatchResults = [];
 
 // ── HELPERS
-function goTo(page) { window.location.hash = '#' + page; }
+function goTo(page) { closeDetailPanel(); window.location.hash = '#' + page; }
 
 // ── FIX 3: single initAuth — always reads from localStorage
 async function initAuth() {
@@ -2928,7 +2928,15 @@ function openDetailPanel(absIdx, event) {
 
 function closeDetailPanel() {
   const panel = document.getElementById('detailPanel');
-  if (panel) panel.classList.remove('open');
+  if (!panel) return;
+  panel.style.display = 'none';
+  panel.classList.remove('open');
+  const tableArea = document.getElementById('resultsTableArea');
+  if (tableArea) tableArea.style.width = '100%';
+  if (window._parcelMap) {
+    try { window._parcelMap.remove(); } catch(e) {}
+    window._parcelMap = null;
+  }
   _openParcel = null; _openParcelIdx = -1;
   document.querySelectorAll('.res-trow.panel-selected').forEach(el => el.classList.remove('panel-selected'));
 }
@@ -3445,6 +3453,14 @@ function downloadCSV() {
   a.download = csvName;
   a.click();
 }
+
+// FIX 3 — Close panel on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeDetailPanel();
+});
+
+// FIX 4 — Close panel on initial load
+document.addEventListener('DOMContentLoaded', () => closeDetailPanel());
 </script>
 
 <!-- ════════ UPGRADE MODAL ════════ -->
