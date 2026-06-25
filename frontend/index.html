@@ -290,6 +290,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .res-filter-row{margin-bottom:12px}
 .filter-pills{display:flex;gap:6px;flex-wrap:wrap}
 .sumchip{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:6px 14px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s}
+.filter-chip{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.filter-chip:hover{border-color:var(--bh);color:var(--t1)}
+.filter-chip.active{background:rgba(34,197,94,.12);border-color:var(--green);color:var(--green)}
+.chip-count{font-size:10px;font-weight:700;background:var(--card-h);padding:1px 5px;border-radius:8px;color:var(--t3)}
+.filter-chip.active .chip-count{background:rgba(34,197,94,.2);color:var(--green)}
+#filterChips{display:flex;flex-wrap:wrap;gap:6px;padding:10px 0 4px}
 .sumchip:hover{border-color:var(--bh);color:var(--t1)}
 .sumchip.on{background:var(--t1);color:#000;border-color:var(--t1)}
 .sumchip.kill.on{background:var(--red);color:#fff;border-color:var(--red)}
@@ -1039,6 +1045,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           <button class="sumchip pursue" onclick="filterResults('PURSUE',this)">Pursue</button>
         </div>
       </div>
+      <div id="filterChips"></div>
       <div class="limit-banner" id="resLimitBanner"></div>
       <div class="nonfl-banner" id="nonflBanner"></div>
       <div class="res-table-wrap" id="resTableWrap">
@@ -1445,13 +1452,44 @@ const HASH_MAP = {
 const batchState = { results: [], filtered: 'all', elapsed: 0, name: '', sortCol: null, sortDir: 'desc' };
 const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings']);
 
-const FLAG_FILTERS = [
-  { key:'wetlands', label:'Wetlands',  test: r => (r.flags||[]).some(f=>/wetland on parcel/i.test(f)) || /wetland on parcel/i.test(r.auto_kill_reason||'') },
-  { key:'flood',    label:'Flood AE',  test: r => (r.flags||[]).some(f=>/flood zone ae/i.test(f)) || /flood zone ae/i.test(r.auto_kill_reason||'') },
-  { key:'wildlife', label:'Wildlife',  test: r => (r.flags||[]).some(f=>/critical habitat/i.test(f)) || /critical habitat/i.test(r.auto_kill_reason||'') },
-  { key:'noroad',   label:'No Road',   test: r => (r.flags||[]).some(f=>/road data unavailable/i.test(f)) },
-  { key:'zonex',    label:'Zone X ✓', test: r => (r.positives||[]).some(p=>/zone x/i.test(p)) },
+const FLAG_DEFS = [
+  { key: 'wetlands',  label: 'Wetlands',      match: r =>
+      (r.flags||[]).some(f => f.toLowerCase().includes('wetland')) ||
+      (r.auto_kill_reason||'').toLowerCase().includes('wetland') },
+  { key: 'flood_ae',  label: 'Flood AE',      match: r =>
+      (r.flags||[]).some(f => /flood.*(ae|ve|v zone)/i.test(f)) ||
+      (r.auto_kill_reason||'').toLowerCase().includes('ae') ||
+      (r.auto_kill_reason||'').toLowerCase().includes('ve') },
+  { key: 'wildlife',  label: 'Wildlife',      match: r =>
+      (r.flags||[]).some(f => /habitat|wildlife/i.test(f)) ||
+      (r.auto_kill_reason||'').toLowerCase().includes('habitat') },
+  { key: 'no_road',   label: 'No Road',       match: r =>
+      (r.flags||[]).some(f => /road|access|landlocked/i.test(f)) },
+  { key: 'epa',       label: 'Contamination', match: r =>
+      (r.flags||[]).some(f => /epa|contamina|superfund/i.test(f)) },
+  { key: 'small_lot', label: 'Small Lot',     match: r =>
+      (r.flags||[]).some(f => /small|0\.\d+ ac/i.test(f)) ||
+      (getAcreage(r) !== null && getAcreage(r) < 0.25) },
+  { key: 'low_elev',  label: 'Low Elevation', match: r =>
+      (r.flags||[]).some(f => /elevation.*ft/i.test(f)) },
+  { key: 'poor_soil', label: 'Poor Soil',     match: r =>
+      (r.flags||[]).some(f => /soil|septic.*denied|drainage/i.test(f)) },
+  { key: 'evac',      label: 'Evac Zone',     match: r =>
+      (r.flags||[]).some(f => /evacuation|evac.*zone/i.test(f)) },
+  { key: 'no_power',  label: 'No Power',      match: r =>
+      (r.flags||[]).some(f => /power.*line|electric.*mile/i.test(f)) },
+  { key: 'easement',  label: 'Easement',      match: r =>
+      (r.flags||[]).some(f => /easement|conservation.*restrict/i.test(f)) ||
+      (r.auto_kill_reason||'').toLowerCase().includes('easement') },
+  { key: 'canal',     label: 'Canal Nearby',  match: r =>
+      (r.flags||[]).some(f => /canal|waterway/i.test(f)) },
+  { key: 'zone_x',    label: 'Zone X ✓',     match: r =>
+      (r.positives||[]).some(p => /zone x/i.test(p)) },
+  { key: 'good_soil', label: 'Good Soil ✓',  match: r =>
+      (r.positives||[]).some(p => /well.*drain|septic.*feasible/i.test(p)) },
 ];
+// Keep backward-compat alias
+const FLAG_FILTERS = FLAG_DEFS.map(d => ({ ...d, test: d.match }));
 const RULES_DEF = [
   { key:'floodKill',     label:'Flood AE = Kill',                 def:true },
   { key:'wetlandKill',   label:'Wetlands on parcel = Kill',       def:true },
@@ -2718,22 +2756,40 @@ function toggleRulesPanel() {
   if (chevron) chevron.textContent = open ? '▸' : '▾';
 }
 
-function renderFlagFilters() {
-  const list = document.getElementById('sbFlagList');
-  if (!list) return;
-  const base = batchState.results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE' && r.verdict !== 'ERROR');
-  list.innerHTML = FLAG_FILTERS.map(f => {
-    const cnt = base.filter(r => f.test(r)).length;
-    if (cnt === 0) return '';
-    const active = _activeFilters.has(f.key);
-    return '<div class="rsb-flag-item' + (active ? ' active' : '') + '" onclick="toggleFlagFilter(\'' + f.key + '\')">' +
-      '<span>' + f.label + '</span><span class="rsb-count">' + cnt + '</span></div>';
-  }).join('');
-  const cl = document.getElementById('sbClearFilters');
-  if (cl) cl.style.display = _activeFilters.size > 0 ? '' : 'none';
+function buildFlagFilters(results) {
+  const container = document.getElementById('filterChips');
+  if (!container) return;
+  container.innerHTML = '';
+  FLAG_DEFS.forEach(def => {
+    const count = results.filter(r => def.match(r)).length;
+    if (count === 0) return;
+    const chip = document.createElement('button');
+    chip.className = 'filter-chip' + (_activeFilters.has(def.key) ? ' active' : '');
+    chip.dataset.flagKey = def.key;
+    chip.innerHTML = def.label + ' <span class="chip-count">' + count + '</span>';
+    chip.onclick = () => toggleFlagFilter(def.key, def.match, chip);
+    container.appendChild(chip);
+  });
 }
 
-function toggleFlagFilter(key) {
+function renderFlagFilters() {
+  const list = document.getElementById('sbFlagList');
+  if (list) {
+    const base = batchState.results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE' && r.verdict !== 'ERROR');
+    list.innerHTML = FLAG_DEFS.map(f => {
+      const cnt = base.filter(r => f.match(r)).length;
+      if (cnt === 0) return '';
+      const active = _activeFilters.has(f.key);
+      return '<div class="rsb-flag-item' + (active ? ' active' : '') + '" onclick="toggleFlagFilter(\'' + f.key + '\')">' +
+        '<span>' + f.label + '</span><span class="rsb-count">' + cnt + '</span></div>';
+    }).join('');
+  }
+  const cl = document.getElementById('sbClearFilters');
+  if (cl) cl.style.display = _activeFilters.size > 0 ? '' : 'none';
+  buildFlagFilters(batchState.results);
+}
+
+function toggleFlagFilter(key, _matchFn, _chip) {
   if (_activeFilters.has(key)) _activeFilters.delete(key);
   else _activeFilters.add(key);
   renderFlagFilters();
@@ -2815,8 +2871,8 @@ function _refreshTable() {
   let filtered = verdict === 'all' ? sorted : sorted.filter(r => effectiveVerdict(r) === verdict);
   if (_activeFilters.size > 0) {
     filtered = filtered.filter(r => [..._activeFilters].every(key => {
-      const f = FLAG_FILTERS.find(f => f.key === key);
-      return f ? f.test(r) : true;
+      const f = FLAG_DEFS.find(f => f.key === key);
+      return f ? f.match(r) : true;
     }));
   }
   _currentDisplayed = filtered;
