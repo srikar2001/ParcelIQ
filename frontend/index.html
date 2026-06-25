@@ -1139,6 +1139,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 <div class="bulk-bar" id="bulkBar">
   <span id="bulkCount">0 selected</span>
   <div class="bulk-bar-sep"></div>
+  <!-- progress shown only during re-screen -->
+  <div id="bulkProgress" style="display:none;flex-direction:column;gap:4px;min-width:140px">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--t2)">
+      <span>Re-screening…</span>
+      <span id="bulkProgressLabel">0/0</span>
+    </div>
+    <div style="height:4px;background:var(--b);border-radius:2px;overflow:hidden">
+      <div id="bulkProgressBar" style="height:100%;width:0%;background:var(--green);border-radius:2px;transition:width .2s"></div>
+    </div>
+  </div>
   <button class="bulk-bar-btn" id="rescreenSelBtn" onclick="rescreenSelected()">↻ Re-screen</button>
   <button class="bulk-bar-btn primary" onclick="exportSelected()">↓ Export</button>
   <button class="bulk-bar-btn" onclick="clearSelection()">✕ Clear</button>
@@ -3144,12 +3154,23 @@ async function rescreenRow(event, idx) {
 async function rescreenSelected() {
   const indices = [..._selectedRows].sort((a, b) => a - b);
   if (!indices.length) return;
-  const btn = document.getElementById('rescreenSelBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '↻ 0/' + indices.length; }
+  const btn      = document.getElementById('rescreenSelBtn');
+  const progWrap = document.getElementById('bulkProgress');
+  const progBar  = document.getElementById('bulkProgressBar');
+  const progLbl  = document.getElementById('bulkProgressLabel');
+  if (btn) { btn.disabled = true; }
+  if (progWrap) progWrap.style.display = 'flex';
+  const total = indices.length;
   let done = 0;
+  const setProgress = () => {
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    if (progBar)  progBar.style.width = pct + '%';
+    if (progLbl)  progLbl.textContent = done + '/' + total;
+  };
+  setProgress();
   for (const idx of indices) {
     const r = batchState.results[idx];
-    if (!r) { done++; continue; }
+    if (!r) { done++; setProgress(); continue; }
     try {
       const resp = await fetch(API + '/api/batch/stream', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -3168,11 +3189,13 @@ async function rescreenSelected() {
       }
     } catch(e) {}
     done++;
-    if (btn) btn.textContent = '↻ ' + done + '/' + indices.length;
+    setProgress();
+    _refreshTable();
   }
-  _refreshTable();
   toast(done + ' parcel' + (done !== 1 ? 's' : '') + ' re-screened');
-  if (btn) { btn.disabled = false; btn.textContent = '↻ Re-screen'; }
+  if (btn) { btn.disabled = false; }
+  if (progWrap) progWrap.style.display = 'none';
+  if (progBar)  progBar.style.width = '0%';
 }
 
 // ── RE-SCREEN ALL
