@@ -1664,7 +1664,10 @@ if (sb) {
     if (event === 'SIGNED_IN') {
       await loadUserProfile();
       updateNav();
-      goTo('dashboard');
+      // Only navigate to dashboard when on an auth/landing page or after OAuth callback.
+      // Do NOT navigate when Supabase restores an existing session on a non-auth page (e.g. #results).
+      const h = window.location.hash;
+      if (_AUTH_PAGES.has(h) || h.includes('access_token=')) goTo('dashboard');
     } else if (event === 'TOKEN_REFRESHED') {
       currentSession = session;
       updateNav();
