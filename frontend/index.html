@@ -1618,21 +1618,22 @@ async function startScreening() {
   goTo(session ? 'dashboard' : 'login');
 }
 
-// onAuthStateChange — update state only; navigation is handled by doLogin/doSignup/startup
+// onAuthStateChange — handles OAuth callbacks, explicit logins, and sign-outs
 if (sb) {
-  sb.auth.onAuthStateChange((event, session) => {
+  sb.auth.onAuthStateChange(async (event, session) => {
     currentSession = session;
     currentUser = session?.user || null;
     if (event === 'SIGNED_IN') {
-      loadUserProfile(); // fire-and-forget
+      await loadUserProfile();
       updateNav();
-      if (_AUTH_PAGES.has(window.location.hash)) goTo('dashboard');
+      goTo('dashboard');
+    } else if (event === 'TOKEN_REFRESHED') {
+      currentSession = session;
+      updateNav();
     } else if (event === 'SIGNED_OUT') {
       currentSession = null; currentUser = null; userProfile = null; window.userProfile = null;
       updateNav();
       goTo('landing');
-    } else if (event === 'TOKEN_REFRESHED') {
-      updateNav();
     } else if (event === 'PASSWORD_RECOVERY') {
       currentSession = session;
       currentUser = session?.user || null;
@@ -1650,10 +1651,12 @@ window.addEventListener('focus', async () => {
 });
 
 async function signInWithGoogle() {
-  if (!sb) { toast('Auth not ready — reload the page'); return; }
+  if (!sb) { toast('Auth not ready — reload page'); return; }
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: 'https://parcel-iq-nine.vercel.app' },
+    options: {
+      redirectTo: window.location.origin + '/#dashboard',
+    },
   });
   if (error) toast('Google sign-in failed: ' + error.message);
 }
@@ -1662,6 +1665,14 @@ const _AUTH_PAGES = new Set(['', '#', '#login', '#signup', '#landing', '#forgot'
 
 // App startup — getSession first, then route; profile loads in background
 async function initApp() {
+  // FIX — OAuth callback: access_token lands in the hash fragment after Google redirect.
+  // Supabase auto-processes it; replace the hash with #dashboard after a tick.
+  if (window.location.hash.includes('access_token=')) {
+    setTimeout(() => {
+      window.history.replaceState({}, document.title, window.location.pathname + '#dashboard');
+    }, 500);
+    return; // onAuthStateChange SIGNED_IN will handle navigation
+  }
   const session = await initAuth();
   updateNav();
   if (session) {
