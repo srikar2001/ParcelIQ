@@ -252,6 +252,22 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .rsb-state-val{font-size:13px;font-weight:600;color:var(--t1)}
 .rsb-new-btn{margin-top:auto;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;padding:9px 14px;border-radius:var(--rs);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;text-align:left;transition:all .15s;width:100%}
 .rsb-new-btn:hover{border-color:var(--bh);color:var(--t1)}
+.rsb-flag-item{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--t2);padding:6px 10px;border-radius:var(--rs);cursor:pointer;transition:all .15s;border-left:2px solid transparent}
+.rsb-flag-item:hover{background:var(--card-h);color:var(--t1)}
+.rsb-flag-item.active{border-left-color:var(--green);color:var(--t1);font-weight:600;background:rgba(34,197,94,.06)}
+.rsb-clear-link{font-size:10px;color:var(--green);cursor:pointer;font-weight:600}
+.rsb-rules-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 2px}
+.rsb-rule-row{display:flex;align-items:center;justify-content:space-between;padding:5px 2px;font-size:12px;color:var(--t2)}
+.rsb-toggle{position:relative;display:inline-block;width:28px;height:16px;flex-shrink:0}
+.rsb-toggle input{opacity:0;width:0;height:0;position:absolute}
+.rsb-toggle-track{position:absolute;inset:0;background:var(--b);border-radius:8px;transition:.2s;cursor:pointer}
+.rsb-toggle-thumb{position:absolute;top:2px;left:2px;width:12px;height:12px;background:var(--t3);border-radius:50%;transition:.2s}
+.rsb-toggle input:checked + .rsb-toggle-track{background:var(--green)}
+.rsb-toggle input:checked + .rsb-toggle-track .rsb-toggle-thumb{transform:translateX(12px);background:#000}
+.rsb-usage-count{font-size:13px;font-weight:600;color:var(--t1);margin:4px 0}
+.rsb-usage-track{height:4px;background:var(--b);border-radius:var(--rp);overflow:hidden;margin:4px 0}
+.rsb-usage-fill{height:100%;background:var(--green);border-radius:var(--rp);transition:width .4s}
+.rsb-usage-sub{font-size:10px;color:var(--t3)}
 
 /* Results Main */
 .res-main{flex:1;min-width:0;padding:24px 28px 80px}
@@ -739,6 +755,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         </div>
       </div>
       <div class="rsb-section">
+        <div class="rsb-label" style="display:flex;justify-content:space-between;align-items:center">
+          Filter by Flag
+          <a id="sbClearFilters" class="rsb-clear-link" onclick="clearFlagFilters()" style="display:none">Clear</a>
+        </div>
+        <div id="sbFlagList"></div>
+      </div>
+      <div class="rsb-section">
+        <div class="rsb-rules-header" onclick="toggleRulesPanel()">
+          <span class="rsb-label" style="margin-bottom:0">Screening Rules</span>
+          <span id="rulesChevron" style="font-size:10px;color:var(--t3)">&#9658;</span>
+        </div>
+        <div id="rulesPanel" style="display:none;margin-top:8px"></div>
+      </div>
+      <div class="rsb-section">
         <div class="rsb-label">Time Saved</div>
         <div class="rsb-time-val" id="sbTimeSaved">—</div>
         <div class="rsb-time-sub">at 30 min/parcel</div>
@@ -746,6 +776,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       <div class="rsb-section">
         <div class="rsb-label">State</div>
         <div class="rsb-state-val">Florida · Live Data</div>
+      </div>
+      <div class="rsb-section">
+        <div class="rsb-label">Usage This Week</div>
+        <div class="rsb-usage-count"><span id="sbUsageCount">—</span> / 1,000</div>
+        <div class="rsb-usage-track"><div class="rsb-usage-fill" id="sbUsageFill" style="width:0%"></div></div>
+        <div class="rsb-usage-sub">Resets Monday · Free trial</div>
       </div>
       <button class="rsb-new-btn" onclick="window.location.hash='#dashboard'">← New Batch</button>
     </aside>
@@ -933,6 +969,24 @@ const HASH_MAP = {
 
 const batchState = { results: [], filtered: 'all', elapsed: 0, name: '' };
 const PROTECTED = new Set(['#dashboard', '#results', '#processing']);
+
+const FLAG_FILTERS = [
+  { key:'wetlands', label:'Wetlands',  test: r => (r.flags||[]).some(f=>/wetland on parcel/i.test(f)) || /wetland on parcel/i.test(r.auto_kill_reason||'') },
+  { key:'flood',    label:'Flood AE',  test: r => (r.flags||[]).some(f=>/flood zone ae/i.test(f)) || /flood zone ae/i.test(r.auto_kill_reason||'') },
+  { key:'wildlife', label:'Wildlife',  test: r => (r.flags||[]).some(f=>/critical habitat/i.test(f)) || /critical habitat/i.test(r.auto_kill_reason||'') },
+  { key:'noroad',   label:'No Road',   test: r => (r.flags||[]).some(f=>/road data unavailable/i.test(f)) },
+  { key:'zonex',    label:'Zone X ✓', test: r => (r.positives||[]).some(p=>/zone x/i.test(p)) },
+];
+const RULES_DEF = [
+  { key:'floodKill',     label:'Flood AE = Kill',                 def:true },
+  { key:'wetlandKill',   label:'Wetlands on parcel = Kill',       def:true },
+  { key:'wildlifeKill',  label:'Wildlife habitat = Kill',         def:true },
+  { key:'dirtPenalty',   label:'Dirt road = penalty',             def:true },
+  { key:'smallPenalty',  label:'Under 0.25 ac = penalty',         def:true },
+  { key:'noRoadPenalty', label:'Road data unavailable = penalty', def:false },
+];
+let _activeFilters  = new Set();
+let _screeningRules = {};
 
 // FIX 6: router is async — calls initAuth() before allowing protected pages
 async function router() {
@@ -1895,14 +1949,136 @@ async function rescreenParcel(newAddress, originalAddress) {
   } catch(e) { toast('Rescreen failed: ' + e.message); }
 }
 
+// ── TASK 14: Screening rules + flag filters
+function _loadRules() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('parceliq-rules') || '{}');
+    const r = {};
+    RULES_DEF.forEach(d => { r[d.key] = d.key in saved ? saved[d.key] : d.def; });
+    return r;
+  } catch(e) {
+    const r = {}; RULES_DEF.forEach(d => { r[d.key] = d.def; }); return r;
+  }
+}
+
+function effectiveVerdict(r) {
+  if (r.verdict === 'OUTSIDE_COVERAGE' || r.verdict === 'ERROR') return r.verdict;
+  if (r.auto_kill && r.auto_kill_reason) {
+    const reason = r.auto_kill_reason.toLowerCase();
+    const suppressed =
+      (!_screeningRules.floodKill    && /flood zone/i.test(reason)) ||
+      (!_screeningRules.wetlandKill  && /wetland on parcel/i.test(reason)) ||
+      (!_screeningRules.wildlifeKill && /critical habitat/i.test(reason));
+    if (!suppressed) return 'KILL';
+  }
+  const hasFlag = pat => (r.flags || []).some(f => pat.test(f));
+  let adj = 0;
+  if (!_screeningRules.dirtPenalty  && hasFlag(/dirt.unpaved road/i)) adj += 8;
+  if (!_screeningRules.smallPenalty) {
+    const ac = (r.parcel_info || {}).acreage;
+    if (ac != null && ac < 0.25) adj += 20;
+  }
+  if (_screeningRules.noRoadPenalty && hasFlag(/road data unavailable/i)) adj -= 5;
+  const score = Math.max(0, Math.min(100, (r.score ?? 50) + adj));
+  return score <= 34 ? 'KILL' : score <= 54 ? 'REVIEW' : 'PURSUE';
+}
+
+function renderRulesPanel() {
+  const panel = document.getElementById('rulesPanel');
+  if (!panel) return;
+  panel.innerHTML = RULES_DEF.map(d =>
+    '<div class="rsb-rule-row"><span>' + d.label + '</span>' +
+    '<label class="rsb-toggle"><input type="checkbox"' + (_screeningRules[d.key] ? ' checked' : '') +
+    ' onchange="toggleRule(\'' + d.key + '\',this.checked)">' +
+    '<span class="rsb-toggle-track"><span class="rsb-toggle-thumb"></span></span></label></div>'
+  ).join('');
+}
+
+function toggleRule(key, val) {
+  _screeningRules[key] = val;
+  try { localStorage.setItem('parceliq-rules', JSON.stringify(_screeningRules)); } catch(e) {}
+  renderBatchResults();
+}
+
+function toggleRulesPanel() {
+  const panel = document.getElementById('rulesPanel');
+  const chevron = document.getElementById('rulesChevron');
+  if (!panel) return;
+  const open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+  if (chevron) chevron.textContent = open ? '▸' : '▾';
+}
+
+function renderFlagFilters() {
+  const list = document.getElementById('sbFlagList');
+  if (!list) return;
+  const base = batchState.results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE' && r.verdict !== 'ERROR');
+  list.innerHTML = FLAG_FILTERS.map(f => {
+    const cnt = base.filter(r => f.test(r)).length;
+    if (cnt === 0) return '';
+    const active = _activeFilters.has(f.key);
+    return '<div class="rsb-flag-item' + (active ? ' active' : '') + '" onclick="toggleFlagFilter(\'' + f.key + '\')">' +
+      '<span>' + f.label + '</span><span class="rsb-count">' + cnt + '</span></div>';
+  }).join('');
+  const cl = document.getElementById('sbClearFilters');
+  if (cl) cl.style.display = _activeFilters.size > 0 ? '' : 'none';
+}
+
+function toggleFlagFilter(key) {
+  if (_activeFilters.has(key)) _activeFilters.delete(key);
+  else _activeFilters.add(key);
+  renderFlagFilters();
+  _refreshTable();
+}
+
+function clearFlagFilters() {
+  _activeFilters.clear();
+  renderFlagFilters();
+  _refreshTable();
+}
+
+function _refreshTable() {
+  const verdict = batchState.filtered;
+  const sorted = [...batchState.results].sort((a, b) => {
+    const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3, OUTSIDE_COVERAGE:10 };
+    const ga = o[effectiveVerdict(a)] ?? 4, gb = o[effectiveVerdict(b)] ?? 4;
+    if (ga !== gb) return ga - gb;
+    if (a.auto_kill !== b.auto_kill) return a.auto_kill ? -1 : 1;
+    return (a.score ?? 101) - (b.score ?? 101);
+  });
+  let filtered = verdict === 'all' ? sorted : sorted.filter(r => effectiveVerdict(r) === verdict);
+  if (_activeFilters.size > 0) {
+    filtered = filtered.filter(r => [..._activeFilters].every(key => {
+      const f = FLAG_FILTERS.find(f => f.key === key);
+      return f ? f.test(r) : true;
+    }));
+  }
+  renderTable(filtered);
+}
+
+function loadSbUsage() {
+  if (!sb || !currentUser) return;
+  const weekAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+  sb.from('parcel_results').select('*', { count:'exact', head:true })
+    .eq('user_id', currentUser.id).gte('created_at', weekAgo)
+    .then(({ count }) => {
+      const wc = count || 0;
+      const el   = document.getElementById('sbUsageCount');
+      const fill = document.getElementById('sbUsageFill');
+      if (el)   el.textContent = wc;
+      if (fill) fill.style.width = Math.min(Math.round(wc / 1000 * 100), 100) + '%';
+    }).catch(() => {});
+}
+
 // ── RENDER RESULTS (FIX 4)
 function renderBatchResults() {
+  if (!Object.keys(_screeningRules).length) _screeningRules = _loadRules();
   const results  = batchState.results;
   const flOnly   = results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
   const outside  = results.filter(r => r.verdict === 'OUTSIDE_COVERAGE');
-  const kills    = flOnly.filter(r => r.verdict === 'KILL').length;
-  const reviews  = flOnly.filter(r => r.verdict === 'REVIEW').length;
-  const pursues  = flOnly.filter(r => r.verdict === 'PURSUE').length;
+  const kills    = flOnly.filter(r => effectiveVerdict(r) === 'KILL').length;
+  const reviews  = flOnly.filter(r => effectiveVerdict(r) === 'REVIEW').length;
+  const pursues  = flOnly.filter(r => effectiveVerdict(r) === 'PURSUE').length;
   const total    = flOnly.length;
   const setEl    = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
@@ -1953,15 +2129,12 @@ function renderBatchResults() {
   document.querySelectorAll('.sumchip').forEach(c => c.classList.remove('on'));
   const a = document.querySelector('.sumchip.all'); if (a) a.classList.add('on');
   updateSidebarActive('all');
-
-  const sorted = [...results].sort((a, b) => {
-    const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3, OUTSIDE_COVERAGE:10 };
-    const ga = o[a.verdict] ?? 4, gb = o[b.verdict] ?? 4;
-    if (ga !== gb) return ga - gb;
-    if (a.auto_kill !== b.auto_kill) return a.auto_kill ? -1 : 1;
-    return (a.score ?? 101) - (b.score ?? 101);
-  });
-  renderTable(sorted);
+  batchState.filtered = 'all';
+  _activeFilters.clear();
+  renderFlagFilters();
+  renderRulesPanel();
+  loadSbUsage();
+  _refreshTable();
 }
 
 function updateSidebarActive(verdict) {
@@ -2114,14 +2287,7 @@ function filterResults(verdict, btn) {
   }
   batchState.filtered = verdict;
   updateSidebarActive(verdict);
-  const sorted = [...batchState.results].sort((a, b) => {
-    const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3, OUTSIDE_COVERAGE:10 };
-    const ga = o[a.verdict] ?? 4, gb = o[b.verdict] ?? 4;
-    if (ga !== gb) return ga - gb;
-    if (a.auto_kill !== b.auto_kill) return a.auto_kill ? -1 : 1;
-    return (a.score ?? 101) - (b.score ?? 101);
-  });
-  renderTable(verdict === 'all' ? sorted : sorted.filter(r => r.verdict === verdict));
+  _refreshTable();
 }
 
 function downloadCSV() {
