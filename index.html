@@ -1522,11 +1522,11 @@ async function router() {
     if (!session) { goTo('login'); return; }
   }
   if (hash === '#results' && !batchState.results.length) {
-    // Try to restore the last batch from sessionStorage before falling back to dashboard
     const lastBatch = sessionStorage.getItem('piq-last-batch');
     if (lastBatch && currentSession) {
-      showScreen('page-results'); // show results shell immediately
-      loadBatchResults(lastBatch); // async load — will call renderBatchResults + goTo('results')
+      showScreen('page-results');
+      showResultsLoading();
+      loadBatchResults(lastBatch);
       return;
     }
     goTo('dashboard'); return;
@@ -1723,7 +1723,8 @@ async function signInWithGoogle() {
   if (error) toast('Google sign-in failed: ' + error.message);
 }
 
-const _AUTH_PAGES = new Set(['', '#', '#login', '#signup', '#landing', '#forgot']);
+// #landing intentionally excluded — marketing page is accessible while logged in (logo click)
+const _AUTH_PAGES = new Set(['', '#', '#login', '#signup', '#forgot']);
 
 // App startup — wait for the first onAuthStateChange event (reliable session source)
 async function initApp() {
@@ -2371,6 +2372,18 @@ function renderPastBatches(batches) {
         '<span style="color:var(--green)">■ ' + (b.pursues||0) + ' pursue</span>' +
       '</div><div class="batch-arr">→</div></div>';
   }).join('');
+}
+
+function showResultsLoading() {
+  const ids = ['statTotal','statKill','statReview','statPursue','timeSaved','resTitleCount','resMeta'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = id === 'resTitleCount' ? 'Loading…' : '…'; });
+  const wrap = document.getElementById('resTableWrap');
+  if (wrap) {
+    const tbody = wrap.querySelector('tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--t3);font-size:13px">Restoring your batch…</td></tr>';
+  }
+  const chips = document.getElementById('filterChips');
+  if (chips) chips.innerHTML = '';
 }
 
 async function loadBatchResults(batchId) {
