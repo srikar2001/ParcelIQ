@@ -2922,6 +2922,7 @@ function openDetailPanel(absIdx, event) {
     else { cb.classList.remove('checked'); cb.textContent = ''; }
   });
   _loadNoteForPanel(r);
+  panel.style.display = '';
   panel.classList.add('open');
   setTimeout(() => initParcelMap(r), 320);
 }
