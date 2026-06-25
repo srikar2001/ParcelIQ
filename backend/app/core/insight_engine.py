@@ -14,6 +14,7 @@ def score_parcel(
     epa: dict,
     roads: dict,
     parcel: dict,
+    waterways: dict | None = None,
 ) -> dict:
     flags: list[str] = []
     positives: list[str] = []
@@ -26,6 +27,8 @@ def score_parcel(
         roads.get("source", "OpenStreetMap"),
         parcel.get("source", "FL DOR Cadastral"),
     ]
+    if waterways:
+        sources_checked.append(waterways.get("source", "OpenStreetMap"))
 
     # ── STEP 1: Auto-kill checks
     flood_zone = flood.get("zone") or ""
@@ -103,6 +106,12 @@ def score_parcel(
     if last_sale_price is not None and last_sale_price < 1000:
         score -= 2
         flags.append(f"Last sale price very low (${last_sale_price:,.0f})")
+
+    # Waterway proximity (Task 31)
+    if waterways and waterways.get("waterway_nearby"):
+        wtype = waterways.get("waterway_type", "waterway")
+        score -= 5
+        flags.append(f"Canal/waterway nearby ({wtype}) — check easements and drainage")
 
     if just_value and land_value and just_value > 0:
         if abs(just_value - land_value) / max(just_value, 1) > 0.15:

@@ -8,3 +8,5 @@ shapely==2.1.2
 anthropic>=0.40.0
 supabase>=2.0.0
 google-generativeai>=0.8.0
+pyproj==3.6.1
+slowapi==0.1.9

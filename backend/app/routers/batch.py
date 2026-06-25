@@ -3,6 +3,7 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import uuid4
 
 import httpx
 from fastapi import APIRouter, Header
@@ -16,7 +17,9 @@ from app.collectors.critical_habitat import get_critical_habitat
 from app.collectors.epa import get_epa_superfund
 from app.collectors.roads_osm import get_road_type
 from app.collectors.parcel_fl import get_parcel_data
+from app.collectors.waterways import get_waterway_proximity
 from app.core.insight_engine import score_parcel
+from app.core.cache import get_cached_result, save_cached_result
 
 router = APIRouter(prefix="/api")
 
@@ -61,12 +64,16 @@ async def _weekly_usage(user_id: str) -> int:
     except Exception:
         return 0
 
-_FLOOD_DEFAULT    = {"zone": "UNKNOWN", "sfha": False, "source": "FEMA NFHL"}
-_WETLANDS_DEFAULT = {"wetland_on_parcel": False, "wetland_nearby": False, "wetland_type": None, "wetland_code": None, "source": "USFWS NWI"}
-_HABITAT_DEFAULT  = {"habitat_found": False, "species": [], "source": "USFWS Critical Habitat"}
-_EPA_DEFAULT      = {"contamination_found": False, "sites": [], "source": "EPA ECHO Superfund"}
-_ROADS_DEFAULT    = {"road_found": False, "road_surface": "none", "road_type": None, "source": "OpenStreetMap"}
-_PARCEL_DEFAULT   = {"found": False, "source": "FL DOR Cadastral"}
+_FLOOD_DEFAULT     = {"zone": "UNKNOWN", "sfha": False, "source": "FEMA NFHL"}
+_WETLANDS_DEFAULT  = {"wetland_on_parcel": False, "wetland_nearby": False, "wetland_type": None, "wetland_code": None, "source": "USFWS NWI"}
+_HABITAT_DEFAULT   = {"habitat_found": False, "species": [], "source": "USFWS Critical Habitat"}
+_EPA_DEFAULT       = {"contamination_found": False, "sites": [], "source": "EPA ECHO Superfund"}
+_ROADS_DEFAULT     = {"road_found": False, "road_surface": "none", "road_type": None, "source": "OpenStreetMap"}
+_PARCEL_DEFAULT    = {"found": False, "source": "FL DOR Cadastral", "geometry": []}
+_WATERWAYS_DEFAULT = {"waterway_nearby": False, "waterway_type": None, "source": "OpenStreetMap"}
+
+# In-memory job store for large batches (Task 30)
+_jobs: dict = {}
 
 
 class ParcelInput(BaseModel):
@@ -89,6 +96,12 @@ async def _safe(coro, default):
 async def _process_parcel(parcel: ParcelInput) -> dict:
     address = parcel.address
 
+    # Check cache first (Task 28)
+    cached = await get_cached_result(address)
+    if cached:
+        cached["cached"] = True
+        return cached
+
     geo = await geocode(address)
     if geo is None:
         return {
@@ -102,22 +115,24 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
             "parcel_info": {},
             "sources": [],
             "error": "Geocoding failed — address not found",
+            "cached": False,
         }
 
     lat, lng = geo["lat"], geo["lng"]
 
-    flood, wetlands, habitat, epa, roads, parcel_data = await asyncio.gather(
+    flood, wetlands, habitat, epa, roads, parcel_data, waterways = await asyncio.gather(
         _safe(get_flood_zone(lat, lng), _FLOOD_DEFAULT),
         _safe(get_wetlands(lat, lng), _WETLANDS_DEFAULT),
         _safe(get_critical_habitat(lat, lng), _HABITAT_DEFAULT),
         _safe(get_epa_superfund(lat, lng), _EPA_DEFAULT),
         _safe(get_road_type(lat, lng), _ROADS_DEFAULT),
         _safe(get_parcel_data(lat, lng), _PARCEL_DEFAULT),
+        _safe(get_waterway_proximity(lat, lng), _WATERWAYS_DEFAULT),
     )
 
-    result = score_parcel(flood, wetlands, habitat, epa, roads, parcel_data)
+    result = score_parcel(flood, wetlands, habitat, epa, roads, parcel_data, waterways)
 
-    return {
+    out = {
         "address": geo.get("formatted_address", address),
         "verdict": result["verdict"],
         "score": result["score"],
@@ -130,10 +145,18 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
             "owner": parcel_data.get("owner"),
             "land_use_code": parcel_data.get("land_use_code"),
             "last_sale_price": parcel_data.get("last_sale_price"),
+            "geometry": parcel_data.get("geometry", []),
         },
+        "_lat": lat,
+        "_lng": lng,
         "sources": result["sources_checked"],
         "error": None,
+        "cached": False,
     }
+
+    # Save to cache (fire and forget)
+    asyncio.create_task(save_cached_result(address, out))
+    return out
 
 
 async def _process_parcel_safe(parcel: ParcelInput) -> dict:
@@ -231,3 +254,76 @@ async def batch_screen(
     }
 
     return {"summary": summary, "results": all_results}
+
+
+# ── QUEUE for large batches (Task 30)
+async def _process_batch_background(job_id: str, parcels: list) -> None:
+    _jobs[job_id]["status"] = "processing"
+    for i in range(0, len(parcels), BATCH_SIZE):
+        chunk = parcels[i:i + BATCH_SIZE]
+        results = await asyncio.gather(*[_process_parcel_safe(p) for p in chunk])
+        _jobs[job_id]["results"].extend(results)
+        _jobs[job_id]["progress"] = len(_jobs[job_id]["results"])
+    _jobs[job_id]["status"] = "complete"
+
+
+@router.post("/batch/queue")
+async def batch_queue(request: BatchRequest):
+    job_id = str(uuid4())
+    _jobs[job_id] = {"status": "queued", "progress": 0, "total": len(request.parcels), "results": [], "error": None}
+    asyncio.create_task(_process_batch_background(job_id, request.parcels))
+    return {"job_id": job_id, "total": len(request.parcels)}
+
+
+@router.get("/batch/status/{job_id}")
+async def batch_status(job_id: str):
+    job = _jobs.get(job_id)
+    if not job:
+        return JSONResponse(status_code=404, content={"error": "Job not found"})
+    return {
+        "status": job["status"],
+        "progress": job["progress"],
+        "total": job["total"],
+        "results": job["results"] if job["status"] == "complete" else [],
+    }
+
+
+# ── SINGLE PARCEL SEARCH by address or APN (Task 27)
+import re as _re
+
+def _looks_like_apn(q: str) -> bool:
+    stripped = _re.sub(r"[-\s]", "", q)
+    return len(stripped) >= 10 and _re.fullmatch(r"[\d\-]+", q.strip()) is not None
+
+
+@router.get("/search/parcel")
+async def search_parcel(q: str):
+    if not q or len(q) < 3:
+        return JSONResponse(status_code=400, content={"error": "Query too short"})
+    try:
+        if _looks_like_apn(q):
+            # Search FL DOR by PARCEL_ID
+            from app.collectors.parcel_fl import URL as PARCEL_URL
+            params = {
+                "where": f"PARCEL_ID='{q.strip()}'",
+                "outFields": "PARCEL_ID,OWN_NAME,PHY_ADDR1,PHY_CITY,DOR_UC,JV,LND_VAL,NO_BULDNG,SALE_PRC1,SALE_YR1,LND_SQFOOT",
+                "returnGeometry": "true",
+                "f": "json",
+            }
+            import httpx as _httpx
+            async with _httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(PARCEL_URL, params=params)
+                data = resp.json()
+            features = data.get("features", [])
+            if not features:
+                return JSONResponse(status_code=404, content={"error": "Parcel not found for APN: " + q})
+            attrs = features[0].get("attributes", {})
+            addr = f"{attrs.get('PHY_ADDR1','')}, {attrs.get('PHY_CITY','')}, FL"
+            parcel = ParcelInput(address=addr, apn=q)
+        else:
+            parcel = ParcelInput(address=q)
+
+        result = await _process_parcel_safe(parcel)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

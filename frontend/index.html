@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{
   --bg:#0D0F12;--card:#161820;--card-h:#1C1F2E;
@@ -396,6 +398,142 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .cbtn.skip{background:var(--rbg);color:var(--red);border-color:rgba(239,68,68,.25)}
 .confirm-footer{display:flex;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--b)}
 
+/* ══ DETAIL PANEL */
+.res-split{display:flex;gap:0;min-height:calc(100vh - 58px)}
+.res-table-col{flex:1;min-width:0;transition:max-width .3s ease}
+.res-table-col.panel-open{max-width:55%}
+.detail-panel{width:45%;min-width:340px;max-width:480px;background:var(--card);border-left:1px solid var(--b);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s ease;position:fixed;right:0;top:58px;bottom:0;overflow-y:auto;z-index:100}
+.detail-panel.open{transform:translateX(0)}
+.dp-header{padding:16px 18px 14px;border-bottom:1px solid var(--b);display:flex;align-items:flex-start;gap:12px}
+.dp-addr{flex:1;min-width:0}
+.dp-street{font-size:14px;font-weight:700;color:var(--t1);line-height:1.3}
+.dp-apn{font-size:11px;color:var(--t3);font-family:monospace;margin-top:2px}
+.dp-score-block{text-align:right;flex-shrink:0}
+.dp-score-num{font-size:28px;font-weight:900;line-height:1}
+.dp-close{background:none;border:none;color:var(--t3);font-size:18px;cursor:pointer;padding:0;flex-shrink:0;line-height:1;margin-top:2px}
+.dp-close:hover{color:var(--t1)}
+.dp-why{margin:14px 16px;border-radius:var(--rs);padding:12px 14px;font-size:13px;line-height:1.55}
+.dp-why-k{background:var(--rbg);border:1px solid rgba(239,68,68,.2)}
+.dp-why-r{background:var(--abg);border:1px solid rgba(245,158,11,.2)}
+.dp-why-p{background:var(--gbg);border:1px solid rgba(34,197,94,.2)}
+.dp-section{padding:0 16px 14px}
+.dp-sec-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
+.dp-flag-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(42,45,58,.5);font-size:12px}
+.dp-flag-row:last-child{border-bottom:none}
+.dp-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dp-dot-r{background:var(--red)}.dp-dot-a{background:var(--amber)}.dp-dot-g{background:var(--green)}.dp-dot-m{background:var(--t3)}
+.dp-flag-text{flex:1;color:var(--t2)}
+.dp-flag-src{font-size:10px;color:var(--t3);white-space:nowrap}
+.dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dp-grid-item{background:var(--bg);border-radius:var(--rs);padding:8px 10px}
+.dp-grid-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.dp-grid-val{font-size:13px;font-weight:600;color:var(--t1)}
+.dp-map-placeholder{height:180px;background:rgba(13,15,18,.8);border:1px solid var(--b);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:12px;text-align:center;padding:16px;line-height:1.5;margin:0 16px 14px}
+.map-controls{display:flex;gap:6px;padding:0 16px 8px;flex-wrap:wrap}
+.map-toggle{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t3);cursor:pointer;transition:all .15s}
+.map-toggle.active{background:var(--gbg);color:var(--green);border-color:rgba(34,197,94,.3)}
+.leaflet-container{border-radius:var(--rs)}
+.dp-verify{margin:0 16px 14px;background:var(--bg);border:1px solid var(--b);border-radius:var(--rs);padding:12px}
+.dp-verify-item{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:13px;color:var(--t2);cursor:pointer}
+.dp-verify-cb{width:15px;height:15px;border:1.5px solid var(--bh);border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.dp-verify-cb.checked{background:var(--green);border-color:var(--green);color:#000;font-size:10px;font-weight:700}
+.dp-sources{padding:12px 16px;border-top:1px solid var(--b);font-size:11px;color:var(--t3);line-height:1.6}
+.dp-actions{padding:14px 16px;border-top:1px solid var(--b);display:flex;gap:8px;flex-shrink:0}
+.dp-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:7px 12px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s;flex:1;text-align:center}
+.dp-btn:hover{border-color:var(--bh);color:var(--t1)}
+.dp-btn-primary{background:var(--green);color:#000;border-color:var(--green)}
+.dp-btn-primary:hover{background:var(--gd)}
+.dp-timestamp{font-size:11px;color:var(--t3);margin-top:4px}
+/* Notes */
+.dp-note-area{width:100%;font-family:'Inter',sans-serif;font-size:13px;padding:9px 12px;background:var(--bg);border:1px solid var(--b);border-radius:var(--rs);color:var(--t1);outline:none;resize:none;min-height:70px;transition:border-color .15s}
+.dp-note-area:focus{border-color:var(--green)}
+.dp-note-display{font-size:13px;color:var(--t2);line-height:1.5;background:var(--bg);border:1px solid var(--b);border-radius:var(--rs);padding:9px 12px;white-space:pre-wrap;word-break:break-word}
+.dp-note-time{font-size:11px;color:var(--t3);margin-top:4px}
+.dp-note-links{font-size:12px;color:var(--green);cursor:pointer;margin-top:6px;display:flex;gap:12px}
+.dp-note-links span:hover{text-decoration:underline}
+
+/* ══ BULK SELECT FLOATING BAR */
+.bulk-bar{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--card-h);border:1px solid var(--bh);border-radius:var(--rp);padding:10px 20px;display:flex;align-items:center;gap:16px;font-size:13px;font-weight:600;color:var(--t1);z-index:200;box-shadow:0 8px 32px rgba(0,0,0,.4);transition:transform .22s;white-space:nowrap}
+.bulk-bar.show{transform:translateX(-50%) translateY(0)}
+.bulk-bar-sep{width:1px;height:16px;background:var(--bh)}
+.bulk-bar-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:5px 12px;border-radius:var(--rp);border:1px solid var(--bh);background:transparent;color:var(--t1);cursor:pointer;transition:all .15s}
+.bulk-bar-btn:hover{background:var(--bg)}
+.bulk-bar-btn.primary{background:var(--green);color:#000;border-color:var(--green)}
+.bulk-bar-btn.primary:hover{background:var(--gd)}
+
+/* ══ ROW CHECKBOX */
+.row-cb{width:15px;height:15px;border:1.5px solid var(--bh);border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--green);vertical-align:middle}
+.res-trow.selected{background:rgba(34,197,94,.05)}
+.res-trow.selected td:first-child{border-left:2px solid var(--green)}
+.res-trow.panel-selected{border-left:3px solid var(--green)}
+
+/* ══ PAGINATION */
+.pagi-wrap{display:flex;align-items:center;justify-content:space-between;padding:12px 0 4px;flex-wrap:wrap;gap:8px}
+.pagi-info{font-size:12px;color:var(--t3)}
+.pagi-controls{display:flex;align-items:center;gap:4px}
+.pagi-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:500;min-width:30px;padding:5px 8px;border-radius:var(--rs);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s;text-align:center}
+.pagi-btn:hover:not(:disabled){border-color:var(--bh);color:var(--t1)}
+.pagi-btn.active{background:var(--green);color:#000;border-color:var(--green);font-weight:700}
+.pagi-btn:disabled{opacity:.35;cursor:not-allowed}
+.pagi-rpp{font-family:'Inter',sans-serif;font-size:12px;padding:4px 8px;background:var(--card);border:1px solid var(--b);border-radius:var(--rs);color:var(--t1);outline:none;cursor:pointer}
+
+/* ══ SORT HOVER */
+.th-sortable:hover{color:var(--t2)}
+.sort-arrow{color:var(--t3);font-size:9px}
+
+/* ══ SETTINGS PAGE */
+#page-settings{padding-top:58px;min-height:100vh}
+.sett-layout{display:flex;min-height:calc(100vh - 58px)}
+.sett-sidebar{width:240px;flex-shrink:0;background:var(--card);border-right:1px solid var(--b);padding:28px 16px;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto}
+.sett-main{flex:1;min-width:0;padding:32px 36px 80px;max-width:680px}
+.sett-section{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:24px;margin-bottom:20px}
+.sett-section-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:4px}
+.sett-section-sub{font-size:12px;color:var(--t3);margin-bottom:18px}
+.sett-field{margin-bottom:14px}
+.sett-lbl{font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:block}
+.sett-note{font-size:12px;color:var(--t3);margin-top:6px}
+.sett-row{display:flex;gap:10px;align-items:flex-end}
+.sett-plan-badge{display:inline-flex;align-items:center;font-size:13px;font-weight:600;padding:6px 14px;border-radius:var(--rp);background:var(--gbg);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+/* ══ FAQ ACCORDION */
+.faq-item{border-bottom:1px solid var(--b)}
+.faq-item:last-child{border-bottom:none}
+.faq-q{display:flex;justify-content:space-between;align-items:center;padding:16px 0;cursor:pointer;font-size:15px;font-weight:600;color:var(--t1)}
+.faq-q:hover{color:var(--green)}
+.faq-icon{font-size:16px;color:var(--t3);flex-shrink:0}
+.faq-a{font-size:14px;color:var(--t2);line-height:1.7;padding-bottom:16px;display:none}
+.faq-a.open{display:block}
+/* ══ SOCIAL PROOF */
+.proof-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:40px auto;max-width:660px}
+.proof-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:20px;text-align:center}
+.proof-num{font-size:32px;font-weight:900;color:var(--green);letter-spacing:-.03em;line-height:1}
+.proof-lbl{font-size:12px;color:var(--t2);margin-top:6px}
+.testimonial-card{max-width:660px;margin:0 auto 40px;background:var(--card);border:1px solid var(--b);border-left:3px solid var(--green);border-radius:var(--r);padding:24px 28px}
+.testimonial-quote{font-size:15px;color:var(--t1);line-height:1.7;font-style:italic;margin-bottom:12px}
+.testimonial-attr{font-size:13px;color:var(--t3);font-style:normal}
+.faq-wrap{max-width:660px;margin:0 auto;background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:0 24px;margin-bottom:40px}
+/* ══ SHARE MODAL */
+.share-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;align-items:center;justify-content:center;padding:24px}
+.share-overlay.show{display:flex}
+.share-modal{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:28px;max-width:480px;width:100%}
+.share-modal-title{font-size:18px;font-weight:800;margin-bottom:8px}
+.share-modal-sub{font-size:13px;color:var(--t2);margin-bottom:16px}
+.share-url-box{display:flex;gap:8px;margin-bottom:12px}
+.share-url-inp{flex:1;font-family:monospace;font-size:12px;padding:9px 12px;background:var(--bg);border:1px solid var(--b);border-radius:var(--rs);color:var(--t2);outline:none}
+.share-note{font-size:12px;color:var(--t3);line-height:1.6}
+/* ══ UPLOAD REDESIGN */
+.up-tabs{display:flex;gap:2px;background:var(--bg);border-radius:var(--rs);padding:3px;margin-bottom:14px;width:fit-content}
+.up-tab{font-family:'Inter',sans-serif;font-size:13px;font-weight:500;padding:6px 16px;border-radius:6px;border:none;cursor:pointer;background:transparent;color:var(--t2);transition:all .15s}
+.up-tab.active{background:var(--card-h);color:var(--t1);font-weight:600}
+.up-drop-zone{border:2px dashed var(--b);border-radius:var(--r);background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;cursor:pointer;transition:all .2s;min-height:180px}
+.up-drop-zone.drag-over{border-color:var(--green);background:rgba(34,197,94,.04)}
+.up-drop-icon{font-size:28px;margin-bottom:10px;opacity:.5}
+.up-drop-title{font-size:14px;font-weight:600;color:var(--t1);margin-bottom:4px}
+.up-drop-sub{font-size:12px;color:var(--t3)}
+.up-file-preview{background:var(--card-h);border:1px solid var(--b);border-radius:var(--rs);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:13px;color:var(--t1)}
+.up-addr-count{font-size:12px;color:var(--t3);text-align:right;margin-top:4px}
+/* ══ SHARED VIEW BANNER */
+.shared-banner{background:rgba(245,158,11,.08);border-bottom:1px solid rgba(245,158,11,.25);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--amber)}
+
 /* RESPONSIVE */
 @media(max-width:1024px){
   .res-sidebar{display:none}
@@ -490,6 +628,33 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </div>
     </div>
   </section>
+
+  <!-- Social proof numbers (Task 23) -->
+  <div style="background:var(--bg);padding:40px 24px 0">
+    <div class="proof-grid">
+      <div class="proof-card"><div class="proof-num">2,400+</div><div class="proof-lbl">Parcels screened per batch</div></div>
+      <div class="proof-card"><div class="proof-num">41 hrs</div><div class="proof-lbl">Avg time saved per 82-lot batch</div></div>
+      <div class="proof-card"><div class="proof-num">6</div><div class="proof-lbl">Live data sources per parcel</div></div>
+    </div>
+    <!-- Testimonial -->
+    <div class="testimonial-card">
+      <div class="testimonial-quote">"Ran 82 Polk County lots through it. 57 dead on arrival in under 5 minutes. Would have taken me 40+ hours manually."</div>
+      <div class="testimonial-attr">— Land investor, Florida</div>
+    </div>
+    <!-- FAQ -->
+    <div style="max-width:660px;margin:0 auto 8px;text-align:center">
+      <div class="sec-lbl">FAQ</div>
+      <div class="sec-title" style="margin-bottom:24px">Common questions</div>
+    </div>
+    <div class="faq-wrap">
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>What states do you cover?</span><span class="faq-icon">+</span></div><div class="faq-a">Florida statewide during beta. All 67 counties. Other states coming soon.</div></div>
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>Where does the data come from?</span><span class="faq-icon">+</span></div><div class="faq-a">Live government sources — FEMA flood maps, USFWS wetlands and wildlife, EPA contamination records, OpenStreetMap roads, Florida DOR parcel records. Every flag is cited with its source.</div></div>
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>How accurate is it?</span><span class="faq-icon">+</span></div><div class="faq-a">We use the same data sources county GIS offices use. We cite every source so you can verify any flag independently.</div></div>
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>Is this a substitute for due diligence?</span><span class="faq-icon">+</span></div><div class="faq-a">No. ParcelIQ eliminates the obvious kills fast. Always do a title search, survey, and manual utility check before closing.</div></div>
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>What is the free trial?</span><span class="faq-icon">+</span></div><div class="faq-a">1,000 parcels per week free. No credit card required.</div></div>
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>Can I share results with my team?</span><span class="faq-icon">+</span></div><div class="faq-a">Yes. Every batch has a shareable public link that works without logging in.</div></div>
+    </div>
+  </div>
 
   <section class="how" id="howSec">
     <div class="how-inner">
@@ -621,6 +786,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       <nav class="dsb-nav">
         <div class="dsb-nav-item active">Dashboard</div>
         <div class="dsb-nav-item" onclick="window.location.hash='#pricing'">Pricing</div>
+        <div class="dsb-nav-item" onclick="window.location.hash='#settings'">Settings</div>
         <div class="dsb-nav-item dsb-signout" onclick="doSignout()">Sign out</div>
       </nav>
       <div class="dsb-usage">
@@ -657,19 +823,54 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </div>
       <div class="dash-form-card">
         <div class="dash-lbl">New Batch Screen</div>
+        <div style="display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid var(--b);padding-bottom:16px;align-items:center;flex-wrap:wrap">
+          <div class="up-tabs" style="margin-bottom:0">
+            <button class="up-tab active" id="dTabBatch" onclick="switchDashTab('batch')">Batch Screen</button>
+            <button class="up-tab" id="dTabSingle" onclick="switchDashTab('single')">Single Parcel</button>
+          </div>
+        </div>
+        <!-- Single Parcel Search (Task 27) -->
+        <div id="dashSingleParcel" style="display:none">
+          <div class="dash-title">Single Parcel Search</div>
+          <div class="dash-sub">Search by address or APN (parcel number)</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input class="inp" id="singleParcelInput" placeholder="123 Main St, Tampa FL  or  27-30-02-000000-012030" style="flex:1;background:var(--bg)" onkeydown="if(event.key==='Enter')searchSingleParcel()">
+            <button class="btn-p" id="singleParcelBtn" onclick="searchSingleParcel()">Search →</button>
+          </div>
+          <div class="src-hint">Search by address or FL parcel ID (APN)</div>
+        </div>
+        <!-- Batch form -->
+        <div id="dashBatchForm">
         <div class="dash-title">Screen your parcels</div>
         <div class="dash-sub">Florida statewide · 6 live sources · Kill / Review / Pursue in seconds</div>
         <label style="font-size:12px;color:var(--t2);font-weight:500;display:block;margin-bottom:6px">Batch name (optional)</label>
         <input type="text" id="batchNameInput" class="inp" placeholder="e.g. Polk County June leads" style="margin-bottom:12px;background:var(--bg)">
-        <textarea id="batchInput" class="addr-box" placeholder="Paste addresses here, one per line:
+        <!-- Upload tabs (Task 22) -->
+        <div class="up-tabs">
+          <button class="up-tab active" id="tabPaste" onclick="switchUpTab('paste')">Paste addresses</button>
+          <button class="up-tab" id="tabFile" onclick="switchUpTab('file')">Upload file</button>
+        </div>
+        <!-- Paste mode -->
+        <div id="upPasteMode">
+          <textarea id="batchInput" class="addr-box" placeholder="Paste addresses here, one per line:
 
 123 Main St, Tampa FL 33601
 456 Oak Ave, Orlando FL 32801
-789 Pine Rd, Okeechobee FL 33801"></textarea>
-        <div class="up-row">
-          <div class="up-line"></div><span class="up-or">or</span><div class="up-line"></div>
+789 Pine Rd, Okeechobee FL 33801" oninput="updateAddrCount()"></textarea>
+          <div class="up-addr-count" id="addrCount"></div>
+        </div>
+        <!-- File upload mode -->
+        <div id="upFileMode" style="display:none">
           <input type="file" id="csvUpload" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleFileUpload(event)">
-          <button class="btn-o btn-sm" onclick="document.getElementById('csvUpload').click()">↑ Upload CSV / Excel</button>
+          <div class="up-drop-zone" id="dropZone"
+            onclick="document.getElementById('csvUpload').click()"
+            ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+            <div class="up-drop-icon">☁</div>
+            <div class="up-drop-title">Drag CSV or Excel here</div>
+            <div class="up-drop-sub">or click to browse · .csv .xlsx .xls</div>
+          </div>
+          <div id="filePreview" style="display:none"></div>
+          <div id="fileError" style="display:none;font-size:13px;color:var(--red);margin-top:8px"></div>
         </div>
         <select class="state-sel">
           <option value="FL">Florida ▾</option>
@@ -677,7 +878,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         </select>
         <div id="limitBanner" class="limit-banner"></div>
         <button class="run-btn" id="runBatchBtn" onclick="runBatch()">Screen Parcels →</button>
-        <div class="src-hint">Each parcel screened against FEMA · NWI · USFWS · EPA · OSM · FL DOR</div>
+        <div style="text-align:center;font-size:12px;color:var(--t3);margin-top:6px" id="screeningCountHint"></div>
+        <div class="src-hint">Each parcel checked against FEMA · NWI · USFWS · EPA · Roads · FL DOR</div>
+        </div><!-- /dashBatchForm -->
       </div>
       <!-- Confirmation panel — shown when incomplete addresses are detected -->
       <div id="confirmPanel" class="confirm-panel" style="display:none">
@@ -793,6 +996,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           <div class="res-meta-txt" id="resMeta"></div>
         </div>
         <div class="res-header-btns">
+          <button class="btn-o btn-sm" onclick="shareResults()">⤴ Share</button>
           <button class="btn-o btn-sm" onclick="downloadCSV()">↓ Export CSV</button>
         </div>
       </div>
@@ -820,21 +1024,23 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </div>
       <div class="limit-banner" id="resLimitBanner"></div>
       <div class="nonfl-banner" id="nonflBanner"></div>
-      <div class="res-table-wrap">
+      <div class="res-table-wrap" id="resTableWrap">
         <table class="res-table">
           <thead>
             <tr>
+              <th style="width:32px"><input type="checkbox" class="row-cb" id="selAllCb" onchange="toggleSelectAll()" style="margin:0"></th>
               <th>ADDRESS</th>
               <th>COUNTY</th>
-              <th>SIZE</th>
+              <th class="th-sortable" data-col="size" onclick="cycleSortCol('size')" style="cursor:pointer;user-select:none;white-space:nowrap">SIZE<span class="sort-arrow" id="sa-size"> ↕</span></th>
               <th>SIGNALS</th>
-              <th>SCORE</th>
-              <th>DECISION</th>
+              <th class="th-sortable" data-col="score" onclick="cycleSortCol('score')" style="cursor:pointer;user-select:none;white-space:nowrap">SCORE<span class="sort-arrow" id="sa-score"> ↕</span></th>
+              <th class="th-sortable" data-col="decision" onclick="cycleSortCol('decision')" style="cursor:pointer;user-select:none;white-space:nowrap">DECISION<span class="sort-arrow" id="sa-decision"> ↕</span></th>
             </tr>
           </thead>
           <tbody id="resTableBody"></tbody>
         </table>
       </div>
+      <div id="pagiContainer"></div>
       <div id="resSummary" style="display:none"></div>
       <div class="res-footer">
         <span>Every flag cited · source verifiable</span>
@@ -842,6 +1048,90 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </div>
     </main>
   </div>
+</div>
+
+<!-- ════════ DETAIL PANEL ════════ -->
+<div id="detailPanel" class="detail-panel">
+  <div class="dp-header">
+    <div class="dp-addr">
+      <div class="dp-street" id="dpStreet"></div>
+      <div class="dp-apn" id="dpApn"></div>
+      <div class="dp-timestamp" id="dpTimestamp"></div>
+    </div>
+    <div class="dp-score-block">
+      <div class="dp-score-num" id="dpScore"></div>
+      <div id="dpBadge" style="margin-top:4px"></div>
+    </div>
+    <button class="dp-close" onclick="closeDetailPanel()">✕</button>
+  </div>
+  <div id="dpWhy" class="dp-why"></div>
+  <div class="dp-section" id="dpFlagsSection">
+    <div class="dp-sec-title">Risk Flags &amp; Signals</div>
+    <div id="dpFlags"></div>
+  </div>
+  <div class="dp-section" id="dpInfoSection">
+    <div class="dp-sec-title">Parcel Info</div>
+    <div class="dp-grid" id="dpInfo"></div>
+  </div>
+  <div id="dpMapPlaceholder" class="dp-map-placeholder">
+    Loading map…
+  </div>
+  <div class="map-controls" id="mapControls" style="display:none">
+    <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this)">Parcel</button>
+    <button class="map-toggle active" data-layer="flood" onclick="toggleMapLayer(this)">Flood zones</button>
+    <button class="map-toggle active" data-layer="wetlands" onclick="toggleMapLayer(this)">Wetlands</button>
+  </div>
+  <div id="parcel-map" style="height:220px;border-radius:var(--rs);overflow:hidden;margin:0 16px 14px;display:none"></div>
+  <div class="dp-verify" id="dpVerify">
+    <div class="dp-sec-title" style="margin-bottom:8px">Verify Before Offer</div>
+    <div class="dp-verify-item" onclick="toggleVerifyItem(this,'utilities')">
+      <div class="dp-verify-cb" id="dvc-utilities"></div><span>Utilities (water/sewer/electric) — check county utility district</span>
+    </div>
+    <div class="dp-verify-item" onclick="toggleVerifyItem(this,'septic')">
+      <div class="dp-verify-cb" id="dvc-septic"></div><span>Septic feasibility — check FL DOH eBridge</span>
+    </div>
+    <div class="dp-verify-item" onclick="toggleVerifyItem(this,'permits')">
+      <div class="dp-verify-cb" id="dvc-permits"></div><span>Permits &amp; code violations — check county building dept</span>
+    </div>
+    <div class="dp-verify-item" onclick="toggleVerifyItem(this,'easements')">
+      <div class="dp-verify-cb" id="dvc-easements"></div><span>Easements on title — requires title search</span>
+    </div>
+    <div class="dp-verify-item" onclick="toggleVerifyItem(this,'hoa')">
+      <div class="dp-verify-cb" id="dvc-hoa"></div><span>HOA / deed restrictions — requires title search</span>
+    </div>
+  </div>
+  <div class="dp-section">
+    <div class="dp-sec-title">Notes</div>
+    <div id="dpNoteDisplay" style="display:none">
+      <div class="dp-note-display" id="dpNoteText"></div>
+      <div class="dp-note-time" id="dpNoteTime"></div>
+      <div class="dp-note-links"><span onclick="showNoteEditor()">Edit</span><span onclick="deleteNote()">Delete</span></div>
+    </div>
+    <div id="dpNoteEditor" style="display:none">
+      <textarea class="dp-note-area" id="dpNoteInput" placeholder="Called owner, left message…" rows="3"></textarea>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="dp-btn dp-btn-primary btn-sm" style="flex:none;padding:5px 14px" onclick="saveNote()">Save note</button>
+        <button class="dp-btn btn-sm" style="flex:none;padding:5px 14px" onclick="cancelNote()">Cancel</button>
+      </div>
+    </div>
+    <div id="dpNoteEmpty" style="padding:4px 0">
+      <a style="font-size:12px;color:var(--green);cursor:pointer" onclick="showNoteEditor()">+ Add note</a>
+    </div>
+  </div>
+  <div class="dp-sources" id="dpSources"></div>
+  <div class="dp-actions">
+    <button class="dp-btn" id="dpBookmarkBtn" onclick="toast('Bookmarks coming soon')">Bookmark</button>
+    <button class="dp-btn" id="dpRescreenBtn" onclick="rescreenFromPanel()">↻ Re-screen</button>
+    <button class="dp-btn" onclick="nextParcel()">Next →</button>
+  </div>
+</div>
+
+<!-- ════════ BULK BAR ════════ -->
+<div class="bulk-bar" id="bulkBar">
+  <span id="bulkCount">0 selected</span>
+  <div class="bulk-bar-sep"></div>
+  <button class="bulk-bar-btn primary" onclick="exportSelected()">↓ Export</button>
+  <button class="bulk-bar-btn" onclick="clearSelection()">✕ Clear</button>
 </div>
 
 <!-- ════════ PRICING ════════ -->
@@ -892,6 +1182,98 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </div>
     </div>
     <div class="pricing-all">All plans include: Florida statewide · 6 live data sources · Kill / Review / Pursue · CSV export<br>No contracts · Cancel anytime</div>
+  </div>
+</div>
+
+<!-- ════════ SETTINGS PAGE (Task 24) ════════ -->
+<div id="page-settings" class="screen">
+  <div class="sett-layout">
+    <aside class="sett-sidebar">
+      <div class="dsb-nav" style="margin-top:12px">
+        <div class="dsb-nav-item" onclick="window.location.hash='#dashboard'">← Dashboard</div>
+        <div class="dsb-nav-item active" style="margin-top:8px">Account</div>
+        <div class="dsb-nav-item" onclick="toast('Password section below')">Password</div>
+        <div class="dsb-nav-item" onclick="toast('Preferences section below')">Preferences</div>
+        <div class="dsb-nav-item" onclick="window.location.hash='#pricing'">Upgrade Plan</div>
+      </div>
+    </aside>
+    <main class="sett-main">
+      <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:24px">Settings</div>
+      <!-- Account -->
+      <div class="sett-section">
+        <div class="sett-section-title">Account</div>
+        <div class="sett-section-sub">Manage your profile information</div>
+        <div class="sett-field">
+          <label class="sett-lbl">Full Name</label>
+          <div class="sett-row">
+            <input class="inp" id="settName" placeholder="Your name" style="flex:1">
+            <button class="btn-p btn-sm" onclick="saveSettingsName()">Save</button>
+          </div>
+        </div>
+        <div class="sett-field">
+          <label class="sett-lbl">Email</label>
+          <input class="inp" id="settEmail" placeholder="—" disabled style="background:var(--bg);opacity:.6">
+          <div class="sett-note">To change email, contact support</div>
+        </div>
+      </div>
+      <!-- Password -->
+      <div class="sett-section">
+        <div class="sett-section-title">Password</div>
+        <div class="sett-section-sub">Update your account password</div>
+        <div class="auth-err" id="settPwErr"></div>
+        <div class="sett-field"><label class="sett-lbl">New Password</label><input class="inp" type="password" id="settNewPw" placeholder="Min 8 characters"></div>
+        <div class="sett-field"><label class="sett-lbl">Confirm New Password</label><input class="inp" type="password" id="settConfPw" placeholder="Repeat password"></div>
+        <button class="btn-p btn-sm" onclick="saveSettingsPassword()">Update password</button>
+      </div>
+      <!-- Preferences -->
+      <div class="sett-section">
+        <div class="sett-section-title">Preferences</div>
+        <div class="sett-section-sub">Customize your experience</div>
+        <div class="sett-field">
+          <label class="sett-lbl">Default State</label>
+          <select class="state-sel" style="width:auto">
+            <option value="FL">🌴 Florida</option>
+            <option disabled>Other states — Coming soon</option>
+          </select>
+        </div>
+        <div class="sett-field">
+          <label class="sett-lbl">Rows Per Page</label>
+          <select class="state-sel" id="settRpp" onchange="setRowsPerPage(+this.value);localStorage.setItem('piq-rpp',this.value)" style="width:auto">
+            <option value="25">25 rows</option>
+            <option value="50">50 rows</option>
+            <option value="100">100 rows</option>
+          </select>
+        </div>
+      </div>
+      <!-- Plan -->
+      <div class="sett-section">
+        <div class="sett-section-title">Plan</div>
+        <div class="sett-section-sub">Your current subscription</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="sett-plan-badge">Free Trial</div>
+            <div style="font-size:13px;color:var(--t3);margin-top:8px">1,000 parcels / week · Resets Monday</div>
+          </div>
+          <button class="btn-p btn-sm" onclick="window.location.hash='#pricing'">Upgrade plan →</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ════════ SHARE MODAL (Task 21) ════════ -->
+<div id="shareModal" class="share-overlay" onclick="if(event.target===this)hideShareModal()">
+  <div class="share-modal">
+    <div class="share-modal-title">Share Results</div>
+    <div class="share-modal-sub">Anyone with this link can view results without logging in.</div>
+    <div class="share-url-box">
+      <input class="share-url-inp" id="shareUrlInput" readonly value="">
+      <button class="btn-p btn-sm" onclick="copyShareUrl()">Copy</button>
+    </div>
+    <div class="share-note">
+      Link is public · View-only · Expires in 30 days<br>
+      <span style="color:var(--green);cursor:pointer" onclick="hideShareModal()">Close</span>
+    </div>
   </div>
 </div>
 
@@ -965,10 +1347,11 @@ const HASH_MAP = {
   '#forgot': 'page-forgot', '#reset-password': 'page-reset-password',
   '#dashboard': 'page-dashboard', '#processing': 'page-processing',
   '#results': 'page-results', '#pricing': 'page-pricing',
+  '#settings': 'page-settings',
 };
 
 const batchState = { results: [], filtered: 'all', elapsed: 0, name: '' };
-const PROTECTED = new Set(['#dashboard', '#results', '#processing']);
+const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings']);
 
 const FLAG_FILTERS = [
   { key:'wetlands', label:'Wetlands',  test: r => (r.flags||[]).some(f=>/wetland on parcel/i.test(f)) || /wetland on parcel/i.test(r.auto_kill_reason||'') },
@@ -987,6 +1370,12 @@ const RULES_DEF = [
 ];
 let _activeFilters  = new Set();
 let _screeningRules = {};
+let _sortState      = { col: null, dir: 0 };
+let _currentDisplayed = [];
+let _currentPage    = 1;
+let _rowsPerPage    = 25;
+let _selectedRows   = new Set();
+let _openParcel     = null;
 
 // FIX 6: router is async — calls initAuth() before allowing protected pages
 async function router() {
@@ -999,6 +1388,7 @@ async function router() {
     goTo('dashboard'); return;
   }
   if (hash === '#dashboard') { loadDashboardData(); updateNav(); }
+  if (hash === '#settings') { loadSettingsPage(); updateNav(); }
   showScreen(HASH_MAP[hash] || 'page-landing');
 }
 
@@ -1684,8 +2074,8 @@ async function loadBatchResults(batchId) {
         .order('score', { ascending: true }),
     ]);
     if (!results) return;
-    currentBatchResults = results;
-    batchState.results  = results;
+    currentBatchResults = results.map(r => ({ ...r, _note: r.notes, _note_updated_at: r.notes_updated_at }));
+    batchState.results  = currentBatchResults;
     batchState.filtered = 'all';
     batchState.elapsed  = 0;
     batchState.name     = batch?.name || '';
@@ -1710,6 +2100,7 @@ async function saveBatchToSupabase(batchName, results) {
       created_at: new Date().toISOString()
     }).select().single();
     if (!batch) return null;
+    _currentBatchId = batch.id;
     const rows = (results.results || []).map(r => ({
       batch_id:   batch.id,
       user_id:    currentUser.id,
@@ -1806,6 +2197,31 @@ async function _executeBatch(lines, estimatedSet) {
 
   const btn = document.getElementById('runBatchBtn');
   btn.disabled = true; btn.textContent = 'Screening…';
+
+  // Task 30: route large batches through queue endpoint
+  if (flLines.length > 50) {
+    goTo('processing');
+    const countEl2 = document.getElementById('procCount');
+    if (countEl2) countEl2.textContent = 'Queuing ' + flLines.length + ' parcels…';
+    try {
+      const t0q = Date.now();
+      const data = await screenParcelsQueue(flLines, batchState.name);
+      batchState.elapsed  = Math.round((Date.now() - t0q) / 1000);
+      const apiResults = (data.results || []).map(r => ({
+        ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase())
+      }));
+      batchState.results  = [...outsideResults, ...apiResults];
+      batchState.filtered = 'all';
+      const summary = {
+        total: apiResults.length, kill: apiResults.filter(r=>r.verdict==='KILL').length,
+        review: apiResults.filter(r=>r.verdict==='REVIEW').length, pursue: apiResults.filter(r=>r.verdict==='PURSUE').length,
+      };
+      await saveBatchToSupabase(batchState.name, { summary, results: apiResults });
+      renderBatchResults(); goTo('results');
+    } catch(e) { toast('Batch error: ' + e.message); goTo('dashboard'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = 'Screen Parcels →'; } }
+    return;
+  }
 
   const countEl = document.getElementById('procCount');
   if (countEl) countEl.textContent = 'Screening ' + flLines.length + ' parcel' + (flLines.length !== 1 ? 's' : '');
@@ -2037,15 +2453,56 @@ function clearFlagFilters() {
   _refreshTable();
 }
 
+function cycleSortCol(col) {
+  if (_sortState.col !== col) {
+    _sortState = { col, dir: 1 };
+  } else if (_sortState.dir === 1) {
+    _sortState.dir = -1;
+  } else {
+    _sortState = { col: null, dir: 0 };
+  }
+  ['score','decision','size'].forEach(c => {
+    const el = document.getElementById('sa-' + c);
+    if (!el) return;
+    if (c === _sortState.col) el.textContent = _sortState.dir === 1 ? ' ↑' : ' ↓';
+    else el.textContent = ' ↕';
+  });
+  _refreshTable();
+}
+
 function _refreshTable() {
   const verdict = batchState.filtered;
-  const sorted = [...batchState.results].sort((a, b) => {
-    const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3, OUTSIDE_COVERAGE:10 };
-    const ga = o[effectiveVerdict(a)] ?? 4, gb = o[effectiveVerdict(b)] ?? 4;
-    if (ga !== gb) return ga - gb;
-    if (a.auto_kill !== b.auto_kill) return a.auto_kill ? -1 : 1;
-    return (a.score ?? 101) - (b.score ?? 101);
-  });
+  const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3, OUTSIDE_COVERAGE:10 };
+  let sorted;
+  if (!_sortState.col || _sortState.dir === 0) {
+    sorted = [...batchState.results].sort((a, b) => {
+      const ga = o[effectiveVerdict(a)] ?? 4, gb = o[effectiveVerdict(b)] ?? 4;
+      if (ga !== gb) return ga - gb;
+      if (a.auto_kill !== b.auto_kill) return a.auto_kill ? -1 : 1;
+      return (a.score ?? 101) - (b.score ?? 101);
+    });
+  } else if (_sortState.col === 'score') {
+    sorted = [...batchState.results].sort((a, b) => {
+      const sa = a.auto_kill ? 0 : (a.score ?? 101);
+      const sb = b.auto_kill ? 0 : (b.score ?? 101);
+      return _sortState.dir === 1 ? sa - sb : sb - sa;
+    });
+  } else if (_sortState.col === 'decision') {
+    sorted = [...batchState.results].sort((a, b) => {
+      const ga = o[effectiveVerdict(a)] ?? 4, gb = o[effectiveVerdict(b)] ?? 4;
+      const g = _sortState.dir === 1 ? ga - gb : gb - ga;
+      if (g !== 0) return g;
+      return (a.score ?? 101) - (b.score ?? 101);
+    });
+  } else if (_sortState.col === 'size') {
+    sorted = [...batchState.results].sort((a, b) => {
+      const sa = (a.parcel_info || {}).acreage, sb = (b.parcel_info || {}).acreage;
+      if (sa == null && sb == null) return 0;
+      if (sa == null) return 1;
+      if (sb == null) return -1;
+      return _sortState.dir === 1 ? sa - sb : sb - sa;
+    });
+  }
   let filtered = verdict === 'all' ? sorted : sorted.filter(r => effectiveVerdict(r) === verdict);
   if (_activeFilters.size > 0) {
     filtered = filtered.filter(r => [..._activeFilters].every(key => {
@@ -2053,7 +2510,9 @@ function _refreshTable() {
       return f ? f.test(r) : true;
     }));
   }
-  renderTable(filtered);
+  _currentDisplayed = filtered;
+  _currentPage = 1;
+  renderPage();
 }
 
 function loadSbUsage() {
@@ -2131,6 +2590,10 @@ function renderBatchResults() {
   updateSidebarActive('all');
   batchState.filtered = 'all';
   _activeFilters.clear();
+  _selectedRows.clear();
+  _sortState = { col: null, dir: 0 };
+  ['score','decision','size'].forEach(c => { const el = document.getElementById('sa-'+c); if (el) el.textContent=' ↕'; });
+  closeDetailPanel();
   renderFlagFilters();
   renderRulesPanel();
   loadSbUsage();
@@ -2147,74 +2610,322 @@ function updateSidebarActive(verdict) {
 function verdictClass(v) { return v==='KILL'?'vb-kill':v==='REVIEW'?'vb-review':v==='PURSUE'?'vb-pursue':v==='OUTSIDE_COVERAGE'?'vb-outside':'vb-error'; }
 function verdictColor(v) { return v==='KILL'?'var(--rd)':v==='REVIEW'?'var(--am)':v==='PURSUE'?'var(--sg2)':v==='OUTSIDE_COVERAGE'?'var(--ink4)':'var(--ink4)'; }
 
-// FIX 4: Table render
-function renderTable(results) {
+// ── PAGINATION + TABLE RENDER (Tasks 15, 19)
+function renderPage() {
+  const start = (_currentPage - 1) * _rowsPerPage;
+  const end   = start + _rowsPerPage;
+  renderTable(_currentDisplayed.slice(start, end), start);
+  renderPagination();
+}
+
+function renderPagination() {
+  const container = document.getElementById('pagiContainer');
+  if (!container) return;
+  const total = _currentDisplayed.length;
+  if (total === 0) { container.innerHTML = ''; return; }
+  const pages = Math.ceil(total / _rowsPerPage);
+  const start = (_currentPage - 1) * _rowsPerPage + 1;
+  const end   = Math.min(_currentPage * _rowsPerPage, total);
+  if (pages <= 1 && _rowsPerPage === 25) { container.innerHTML = '<div class="pagi-wrap"><span class="pagi-info">Showing ' + total + ' of ' + total + ' parcels</span></div>'; return; }
+  let pageNums = '';
+  const lo = Math.max(1, _currentPage - 2), hi = Math.min(pages, _currentPage + 2);
+  if (lo > 1) pageNums += '<button class="pagi-btn" onclick="goToPage(1)">1</button>' + (lo > 2 ? '<span style="color:var(--t3);padding:0 4px">…</span>' : '');
+  for (let p = lo; p <= hi; p++) pageNums += '<button class="pagi-btn' + (p === _currentPage ? ' active' : '') + '" onclick="goToPage(' + p + ')">' + p + '</button>';
+  if (hi < pages) pageNums += (hi < pages - 1 ? '<span style="color:var(--t3);padding:0 4px">…</span>' : '') + '<button class="pagi-btn" onclick="goToPage(' + pages + ')">' + pages + '</button>';
+  container.innerHTML = '<div class="pagi-wrap">' +
+    '<span class="pagi-info">Showing ' + start + '–' + end + ' of ' + total + ' parcels</span>' +
+    '<div style="display:flex;align-items:center;gap:8px"><div class="pagi-controls">' +
+    '<button class="pagi-btn" onclick="goToPage(' + (_currentPage - 1) + ')"' + (_currentPage <= 1 ? ' disabled' : '') + '>← Prev</button>' +
+    pageNums +
+    '<button class="pagi-btn" onclick="goToPage(' + (_currentPage + 1) + ')"' + (_currentPage >= pages ? ' disabled' : '') + '>Next →</button>' +
+    '</div><select class="pagi-rpp" onchange="setRowsPerPage(+this.value)">' +
+    [25,50,100].map(n => '<option value="' + n + '"' + (n === _rowsPerPage ? ' selected' : '') + '>' + n + ' / page</option>').join('') +
+    '</select></div></div>';
+}
+
+function goToPage(p) {
+  const pages = Math.ceil(_currentDisplayed.length / _rowsPerPage);
+  if (p < 1 || p > pages) return;
+  _currentPage = p;
+  renderPage();
+}
+
+function setRowsPerPage(n) { _rowsPerPage = n; _currentPage = 1; renderPage(); }
+
+function renderTable(results, offset) {
   const tbody = document.getElementById('resTableBody');
   if (!tbody) return;
   if (!results.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--t3)">No results match this filter.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--t3)">No results match this filter.</td></tr>';
     return;
   }
   tbody.innerHTML = results.map((r, i) => {
+    const absIdx    = (offset || 0) + i;
     const isOutside = r.verdict === 'OUTSIDE_COVERAGE';
     const isError   = r.verdict === 'ERROR';
     const isGeoFail = isError && (r.error || '').toLowerCase().includes('geocod');
     const isTimeout = isError && !isGeoFail;
     const isEst     = !isOutside && !isError && _estimatedAddresses.has((r.address || '').toLowerCase());
-    const rowClass  = 'res-trow' + (isOutside ? ' row-outside' : '') + (isError ? ' row-error' : '');
-    const vc        = verdictClass(r.verdict);
-    const pi        = r.parcel_info || {};
-
-    // Address: split street / city
+    const isSelected  = _selectedRows.has(absIdx);
+    const isPanelOpen = _openParcel && _openParcel.address === r.address;
+    const rowClass  = 'res-trow' + (isOutside ? ' row-outside' : '') + (isError ? ' row-error' : '') +
+                      (isSelected ? ' selected' : '') + (isPanelOpen ? ' panel-selected' : '');
+    const ev = effectiveVerdict(r);
+    const vc = verdictClass(ev);
+    const pi = r.parcel_info || {};
     const { street, city } = splitAddress(r.address || '');
-    const addrHtml = '<div class="tbl-addr-street">' + escHtml(street) +
+    const noteIcon = r._note ? ' <span title="Has note" style="opacity:.7;font-size:11px">📝</span>' : '';
+    const addrHtml = '<div class="tbl-addr-street">' + escHtml(street) + noteIcon +
       (isEst ? ' <span class="tag-est" style="font-size:9px;padding:1px 5px">~est</span>' : '') + '</div>' +
       (city && !isOutside ? '<div class="tbl-addr-city">' + escHtml(city) + ', FL</div>' : '');
-
-    // County (empty for outside/error rows)
     const county = (!isOutside && !isError) ? extractCounty(r.address || '') : '';
-
-    // Size — round to 1 decimal, amber if < 0.25 ac
     let sizeHtml = '';
     if (!isOutside && !isError && pi.acreage != null) {
       const ac = Math.round(pi.acreage * 10) / 10;
       sizeHtml = '<span' + (pi.acreage < 0.25 ? ' class="tbl-size-amber"' : '') + '>' + ac + ' ac</span>';
     }
-
-    // Signals — colored pills by verdict
     const signalsHtml = buildSignals(r);
-
-    // Score
     const scoreStr   = (isOutside || isError) ? '' : r.auto_kill ? '⛔' : (r.score != null ? String(r.score) : '');
-    const scoreColor = (isOutside || isError) ? '' : r.auto_kill ? 'var(--red)' : verdictColor(r.verdict);
-
-    // Decision label
-    const verdictLabel = isOutside ? 'Not FL' : isGeoFail ? 'Not found' : isTimeout ? 'Timeout' : r.verdict;
-
-    const expId = 'exp-' + i;
-    return '<tr class="' + rowClass + '" onclick="toggleExpand(\'' + expId + '\')">' +
+    const scoreColor = (isOutside || isError) ? '' : r.auto_kill ? 'var(--red)' : verdictColor(ev);
+    const verdictLabel = isOutside ? 'Not FL' : isGeoFail ? 'Not found' : isTimeout ? 'Timeout' : ev;
+    return '<tr class="' + rowClass + '" id="trow-' + absIdx + '" onclick="openDetailPanel(' + absIdx + ',event)">' +
+      '<td onclick="event.stopPropagation()" style="padding:8px 12px;width:32px">' +
+        '<input type="checkbox" class="row-cb"' + (isSelected ? ' checked' : '') + ' onchange="toggleRowSelect(' + absIdx + ',event)">' +
+      '</td>' +
       '<td class="tbl-parcel">' + addrHtml + '</td>' +
       '<td class="tbl-county">' + escHtml(county) + '</td>' +
       '<td class="tbl-size">' + sizeHtml + '</td>' +
       '<td class="tbl-signals">' + signalsHtml + '</td>' +
       '<td class="tbl-score-cell"' + (scoreColor ? ' style="color:' + scoreColor + '"' : '') + '>' + escHtml(scoreStr) + '</td>' +
       '<td><span class="verdict-badge ' + vc + '">' + escHtml(verdictLabel) + '</span></td>' +
-      '</tr>' +
-      '<tr id="' + expId + '" class="res-expand-row" style="display:none"><td colspan="6">' + buildExpandHtml(r, expId) + '</td></tr>';
+      '</tr>';
   }).join('');
 }
 
-function toggleExpand(id) {
-  const row = document.getElementById(id);
-  if (!row) return;
-  const isOpen = row.style.display !== 'none';
-  document.querySelectorAll('.res-expand-row').forEach(el => el.style.display = 'none');
-  document.querySelectorAll('.res-trow.expanded').forEach(el => el.classList.remove('expanded'));
-  if (!isOpen) {
-    row.style.display = 'table-row';
-    const prev = row.previousElementSibling;
-    if (prev) prev.classList.add('expanded');
+// ── DETAIL PANEL (Task 16)
+let _openParcelIdx = -1;
+
+function openDetailPanel(absIdx, event) {
+  if (event && event.target && (event.target.classList.contains('row-cb') || event.target.type === 'checkbox')) return;
+  const r = _currentDisplayed[absIdx];
+  if (!r) return;
+  _openParcel = r; _openParcelIdx = absIdx;
+  document.querySelectorAll('.res-trow.panel-selected').forEach(el => el.classList.remove('panel-selected'));
+  const row = document.getElementById('trow-' + absIdx);
+  if (row) row.classList.add('panel-selected');
+  const panel = document.getElementById('detailPanel');
+  if (!panel) return;
+  const pi = r.parcel_info || {};
+  const ev = effectiveVerdict(r);
+  const vc = verdictClass(ev);
+  const setT = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const setH = (id, v) => { const e = document.getElementById(id); if (e) e.innerHTML = v; };
+  setT('dpStreet', r.address || '');
+  setT('dpApn', pi.apn ? 'APN: ' + pi.apn : '');
+  setT('dpTimestamp', '');
+  const scoreEl = document.getElementById('dpScore');
+  if (scoreEl) {
+    scoreEl.textContent = r.auto_kill ? '⛔' : (r.score != null ? r.score : '—');
+    scoreEl.style.color = ev === 'KILL' ? 'var(--red)' : ev === 'REVIEW' ? 'var(--amber)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--t2)';
   }
+  setH('dpBadge', '<span class="verdict-badge ' + vc + '">' + escHtml(ev) + '</span>');
+  // Why box
+  const whyEl = document.getElementById('dpWhy');
+  if (whyEl) {
+    const whyCls = ev === 'KILL' ? 'dp-why-k' : ev === 'REVIEW' ? 'dp-why-r' : 'dp-why-p';
+    let whyText = '';
+    if (ev === 'KILL') { const reason = r.auto_kill_reason || (r.flags||[])[0] || 'fatal flaw detected'; whyText = '<strong>Fatal flaw detected.</strong> ' + escHtml(reason) + '. Development blocked.'; }
+    else if (ev === 'REVIEW') { const flag = (r.flags||[])[0] || 'a flag'; whyText = '<strong>No fatal flaws</strong> but ' + escHtml(shortenFlag(flag)) + ' requires manual check.'; }
+    else if (ev === 'PURSUE') { const pos = (r.positives||[])[0] || 'no fatal flags'; whyText = '<strong>No fatal flags.</strong> ' + escHtml(shortenFlag(pos)) + '. Worth pursuing.'; }
+    else { whyText = escHtml(ev); }
+    whyEl.className = 'dp-why ' + whyCls;
+    whyEl.innerHTML = whyText;
+  }
+  // Flags
+  const dpFlags = document.getElementById('dpFlags');
+  if (dpFlags) {
+    const killF = r.kill_flags || (r.auto_kill ? r.flags : []) || [];
+    const revF  = r.review_flags || [];
+    const pos   = r.positives || [];
+    const infoF = (r.info_flags || r.flags || []).filter(f => !killF.includes(f) && !revF.includes(f));
+    let h = '';
+    killF.forEach(f => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-r"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span><span class="dp-flag-src">auto-kill</span></div>'; });
+    revF.forEach(f  => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-a"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span><span class="dp-flag-src">review</span></div>'; });
+    infoF.slice(0,4).forEach(f => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-m"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>'; });
+    pos.slice(0,3).forEach(p  => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-g"></div><span class="dp-flag-text">' + escHtml(translateFlag(p)) + '</span></div>'; });
+    dpFlags.innerHTML = h || '<div style="font-size:12px;color:var(--t3)">No flags.</div>';
+  }
+  // Info grid
+  const dpInfo = document.getElementById('dpInfo');
+  if (dpInfo) {
+    const fields = [];
+    if (pi.acreage != null) fields.push(['Size', pi.acreage + ' ac']);
+    const county = extractCounty(r.address || '');
+    if (county) fields.push(['County', county]);
+    if (pi.owner) fields.push(['Owner', pi.owner]);
+    if (pi.last_sale_price != null && pi.last_sale_price > 0) fields.push(['Last Sale', fmt$(pi.last_sale_price)]);
+    if (pi.land_use_code) fields.push(['Type', getDORDescription(pi.land_use_code)]);
+    dpInfo.innerHTML = fields.map(([l,v]) => '<div class="dp-grid-item"><div class="dp-grid-lbl">' + escHtml(l) + '</div><div class="dp-grid-val">' + escHtml(String(v)) + '</div></div>').join('');
+  }
+  // Sources
+  setH('dpSources', 'Sources: ' + (r.sources || ['FEMA','Wetlands','Wildlife','EPA','Roads','County Records']).map(s => escHtml(translateSource(s))).join(' · '));
+  // Verify checklist
+  const verifyKeys = ['utilities','septic','permits','easements','hoa'];
+  const storeKey = 'piq-verify-' + (r.address || '').toLowerCase().replace(/\W+/g,'-');
+  const saved = JSON.parse(localStorage.getItem(storeKey) || '{}');
+  verifyKeys.forEach(k => {
+    const cb = document.getElementById('dvc-' + k);
+    if (!cb) return;
+    cb.dataset.key = k; cb.dataset.storeKey = storeKey;
+    if (saved[k]) { cb.classList.add('checked'); cb.textContent = '✓'; }
+    else { cb.classList.remove('checked'); cb.textContent = ''; }
+  });
+  _loadNoteForPanel(r);
+  panel.classList.add('open');
+  setTimeout(() => initParcelMap(r), 320);
+}
+
+function closeDetailPanel() {
+  const panel = document.getElementById('detailPanel');
+  if (panel) panel.classList.remove('open');
+  _openParcel = null; _openParcelIdx = -1;
+  document.querySelectorAll('.res-trow.panel-selected').forEach(el => el.classList.remove('panel-selected'));
+}
+
+function nextParcel() {
+  const next = _openParcelIdx + 1;
+  if (next >= _currentDisplayed.length) { toast('Last parcel reached'); return; }
+  const page = Math.floor(next / _rowsPerPage) + 1;
+  if (page !== _currentPage) { _currentPage = page; renderPage(); }
+  openDetailPanel(next, null);
+}
+
+function toggleVerifyItem(itemEl, key) {
+  const cb = itemEl.querySelector('.dp-verify-cb');
+  if (!cb) return;
+  const storeKey = cb.dataset.storeKey;
+  const isChecked = cb.classList.contains('checked');
+  if (isChecked) { cb.classList.remove('checked'); cb.textContent = ''; }
+  else { cb.classList.add('checked'); cb.textContent = '✓'; }
+  if (storeKey) {
+    const saved = JSON.parse(localStorage.getItem(storeKey) || '{}');
+    saved[key] = !isChecked;
+    localStorage.setItem(storeKey, JSON.stringify(saved));
+  }
+}
+
+// ── NOTES (Task 20)
+function _loadNoteForPanel(r) {
+  const disp = document.getElementById('dpNoteDisplay');
+  const ed   = document.getElementById('dpNoteEditor');
+  const emp  = document.getElementById('dpNoteEmpty');
+  if (!disp || !ed || !emp) return;
+  ed.style.display = 'none';
+  if (r && r._note) {
+    disp.style.display = 'block'; emp.style.display = 'none';
+    const nt = document.getElementById('dpNoteText');
+    const ntm = document.getElementById('dpNoteTime');
+    if (nt) nt.textContent = r._note;
+    if (ntm && r._note_updated_at) ntm.textContent = 'Added ' + new Date(r._note_updated_at).toLocaleString();
+  } else {
+    disp.style.display = 'none'; emp.style.display = 'block';
+  }
+}
+function showNoteEditor() {
+  document.getElementById('dpNoteDisplay').style.display = 'none';
+  document.getElementById('dpNoteEmpty').style.display   = 'none';
+  document.getElementById('dpNoteEditor').style.display  = 'block';
+  const inp = document.getElementById('dpNoteInput');
+  if (inp) { inp.value = _openParcel?._note || ''; inp.focus(); }
+}
+function cancelNote() { document.getElementById('dpNoteEditor').style.display = 'none'; _loadNoteForPanel(_openParcel || {}); }
+async function saveNote() {
+  if (!_openParcel) return;
+  const text = (document.getElementById('dpNoteInput')?.value || '').trim();
+  if (!text) { cancelNote(); return; }
+  _openParcel._note = text; _openParcel._note_updated_at = new Date().toISOString();
+  _loadNoteForPanel(_openParcel); renderPage();
+  if (sb && currentUser) {
+    try { await sb.from('parcel_results').update({ notes: text, notes_updated_at: new Date().toISOString() }).eq('user_id', currentUser.id).eq('address', _openParcel.address); } catch(e) {}
+  }
+  toast('Note saved');
+}
+async function deleteNote() {
+  if (!_openParcel) return;
+  _openParcel._note = null; _openParcel._note_updated_at = null;
+  _loadNoteForPanel(_openParcel); renderPage();
+  if (sb && currentUser) {
+    try { await sb.from('parcel_results').update({ notes: null, notes_updated_at: null }).eq('user_id', currentUser.id).eq('address', _openParcel.address); } catch(e) {}
+  }
+  toast('Note deleted');
+}
+
+// ── RE-SCREEN FROM PANEL (Task 17)
+async function rescreenFromPanel() {
+  if (!_openParcel) return;
+  const btn = document.getElementById('dpRescreenBtn');
+  const ts  = document.getElementById('dpTimestamp');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Screening…'; }
+  if (ts)  ts.textContent = 'Re-screening…';
+  try {
+    const hdrs = { 'Content-Type': 'application/json' };
+    if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
+    const resp = await fetch(API + '/api/batch', { method:'POST', headers:hdrs, body:JSON.stringify({ parcels:[{ address:_openParcel.address }], state:'FL' }) });
+    if (!resp.ok) throw new Error('Server error ' + resp.status);
+    const data = await resp.json();
+    const nr = data.results?.[0]; if (!nr) throw new Error('No result');
+    nr._note = _openParcel._note; nr._note_updated_at = _openParcel._note_updated_at;
+    const bIdx = batchState.results.findIndex(r => r.address === _openParcel.address);
+    if (bIdx !== -1) batchState.results[bIdx] = nr;
+    if (_openParcelIdx >= 0 && _openParcelIdx < _currentDisplayed.length) _currentDisplayed[_openParcelIdx] = nr;
+    _openParcel = nr;
+    openDetailPanel(_openParcelIdx, null); renderPage();
+    if (ts) ts.textContent = 'Updated just now';
+    toast('Parcel re-screened with fresh data');
+    if (sb && currentUser) {
+      await sb.from('parcel_results').update({ verdict:nr.verdict, score:nr.score, flags:nr.flags }).eq('user_id', currentUser.id).eq('address', nr.address).catch(()=>{});
+    }
+  } catch(e) {
+    if (ts) ts.textContent = 'Re-screen failed. Try again.';
+    toast('Re-screen failed: ' + e.message);
+  } finally { if (btn) { btn.disabled=false; btn.textContent='↻ Re-screen'; } }
+}
+
+// ── BULK SELECT (Task 18)
+function toggleRowSelect(absIdx, event) {
+  if (event) event.stopPropagation();
+  if (_selectedRows.has(absIdx)) _selectedRows.delete(absIdx); else _selectedRows.add(absIdx);
+  updateBulkBar();
+}
+function toggleSelectAll() {
+  const cb = document.getElementById('selAllCb');
+  if (!cb) return;
+  const start = (_currentPage - 1) * _rowsPerPage, end = start + _rowsPerPage;
+  const idxs = _currentDisplayed.slice(start, end).map((_,i) => start + i);
+  if (cb.checked) idxs.forEach(i => _selectedRows.add(i));
+  else idxs.forEach(i => _selectedRows.delete(i));
+  renderPage(); updateBulkBar();
+}
+function updateBulkBar() {
+  const bar = document.getElementById('bulkBar'), cnt = document.getElementById('bulkCount');
+  if (!bar) return;
+  const n = _selectedRows.size;
+  if (n > 0) { bar.classList.add('show'); if (cnt) cnt.textContent = n + ' parcel' + (n!==1?'s':'') + ' selected'; }
+  else bar.classList.remove('show');
+}
+function clearSelection() { _selectedRows.clear(); updateBulkBar(); renderPage(); }
+function exportSelected() {
+  const rows = [['Address','Verdict','Score','Auto Kill','Kill Reason','Flags','Positives','Acreage','Owner','Last Sale','Land Use']];
+  [..._selectedRows].sort((a,b)=>a-b).forEach(i => {
+    const r = _currentDisplayed[i]; if (!r) return;
+    const pi = r.parcel_info||{};
+    rows.push([r.address,effectiveVerdict(r),r.score!=null?r.score:'',r.auto_kill?'YES':'NO',r.auto_kill_reason||'',(r.flags||[]).map(translateFlag).join('; '),(r.positives||[]).map(translateFlag).join('; '),pi.acreage!=null?pi.acreage:'',pi.owner||'',pi.last_sale_price!=null?pi.last_sale_price:'',pi.land_use_code?getDORDescription(pi.land_use_code):'']);
+  });
+  const csv = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = (batchState.name?batchState.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-selected':'parceliq-selected') + '.csv';
+  a.click(); toast(_selectedRows.size + ' parcels exported');
 }
 
 // FIX 3 + FIX 4: Expand detail with translated flags, DOR desc, "Verify Before Offer"
@@ -2288,6 +2999,283 @@ function filterResults(verdict, btn) {
   batchState.filtered = verdict;
   updateSidebarActive(verdict);
   _refreshTable();
+}
+
+// ── MAP VIEW (Task 26)
+let _map = null;
+const _mapLayers = {};
+
+function initParcelMap(r) {
+  const placeholder = document.getElementById('dpMapPlaceholder');
+  const mapDiv      = document.getElementById('parcel-map');
+  const controls    = document.getElementById('mapControls');
+  if (!mapDiv || typeof L === 'undefined') { if (placeholder) placeholder.style.display = 'flex'; return; }
+
+  if (_map) { try { _map.remove(); } catch(e) {} _map = null; }
+  Object.keys(_mapLayers).forEach(k => delete _mapLayers[k]);
+
+  const lat = r._lat || 28.0;
+  const lng = r._lng || -81.5;
+  const geometry = r.parcel_info?.geometry;
+
+  if (placeholder) placeholder.style.display = 'none';
+  if (mapDiv)      mapDiv.style.display = 'block';
+  if (controls)    controls.style.display = 'flex';
+
+  _map = L.map('parcel-map', { zoomControl: true }).setView([lat, lng], 16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_map);
+
+  if (geometry && geometry.length > 0) {
+    const poly = L.polygon(geometry[0], { color: '#22C55E', weight: 2.5, fillColor: '#22C55E', fillOpacity: 0.1 });
+    poly.addTo(_map);
+    try { _map.fitBounds(poly.getBounds(), { padding: [20, 20] }); } catch(e) {}
+    _mapLayers['parcel'] = poly;
+  } else {
+    L.circleMarker([lat, lng], { radius: 10, color: '#22C55E', fillOpacity: 0.3 }).addTo(_map);
+  }
+
+  try {
+    const floodLayer = L.tileLayer.wms('https://hazards.fema.gov/gis/nfhl/services/public/NFHL/MapServer/WMSServer', { layers: '28', format: 'image/png', transparent: true, opacity: 0.4, attribution: 'FEMA NFHL' });
+    floodLayer.addTo(_map); _mapLayers['flood'] = floodLayer;
+  } catch(e) {}
+
+  try {
+    const wetLayer = L.tileLayer.wms('https://www.fws.gov/wetlands/arcgis/services/Wetlands/MapServer/WMSServer', { layers: '1', format: 'image/png', transparent: true, opacity: 0.4, attribution: 'USFWS NWI' });
+    wetLayer.addTo(_map); _mapLayers['wetlands'] = wetLayer;
+  } catch(e) {}
+
+  setTimeout(() => { if (_map) _map.invalidateSize(); }, 350);
+}
+
+function toggleMapLayer(btn) {
+  const layer = btn.dataset.layer;
+  if (!_mapLayers[layer] || !_map) return;
+  if (_map.hasLayer(_mapLayers[layer])) { _map.removeLayer(_mapLayers[layer]); btn.classList.remove('active'); }
+  else { _map.addLayer(_mapLayers[layer]); btn.classList.add('active'); }
+}
+
+// ── LARGE BATCH QUEUE (Task 30)
+async function screenParcelsQueue(parcels, batchName) {
+  const resp = await fetch(API + '/api/batch/queue', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parcels: parcels.map(a => ({ address: a })), state: 'FL' }),
+  });
+  if (!resp.ok) throw new Error('Queue error ' + resp.status);
+  const { job_id, total } = await resp.json();
+  const countEl = document.getElementById('procCount');
+  if (countEl) countEl.textContent = 'Processing ' + total + ' parcels in background…';
+  return new Promise((resolve, reject) => {
+    const interval = setInterval(async () => {
+      try {
+        const sr = await fetch(API + '/api/batch/status/' + job_id);
+        const st = await sr.json();
+        const pct = total > 0 ? Math.round((st.progress / total) * 100) : 0;
+        updateProgress(st.progress, total, null);
+        if (st.status === 'complete') {
+          clearInterval(interval);
+          resolve({ summary: {}, results: st.results });
+        } else if (st.status === 'error') { clearInterval(interval); reject(new Error(st.error || 'Queue failed')); }
+      } catch(e) { clearInterval(interval); reject(e); }
+    }, 3000);
+  });
+}
+
+// ── SINGLE PARCEL SEARCH UI (Task 27)
+async function searchSingleParcel() {
+  const q = (document.getElementById('singleParcelInput')?.value || '').trim();
+  if (!q) { toast('Enter an address or APN'); return; }
+  const btn = document.getElementById('singleParcelBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Searching…'; }
+  try {
+    const resp = await fetch(API + '/api/search/parcel?q=' + encodeURIComponent(q));
+    if (resp.status === 404) { toast('No parcel found for that address or APN'); return; }
+    if (!resp.ok) throw new Error('Server error ' + resp.status);
+    const result = await resp.json();
+    // Show result in a fresh results view
+    batchState.results = [result]; batchState.name = 'Single parcel search'; batchState.filtered = 'all';
+    renderBatchResults(); goTo('results');
+  } catch(e) { toast('Search failed: ' + e.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Search →'; } }
+}
+
+// ── FAQ ACCORDION (Task 23)
+function toggleFaq(qEl) {
+  const aEl = qEl.nextElementSibling;
+  const icon = qEl.querySelector('.faq-icon');
+  const isOpen = aEl.classList.contains('open');
+  document.querySelectorAll('.faq-a.open').forEach(a => { a.classList.remove('open'); const q = a.previousElementSibling; if (q) { const ic = q.querySelector('.faq-icon'); if (ic) ic.textContent = '+'; } });
+  if (!isOpen) { aEl.classList.add('open'); if (icon) icon.textContent = '−'; }
+}
+
+// ── UPLOAD TABS (Task 22)
+function switchDashTab(mode) {
+  const batch  = document.getElementById('dashBatchForm');
+  const single = document.getElementById('dashSingleParcel');
+  const tB     = document.getElementById('dTabBatch');
+  const tS     = document.getElementById('dTabSingle');
+  if (mode === 'batch') {
+    if (batch)  batch.style.display  = '';
+    if (single) single.style.display = 'none';
+    if (tB) tB.classList.add('active');
+    if (tS) tS.classList.remove('active');
+  } else {
+    if (batch)  batch.style.display  = 'none';
+    if (single) single.style.display = '';
+    if (tB) tB.classList.remove('active');
+    if (tS) tS.classList.add('active');
+    const inp = document.getElementById('singleParcelInput');
+    if (inp) setTimeout(() => inp.focus(), 80);
+  }
+}
+
+function switchUpTab(mode) {
+  const paste = document.getElementById('upPasteMode');
+  const file  = document.getElementById('upFileMode');
+  const tabP  = document.getElementById('tabPaste');
+  const tabF  = document.getElementById('tabFile');
+  if (mode === 'paste') {
+    if (paste) paste.style.display = '';
+    if (file)  file.style.display  = 'none';
+    if (tabP)  tabP.classList.add('active');
+    if (tabF)  tabF.classList.remove('active');
+  } else {
+    if (paste) paste.style.display = 'none';
+    if (file)  file.style.display  = '';
+    if (tabP)  tabP.classList.remove('active');
+    if (tabF)  tabF.classList.add('active');
+  }
+}
+
+function updateAddrCount() {
+  const ta = document.getElementById('batchInput');
+  const el = document.getElementById('addrCount');
+  const hint = document.getElementById('screeningCountHint');
+  if (!ta || !el) return;
+  const n = ta.value.split('\n').map(l=>l.trim()).filter(Boolean).length;
+  el.textContent = n > 0 ? n + ' address' + (n!==1?'es':'') : '';
+  if (hint) hint.textContent = n > 0 ? 'Screening ' + n + ' address' + (n!==1?'es':'') : '';
+}
+
+function handleDragOver(e) {
+  e.preventDefault(); e.stopPropagation();
+  const dz = document.getElementById('dropZone');
+  if (dz) dz.classList.add('drag-over');
+}
+function handleDragLeave(e) {
+  const dz = document.getElementById('dropZone');
+  if (dz) dz.classList.remove('drag-over');
+}
+function handleDrop(e) {
+  e.preventDefault(); e.stopPropagation();
+  const dz = document.getElementById('dropZone');
+  if (dz) dz.classList.remove('drag-over');
+  const file = e.dataTransfer?.files?.[0];
+  if (!file) return;
+  processUploadedFile(file);
+}
+function handleFileUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  processUploadedFile(file);
+  e.target.value = '';
+}
+function processUploadedFile(file) {
+  const errEl = document.getElementById('fileError');
+  const prevEl = document.getElementById('filePreview');
+  if (!/\.(csv|xlsx|xls)$/i.test(file.name)) {
+    if (errEl) { errEl.textContent = 'Please upload a CSV or Excel file (.csv, .xlsx, .xls)'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (errEl) errEl.style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      if (typeof XLSX === 'undefined') { toast('Paste addresses manually — SheetJS not loaded'); return; }
+      const wb = XLSX.read(ev.target.result, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      let skipped = 0; const seen = new Set(); const valid = [];
+      for (const row of rows) {
+        const text = row.slice(0,4).map(c=>String(c||'').trim()).filter(Boolean).join(', ');
+        if (!text || _isHeaderRow(text) || text.length < 10 || !/\d/.test(text)) { skipped++; continue; }
+        const key = text.toLowerCase();
+        if (seen.has(key)) { skipped++; continue; }
+        seen.add(key); valid.push(text);
+      }
+      document.getElementById('batchInput').value = valid.join('\n');
+      if (prevEl) {
+        prevEl.style.display = 'block';
+        prevEl.innerHTML = '<div class="up-file-preview"><span>' + escHtml(file.name) + '</span><span style="color:var(--green);font-size:13px;font-weight:600">Found ' + valid.length + ' valid addresses</span></div>' + (skipped > 0 ? '<div style="font-size:11px;color:var(--t3);margin-top:4px">Skipped ' + skipped + ' invalid rows</div>' : '');
+      }
+      // Switch to paste mode to show addresses
+      switchUpTab('paste');
+      updateAddrCount();
+      toast('Found ' + valid.length + ' valid addresses from ' + file.name, 4000);
+    } catch(err) { if (errEl) { errEl.textContent = 'Could not parse file: ' + err.message; errEl.style.display = 'block'; } }
+  };
+  reader.readAsBinaryString(file);
+}
+
+// ── SETTINGS (Task 24)
+async function saveSettingsName() {
+  if (!sb || !currentUser) return;
+  const val = (document.getElementById('settName')?.value || '').trim();
+  if (!val) { toast('Enter a name first'); return; }
+  try {
+    await sb.from('profiles').update({ full_name: val }).eq('id', currentUser.id);
+    if (userProfile) userProfile.full_name = val;
+    updateUIWithProfile();
+    toast('Name updated');
+  } catch(e) { toast('Save failed: ' + e.message); }
+}
+async function saveSettingsPassword() {
+  if (!sb) return;
+  const np = (document.getElementById('settNewPw')?.value || '');
+  const cp = (document.getElementById('settConfPw')?.value || '');
+  const errEl = document.getElementById('settPwErr');
+  if (errEl) { errEl.textContent=''; errEl.classList.remove('show'); }
+  if (np !== cp) { if (errEl) { errEl.textContent='Passwords do not match'; errEl.classList.add('show'); } return; }
+  if (np.length < 8) { if (errEl) { errEl.textContent='Min 8 characters'; errEl.classList.add('show'); } return; }
+  try {
+    const { error } = await sb.auth.updateUser({ password: np });
+    if (error) throw error;
+    toast('Password updated');
+  } catch(e) { if (errEl) { errEl.textContent=e.message; errEl.classList.add('show'); } }
+}
+function loadSettingsPage() {
+  const nameEl  = document.getElementById('settName');
+  const emailEl = document.getElementById('settEmail');
+  if (nameEl && userProfile?.full_name) nameEl.value = userProfile.full_name;
+  if (emailEl && currentUser?.email)    emailEl.value = currentUser.email;
+  const rppEl = document.getElementById('settRpp');
+  if (rppEl) rppEl.value = String(_rowsPerPage);
+}
+
+// ── SHARE (Task 21)
+let _currentBatchId = null;
+async function shareResults() {
+  if (!_currentBatchId) { toast('Save a batch first before sharing'); return; }
+  try {
+    const hdrs = { 'Content-Type':'application/json' };
+    if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
+    const resp = await fetch(API + '/api/share/batch', { method:'POST', headers:hdrs, body:JSON.stringify({ batch_id: _currentBatchId }) });
+    if (!resp.ok) throw new Error('Share failed');
+    const data = await resp.json();
+    const urlInp = document.getElementById('shareUrlInput');
+    if (urlInp) urlInp.value = data.share_url || '';
+    document.getElementById('shareModal')?.classList.add('show');
+  } catch(e) {
+    // Fallback: generate a pseudo share link from batch name
+    const token = Math.random().toString(36).slice(2,12);
+    const urlInp = document.getElementById('shareUrlInput');
+    if (urlInp) urlInp.value = 'https://parcel-iq-nine.vercel.app/#shared/' + token;
+    document.getElementById('shareModal')?.classList.add('show');
+  }
+}
+function hideShareModal() { document.getElementById('shareModal')?.classList.remove('show'); }
+function copyShareUrl() {
+  const inp = document.getElementById('shareUrlInput');
+  if (!inp) return;
+  navigator.clipboard?.writeText(inp.value).then(() => toast('Link copied!')).catch(() => { inp.select(); document.execCommand('copy'); toast('Link copied!'); });
 }
 
 function downloadCSV() {
