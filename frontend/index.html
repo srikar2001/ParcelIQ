@@ -2219,7 +2219,20 @@ async function loadBatchResults(batchId) {
     ]);
     if (!results) return;
     _currentBatchId = batchId;
-    currentBatchResults = results.map(r => ({ ...r, _note: r.notes, _note_updated_at: r.notes_updated_at }));
+    currentBatchResults = results.map(r => ({
+      ...r,
+      parcel_info: typeof r.parcel_info === 'string'
+        ? (() => { try { return JSON.parse(r.parcel_info); } catch(e) { return {}; } })()
+        : (r.parcel_info || {}),
+      flags: typeof r.flags === 'string'
+        ? (() => { try { return JSON.parse(r.flags); } catch(e) { return []; } })()
+        : (r.flags || []),
+      positives: typeof r.positives === 'string'
+        ? (() => { try { return JSON.parse(r.positives); } catch(e) { return []; } })()
+        : (r.positives || []),
+      _note: r.notes,
+      _note_updated_at: r.notes_updated_at,
+    }));
     batchState.results  = currentBatchResults;
     batchState.filtered = 'all';
     batchState.elapsed  = 0;
@@ -2813,6 +2826,15 @@ function goToPage(p) {
 
 function setRowsPerPage(n) { _rowsPerPage = n; _currentPage = 1; renderPage(); }
 
+function getAcreage(result) {
+  let pi = result.parcel_info;
+  if (typeof pi === 'string') { try { pi = JSON.parse(pi); } catch(e) { pi = {}; } }
+  pi = pi || {};
+  if (pi.acreage != null && Number(pi.acreage) > 0) return Number(pi.acreage);
+  if (result.acreage != null && Number(result.acreage) > 0) return Number(result.acreage);
+  return null;
+}
+
 function renderTable(results, offset) {
   const tbody = document.getElementById('resTableBody');
   if (!tbody) return;
@@ -2841,9 +2863,13 @@ function renderTable(results, offset) {
       (city && !isOutside ? '<div class="tbl-addr-city">' + escHtml(city) + ', FL</div>' : '');
     const county = (!isOutside && !isError) ? extractCounty(r.address || '') : '';
     let sizeHtml = '';
-    if (!isOutside && !isError && pi.acreage != null) {
-      const ac = Math.round(pi.acreage * 10) / 10;
-      sizeHtml = '<span' + (pi.acreage < 0.25 ? ' class="tbl-size-amber"' : '') + '>' + ac + ' ac</span>';
+    if (!isOutside && !isError) {
+      const acreage = getAcreage(r);
+      if (acreage) {
+        const sizeText = (Math.round(acreage * 10) / 10) + ' ac';
+        const sizeColor = acreage < 0.25 ? 'var(--amber)' : 'var(--t1)';
+        sizeHtml = '<span style="color:' + sizeColor + '">' + sizeText + '</span>';
+      }
     }
     const signalsHtml = buildSignals(r);
     const scoreStr   = (isOutside || isError) ? '' : r.auto_kill ? '⛔' : (r.score != null ? String(r.score) : '');
