@@ -43,8 +43,10 @@ async def save_cached_result(address: str, result: dict) -> None:
     if not _SUPABASE_URL:
         return
     try:
+        addr_key = address.strip().lower()
         payload = {
-            "address": address.strip().lower(),
+            "address": addr_key,
+            "folio": addr_key,
             "report_json": json.dumps(result) if isinstance(result, dict) else result,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
