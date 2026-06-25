@@ -480,6 +480,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 /* ══ SORT HOVER */
 .th-sortable:hover{color:var(--t2)}
 .sort-arrow{color:var(--t3);font-size:9px}
+.col-sort-btn{display:inline-flex;align-items:center;gap:4px;cursor:pointer;user-select:none;padding:2px 6px;border-radius:4px;font-size:13px;font-weight:600;color:var(--t2);border:1px solid transparent;transition:all .15s}
+.col-sort-btn:hover{color:var(--t1);border-color:var(--b)}
+.col-sort-btn.active{color:var(--green);border-color:var(--green)}
+.col-sort-btn .arrow{font-size:14px}
 
 /* ══ SETTINGS PAGE */
 #page-settings{padding-top:58px;min-height:100vh}
@@ -1031,10 +1035,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
               <th style="width:32px"><input type="checkbox" class="row-cb" id="selAllCb" onchange="toggleSelectAll()" style="margin:0"></th>
               <th>ADDRESS</th>
               <th>COUNTY</th>
-              <th class="th-sortable" data-col="size" onclick="cycleSortCol('size')" style="cursor:pointer;user-select:none;white-space:nowrap">SIZE<span class="sort-arrow" id="sa-size"> ↕</span></th>
+              <th onclick="sortBy('size')" style="cursor:pointer"><span class="col-sort-btn" id="sort-size">SIZE <span class="arrow">↕</span></span></th>
               <th>SIGNALS</th>
-              <th class="th-sortable" data-col="score" onclick="cycleSortCol('score')" style="cursor:pointer;user-select:none;white-space:nowrap">SCORE<span class="sort-arrow" id="sa-score"> ↕</span></th>
-              <th class="th-sortable" data-col="decision" onclick="cycleSortCol('decision')" style="cursor:pointer;user-select:none;white-space:nowrap">DECISION<span class="sort-arrow" id="sa-decision"> ↕</span></th>
+              <th onclick="sortBy('score')" style="cursor:pointer"><span class="col-sort-btn" id="sort-score">SCORE <span class="arrow">↕</span></span></th>
+              <th onclick="sortBy('decision')" style="cursor:pointer"><span class="col-sort-btn" id="sort-decision">DECISION <span class="arrow">↕</span></span></th>
             </tr>
           </thead>
           <tbody id="resTableBody"></tbody>
@@ -1350,7 +1354,7 @@ const HASH_MAP = {
   '#settings': 'page-settings',
 };
 
-const batchState = { results: [], filtered: 'all', elapsed: 0, name: '' };
+const batchState = { results: [], filtered: 'all', elapsed: 0, name: '', sortCol: null, sortDir: 'desc' };
 const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings']);
 
 const FLAG_FILTERS = [
@@ -1370,7 +1374,6 @@ const RULES_DEF = [
 ];
 let _activeFilters  = new Set();
 let _screeningRules = {};
-let _sortState      = { col: null, dir: 0 };
 let _currentDisplayed = [];
 let _currentPage    = 1;
 let _rowsPerPage    = 25;
@@ -2595,55 +2598,71 @@ function clearFlagFilters() {
   _refreshTable();
 }
 
-function cycleSortCol(col) {
-  if (_sortState.col !== col) {
-    _sortState = { col, dir: 1 };
-  } else if (_sortState.dir === 1) {
-    _sortState.dir = -1;
-  } else {
-    _sortState = { col: null, dir: 0 };
-  }
-  ['score','decision','size'].forEach(c => {
-    const el = document.getElementById('sa-' + c);
-    if (!el) return;
-    if (c === _sortState.col) el.textContent = _sortState.dir === 1 ? ' ↑' : ' ↓';
-    else el.textContent = ' ↕';
+function defaultSort(results) {
+  const verdictOrder = { KILL: 0, REVIEW: 1, PURSUE: 2, ERROR: 3, OUTSIDE_COVERAGE: 4 };
+  return [...results].sort((a, b) => {
+    const va = verdictOrder[a.verdict] ?? 5;
+    const vb = verdictOrder[b.verdict] ?? 5;
+    if (va !== vb) return va - vb;
+    if (a.verdict === 'PURSUE') return (b.score || 0) - (a.score || 0);
+    return (a.score || 0) - (b.score || 0);
   });
+}
+
+function sortBy(col) {
+  if (batchState.sortCol === col) {
+    batchState.sortDir = batchState.sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    batchState.sortCol = col;
+    batchState.sortDir = col === 'score' ? 'desc' : 'asc';
+  }
+  updateSortButtons();
   _refreshTable();
+}
+
+function updateSortButtons() {
+  ['score', 'size', 'decision'].forEach(col => {
+    const btn = document.getElementById('sort-' + col);
+    if (!btn) return;
+    const arrow = btn.querySelector('.arrow');
+    if (col === batchState.sortCol) {
+      btn.classList.add('active');
+      if (arrow) arrow.textContent = batchState.sortDir === 'asc' ? '↑' : '↓';
+    } else {
+      btn.classList.remove('active');
+      if (arrow) arrow.textContent = '↕';
+    }
+  });
 }
 
 function _refreshTable() {
   const verdict = batchState.filtered;
-  const o = { KILL:0, REVIEW:1, PURSUE:2, ERROR:3, OUTSIDE_COVERAGE:10 };
+  const o = { KILL: 0, REVIEW: 1, PURSUE: 2, ERROR: 3, OUTSIDE_COVERAGE: 10 };
   let sorted;
-  if (!_sortState.col || _sortState.dir === 0) {
-    sorted = [...batchState.results].sort((a, b) => {
-      const ga = o[effectiveVerdict(a)] ?? 4, gb = o[effectiveVerdict(b)] ?? 4;
-      if (ga !== gb) return ga - gb;
-      if (a.auto_kill !== b.auto_kill) return a.auto_kill ? -1 : 1;
-      return (a.score ?? 101) - (b.score ?? 101);
-    });
-  } else if (_sortState.col === 'score') {
+  if (!batchState.sortCol) {
+    sorted = defaultSort(batchState.results);
+  } else if (batchState.sortCol === 'score') {
     sorted = [...batchState.results].sort((a, b) => {
       const sa = a.auto_kill ? 0 : (a.score ?? 101);
       const sb = b.auto_kill ? 0 : (b.score ?? 101);
-      return _sortState.dir === 1 ? sa - sb : sb - sa;
+      return batchState.sortDir === 'asc' ? sa - sb : sb - sa;
     });
-  } else if (_sortState.col === 'decision') {
+  } else if (batchState.sortCol === 'decision') {
     sorted = [...batchState.results].sort((a, b) => {
       const ga = o[effectiveVerdict(a)] ?? 4, gb = o[effectiveVerdict(b)] ?? 4;
-      const g = _sortState.dir === 1 ? ga - gb : gb - ga;
+      const g = batchState.sortDir === 'asc' ? ga - gb : gb - ga;
       if (g !== 0) return g;
       return (a.score ?? 101) - (b.score ?? 101);
     });
-  } else if (_sortState.col === 'size') {
+  } else if (batchState.sortCol === 'size') {
     sorted = [...batchState.results].sort((a, b) => {
       const sa = (a.parcel_info || {}).acreage, sb = (b.parcel_info || {}).acreage;
       if (sa == null && sb == null) return 0;
-      if (sa == null) return 1;
-      if (sb == null) return -1;
-      return _sortState.dir === 1 ? sa - sb : sb - sa;
+      if (sa == null) return 1; if (sb == null) return -1;
+      return batchState.sortDir === 'asc' ? sa - sb : sb - sa;
     });
+  } else {
+    sorted = defaultSort(batchState.results);
   }
   let filtered = verdict === 'all' ? sorted : sorted.filter(r => effectiveVerdict(r) === verdict);
   if (_activeFilters.size > 0) {
@@ -2733,8 +2752,8 @@ function renderBatchResults() {
   batchState.filtered = 'all';
   _activeFilters.clear();
   _selectedRows.clear();
-  _sortState = { col: null, dir: 0 };
-  ['score','decision','size'].forEach(c => { const el = document.getElementById('sa-'+c); if (el) el.textContent=' ↕'; });
+  batchState.sortCol = null; batchState.sortDir = 'desc';
+  updateSortButtons();
   closeDetailPanel();
   renderFlagFilters();
   renderRulesPanel();
