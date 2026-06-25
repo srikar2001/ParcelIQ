@@ -3156,6 +3156,21 @@ function filterResults(verdict, btn) {
 let _map = null;
 const _mapLayers = {};
 
+// FIX 1 — defensive coordinate extraction
+function extractPolygonCoords(geometry) {
+  if (!geometry || !Array.isArray(geometry) || geometry.length === 0) return null;
+  const firstRing = geometry[0];
+  if (!Array.isArray(firstRing) || firstRing.length < 3) return null;
+  // firstRing[0] is [number, number] — correct format
+  if (Array.isArray(firstRing[0]) && typeof firstRing[0][0] === 'number'
+      && typeof firstRing[0][1] === 'number') {
+    return firstRing;
+  }
+  // Already a flat coordinate pair
+  if (typeof firstRing[0] === 'number') return geometry;
+  return firstRing;
+}
+
 function initParcelMap(r) {
   const placeholder = document.getElementById('dpMapPlaceholder');
   const mapDiv      = document.getElementById('parcel-map');
@@ -3169,20 +3184,35 @@ function initParcelMap(r) {
   const lng = r._lng || -81.5;
   const geometry = r.parcel_info?.geometry;
 
+  // FIX 3 — log geometry for debugging
+  console.log('[Map] geometry length:', geometry?.length, 'lat:', lat, 'lng:', lng);
+
   if (placeholder) placeholder.style.display = 'none';
   if (mapDiv)      mapDiv.style.display = 'block';
   if (controls)    controls.style.display = 'flex';
 
   _map = L.map('parcel-map', { zoomControl: true }).setView([lat, lng], 16);
+  window._parcelMap = _map;
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_map);
 
-  if (geometry && geometry.length > 0) {
-    const poly = L.polygon(geometry[0], { color: '#22C55E', weight: 2.5, fillColor: '#22C55E', fillOpacity: 0.1 });
-    poly.addTo(_map);
-    try { _map.fitBounds(poly.getBounds(), { padding: [20, 20] }); } catch(e) {}
+  // FIX 2 — use extractPolygonCoords for defensive nesting handling
+  const coords = extractPolygonCoords(geometry);
+  if (coords && coords.length > 2) {
+    console.log('[Map] Drawing polygon with', coords.length, 'points');
+    const poly = L.polygon(coords, {
+      color: '#22C55E', weight: 3,
+      fillColor: '#22C55E', fillOpacity: 0.12
+    }).addTo(_map);
     _mapLayers['parcel'] = poly;
+    try { _map.fitBounds(poly.getBounds(), { padding: [30, 30], maxZoom: 18 }); } catch(e) {}
   } else {
-    L.circleMarker([lat, lng], { radius: 10, color: '#22C55E', fillOpacity: 0.3 }).addTo(_map);
+    console.log('[Map] No polygon — using circle marker');
+    const marker = L.circleMarker([lat, lng], {
+      radius: 14, color: '#22C55E', weight: 2,
+      fillColor: '#22C55E', fillOpacity: 0.2
+    }).addTo(_map);
+    _mapLayers['parcel'] = marker;
+    _map.setView([lat, lng], 17);
   }
 
   try {
