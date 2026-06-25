@@ -1379,6 +1379,7 @@ let _openParcel     = null;
 
 // FIX 6: router is async — calls initAuth() before allowing protected pages
 async function router() {
+  closeDetailPanel();
   const hash = window.location.hash || '#landing';
   if (PROTECTED.has(hash)) {
     const session = await initAuth();
