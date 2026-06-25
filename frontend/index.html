@@ -495,14 +495,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .sett-layout{display:flex;min-height:calc(100vh - 58px)}
 .sett-sidebar{width:240px;flex-shrink:0;background:var(--card);border-right:1px solid var(--b);padding:28px 16px;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto}
 .sett-main{flex:1;min-width:0;padding:32px 36px 80px;max-width:680px}
-.sett-section{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:24px;margin-bottom:20px}
-.sett-section-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:4px}
-.sett-section-sub{font-size:12px;color:var(--t3);margin-bottom:18px}
-.sett-field{margin-bottom:14px}
-.sett-lbl{font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:block}
-.sett-note{font-size:12px;color:var(--t3);margin-top:6px}
-.sett-row{display:flex;gap:10px;align-items:flex-end}
+.sett-section{padding:28px 0;border-bottom:1px solid var(--b)}
+.sett-section:last-child{border-bottom:none}
+.sett-section-title{font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.08em;margin-bottom:20px}
+.sett-field{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px;margin-bottom:16px}
+.sett-field:last-child{margin-bottom:0}
+.sett-lbl{font-size:13px;color:var(--t2);flex-shrink:0;min-width:80px}
+.sett-val{font-size:13px;color:var(--t1);flex:1}
+.sett-note{font-size:12px;color:var(--t3);margin-top:4px}
+.sett-link{font-size:12px;color:var(--green);cursor:pointer;text-decoration:none;background:none;border:none;padding:0;font-family:inherit}
+.sett-link:hover{text-decoration:underline}
+.sett-edit-row{display:none;align-items:center;gap:8px;flex:1}
 .sett-plan-badge{display:inline-flex;align-items:center;font-size:13px;font-weight:600;padding:6px 14px;border-radius:var(--rp);background:var(--gbg);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.sett-pw-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--b);display:none}
+.sett-pw-section.open{display:block}
 /* ══ FAQ ACCORDION */
 .faq-item{border-bottom:1px solid var(--b)}
 .faq-item:last-child{border-bottom:none}
@@ -1218,63 +1224,69 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </div>
     </aside>
     <main class="sett-main">
-      <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:24px">Settings</div>
-      <!-- Account -->
+      <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:32px">Settings</div>
+
+      <!-- ACCOUNT -->
       <div class="sett-section">
         <div class="sett-section-title">Account</div>
-        <div class="sett-section-sub">Manage your profile information</div>
         <div class="sett-field">
-          <label class="sett-lbl">Full Name</label>
-          <div class="sett-row">
-            <input class="inp" id="settName" placeholder="Your name" style="flex:1">
-            <button class="btn-p btn-sm" onclick="saveSettingsName()">Save</button>
+          <span class="sett-lbl">Name</span>
+          <span class="sett-val" id="nameDisplay">—</span>
+          <button class="sett-link" id="nameEditLink" onclick="toggleNameEdit(true)">Edit</button>
+          <div class="sett-edit-row" id="nameEditRow">
+            <input class="inp" id="nameInput" placeholder="Your name" style="flex:1;background:var(--bg)" onkeydown="if(event.key==='Enter')saveName(this.value)">
+            <button class="btn-p btn-sm" onclick="saveName(document.getElementById('nameInput').value)">Save</button>
+            <button class="sett-link" onclick="toggleNameEdit(false)">Cancel</button>
           </div>
         </div>
         <div class="sett-field">
-          <label class="sett-lbl">Email</label>
-          <input class="inp" id="settEmail" placeholder="—" disabled style="background:var(--bg);opacity:.6">
-          <div class="sett-note">To change email, contact support</div>
+          <span class="sett-lbl">Email</span>
+          <span class="sett-val" id="settEmail" style="color:var(--t3)">—</span>
         </div>
       </div>
-      <!-- Password -->
+
+      <!-- SECURITY -->
       <div class="sett-section">
-        <div class="sett-section-title">Password</div>
-        <div class="sett-section-sub">Update your account password</div>
-        <div class="auth-err" id="settPwErr"></div>
-        <div class="sett-field"><label class="sett-lbl">New Password</label><input class="inp" type="password" id="settNewPw" placeholder="Min 8 characters"></div>
-        <div class="sett-field"><label class="sett-lbl">Confirm New Password</label><input class="inp" type="password" id="settConfPw" placeholder="Repeat password"></div>
-        <button class="btn-p btn-sm" onclick="saveSettingsPassword()">Update password</button>
-      </div>
-      <!-- Preferences -->
-      <div class="sett-section">
-        <div class="sett-section-title">Preferences</div>
-        <div class="sett-section-sub">Customize your experience</div>
+        <div class="sett-section-title">Security</div>
         <div class="sett-field">
-          <label class="sett-lbl">Default State</label>
-          <select class="state-sel" style="width:auto">
-            <option value="FL">🌴 Florida</option>
-            <option disabled>Other states — Coming soon</option>
-          </select>
+          <span class="sett-lbl">Password</span>
+          <span class="sett-val" style="color:var(--t3)">••••••••</span>
+          <button class="sett-link" onclick="document.getElementById('pwSection').classList.toggle('open')">Change</button>
         </div>
-        <div class="sett-field">
-          <label class="sett-lbl">Rows Per Page</label>
-          <select class="state-sel" id="settRpp" onchange="setRowsPerPage(+this.value);localStorage.setItem('piq-rpp',this.value)" style="width:auto">
-            <option value="25">25 rows</option>
-            <option value="50">50 rows</option>
-            <option value="100">100 rows</option>
-          </select>
+        <div class="sett-pw-section" id="pwSection">
+          <div class="auth-err" id="settPwErr" style="margin-bottom:12px"></div>
+          <div style="display:flex;flex-direction:column;gap:10px;max-width:340px">
+            <input class="inp" type="password" id="settNewPw" placeholder="New password (min 8 chars)" style="background:var(--bg)">
+            <input class="inp" type="password" id="settConfPw" placeholder="Confirm new password" style="background:var(--bg)">
+            <button class="btn-p btn-sm" style="align-self:flex-start" onclick="saveSettingsPassword()">Update password</button>
+          </div>
         </div>
       </div>
-      <!-- Plan -->
+
+      <!-- PLAN -->
       <div class="sett-section">
         <div class="sett-section-title">Plan</div>
-        <div class="sett-section-sub">Your current subscription</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-          <div>
-            <div class="sett-plan-badge">Free Trial</div>
-            <div style="font-size:13px;color:var(--t3);margin-top:8px">1,000 parcels / week · Resets Monday</div>
-          </div>
-          <button class="btn-p btn-sm" onclick="window.location.hash='#pricing'">Upgrade plan →</button>
+        <div class="sett-field">
+          <span class="sett-lbl">Current</span>
+          <span class="sett-val"><span class="sett-plan-badge">Free Trial</span></span>
+          <button class="btn-p btn-sm" onclick="window.location.hash='#pricing'">Upgrade →</button>
+        </div>
+        <div class="sett-field">
+          <span class="sett-lbl">Limit</span>
+          <span class="sett-val" style="color:var(--t3)">1,000 parcels / week · Resets Monday</span>
+        </div>
+      </div>
+
+      <!-- PREFERENCES -->
+      <div class="sett-section">
+        <div class="sett-section-title">Preferences</div>
+        <div class="sett-field">
+          <span class="sett-lbl">Rows per page</span>
+          <select class="state-sel" id="settRpp" onchange="setRowsPerPage(+this.value);localStorage.setItem('piq-rpp',this.value)" style="width:auto;background:var(--bg)">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
         </div>
       </div>
     </main>
@@ -3593,17 +3605,49 @@ function processUploadedFile(file) {
 }
 
 // ── SETTINGS (Task 24)
-async function saveSettingsName() {
-  if (!sb || !currentUser) return;
-  const val = (document.getElementById('settName')?.value || '').trim();
-  if (!val) { toast('Enter a name first'); return; }
-  try {
-    await sb.from('profiles').update({ full_name: val }).eq('id', currentUser.id);
-    if (userProfile) userProfile.full_name = val;
-    updateUIWithProfile();
-    toast('Name updated');
-  } catch(e) { toast('Save failed: ' + e.message); }
+function toggleNameEdit(editing) {
+  const display  = document.getElementById('nameDisplay');
+  const editLink = document.getElementById('nameEditLink');
+  const editRow  = document.getElementById('nameEditRow');
+  if (display)  display.style.display  = editing ? 'none' : '';
+  if (editLink) editLink.style.display = editing ? 'none' : '';
+  if (editRow)  editRow.style.display  = editing ? 'flex' : 'none';
+  if (editing) {
+    const inp = document.getElementById('nameInput');
+    if (inp) { inp.value = userProfile?.full_name || ''; inp.focus(); }
+  }
 }
+
+async function saveName(newName) {
+  if (!currentUser || !currentSession || !(newName || '').trim()) return;
+  try {
+    const resp = await fetch(
+      SUPA_URL + '/rest/v1/profiles?id=eq.' + currentUser.id,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPA_KEY,
+          'Authorization': 'Bearer ' + currentSession.access_token,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ full_name: newName.trim() }),
+      }
+    );
+    if (resp.ok || resp.status === 204) {
+      userProfile = { ...userProfile, full_name: newName.trim() };
+      updateUIWithProfile();
+      const disp = document.getElementById('nameDisplay');
+      if (disp) disp.textContent = newName.trim();
+      toggleNameEdit(false);
+      toast('Name saved');
+    } else {
+      toast('Could not save name');
+    }
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+async function saveSettingsName() { await saveName(document.getElementById('nameInput')?.value || ''); }
 async function saveSettingsPassword() {
   if (!sb) return;
   const np = (document.getElementById('settNewPw')?.value || '');
@@ -3619,10 +3663,11 @@ async function saveSettingsPassword() {
   } catch(e) { if (errEl) { errEl.textContent=e.message; errEl.classList.add('show'); } }
 }
 function loadSettingsPage() {
-  const nameEl  = document.getElementById('settName');
-  const emailEl = document.getElementById('settEmail');
-  if (nameEl && userProfile?.full_name) nameEl.value = userProfile.full_name;
-  if (emailEl && currentUser?.email)    emailEl.value = currentUser.email;
+  const nameDisp = document.getElementById('nameDisplay');
+  const emailEl  = document.getElementById('settEmail');
+  if (nameDisp) nameDisp.textContent = userProfile?.full_name || currentUser?.email?.split('@')[0] || '—';
+  if (emailEl)  emailEl.textContent  = currentUser?.email || '—';
+  toggleNameEdit(false);
   const rppEl = document.getElementById('settRpp');
   if (rppEl) rppEl.value = String(_rowsPerPage);
 }
