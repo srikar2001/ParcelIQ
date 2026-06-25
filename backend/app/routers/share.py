@@ -12,7 +12,10 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/api")
 
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-_SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+_SUPABASE_KEY = (
+    os.environ.get("SUPABASE_ANON_KEY")
+    or os.environ.get("SUPABASE_SERVICE_KEY", "")
+)
 _FRONTEND_URL = "https://parcel-iq-nine.vercel.app"
 
 
