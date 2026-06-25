@@ -2488,6 +2488,7 @@ async function _executeBatch(lines, estimatedSet) {
   const dots = document.querySelectorAll('#procDots .proc-dot');
   const t0   = Date.now();
 
+  window._screenStart = null;
   updateProgress(0, flLines.length, null);
   dots.forEach(d => d.classList.remove('done'));
   const subEl0 = document.getElementById('batchSub');
@@ -2569,15 +2570,50 @@ async function _executeBatch(lines, estimatedSet) {
 
 function updateProgress(completed, total, latestAddress) {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-  const C   = 2 * Math.PI * 40;
-  const ring    = document.getElementById('batchRingCirc');
-  const pctEl   = document.getElementById('batchPct');
-  const titleEl = document.getElementById('procCount');
-  const srcEl   = document.getElementById('batchStat');
-  if (ring)    ring.style.strokeDashoffset = C - (C * pct / 100);
-  if (pctEl)   pctEl.textContent = pct + '%';
-  if (titleEl) titleEl.textContent = 'Screening ' + completed + ' of ' + total + ' parcels';
-  if (latestAddress && srcEl) srcEl.textContent = latestAddress;
+
+  // Ring SVG update
+  const ringCircle = document.querySelector('.ring circle:last-child');
+  if (ringCircle) {
+    const r = parseFloat(ringCircle.getAttribute('r') || '40');
+    const circ = 2 * Math.PI * r;
+    ringCircle.style.strokeDasharray = circ;
+    ringCircle.style.strokeDashoffset = circ * (1 - pct / 100);
+  }
+
+  // Ring center: show percentage
+  const pctEl = document.querySelector('.rpct');
+  if (pctEl) pctEl.textContent = pct + '%';
+
+  // Title: real count
+  const titleEl = document.querySelector('.proc-title');
+  if (titleEl) {
+    if (completed === 0 && total > 0) {
+      titleEl.textContent = 'Starting ' + total + ' parcels...';
+    } else if (completed >= total && total > 0) {
+      titleEl.textContent = 'All ' + total + ' parcels complete';
+    } else {
+      titleEl.textContent = 'Screened ' + completed + ' of ' + total;
+    }
+  }
+
+  // Latest address
+  const srcEl = document.querySelector('.proc-src');
+  if (srcEl && latestAddress) srcEl.textContent = latestAddress;
+
+  // ETA after first parcel
+  if (!window._screenStart) window._screenStart = Date.now();
+  if (completed > 0 && completed < total) {
+    const elapsed = (Date.now() - window._screenStart) / 1000;
+    const rate = completed / elapsed;
+    const eta = Math.round((total - completed) / rate);
+    const etaEl = document.querySelector('.proc-eta');
+    if (etaEl) etaEl.textContent = '~' + eta + 's remaining';
+  }
+
+  // Progress dots
+  const dots = document.querySelectorAll('.proc-dot');
+  const doneDots = Math.floor((completed / Math.max(total, 1)) * dots.length);
+  dots.forEach((d, i) => d.classList.toggle('done', i < doneDots));
 }
 
 function showProcError(title, sub) {
