@@ -2935,10 +2935,13 @@ function closeDetailPanel() {
   panel.classList.remove('open');
   const tableArea = document.getElementById('resultsTableArea');
   if (tableArea) tableArea.style.width = '100%';
-  if (window._parcelMap) {
-    try { window._parcelMap.remove(); } catch(e) {}
-    window._parcelMap = null;
+  const _mapToRemove = _map || window._parcelMap;
+  if (_mapToRemove) {
+    try { _mapToRemove.remove(); } catch(e) {}
   }
+  _map = null; window._parcelMap = null;
+  const _mc = document.getElementById('parcel-map');
+  if (_mc && _mc._leaflet_id) delete _mc._leaflet_id;
   _openParcel = null; _openParcelIdx = -1;
   document.querySelectorAll('.res-trow.panel-selected').forEach(el => el.classList.remove('panel-selected'));
 }
@@ -3177,14 +3180,18 @@ function initParcelMap(r) {
   const controls    = document.getElementById('mapControls');
   if (!mapDiv || typeof L === 'undefined') { if (placeholder) placeholder.style.display = 'flex'; return; }
 
-  if (_map) { try { _map.remove(); } catch(e) {} _map = null; }
+  // Destroy any existing map — sync both references, then wipe container's leaflet ID
+  const existing = _map || window._parcelMap;
+  if (existing) { try { existing.remove(); } catch(e) {} }
+  _map = null; window._parcelMap = null;
+  // Force-clear Leaflet's internal container flag so re-init never fails
+  if (mapDiv._leaflet_id) delete mapDiv._leaflet_id;
   Object.keys(_mapLayers).forEach(k => delete _mapLayers[k]);
 
   const lat = r._lat || 28.0;
   const lng = r._lng || -81.5;
   const geometry = r.parcel_info?.geometry;
 
-  // FIX 3 — log geometry for debugging
   console.log('[Map] geometry length:', geometry?.length, 'lat:', lat, 'lng:', lng);
 
   if (placeholder) placeholder.style.display = 'none';
