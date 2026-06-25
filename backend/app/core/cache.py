@@ -43,17 +43,20 @@ async def save_cached_result(address: str, result: dict) -> None:
     if not _SUPABASE_URL:
         return
     try:
-        addr_key = address.strip().lower()
-        now = datetime.now(timezone.utc).isoformat()
+        payload = {
+            "address": address.strip().lower(),
+            "report_json": json.dumps(result) if isinstance(result, dict) else result,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
         async with httpx.AsyncClient(timeout=5.0) as client:
             await client.post(
                 f"{_SUPABASE_URL}/rest/v1/reports",
-                json={"address": addr_key, "report_json": result, "updated_at": now},
+                json=payload,
                 headers={
                     "apikey": _SUPABASE_KEY,
                     "Authorization": f"Bearer {_SUPABASE_KEY}",
                     "Content-Type": "application/json",
-                    "Prefer": "resolution=merge-duplicates",
+                    "Prefer": "resolution=merge-duplicates,return=minimal",
                 },
             )
     except Exception as e:

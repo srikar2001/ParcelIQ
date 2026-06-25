@@ -327,3 +327,12 @@ async def search_parcel(q: str):
         return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/cache/test")
+async def test_cache():
+    from app.core.cache import get_cached_result, save_cached_result
+    test_addr = "parceliq-cache-test-001"
+    await save_cached_result(test_addr, {"test": True, "verdict": "PURSUE", "score": 85})
+    result = await get_cached_result(test_addr)
+    return {"cache_working": result is not None, "result": result}
