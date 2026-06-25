@@ -1510,8 +1510,10 @@ let _openParcel     = null;
 async function router() {
   closeDetailPanel();
   const hash = window.location.hash || '#landing';
-  // If already logged in and navigating to a login/signup/landing page, skip straight to dashboard
-  if (_AUTH_PAGES && _AUTH_PAGES.has(hash) && currentSession) {
+  // If already logged in and navigating to a pure auth page, skip straight to dashboard.
+  // #landing is intentionally excluded — the logo should always reach the landing page.
+  const _authOnlyPages = new Set(['#login', '#signup', '#forgot', '', '#']);
+  if (_authOnlyPages.has(hash) && currentSession) {
     goTo('dashboard'); return;
   }
   if (PROTECTED.has(hash)) {
@@ -1520,6 +1522,13 @@ async function router() {
     if (!session) { goTo('login'); return; }
   }
   if (hash === '#results' && !batchState.results.length) {
+    // Try to restore the last batch from sessionStorage before falling back to dashboard
+    const lastBatch = sessionStorage.getItem('piq-last-batch');
+    if (lastBatch && currentSession) {
+      showScreen('page-results'); // show results shell immediately
+      loadBatchResults(lastBatch); // async load — will call renderBatchResults + goTo('results')
+      return;
+    }
     goTo('dashboard'); return;
   }
   if (hash === '#dashboard') { loadDashboardData(); updateNav(); }
@@ -2375,6 +2384,7 @@ async function loadBatchResults(batchId) {
     ]);
     if (!results) return;
     _currentBatchId = batchId;
+    try { sessionStorage.setItem('piq-last-batch', batchId); } catch(e) {}
     currentBatchResults = results.map(r => ({
       ...r,
       parcel_info: typeof r.parcel_info === 'string'
@@ -2415,6 +2425,7 @@ async function saveBatchToSupabase(batchName, results) {
     }).select().single();
     if (!batch) return null;
     _currentBatchId = batch.id;
+    try { sessionStorage.setItem('piq-last-batch', batch.id); } catch(e) {}
     const rows = (results.results || []).map(r => ({
       batch_id:   batch.id,
       user_id:    currentUser.id,
