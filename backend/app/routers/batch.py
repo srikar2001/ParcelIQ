@@ -331,27 +331,8 @@ async def search_parcel(q: str):
 
 @router.get("/cache/test")
 async def test_cache():
-    import os as _os
     from app.core.cache import get_cached_result, save_cached_result
     test_addr = "parceliq-cache-test-001"
-    sb_url = _os.environ.get("SUPABASE_URL", "")
-    sb_key = _os.environ.get("SUPABASE_ANON_KEY", "")
-    save_err = None
-    get_err = None
-    try:
-        await save_cached_result(test_addr, {"test": True, "verdict": "PURSUE", "score": 85})
-    except Exception as e:
-        save_err = str(e)
-    result = None
-    try:
-        result = await get_cached_result(test_addr)
-    except Exception as e:
-        get_err = str(e)
-    return {
-        "cache_working": result is not None,
-        "result": result,
-        "supabase_url_set": bool(sb_url),
-        "supabase_key_set": bool(sb_key),
-        "save_error": save_err,
-        "get_error": get_err,
-    }
+    await save_cached_result(test_addr, {"test": True, "verdict": "PURSUE", "score": 85})
+    result = await get_cached_result(test_addr)
+    return {"cache_working": result is not None, "result": result}
