@@ -480,10 +480,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 /* ══ SORT HOVER */
 .th-sortable:hover{color:var(--t2)}
 .sort-arrow{color:var(--t3);font-size:9px}
-.col-sort-btn{display:inline-flex;align-items:center;gap:4px;cursor:pointer;user-select:none;padding:2px 6px;border-radius:4px;font-size:13px;font-weight:600;color:var(--t2);border:1px solid transparent;transition:all .15s}
-.col-sort-btn:hover{color:var(--t1);border-color:var(--b)}
-.col-sort-btn.active{color:var(--green);border-color:var(--green)}
-.col-sort-btn .arrow{font-size:14px}
+.col-sort-btn{display:inline-flex;align-items:center;gap:3px;cursor:pointer;user-select:none}
+.col-sort-btn .arrow{font-size:13px;color:var(--t3);transition:color .15s}
+.col-sort-btn:hover .arrow{color:var(--t2)}
+.col-sort-btn.active .arrow{color:var(--green);font-size:13px}
 
 /* ══ SETTINGS PAGE */
 #page-settings{padding-top:58px;min-height:100vh}
