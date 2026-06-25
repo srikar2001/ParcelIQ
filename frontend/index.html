@@ -1569,19 +1569,155 @@ async function signInWithGoogle() {
 const _AUTH_PAGES = new Set(['', '#', '#login', '#signup', '#landing', '#forgot']);
 
 // App startup — getSession first, then route; profile loads in background
-(async () => {
+async function initApp() {
   const session = await initAuth();
   updateNav();
   if (session) {
     loadUserProfile(); // fire-and-forget — never delays routing
-    // If on an auth/landing page (including post-OAuth redirect with no hash), go to dashboard
     if (_AUTH_PAGES.has(window.location.hash)) {
       goTo('dashboard');
       return;
     }
   }
   router();
-})();
+}
+
+// FIX 1 — Handle shared route BEFORE auth check
+const _hash = window.location.hash;
+if (_hash.startsWith('#shared/')) {
+  const _token = _hash.replace('#shared/', '').split('?')[0];
+  loadSharedBatch(_token);
+} else {
+  initApp();
+}
+
+// FIX 2 — loadSharedBatch
+async function loadSharedBatch(token) {
+  document.body.innerHTML = '';
+  document.body.style.cssText = 'background:#0D0F12;color:#F1F5F9;font-family:Inter,sans-serif';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'max-width:1200px;margin:0 auto;padding:24px';
+  document.body.appendChild(wrap);
+  wrap.innerHTML = `
+    <div style='display:flex;justify-content:space-between;align-items:center;
+      padding:0 0 20px;border-bottom:1px solid #2A2D3A;margin-bottom:24px'>
+      <div style='font-size:20px;font-weight:800'>
+        Parcel<span style='color:#22C55E'>IQ</span>
+      </div>
+      <div style='display:flex;gap:10px;align-items:center'>
+        <span style='font-size:13px;color:#64748B'>Shared results — View only</span>
+        <button onclick='window.location.href="/#signup"'
+          style='background:#22C55E;color:#000;border:none;padding:7px 14px;
+          border-radius:99px;cursor:pointer;font-weight:600;font-size:13px'>
+          Create free account
+        </button>
+      </div>
+    </div>
+    <div id='shared-content' style='text-align:center;padding:60px;color:#64748B'>
+      Loading shared results…
+    </div>
+  `;
+  try {
+    const resp = await fetch(API + '/api/share/' + token);
+    if (!resp.ok) {
+      document.getElementById('shared-content').innerHTML =
+        '<h2 style="color:#F1F5F9">This share link has expired or does not exist.</h2>' +
+        '<p><a href="/" style="color:#22C55E">Return to ParcelIQ</a></p>';
+      return;
+    }
+    const data = await resp.json();
+    const results = data.results || [];
+    renderSharedResults(results, wrap);
+  } catch(e) {
+    document.getElementById('shared-content').innerHTML =
+      '<h2 style="color:#F1F5F9">Could not load results.</h2><p>Check your connection.</p>';
+  }
+}
+
+// FIX 3 — renderSharedResults
+function renderSharedResults(results, container) {
+  const vColor = v => v === 'PURSUE' ? '#22C55E' : v === 'KILL' ? '#EF4444' : v === 'REVIEW' ? '#F59E0B' : '#64748B';
+  const vClass = v => v === 'PURSUE' ? 'vb-pursue' : v === 'KILL' ? 'vb-kill' : v === 'REVIEW' ? 'vb-review' : 'vb-error';
+  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const scEl = document.getElementById('shared-content');
+  if (!results.length) {
+    scEl.innerHTML = '<p>No results in this batch.</p>';
+    return;
+  }
+  const summary = {
+    total: results.length,
+    pursue: results.filter(r => r.verdict === 'PURSUE').length,
+    review: results.filter(r => r.verdict === 'REVIEW').length,
+    kill: results.filter(r => r.verdict === 'KILL').length,
+  };
+  const rows = results.map(r => {
+    const pi = r.parcel_info || {};
+    const ev = r.verdict || 'ERROR';
+    const addrParts = (r.address || '').split(',');
+    const street = addrParts[0] || r.address || '';
+    const city = addrParts.slice(1).join(',').trim();
+    const county = city.replace(/\s*FL\s*\d*/i,'').trim().replace(/,\s*$/, '');
+    const acreage = pi.acreage != null ? (Math.round(pi.acreage * 10) / 10) + ' ac' : '';
+    const flags = (r.flags || []).slice(0, 3).map(f =>
+      '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;background:' +
+      (f.toLowerCase().includes('flood') || f.toLowerCase().includes('wetland') || f.toLowerCase().includes('kill') ? '#EF4444' :
+       f.toLowerCase().includes('review') || f.toLowerCase().includes('canal') || f.toLowerCase().includes('road') ? '#F59E0B' : '#64748B') +
+      '" title="' + esc(f) + '"></span>'
+    ).join('');
+    const score = r.auto_kill ? '⛔' : (r.score != null ? r.score : '');
+    return `<tr style="border-bottom:1px solid #1E2130;cursor:default">
+      <td style="padding:10px 12px"><div style="font-weight:500;font-size:13px">${esc(street)}</div><div style="font-size:11px;color:#64748B">${esc(city)}</div></td>
+      <td style="padding:10px 12px;font-size:12px;color:#94A3B8">${esc(county)}</td>
+      <td style="padding:10px 12px;font-size:12px;color:#94A3B8">${esc(acreage)}</td>
+      <td style="padding:10px 12px">${flags}</td>
+      <td style="padding:10px 12px;font-weight:700;color:${vColor(ev)}">${esc(score)}</td>
+      <td style="padding:10px 12px"><span style="padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;background:${ev==='PURSUE'?'rgba(34,197,94,.15)':ev==='KILL'?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)'};color:${vColor(ev)}">${esc(ev)}</span></td>
+    </tr>`;
+  }).join('');
+  scEl.innerHTML = `
+    <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+      <div style="background:#1E2130;border-radius:10px;padding:12px 20px;flex:1;min-width:100px">
+        <div style="font-size:22px;font-weight:800">${summary.total}</div>
+        <div style="font-size:11px;color:#64748B;margin-top:2px">Total</div>
+      </div>
+      <div style="background:rgba(34,197,94,.1);border-radius:10px;padding:12px 20px;flex:1;min-width:100px">
+        <div style="font-size:22px;font-weight:800;color:#22C55E">${summary.pursue}</div>
+        <div style="font-size:11px;color:#64748B;margin-top:2px">Pursue</div>
+      </div>
+      <div style="background:rgba(245,158,11,.1);border-radius:10px;padding:12px 20px;flex:1;min-width:100px">
+        <div style="font-size:22px;font-weight:800;color:#F59E0B">${summary.review}</div>
+        <div style="font-size:11px;color:#64748B;margin-top:2px">Review</div>
+      </div>
+      <div style="background:rgba(239,68,68,.1);border-radius:10px;padding:12px 20px;flex:1;min-width:100px">
+        <div style="font-size:22px;font-weight:800;color:#EF4444">${summary.kill}</div>
+        <div style="font-size:11px;color:#64748B;margin-top:2px">Kill</div>
+      </div>
+    </div>
+    <div style="background:#151721;border-radius:12px;overflow:hidden;border:1px solid #1E2130">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#1E2130;text-align:left">
+            <th style="padding:10px 12px;font-size:11px;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Address</th>
+            <th style="padding:10px 12px;font-size:11px;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:.05em">County</th>
+            <th style="padding:10px 12px;font-size:11px;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Size</th>
+            <th style="padding:10px 12px;font-size:11px;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Signals</th>
+            <th style="padding:10px 12px;font-size:11px;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Score</th>
+            <th style="padding:10px 12px;font-size:11px;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Decision</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:32px;padding:28px;background:linear-gradient(135deg,rgba(34,197,94,.08),rgba(34,197,94,.03));border:1px solid rgba(34,197,94,.2);border-radius:14px;text-align:center">
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Screen your own parcels — free</div>
+      <div style="font-size:13px;color:#94A3B8;margin-bottom:16px">Florida statewide · 6 live sources · Kill / Review / Pursue in seconds</div>
+      <button onclick='window.location.href="/#signup"'
+        style='background:#22C55E;color:#000;border:none;padding:11px 28px;border-radius:99px;cursor:pointer;font-weight:700;font-size:15px'>
+        Create free account →
+      </button>
+    </div>
+  `;
+}
 
 async function loadUserProfile() {
   if (!sb || !currentUser) return;
