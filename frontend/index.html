@@ -3091,6 +3091,50 @@ function renderTable(results, offset) {
 // ── DETAIL PANEL (Task 16)
 let _openParcelIdx = -1;
 
+const KILL_EXPLANATIONS = {
+  'wetland':       'Wetlands are on this parcel. Federal law (Clean Water Act) blocks development — Army Corps permits are rarely granted for wetland fill.',
+  'flood zone ae': 'FEMA Flood Zone AE means mandatory flood insurance, restricted building permits, and lenders will not finance development.',
+  'flood zone ve': 'FEMA Flood Zone VE is a coastal high-hazard area. Building is severely restricted and insurance costs are prohibitive.',
+  'flood zone v':  'FEMA Flood Zone V — coastal high-hazard. Virtually unbuildable for residential development.',
+  'habitat':       'Critical habitat for a listed endangered species overlaps this parcel. The Endangered Species Act blocks development permits.',
+  'public':        'This parcel is owned by a government entity (county, state, or federal). It cannot be purchased by private buyers.',
+  'landlocked':    'No road access confirmed. Without a recorded legal easement, this parcel is landlocked and worthless.',
+  'easement':      'A conservation easement permanently restricts development on this parcel. You can own it but cannot build on it.',
+};
+
+function getKillExplanation(auto_kill_reason) {
+  if (!auto_kill_reason) return 'A fatal flaw was detected. This parcel cannot be developed.';
+  const reason = auto_kill_reason.toLowerCase();
+  for (const [key, explanation] of Object.entries(KILL_EXPLANATIONS)) {
+    if (reason.includes(key)) return explanation;
+  }
+  return auto_kill_reason + '. This makes the parcel unsuitable for development.';
+}
+
+function getPursueExplanation(result) {
+  const positives = result.positives || [];
+  const MAP = {
+    'zone x':       'No flood risk (FEMA Zone X)',
+    'no wetlands':  'Clean wetlands check',
+    'paved road':   'Paved road access confirmed',
+    'market sale':  'Recent real market sale confirmed',
+    'ideal parcel': 'Good buildable lot size',
+    'vacant':       'Confirmed vacant land',
+    'well-drained': 'Good soil — septic feasible',
+    'high elevation': 'Safe elevation — flood resilient',
+    'power':        'Electric infrastructure nearby',
+  };
+  const reasons = [];
+  positives.forEach(p => {
+    const pl = p.toLowerCase();
+    for (const [key, label] of Object.entries(MAP)) {
+      if (pl.includes(key)) { reasons.push(label); break; }
+    }
+  });
+  if (reasons.length === 0) return 'No fatal flags detected. All automated checks passed.';
+  return 'Strong signals: ' + reasons.join(' · ');
+}
+
 function openDetailPanel(absIdx, event) {
   if (event && event.target && (event.target.classList.contains('row-cb') || event.target.type === 'checkbox')) return;
   const r = _currentDisplayed[absIdx];
@@ -3120,10 +3164,26 @@ function openDetailPanel(absIdx, event) {
   if (whyEl) {
     const whyCls = ev === 'KILL' ? 'dp-why-k' : ev === 'REVIEW' ? 'dp-why-r' : 'dp-why-p';
     let whyText = '';
-    if (ev === 'KILL') { const reason = r.auto_kill_reason || (r.flags||[])[0] || 'fatal flaw detected'; whyText = '<strong>Fatal flaw detected.</strong> ' + escHtml(reason) + '. Development blocked.'; }
-    else if (ev === 'REVIEW') { const flag = (r.flags||[])[0] || 'a flag'; whyText = '<strong>No fatal flaws</strong> but ' + escHtml(shortenFlag(flag)) + ' requires manual check.'; }
-    else if (ev === 'PURSUE') { const pos = (r.positives||[])[0] || 'no fatal flags'; whyText = '<strong>No fatal flags.</strong> ' + escHtml(shortenFlag(pos)) + '. Worth pursuing.'; }
-    else { whyText = escHtml(ev); }
+    if (ev === 'KILL') {
+      whyText = escHtml(getKillExplanation(r.auto_kill_reason));
+    } else if (ev === 'REVIEW') {
+      const reviewFlags = (r.review_flags || r.flags || []);
+      const flagList = reviewFlags.length > 0
+        ? reviewFlags.map(f => escHtml(translateFlag(f))).join(', ')
+        : 'unknown flags';
+      whyText = 'No fatal flaws but manual verification needed for: <strong>' + flagList + '</strong>';
+    } else if (ev === 'PURSUE') {
+      const explanation = getPursueExplanation(r);
+      const positives = (r.positives || []);
+      const checkmarks = positives.length > 0
+        ? '<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">' +
+          positives.map(p => '<div style="display:flex;align-items:center;gap:6px"><span style="color:var(--green);font-size:12px">✓</span><span style="font-size:12px">' + escHtml(translateFlag(p)) + '</span></div>').join('') +
+          '</div>'
+        : '';
+      whyText = escHtml(explanation) + checkmarks;
+    } else {
+      whyText = escHtml(ev);
+    }
     whyEl.className = 'dp-why ' + whyCls;
     whyEl.innerHTML = whyText;
   }
