@@ -4100,26 +4100,32 @@ function exportExcel() {
 }
 
 function exportPDF() {
-  const wins = window.open('', '_blank');
-  if (!wins) { toast('Pop-up blocked — please allow pop-ups and try again'); return; }
   const rows = batchState.results.map(r =>
     '<tr><td>' + escHtml(r.address) + '</td>' +
     '<td style="color:' + (r.verdict === 'KILL' ? '#C0392B' : r.verdict === 'PURSUE' ? '#1E8449' : '#D68910') + ';font-weight:bold">' + escHtml(r.verdict) + '</td>' +
     '<td>' + (r.score != null ? r.score : 'AUTO') + '</td>' +
     '<td>' + escHtml((r.flags||[]).join(', ')) + '</td></tr>'
   ).join('');
-  wins.document.write(
-    '<html><head><title>ParcelIQ Results</title>' +
+  const html =
+    '<!DOCTYPE html><html><head><title>ParcelIQ Results</title>' +
     '<style>body{font-family:Arial,sans-serif;font-size:11px;padding:20px}h1{font-size:16px;margin-bottom:4px}p{color:#666;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#1B2A4A;color:white;padding:6px 8px;text-align:left;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}tr:nth-child(even){background:#f9f9f9}</style>' +
     '</head><body>' +
     '<h1>ParcelIQ Results — ' + escHtml(batchState.name || 'Batch') + '</h1>' +
     '<p>Generated ' + new Date().toLocaleString() + ' · ' + batchState.results.length + ' parcels</p>' +
     '<table><thead><tr><th>Address</th><th>Verdict</th><th>Score</th><th>Flags</th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table>' +
-    '</body></html>'
-  );
-  wins.document.close();
-  wins.print();
+    '</body></html>';
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:none';
+  document.body.appendChild(iframe);
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(html);
+  iframe.contentDocument.close();
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 2000);
+  }, 400);
 }
 
 function downloadCSV() { exportCSV(); }
