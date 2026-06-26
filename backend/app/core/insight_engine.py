@@ -18,6 +18,8 @@ def score_parcel(
     elevation: dict | None = None,
     soil: dict | None = None,
     evac: dict | None = None,
+    powerlines: dict | None = None,
+    easement: dict | None = None,
 ) -> dict:
     flags: list[str] = []
     positives: list[str] = []
@@ -38,6 +40,10 @@ def score_parcel(
         sources_checked.append(soil.get("source", "USDA Web Soil Survey"))
     if evac:
         sources_checked.append(evac.get("source", "FL Division of Emergency Management"))
+    if powerlines:
+        sources_checked.append(powerlines.get("source", "OpenStreetMap"))
+    if easement:
+        sources_checked.append(easement.get("source", "USDA NRCS"))
 
     # ── STEP 1: Auto-kill checks
     flood_zone = flood.get("zone") or ""
@@ -56,6 +62,10 @@ def score_parcel(
         species = habitat.get("species") or []
         sp = ", ".join(species[:2]) if species else "listed species"
         return _kill(f"Critical habitat: {sp}", flags, sources_checked)
+
+    if easement and easement.get("easement_found") is True:
+        etype = easement.get("easement_type") or "conservation easement"
+        return _kill(f"Conservation easement: {etype} — development permanently restricted", flags, sources_checked)
 
     # ── STEP 2: Scoring
     score = 100
@@ -173,6 +183,12 @@ def score_parcel(
         elif zone is None:
             positives.append("Not in a hurricane evacuation zone")
 
+    # Power lines
+    if powerlines:
+        if powerlines.get("powerline_nearby") is False:
+            score -= 5
+            flags.append("No power lines within 1 mile — electric connection costly")
+
     # Additions
     if flood_zone == "X":
         score += 5
@@ -197,6 +213,11 @@ def score_parcel(
     if building_count == 0:
         score += 2
         positives.append("Vacant/unimproved lot")
+
+    if powerlines and powerlines.get("powerline_nearby") is True:
+        dist = powerlines.get("powerline_distance", "nearby")
+        score += 3 if dist == "< 500m" else 1
+        positives.append(f"Power infrastructure {dist}")
 
     # ── STEP 3: Clamp + verdict
     score = max(0, min(100, score))
@@ -243,6 +264,7 @@ def _kill(reason: str, flags: list[str], sources_checked: list[str]) -> dict:
         "kill_flags": flags,
         "review_flags": [],
         "info_flags": [],
+        "green_flags": [],
     }
 
 
