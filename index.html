@@ -570,7 +570,19 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
   .mock-wrap{margin:36px auto 0}
   .mock-tags{display:none}
 }
+[data-theme='light']{
+  --bg:#F8F9FA;--card:#FFFFFF;--card-h:#F1F3F5;
+  --b:#DEE2E6;--bh:#ADB5BD;
+  --green:#2F9E44;--gd:#2B8A3E;--gbg:rgba(47,158,68,.1);
+  --red:#C92A2A;--rbg:rgba(201,42,42,.1);
+  --amber:#E67700;--abg:rgba(230,119,0,.1);
+  --t1:#212529;--t2:#495057;--t3:#868E96;
+}
+[data-theme='light'] .nav{background:rgba(248,249,250,.92)}
+.mode-toggle-btn{background:none;border:1px solid var(--b);border-radius:var(--rp);padding:5px 8px;cursor:pointer;font-size:15px;line-height:1;color:var(--t2);transition:border-color .15s}
+.mode-toggle-btn:hover{border-color:var(--bh)}
 </style>
+<script>(function(){const t=localStorage.getItem('parceliq-theme');if(t==='light')document.documentElement.dataset.theme='light';})()</script>
 </head>
 <body>
 
@@ -578,6 +590,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 <nav class="nav">
   <div class="nav-logo" onclick="window.location.hash='#landing'">Parcel<span class="iq">IQ</span></div>
   <div class="nav-right" id="navRight">
+    <button id="modeToggle" class="mode-toggle-btn" onclick="toggleMode()"><span id="modeIcon">☀️</span></button>
     <span class="fl-pill">FL Beta</span>
     <button class="btn-o btn-sm hide-mob" onclick="window.location.hash='#login'">Log in</button>
     <button class="btn-p btn-sm" onclick="window.location.hash='#signup'">Start free →</button>
@@ -4011,8 +4024,25 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeDetailPanel();
 });
 
-// FIX 4 — Close panel on initial load
-document.addEventListener('DOMContentLoaded', () => closeDetailPanel());
+function toggleMode() {
+  const html = document.documentElement;
+  const isLight = html.dataset.theme === 'light';
+  if (isLight) {
+    delete html.dataset.theme;
+    localStorage.removeItem('parceliq-theme');
+    document.getElementById('modeIcon').textContent = '☀️';
+  } else {
+    html.dataset.theme = 'light';
+    localStorage.setItem('parceliq-theme', 'light');
+    document.getElementById('modeIcon').textContent = '🌙';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  closeDetailPanel();
+  const icon = document.getElementById('modeIcon');
+  if (icon) icon.textContent = document.documentElement.dataset.theme === 'light' ? '🌙' : '☀️';
+});
 </script>
 
 <!-- ════════ UPGRADE MODAL ════════ -->
