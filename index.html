@@ -3125,6 +3125,16 @@ async function loadBatchResults(batchId) {
 async function _refreshBatchFromServer(batchId) {
   if (!currentUser || !sb) return;
   const cacheKey = 'piq-res-' + batchId;
+  // If sessionStorage already has rows, trust it — Supabase may have partial data
+  // from the base-column fallback insert (no parcel_info, positives, etc.)
+  try {
+    const existing = sessionStorage.getItem(cacheKey);
+    if (existing) {
+      const parsed = JSON.parse(existing);
+      if (parsed && parsed.rows && parsed.rows.length > 0) return;
+    }
+  } catch(e) {}
+  // Cache is missing — fetch from Supabase as fallback
   try {
     const [{ data: batch }, { data: results }] = await Promise.all([
       sb.from('batches').select('name').eq('id', batchId).single(),
@@ -3132,10 +3142,9 @@ async function _refreshBatchFromServer(batchId) {
         .eq('batch_id', batchId).eq('user_id', currentUser.id)
         .order('score', { ascending: true }),
     ]);
-    if (!results || results.length === 0) return;   // never overwrite good in-memory data with empty
+    if (!results || results.length === 0) return;
     const mapped = _mapBatchRows(results);
     try { sessionStorage.setItem(cacheKey, JSON.stringify({ name: batch?.name || '', rows: mapped })); } catch(e) {}
-    // Only re-render if the user is still on this batch
     if (_currentBatchId === batchId && window.location.hash === '#results') {
       currentBatchResults = mapped;
       batchState.results  = mapped;
@@ -4246,6 +4255,22 @@ async function _saveRescreenToSupa(origRow, nr) {
     const { error } = await q;
     if (error) console.warn('[Rescreen] save failed:', error.message);
   } catch(e) { console.warn('[Rescreen] save error:', e); }
+  // Keep sessionStorage in sync so reload shows the rescreened data
+  try {
+    const cacheKey = 'piq-res-' + (_currentBatchId || '');
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && parsed.rows) {
+        const addr = nr.address || origRow.address;
+        const idx = parsed.rows.findIndex(row => row.address === addr);
+        if (idx !== -1) {
+          parsed.rows[idx] = { ...parsed.rows[idx], ...updateData };
+          sessionStorage.setItem(cacheKey, JSON.stringify(parsed));
+        }
+      }
+    }
+  } catch(e) {}
 }
 
 async function rescreenRow(event, idx) {
