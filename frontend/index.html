@@ -220,14 +220,27 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .past-sec{padding-top:8px}
 .past-lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);margin-bottom:14px}
 .past-empty{font-size:14px;color:var(--t3);padding:24px 0;text-align:center}
-.batch-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .15s}
+@keyframes shimmer{from{background-position:-600px 0}to{background-position:600px 0}}
+.batch-skeleton{height:64px;border-radius:var(--r);margin-bottom:8px;background:linear-gradient(90deg,var(--card) 25%,var(--card-h) 50%,var(--card) 75%);background-size:1200px 64px;animation:shimmer 1.5s infinite linear}
+.past-sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px}
+.past-sec-hdr .past-lbl{margin-bottom:0}
+.batch-bulk-bar{display:none;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;padding:8px 12px;background:var(--card);border:1px solid var(--b);border-radius:var(--r);font-size:13px}
+.batch-bulk-bar.show{display:flex}
+.batch-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s;position:relative}
 .batch-card:hover{background:var(--card-h);border-color:var(--bh);transform:translateY(-1px)}
-.batch-info{flex:1}
-.batch-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.batch-card.bc-sel{border-color:var(--green);background:rgba(34,197,94,.05)}
+.batch-cb{width:15px;height:15px;cursor:pointer;accent-color:var(--green);flex-shrink:0;opacity:0;transition:opacity .15s}
+.batch-card:hover .batch-cb,.batch-cb:checked,.batch-cb.cb-show{opacity:1}
+.batch-info{flex:1;min-width:0}
+.batch-name{font-size:14px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .batch-date{font-size:12px;color:var(--t3)}
 .batch-stats{display:flex;gap:10px;font-size:12px;flex-shrink:0}
 .batch-arr{color:var(--t3)}
-.batch-del{background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;padding:4px 8px;border-radius:var(--rs);transition:all .15s;flex-shrink:0}
+.batch-icon-btn{background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;padding:4px 7px;border-radius:var(--rs);transition:all .15s;flex-shrink:0;opacity:0}
+.batch-card:hover .batch-icon-btn{opacity:1}
+.batch-icon-btn:hover{color:var(--t1);background:var(--card-h)}
+.batch-del{background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;padding:4px 7px;border-radius:var(--rs);transition:all .15s;flex-shrink:0;opacity:0}
+.batch-card:hover .batch-del{opacity:1}
 .batch-del:hover{color:var(--red);background:var(--rbg)}
 
 /* ══════════════════ PROCESSING ══════════════════ */
@@ -1439,8 +1452,23 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </div>
 
       <div class="past-sec">
-        <div class="past-lbl">Recent Batches</div>
-        <div id="pastBatches"><div class="past-empty">No batches yet. Screen your first batch above.</div></div>
+        <div class="past-sec-hdr">
+          <div class="past-lbl">Recent Batches</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn-o btn-sm" id="batchSelAllBtn" onclick="selectAllBatches()" style="font-size:12px;display:none">Select all</button>
+          </div>
+        </div>
+        <div id="batchBulkBar" class="batch-bulk-bar">
+          <span id="batchSelCount" style="color:var(--t2);font-weight:600">0 selected</span>
+          <button class="btn-o btn-sm" onclick="deleteSelectedBatches()" style="font-size:12px;color:var(--red)">Delete selected</button>
+          <button class="btn-o btn-sm" onclick="rescanSelectedBatch()" style="font-size:12px">↻ Re-scan</button>
+          <button class="btn-o btn-sm" onclick="clearBatchSelection()" style="font-size:12px;margin-left:auto">✕ Clear</button>
+        </div>
+        <div id="pastBatches">
+          <div class="batch-skeleton"></div>
+          <div class="batch-skeleton"></div>
+          <div class="batch-skeleton"></div>
+        </div>
       </div>
     </main>
   </div>
@@ -2281,10 +2309,10 @@ async function initApp() {
     return;
   }
   // Wait for Supabase to restore session (onAuthStateChange fires before getSession is reliable)
-  // 3-second timeout so page doesn't hang if Supabase fails to initialize
+  // 800ms timeout — Supabase restores from localStorage in ~100-200ms; long wait only needed if init fails
   const session = await Promise.race([
     _authReadyPromise,
-    new Promise(r => setTimeout(() => r(currentSession), 3000)),
+    new Promise(r => setTimeout(() => r(currentSession), 800)),
   ]);
   updateNav();
   if (session) {
@@ -2845,40 +2873,153 @@ function proceedAfterConfirm() {
 }
 
 // ── PAST BATCHES
+let _selectedBatches = new Set();
+
 async function loadPastBatches() {
   if (!currentUser) return;
+  // Show cached data instantly while network loads
+  try {
+    const cached = sessionStorage.getItem('piq-batches');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed?.length) { renderPastBatches(parsed); }
+    }
+  } catch(e) {}
   try {
     const { data: batches } = await sb.from('batches').select('*')
       .eq('user_id', currentUser.id)
-      .order('created_at', { ascending: false }).limit(10);
-    if (!batches || batches.length === 0) { showEmptyBatchState(); return; }
+      .order('created_at', { ascending: false }).limit(20);
+    if (!batches || batches.length === 0) { showEmptyBatchState(); sessionStorage.removeItem('piq-batches'); return; }
+    try { sessionStorage.setItem('piq-batches', JSON.stringify(batches)); } catch(e) {}
     renderPastBatches(batches);
-  } catch(e) { console.error('Load batches error:', e); showEmptyBatchState(); }
+  } catch(e) {
+    console.error('Load batches error:', e);
+    const el = document.getElementById('pastBatches');
+    if (el && !el.querySelector('.batch-card')) showEmptyBatchState();
+  }
 }
 
 function showEmptyBatchState() {
   const el = document.getElementById('pastBatches');
   if (el) el.innerHTML = '<div class="past-empty">No batches yet. Screen your first batch above.</div>';
+  const btn = document.getElementById('batchSelAllBtn');
+  if (btn) btn.style.display = 'none';
   _dashEmptyState();
 }
 
 function renderPastBatches(batches) {
   const el = document.getElementById('pastBatches');
   if (!el) return;
+  const btn = document.getElementById('batchSelAllBtn');
+  if (btn) btn.style.display = batches.length ? '' : 'none';
+  _selectedBatches.clear();
+  _updateBatchBulkBar();
   el.innerHTML = batches.map(b => {
     const d  = new Date(b.created_at);
     const ds = d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
     const name = escHtml(b.name || 'Batch · ' + d.toLocaleDateString());
-    return '<div class="batch-card" onclick="loadBatchResults(\'' + b.id + '\')">' +
-      '<div class="batch-info"><div class="batch-name">' + name + '</div><div class="batch-date">' + ds + '</div></div>' +
+    const id   = b.id;
+    return '<div class="batch-card" id="bc-' + id + '" onclick="_batchCardClick(event,\'' + id + '\')">' +
+      '<input type="checkbox" class="batch-cb" id="bcb-' + id + '" onclick="event.stopPropagation();toggleBatchSelect(\'' + id + '\')">' +
+      '<div class="batch-info">' +
+        '<div class="batch-name" title="' + name + '">' + name + '</div>' +
+        '<div class="batch-date">' + ds + '</div>' +
+      '</div>' +
       '<div class="batch-stats">' +
-        '<span style="color:var(--red)">■ ' + (b.kills||0) + ' kill</span>' +
-        '<span style="color:var(--amber)">■ ' + (b.reviews||0) + ' review</span>' +
-        '<span style="color:var(--green)">■ ' + (b.pursues||0) + ' pursue</span>' +
-      '</div><div class="batch-arr">→</div>' +
-      '<button class="batch-del" onclick="event.stopPropagation();deleteBatch(\'' + b.id + '\')" title="Delete batch">✕</button>' +
+        '<span style="color:var(--red)">■ ' + (b.kills||0) + '</span>' +
+        '<span style="color:var(--amber)">■ ' + (b.reviews||0) + '</span>' +
+        '<span style="color:var(--green)">■ ' + (b.pursues||0) + '</span>' +
+      '</div>' +
+      '<button class="batch-icon-btn" onclick="event.stopPropagation();renameBatch(\'' + id + '\',\'' + name.replace(/'/g,'\\\'') + '\')" title="Rename">✎</button>' +
+      '<button class="batch-del" onclick="event.stopPropagation();deleteBatch(\'' + id + '\')" title="Delete">✕</button>' +
       '</div>';
   }).join('');
+}
+
+function _batchCardClick(event, id) {
+  // If a checkbox is checked anywhere in the list, treat click as selection toggle
+  if (_selectedBatches.size > 0) { toggleBatchSelect(id); return; }
+  loadBatchResults(id);
+}
+
+function toggleBatchSelect(id) {
+  const cb  = document.getElementById('bcb-' + id);
+  const card = document.getElementById('bc-' + id);
+  if (_selectedBatches.has(id)) {
+    _selectedBatches.delete(id);
+    if (cb) cb.checked = false;
+    if (card) card.classList.remove('bc-sel');
+  } else {
+    _selectedBatches.add(id);
+    if (cb) cb.checked = true;
+    if (card) card.classList.add('bc-sel');
+  }
+  _updateBatchBulkBar();
+}
+
+function selectAllBatches() {
+  document.querySelectorAll('.batch-cb').forEach(cb => {
+    const id = cb.id.replace('bcb-', '');
+    _selectedBatches.add(id);
+    cb.checked = true;
+    document.getElementById('bc-' + id)?.classList.add('bc-sel');
+  });
+  _updateBatchBulkBar();
+}
+
+function clearBatchSelection() {
+  _selectedBatches.forEach(id => {
+    const cb = document.getElementById('bcb-' + id);
+    if (cb) cb.checked = false;
+    document.getElementById('bc-' + id)?.classList.remove('bc-sel');
+  });
+  _selectedBatches.clear();
+  _updateBatchBulkBar();
+}
+
+function _updateBatchBulkBar() {
+  const bar   = document.getElementById('batchBulkBar');
+  const label = document.getElementById('batchSelCount');
+  const n = _selectedBatches.size;
+  if (bar) bar.classList.toggle('show', n > 0);
+  if (label) label.textContent = n + ' selected';
+}
+
+async function deleteSelectedBatches() {
+  if (!_selectedBatches.size) return;
+  const n = _selectedBatches.size;
+  if (!confirm('Delete ' + n + ' batch' + (n !== 1 ? 'es' : '') + ' and all their results?')) return;
+  const ids = [..._selectedBatches];
+  clearBatchSelection();
+  try {
+    for (const id of ids) {
+      await sb.from('parcel_results').delete().eq('batch_id', id).eq('user_id', currentUser.id);
+      await sb.from('batches').delete().eq('id', id).eq('user_id', currentUser.id);
+    }
+    try { sessionStorage.removeItem('piq-batches'); } catch(e) {}
+    loadPastBatches();
+    toast(n + ' batch' + (n !== 1 ? 'es' : '') + ' deleted');
+  } catch(e) { toast('Delete failed'); }
+}
+
+async function rescanSelectedBatch() {
+  if (_selectedBatches.size !== 1) { toast('Select exactly one batch to re-scan'); return; }
+  const id = [..._selectedBatches][0];
+  clearBatchSelection();
+  await loadBatchResults(id);
+  // trigger rescreenAll after the results page loads
+  setTimeout(() => rescreenAll(), 400);
+}
+
+async function renameBatch(id, currentName) {
+  const newName = prompt('Rename batch:', currentName);
+  if (!newName || newName.trim() === currentName) return;
+  try {
+    await sb.from('batches').update({ name: newName.trim() }).eq('id', id).eq('user_id', currentUser.id);
+    try { sessionStorage.removeItem('piq-batches'); } catch(e) {}
+    loadPastBatches();
+    toast('Renamed');
+  } catch(e) { toast('Rename failed'); }
 }
 
 async function deleteBatch(id) {
@@ -2887,7 +3028,9 @@ async function deleteBatch(id) {
   try {
     await sb.from('parcel_results').delete().eq('batch_id', id).eq('user_id', currentUser.id);
     await sb.from('batches').delete().eq('id', id).eq('user_id', currentUser.id);
+    try { sessionStorage.removeItem('piq-res-' + id); sessionStorage.removeItem('piq-batches'); } catch(e) {}
     loadPastBatches();
+    toast('Batch deleted');
   } catch(e) { toast('Could not delete batch'); }
 }
 
@@ -2903,8 +3046,50 @@ function showResultsLoading() {
   if (badge) badge.style.display = 'none';
 }
 
+function _mapBatchRows(rows) {
+  return rows.map(r => ({
+    ...r,
+    parcel_info: typeof r.parcel_info === 'string'
+      ? (() => { try { return JSON.parse(r.parcel_info); } catch(e) { return {}; } })()
+      : (r.parcel_info || {}),
+    flags: typeof r.flags === 'string'
+      ? (() => { try { return JSON.parse(r.flags); } catch(e) { return []; } })()
+      : (r.flags || []),
+    positives: typeof r.positives === 'string'
+      ? (() => { try { return JSON.parse(r.positives); } catch(e) { return []; } })()
+      : (r.positives || []),
+    _note: r.notes,
+    _note_updated_at: r.notes_updated_at,
+  }));
+}
+
 async function loadBatchResults(batchId) {
   if (!currentUser) return;
+  _currentBatchId = batchId;
+  try { sessionStorage.setItem('piq-last-batch', batchId); } catch(e) {}
+
+  // Show cached results instantly, then refresh from network in background
+  const cacheKey = 'piq-res-' + batchId;
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      const { name, rows } = JSON.parse(cached);
+      batchState.results  = rows;
+      batchState.name     = name || '';
+      batchState.filtered = 'all';
+      batchState.elapsed  = 0;
+      currentBatchResults = rows;
+      renderBatchResults();
+      goTo('results');
+      // Background refresh — update cache silently
+      _refreshBatchFromServer(batchId).catch(() => {});
+      return;
+    }
+  } catch(e) {}
+
+  // No cache — show loading skeleton then fetch
+  showScreen('page-results');
+  showResultsLoading();
   try {
     const [{ data: batch }, { data: results }] = await Promise.all([
       sb.from('batches').select('name').eq('id', batchId).single(),
@@ -2912,30 +3097,38 @@ async function loadBatchResults(batchId) {
         .eq('batch_id', batchId).eq('user_id', currentUser.id)
         .order('score', { ascending: true }),
     ]);
-    if (!results) return;
-    _currentBatchId = batchId;
-    try { sessionStorage.setItem('piq-last-batch', batchId); } catch(e) {}
-    currentBatchResults = results.map(r => ({
-      ...r,
-      parcel_info: typeof r.parcel_info === 'string'
-        ? (() => { try { return JSON.parse(r.parcel_info); } catch(e) { return {}; } })()
-        : (r.parcel_info || {}),
-      flags: typeof r.flags === 'string'
-        ? (() => { try { return JSON.parse(r.flags); } catch(e) { return []; } })()
-        : (r.flags || []),
-      positives: typeof r.positives === 'string'
-        ? (() => { try { return JSON.parse(r.positives); } catch(e) { return []; } })()
-        : (r.positives || []),
-      _note: r.notes,
-      _note_updated_at: r.notes_updated_at,
-    }));
-    batchState.results  = currentBatchResults;
+    if (!results) { goTo('dashboard'); return; }
+    const mapped = _mapBatchRows(results);
+    try { sessionStorage.setItem(cacheKey, JSON.stringify({ name: batch?.name || '', rows: mapped })); } catch(e) {}
+    currentBatchResults = mapped;
+    batchState.results  = mapped;
     batchState.filtered = 'all';
     batchState.elapsed  = 0;
     batchState.name     = batch?.name || '';
     renderBatchResults();
     goTo('results');
-  } catch(e) { console.error('Load results error:', e); toast('Could not load batch'); }
+  } catch(e) { console.error('Load results error:', e); toast('Could not load batch'); goTo('dashboard'); }
+}
+
+async function _refreshBatchFromServer(batchId) {
+  if (!currentUser || !sb) return;
+  const cacheKey = 'piq-res-' + batchId;
+  const [{ data: batch }, { data: results }] = await Promise.all([
+    sb.from('batches').select('name').eq('id', batchId).single(),
+    sb.from('parcel_results').select('*')
+      .eq('batch_id', batchId).eq('user_id', currentUser.id)
+      .order('score', { ascending: true }),
+  ]);
+  if (!results) return;
+  const mapped = _mapBatchRows(results);
+  try { sessionStorage.setItem(cacheKey, JSON.stringify({ name: batch?.name || '', rows: mapped })); } catch(e) {}
+  // Only re-render if the user is still on this batch
+  if (_currentBatchId === batchId && window.location.hash === '#results') {
+    currentBatchResults = mapped;
+    batchState.results  = mapped;
+    batchState.name     = batch?.name || '';
+    renderBatchResults();
+  }
 }
 
 async function saveBatchToSupabase(batchName, results) {
@@ -2980,6 +3173,12 @@ async function saveBatchToSupabase(batchName, results) {
         });
       }
     }
+    // Cache fresh results so reload is instant
+    const cacheKey = 'piq-res-' + batch.id;
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify({ name: batchName || '', rows: batchState.results }));
+      sessionStorage.removeItem('piq-batches'); // force dashboard to refresh batch list
+    } catch(e) {}
     return batch.id;
   } catch(e) { console.error('Save error:', e); return null; }
 }
