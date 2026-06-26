@@ -2957,16 +2957,29 @@ async function saveBatchToSupabase(batchName, results) {
     _currentBatchId = batch.id;
     try { sessionStorage.setItem('piq-last-batch', batch.id); } catch(e) {}
     const rows = (results.results || []).map(r => ({
-      batch_id:   batch.id,
-      user_id:    currentUser.id,
-      address:    r.address,
-      score:      r.score,
-      verdict:    r.verdict,
-      flags:      r.flags    || [],
-      sources:    r.sources  || [],
-      created_at: new Date().toISOString()
+      batch_id:          batch.id,
+      user_id:           currentUser.id,
+      address:           r.address,
+      score:             r.score,
+      verdict:           r.verdict,
+      flags:             r.flags     || [],
+      positives:         r.positives || [],
+      sources:           r.sources   || [],
+      auto_kill:         r.auto_kill || false,
+      auto_kill_reason:  r.auto_kill_reason || null,
+      parcel_info:       r.parcel_info || {},
+      created_at:        new Date().toISOString()
     }));
-    if (rows.length > 0) await sb.from('parcel_results').insert(rows);
+    if (rows.length > 0) {
+      const { data: savedRows } = await sb.from('parcel_results').insert(rows).select('id, address');
+      // Store Supabase row IDs back into batchState so rescreen updates can use them
+      if (savedRows) {
+        savedRows.forEach(dbRow => {
+          const bIdx = batchState.results.findIndex(r => r.address === dbRow.address);
+          if (bIdx !== -1) batchState.results[bIdx]._sb_id = dbRow.id;
+        });
+      }
+    }
     return batch.id;
   } catch(e) { console.error('Save error:', e); return null; }
 }
@@ -3944,17 +3957,16 @@ async function rescreenFromPanel() {
     if (!resp.ok) throw new Error('Server error ' + resp.status);
     const data = await resp.json();
     const nr = data.results?.[0]; if (!nr) throw new Error('No result');
-    nr._note = _openParcel._note; nr._note_updated_at = _openParcel._note_updated_at;
-    const bIdx = batchState.results.findIndex(r => r.address === _openParcel.address);
+    const origRow = _openParcel;                    // capture before overwrite
+    nr._note = origRow._note; nr._note_updated_at = origRow._note_updated_at;
+    const bIdx = batchState.results.findIndex(r => r.address === origRow.address);
     if (bIdx !== -1) batchState.results[bIdx] = nr;
     if (_openParcelIdx >= 0 && _openParcelIdx < _currentDisplayed.length) _currentDisplayed[_openParcelIdx] = nr;
     _openParcel = nr;
     openDetailPanel(_openParcelIdx, null); renderPage();
     if (ts) ts.textContent = 'Updated just now';
     toast('Parcel re-screened with fresh data');
-    if (sb && currentUser) {
-      await sb.from('parcel_results').update({ verdict:nr.verdict, score:nr.score, flags:nr.flags }).eq('user_id', currentUser.id).eq('address', nr.address).catch(()=>{});
-    }
+    await _saveRescreenToSupa(origRow, nr);
   } catch(e) {
     if (ts) ts.textContent = 'Re-screen failed. Try again.';
     toast('Re-screen failed: ' + e.message);
@@ -3962,14 +3974,29 @@ async function rescreenFromPanel() {
 }
 
 // ── RE-SCREEN ROW (Task 07)
-async function _saveRescreenToSupa(origAddress, nr) {
+async function _saveRescreenToSupa(origRow, nr) {
   if (!sb || !currentUser || !nr) return;
+  const rowId = origRow.id || origRow._sb_id;   // id = from Supabase load; _sb_id = from fresh insert
+  const updateData = {
+    verdict:          nr.verdict,
+    score:            nr.score,
+    flags:            nr.flags     || [],
+    positives:        nr.positives || [],
+    sources:          nr.sources   || [],
+    auto_kill:        nr.auto_kill || false,
+    auto_kill_reason: nr.auto_kill_reason || null,
+    parcel_info:      nr.parcel_info || {},
+  };
   try {
-    await sb.from('parcel_results')
-      .update({ verdict: nr.verdict, score: nr.score, flags: nr.flags || [], sources: nr.sources || [] })
-      .eq('user_id', currentUser.id)
-      .eq('address', origAddress);
-  } catch(e) {}
+    let q = rowId
+      ? sb.from('parcel_results').update(updateData).eq('id', rowId)
+      : sb.from('parcel_results').update(updateData)
+          .eq('user_id', currentUser.id)
+          .eq('address', origRow.address)
+          .eq('batch_id', _currentBatchId || '');
+    const { error } = await q;
+    if (error) console.warn('[Rescreen] save failed:', error.message);
+  } catch(e) { console.warn('[Rescreen] save error:', e); }
 }
 
 async function rescreenRow(event, idx) {
@@ -4000,7 +4027,7 @@ async function rescreenRow(event, idx) {
         if (ev.type === 'complete' && ev.results?.[0]) {
           const nr = ev.results[0];
           if (bIdx !== -1) batchState.results[bIdx] = { ...nr, _rescreened: true };
-          _saveRescreenToSupa(original.address, nr);
+          _saveRescreenToSupa(original, nr);
           _refreshTable();
           toast('Re-screened');
         }
@@ -4048,7 +4075,7 @@ async function rescreenSelected() {
           if (ev.type === 'complete' && ev.results?.[0] && bIdx !== -1) batchState.results[bIdx] = { ...ev.results[0], _rescreened: true };
         }
       }
-      _saveRescreenToSupa(r.address, bIdx !== -1 ? batchState.results[bIdx] : null);
+      _saveRescreenToSupa(r, bIdx !== -1 ? batchState.results[bIdx] : null);
     } catch(e) {}
     done++;
     setProgress();
@@ -4087,7 +4114,7 @@ async function rescreenAll() {
           if (ev.type === 'complete' && ev.results?.[0]) batchState.results[idx] = { ...ev.results[0], _rescreened: true };
         }
       }
-      _saveRescreenToSupa(r.address, batchState.results[idx]);
+      _saveRescreenToSupa(r, batchState.results[idx]);
     } catch(e) {}
     done++;
     if (btn) btn.textContent = '↻ ' + done + '/' + total;
