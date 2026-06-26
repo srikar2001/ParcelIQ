@@ -3097,7 +3097,17 @@ async function loadBatchResults(batchId) {
         .eq('batch_id', batchId).eq('user_id', currentUser.id)
         .order('score', { ascending: true }),
     ]);
-    if (!results) { goTo('dashboard'); return; }
+    if (!results || results.length === 0) {
+      // Batch exists in DB but parcel_results are gone or were never saved (silent insert failure)
+      const tbody = document.getElementById('resTableBody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--t3)">' +
+        'This batch\'s results are not in the database yet.<br><span style="font-size:12px">Open the batch, then use ↻ Re-screen to regenerate the results.</span></td></tr>';
+      batchState.results = [];
+      batchState.name = batch?.name || '';
+      renderBatchResults();
+      goTo('results');
+      return;
+    }
     const mapped = _mapBatchRows(results);
     try { sessionStorage.setItem(cacheKey, JSON.stringify({ name: batch?.name || '', rows: mapped })); } catch(e) {}
     currentBatchResults = mapped;
@@ -3113,22 +3123,24 @@ async function loadBatchResults(batchId) {
 async function _refreshBatchFromServer(batchId) {
   if (!currentUser || !sb) return;
   const cacheKey = 'piq-res-' + batchId;
-  const [{ data: batch }, { data: results }] = await Promise.all([
-    sb.from('batches').select('name').eq('id', batchId).single(),
-    sb.from('parcel_results').select('*')
-      .eq('batch_id', batchId).eq('user_id', currentUser.id)
-      .order('score', { ascending: true }),
-  ]);
-  if (!results) return;
-  const mapped = _mapBatchRows(results);
-  try { sessionStorage.setItem(cacheKey, JSON.stringify({ name: batch?.name || '', rows: mapped })); } catch(e) {}
-  // Only re-render if the user is still on this batch
-  if (_currentBatchId === batchId && window.location.hash === '#results') {
-    currentBatchResults = mapped;
-    batchState.results  = mapped;
-    batchState.name     = batch?.name || '';
-    renderBatchResults();
-  }
+  try {
+    const [{ data: batch }, { data: results }] = await Promise.all([
+      sb.from('batches').select('name').eq('id', batchId).single(),
+      sb.from('parcel_results').select('*')
+        .eq('batch_id', batchId).eq('user_id', currentUser.id)
+        .order('score', { ascending: true }),
+    ]);
+    if (!results || results.length === 0) return;   // never overwrite good in-memory data with empty
+    const mapped = _mapBatchRows(results);
+    try { sessionStorage.setItem(cacheKey, JSON.stringify({ name: batch?.name || '', rows: mapped })); } catch(e) {}
+    // Only re-render if the user is still on this batch
+    if (_currentBatchId === batchId && window.location.hash === '#results') {
+      currentBatchResults = mapped;
+      batchState.results  = mapped;
+      batchState.name     = batch?.name || '';
+      renderBatchResults();
+    }
+  } catch(e) { console.warn('[refresh] background fetch failed:', e); }
 }
 
 async function saveBatchToSupabase(batchName, results) {
@@ -3149,6 +3161,11 @@ async function saveBatchToSupabase(batchName, results) {
     if (!batch) return null;
     _currentBatchId = batch.id;
     try { sessionStorage.setItem('piq-last-batch', batch.id); } catch(e) {}
+    // Write cache NOW — before insert — so same-session reload works even if Supabase insert fails
+    try {
+      sessionStorage.setItem('piq-res-' + batch.id, JSON.stringify({ name: batchName || '', rows: batchState.results }));
+      sessionStorage.removeItem('piq-batches');
+    } catch(e) {}
     const rows = (results.results || []).map(r => ({
       batch_id:          batch.id,
       user_id:           currentUser.id,
@@ -3164,7 +3181,25 @@ async function saveBatchToSupabase(batchName, results) {
       created_at:        new Date().toISOString()
     }));
     if (rows.length > 0) {
-      const { data: savedRows } = await sb.from('parcel_results').insert(rows).select('id, address');
+      let savedRows = null;
+      try {
+        const res = await sb.from('parcel_results').insert(rows).select('id, address');
+        if (res.error) throw res.error;
+        savedRows = res.data;
+      } catch(insertErr) {
+        console.warn('[save] Full insert failed, retrying with base columns:', insertErr.message);
+        // Fallback: insert only the columns that have existed since v1
+        const baseRows = rows.map(r => ({
+          batch_id: r.batch_id, user_id: r.user_id, address: r.address,
+          score: r.score, verdict: r.verdict, flags: r.flags || [],
+          sources: r.sources || [], created_at: r.created_at,
+        }));
+        try {
+          const res2 = await sb.from('parcel_results').insert(baseRows).select('id, address');
+          if (!res2.error) savedRows = res2.data;
+          else console.error('[save] Base insert also failed:', res2.error.message);
+        } catch(e2) { console.error('[save] Base insert threw:', e2); }
+      }
       // Store Supabase row IDs back into batchState so rescreen updates can use them
       if (savedRows) {
         savedRows.forEach(dbRow => {
@@ -3173,12 +3208,6 @@ async function saveBatchToSupabase(batchName, results) {
         });
       }
     }
-    // Cache fresh results so reload is instant
-    const cacheKey = 'piq-res-' + batch.id;
-    try {
-      sessionStorage.setItem(cacheKey, JSON.stringify({ name: batchName || '', rows: batchState.results }));
-      sessionStorage.removeItem('piq-batches'); // force dashboard to refresh batch list
-    } catch(e) {}
     return batch.id;
   } catch(e) { console.error('Save error:', e); return null; }
 }
