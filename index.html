@@ -460,7 +460,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .res-table-col.panel-open{max-width:55%}
 .detail-panel{width:45%;min-width:340px;max-width:480px;background:var(--card);border-left:1px solid var(--b);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s ease;position:fixed;right:0;top:58px;bottom:0;overflow-y:auto;z-index:100}
 .detail-panel.open{transform:translateX(0)}
-.dp-header{padding:16px 18px 14px;border-bottom:1px solid var(--b);display:flex;align-items:flex-start;gap:12px}
+.dp-header{padding:16px 18px 14px;border-bottom:1px solid var(--b);display:flex;flex-direction:column;gap:6px}
 .dp-addr{flex:1;min-width:0}
 .dp-street{font-size:14px;font-weight:700;color:var(--t1);line-height:1.3}
 .dp-apn{font-size:11px;color:var(--t3);font-family:monospace;margin-top:2px}
@@ -1631,15 +1631,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 <!-- ════════ DETAIL PANEL ════════ -->
 <div id="detailPanel" class="detail-panel">
   <!-- 1. Header: address + verdict -->
-  <div class="dp-header">
-    <div class="dp-addr">
-      <div class="dp-street" id="dpStreet"></div>
-      <div class="dp-apn" id="dpApn"></div>
+  <div class="dp-header" style="flex-direction:column;gap:8px">
+    <div style="display:flex;align-items:flex-start;gap:8px">
+      <div class="dp-addr" style="flex:1;min-width:0">
+        <div class="dp-street" id="dpStreet"></div>
+        <div class="dp-apn" id="dpApn"></div>
+      </div>
+      <button class="dp-close" onclick="closeDetailPanel()">✕</button>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:10px">
       <div id="dpBadge"></div>
       <div class="dp-score-num" id="dpScore"></div>
-      <button class="dp-close" onclick="closeDetailPanel()">✕</button>
     </div>
   </div>
   <!-- 2. Map controls + map -->
@@ -3904,7 +3906,7 @@ function renderTable(results, offset) {
       }
     }
     const signalsHtml = buildSignals(r);
-    const scoreStr   = (isOutside || isError) ? '' : r.auto_kill ? '⛔' : (r.score != null ? String(r.score) : '');
+    const scoreStr   = (isOutside || isError) ? '' : (ev === 'KILL' || r.auto_kill) ? '—' : (r.score ? String(r.score) : '—');
     const scoreColor = (isOutside || isError) ? '' : r.auto_kill ? 'var(--red)' : verdictColor(ev);
     const verdictLabel = isOutside ? 'Not FL' : isGeoFail ? 'Not found' : isTimeout ? 'Timeout' : ev;
     return '<tr class="' + rowClass + '" id="trow-' + absIdx + '" onclick="openDetailPanel(' + absIdx + ',event)">' +
@@ -3987,7 +3989,7 @@ function openDetailPanel(absIdx, event) {
   setT('dpApn', pi.apn ? 'APN: ' + pi.apn : '');
   const scoreEl = document.getElementById('dpScore');
   if (scoreEl) {
-    scoreEl.textContent = (ev === 'KILL' || r.auto_kill) ? '—' : (r.score != null ? r.score : '—');
+    scoreEl.textContent = (ev === 'KILL' || r.auto_kill) ? '—' : (r.score || '—');
     scoreEl.style.color = ev === 'KILL' ? 'var(--red)' : ev === 'REVIEW' ? 'var(--amber)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--t2)';
   }
   setH('dpBadge', '<span class="verdict-badge ' + vc + '">' + escHtml(ev) + '</span>');
@@ -4051,7 +4053,14 @@ function openDetailPanel(absIdx, event) {
     const county = extractCounty(r.address || '');
     if (county) fields.push(['County', county]);
     if (pi.owner && pi.owner !== 'N/A') fields.push(['Owner', pi.owner]);
-    if (pi.last_sale_price != null && pi.last_sale_price > 0) fields.push(['Last Sale', fmt$(pi.last_sale_price)]);
+    if (pi.last_sale_price != null && pi.last_sale_price > 0) {
+      const yr = pi.last_sale_year ? ' (' + pi.last_sale_year + ')' : '';
+      fields.push(['Last Sale', fmt$(pi.last_sale_price) + yr]);
+    } else if (pi.just_value != null && pi.just_value > 0) {
+      fields.push(['Est. Value', fmt$(pi.just_value)]);
+    } else if (pi.land_value != null && pi.land_value > 0) {
+      fields.push(['Land Value', fmt$(pi.land_value)]);
+    }
     if (pi.land_use_code) fields.push(['Type', getDORDescription(pi.land_use_code)]);
     // Direct parcel_info fields (elevation, soil, evac from collectors)
     if (pi.elevation_ft != null) fields.push(['Elevation', pi.elevation_ft + ' ft']);

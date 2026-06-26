@@ -167,6 +167,8 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
             "owner": parcel_data.get("owner"),
             "land_use_code": parcel_data.get("land_use_code"),
             "last_sale_price": parcel_data.get("last_sale_price"),
+            "just_value": parcel_data.get("just_value"),
+            "land_value": parcel_data.get("land_value"),
             "geometry": parcel_data.get("geometry", []),
             "elevation_ft": elevation.get("elevation_ft"),
             "soil_drainage": soil.get("soil_drainage"),
