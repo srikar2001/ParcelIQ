@@ -300,7 +300,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .tb-num{font-size:28px;font-weight:900;color:var(--green);line-height:1;letter-spacing:-.03em}
 .tb-sub{font-size:12px;color:var(--t2);margin-top:2px}
 .tb-right{font-size:13px;color:var(--t2);text-align:right}
-.res-filter-row{margin-bottom:12px}
+.res-filter-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 .filter-pills{display:flex;gap:6px;flex-wrap:wrap}
 .sumchip{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:6px 14px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s}
 .filter-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--b);flex-wrap:wrap;min-height:46px}
@@ -312,6 +312,34 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .chip-count{font-size:10px;opacity:.7;margin-left:3px}
 .filter-clear-btn{background:none;border:none;color:var(--t3);font-size:12px;cursor:pointer;margin-left:auto;padding:4px 8px;font-family:'Inter',sans-serif}
 .filter-clear-btn:hover{color:var(--t1)}
+/* ── Filter Panel ── */
+.filter-panel-btn{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px}
+.fp-panel{position:absolute;right:0;top:calc(100% + 6px);z-index:600;background:var(--card);border:1px solid var(--b);border-radius:var(--r);width:310px;box-shadow:0 8px 32px rgba(0,0,0,.55)}
+.fp-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--b);font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em}
+.fp-clear-btn{background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;padding:2px 6px;border-radius:4px}
+.fp-clear-btn:hover{color:var(--t1)}
+.fp-group{padding:10px 14px;border-bottom:1px solid var(--b)}
+.fp-group:last-child{border-bottom:none}
+.fp-group-label{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.fp-items{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
+.fp-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);cursor:pointer;padding:3px 0;user-select:none}
+.fp-item:hover{color:var(--t1)}
+.fp-item input[type=checkbox]{width:13px;height:13px;accent-color:var(--green);cursor:pointer;flex-shrink:0}
+.fp-item-count{font-size:10px;color:var(--t3);margin-left:auto}
+/* ── Map expand ── */
+.map-wrap{position:relative;margin:0 12px 12px}
+.map-expand-btn{position:absolute;bottom:8px;right:8px;z-index:800;background:rgba(13,15,18,.85);border:1px solid var(--b);border-radius:4px;color:var(--t2);font-size:11px;font-weight:600;padding:4px 8px;cursor:pointer;font-family:'Inter',sans-serif;backdrop-filter:blur(4px)}
+.map-expand-btn:hover{color:var(--t1);border-color:var(--bh)}
+#mapModal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.8);backdrop-filter:blur(4px)}
+.map-modal-inner{position:absolute;inset:40px;background:var(--card);border:1px solid var(--b);border-radius:var(--r);display:flex;flex-direction:column;overflow:hidden}
+.map-modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--b);flex-shrink:0;flex-wrap:wrap;gap:8px}
+.map-modal-title{font-size:13px;font-weight:700;color:var(--t1);margin-right:auto}
+.map-modal-close{background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer;line-height:1;padding:0 4px}
+.map-modal-close:hover{color:var(--t1)}
+#mapModalMap{flex:1;min-height:0}
+/* ── Detail panel positives ── */
+.dp-pos-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;border-bottom:1px solid rgba(42,45,58,.5)}
+.dp-pos-row:last-child{border-bottom:none}
 .sumchip:hover{border-color:var(--bh);color:var(--t1)}
 .sumchip.on{background:var(--t1);color:#000;border-color:var(--t1)}
 .sumchip.kill.on{background:var(--red);color:#fff;border-color:var(--red)}
@@ -852,8 +880,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           FLORIDA BETA · LIVE DATA
         </div>
         <h1 class="lp-h1 hero-h1-anim">
-          Upload your land leads.<br>
-          <span class="lp-green">Know which deals to Kill.</span>
+          Screen every land lead.<br>
+          <span class="lp-green">Kill the bad ones in seconds.</span>
         </h1>
         <p class="lp-sub hero-sub-anim">ParcelIQ analyzes every parcel against FEMA, wetlands, wildlife, EPA, roads, and county records — so your team can make faster, smarter offers.</p>
         <div class="lp-ctas hero-ctas-anim">
@@ -1536,11 +1564,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           <button class="sumchip review" onclick="filterResults('REVIEW',this)">Review</button>
           <button class="sumchip pursue" onclick="filterResults('PURSUE',this)">Pursue</button>
         </div>
-      </div>
-      <div class="filter-bar" id="filterBar" style="display:none">
-        <span class="filter-bar-label">Filter:</span>
-        <div class="filter-chips" id="filterChips"></div>
-        <button class="filter-clear-btn" id="filterClearBtn" onclick="clearFlagFilters()" style="display:none">Clear all</button>
+        <div style="position:relative">
+          <button class="btn-o btn-sm filter-panel-btn" id="filterPanelBtn" onclick="toggleFilterPanel()">▼ Filters <span id="activeFilterCount" style="display:none;background:var(--green);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:2px">0</span></button>
+          <div id="filterPanel" class="fp-panel" style="display:none">
+            <div class="fp-header"><span>Filter by signal</span><button class="fp-clear-btn" onclick="clearAllFilters()">Clear all</button></div>
+            <div id="fpGroupsContainer"></div>
+          </div>
+        </div>
       </div>
       <div class="limit-banner" id="resLimitBanner"></div>
       <div class="nonfl-banner" id="nonflBanner"></div>
@@ -1584,17 +1614,25 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
     </div>
     <button class="dp-close" onclick="closeDetailPanel()">✕</button>
   </div>
-  <div class="map-controls" id="mapControls" style="display:none">
-    <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this)">Parcel</button>
-    <button class="map-toggle active" data-layer="flood" onclick="toggleMapLayer(this)">Flood zones</button>
-    <button class="map-toggle active" data-layer="wetlands" onclick="toggleMapLayer(this)">Wetlands</button>
-  </div>
-  <div id="dpMapPlaceholder" class="dp-map-placeholder" style="display:none">Loading map…</div>
-  <div id="parcel-map" style="height:280px;margin:0 12px 12px;border-radius:var(--rs);overflow:hidden;display:none"></div>
   <div id="dpWhy" class="dp-why"></div>
+  <div class="map-controls" id="mapControls" style="display:none">
+    <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this,'parcel-map')">Parcel</button>
+    <button class="map-toggle active" data-layer="flood" onclick="toggleMapLayer(this,'parcel-map')">Flood zones</button>
+    <button class="map-toggle active" data-layer="wetlands" onclick="toggleMapLayer(this,'parcel-map')">Wetlands</button>
+    <button class="map-toggle" data-layer="satellite" onclick="toggleSatellite(this)">Satellite</button>
+  </div>
+  <div class="map-wrap">
+    <div id="dpMapPlaceholder" class="dp-map-placeholder" style="display:none;height:220px;margin:0">Loading map…</div>
+    <div id="parcel-map" style="height:220px;border-radius:var(--rs);overflow:hidden;display:none"></div>
+    <button class="map-expand-btn" id="mapExpandBtn" onclick="expandMap()" style="display:none">&#x2922; Expand</button>
+  </div>
   <div class="dp-section" id="dpFlagsSection">
-    <div class="dp-sec-title">Risk Flags &amp; Signals</div>
+    <div class="dp-sec-title">Risk Flags</div>
     <div id="dpFlags"></div>
+  </div>
+  <div class="dp-section" id="dpPositivesSection" style="display:none">
+    <div class="dp-sec-title" style="color:var(--green)">Positive Signals</div>
+    <div id="dpPositives"></div>
   </div>
   <div class="dp-section" id="dpInfoSection">
     <div class="dp-sec-title">Parcel Info</div>
@@ -1622,6 +1660,21 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
   <div class="dp-actions">
     <button class="dp-btn" id="dpBookmarkBtn" onclick="toast('Bookmarks coming soon')">Bookmark</button>
     <button class="dp-btn" onclick="nextParcel()">Next →</button>
+  </div>
+</div>
+
+<!-- ════════ MAP MODAL ════════ -->
+<div id="mapModal">
+  <div class="map-modal-inner">
+    <div class="map-modal-header">
+      <div class="map-modal-title" id="mapModalTitle">Parcel Map</div>
+      <button class="map-toggle active" data-mlayer="parcel" onclick="toggleModalLayer(this)">Parcel</button>
+      <button class="map-toggle active" data-mlayer="flood" onclick="toggleModalLayer(this)">Flood zones</button>
+      <button class="map-toggle active" data-mlayer="wetlands" onclick="toggleModalLayer(this)">Wetlands</button>
+      <button class="map-toggle" data-mlayer="satellite" onclick="toggleModalSatellite(this)">Satellite</button>
+      <button class="map-modal-close" onclick="closeMapModal()">✕</button>
+    </div>
+    <div id="mapModalMap"></div>
   </div>
 </div>
 
@@ -1964,8 +2017,16 @@ const FLAG_DEFS = [
   { key: 'good_soil', label: 'Good Soil ✓',  match: r =>
       (r.positives||[]).some(p => /well.*drain|septic.*feasible/i.test(p)) },
 ];
-// Keep backward-compat alias
 const FLAG_FILTERS = FLAG_DEFS.map(d => ({ ...d, test: d.match }));
+
+const FILTER_GROUPS = [
+  { label: 'Kill Signals', color: '#ef4444',
+    keys: ['wetlands','flood_ae','wildlife','epa','easement'] },
+  { label: 'Review Flags', color: '#f59e0b',
+    keys: ['no_road','small_lot','low_elev','poor_soil','evac','no_power','canal'] },
+  { label: 'Positive Signals', color: '#22c55e',
+    keys: ['zone_x','good_soil'] },
+];
 const RULES_DEF = [
   { key:'floodKill',     label:'Flood AE = Kill',                 def:true },
   { key:'wetlandKill',   label:'Wetlands on parcel = Kill',       def:true },
@@ -3274,43 +3335,59 @@ function toggleRulesPanel() {
   if (chevron) chevron.textContent = open ? '▸' : '▾';
 }
 
-function buildFlagFilters(results) {
-  const container = document.getElementById('filterChips');
+function buildFilterPanel() {
+  const container = document.getElementById('fpGroupsContainer');
   if (!container) return;
+  const results = batchState.results;
   container.innerHTML = '';
-  FLAG_DEFS.forEach(def => {
-    const count = results.filter(r => def.match(r)).length;
-    if (count === 0) return;
-    const chip = document.createElement('button');
-    chip.className = 'filter-chip' + (_activeFilters.has(def.key) ? ' active' : '');
-    chip.dataset.flagKey = def.key;
-    chip.innerHTML = def.label + '<span class="chip-count">' + count + '</span>';
-    chip.onclick = () => toggleFlagFilter(def.key, def.match, chip);
-    container.appendChild(chip);
+  FILTER_GROUPS.forEach(group => {
+    const defs = group.keys.map(k => FLAG_DEFS.find(d => d.key === k)).filter(Boolean);
+    const withCounts = defs.map(def => ({ def, count: results.filter(r => def.match(r)).length }));
+    const groupEl = document.createElement('div');
+    groupEl.className = 'fp-group';
+    const grid = document.createElement('div');
+    grid.className = 'fp-items';
+    withCounts.forEach(({ def, count }) => {
+      const item = document.createElement('label');
+      item.className = 'fp-item';
+      const checked = _activeFilters.has(def.key);
+      item.innerHTML = '<input type="checkbox" data-flag="' + def.key + '"' + (checked ? ' checked' : '') + ' onchange="applyFilters()"><span>' + escHtml(def.label) + '</span><span class="fp-item-count">' + (count > 0 ? count : '') + '</span>';
+      if (count === 0 && !checked) item.style.opacity = '0.4';
+      grid.appendChild(item);
+    });
+    groupEl.innerHTML = '<div class="fp-group-label" style="color:' + group.color + '">' + group.label + '</div>';
+    groupEl.appendChild(grid);
+    container.appendChild(groupEl);
   });
-  // Show/hide the bar and Clear all button
-  const fb = document.getElementById('filterBar');
-  if (fb) fb.style.display = results.length > 0 ? 'flex' : 'none';
-  const clearBtn = document.getElementById('filterClearBtn');
-  if (clearBtn) clearBtn.style.display = _activeFilters.size > 0 ? '' : 'none';
+  const badge = document.getElementById('activeFilterCount');
+  if (badge) { badge.textContent = _activeFilters.size; badge.style.display = _activeFilters.size > 0 ? '' : 'none'; }
 }
 
-function renderFlagFilters() {
-  buildFlagFilters(batchState.results);
+function renderFilterPanel() { buildFilterPanel(); }
+function renderFlagFilters() { buildFilterPanel(); }
+
+function toggleFilterPanel() {
+  const panel = document.getElementById('filterPanel');
+  if (!panel) return;
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+  buildFilterPanel();
+  panel.style.display = 'block';
 }
 
-function toggleFlagFilter(key, _matchFn, _chip) {
-  if (_activeFilters.has(key)) _activeFilters.delete(key);
-  else _activeFilters.add(key);
-  renderFlagFilters();
-  _refreshTable();
-}
-
-function clearFlagFilters() {
+function applyFilters() {
   _activeFilters.clear();
-  renderFlagFilters();
+  document.querySelectorAll('#filterPanel input[type=checkbox]:checked').forEach(cb => _activeFilters.add(cb.dataset.flag));
+  buildFilterPanel();
   _refreshTable();
 }
+
+function clearAllFilters() {
+  _activeFilters.clear();
+  buildFilterPanel();
+  if (document.getElementById('filterPanel')?.style.display !== 'none') buildFilterPanel();
+  _refreshTable();
+}
+function clearFlagFilters() { clearAllFilters(); }
 
 function defaultSort(results) {
   const verdictOrder = { KILL: 0, REVIEW: 1, PURSUE: 2, ERROR: 3, OUTSIDE_COVERAGE: 4 };
@@ -3665,7 +3742,7 @@ function openDetailPanel(absIdx, event) {
   setT('dpTimestamp', '');
   const scoreEl = document.getElementById('dpScore');
   if (scoreEl) {
-    scoreEl.textContent = r.auto_kill ? '⛔' : (r.score != null ? r.score : '—');
+    scoreEl.textContent = r.score != null ? r.score : (r.auto_kill ? '0' : '—');
     scoreEl.style.color = ev === 'KILL' ? 'var(--red)' : ev === 'REVIEW' ? 'var(--amber)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--t2)';
   }
   setH('dpBadge', '<span class="verdict-badge ' + vc + '">' + escHtml(ev) + '</span>');
@@ -3697,19 +3774,28 @@ function openDetailPanel(absIdx, event) {
     whyEl.className = 'dp-why ' + whyCls;
     whyEl.innerHTML = whyText;
   }
-  // Flags
+  // Risk flags (red/amber/grey only — no positives mixed in)
   const dpFlags = document.getElementById('dpFlags');
+  const dpFlagsSec = document.getElementById('dpFlagsSection');
   if (dpFlags) {
     const killF = r.kill_flags || (r.auto_kill ? r.flags : []) || [];
     const revF  = r.review_flags || [];
-    const pos   = r.positives || [];
     const infoF = (r.info_flags || r.flags || []).filter(f => !killF.includes(f) && !revF.includes(f));
     let h = '';
     killF.forEach(f => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-r"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span><span class="dp-flag-src">auto-kill</span></div>'; });
-    revF.forEach(f  => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-a"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span><span class="dp-flag-src">review</span></div>'; });
-    infoF.slice(0,4).forEach(f => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-m"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>'; });
-    pos.slice(0,3).forEach(p  => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-g"></div><span class="dp-flag-text">' + escHtml(translateFlag(p)) + '</span></div>'; });
-    dpFlags.innerHTML = h || '<div style="font-size:12px;color:var(--t3)">No flags.</div>';
+    revF.forEach(f  => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-a"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>'; });
+    infoF.forEach(f => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-m"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>'; });
+    dpFlags.innerHTML = h || '<div style="font-size:12px;color:var(--t3)">No risk flags.</div>';
+    if (dpFlagsSec) dpFlagsSec.style.display = (h || killF.length || revF.length || infoF.length) ? '' : 'none';
+  }
+  // Positive signals — separate section
+  const dpPos = document.getElementById('dpPositives');
+  const dpPosSec = document.getElementById('dpPositivesSection');
+  if (dpPos) {
+    const pos = r.positives || [];
+    const ph = pos.map(p => '<div class="dp-pos-row"><div class="dp-dot dp-dot-g"></div><span class="dp-flag-text">' + escHtml(translateFlag(p)) + '</span></div>').join('');
+    dpPos.innerHTML = ph;
+    if (dpPosSec) dpPosSec.style.display = pos.length > 0 ? '' : 'none';
   }
   // Info grid
   const dpInfo = document.getElementById('dpInfo');
@@ -3756,8 +3842,10 @@ function openDetailPanel(absIdx, event) {
   // Show map placeholder while panel animates open, then init map
   const _ph = document.getElementById('dpMapPlaceholder');
   const _mc = document.getElementById('mapControls');
+  const _expBtn = document.getElementById('mapExpandBtn');
   if (_ph) { _ph.style.display = 'flex'; _ph.textContent = 'Loading map…'; }
   if (_mc) _mc.style.display = 'none';
+  if (_expBtn) _expBtn.style.display = 'none';
   panel.style.display = '';
   panel.classList.add('open');
   setTimeout(() => initParcelMap(r), 350);
@@ -3765,6 +3853,7 @@ function openDetailPanel(absIdx, event) {
 }
 
 function closeDetailPanel() {
+  closeMapModal();
   const panel = document.getElementById('detailPanel');
   if (!panel) return;
   panel.style.display = 'none';
@@ -4111,14 +4200,12 @@ function initParcelMap(r) {
   const placeholder = document.getElementById('dpMapPlaceholder');
   const mapDiv      = document.getElementById('parcel-map');
   const controls    = document.getElementById('mapControls');
-  if (!mapDiv || typeof L === 'undefined') { if (placeholder) { placeholder.style.display = 'flex'; } return; }
-  if (placeholder) placeholder.style.display = 'none';
+  const expBtn      = document.getElementById('mapExpandBtn');
+  if (!mapDiv || typeof L === 'undefined') { if (placeholder) placeholder.style.display = 'flex'; return; }
 
-  // Destroy any existing map — sync both references, then wipe container's leaflet ID
   const existing = _map || window._parcelMap;
   if (existing) { try { existing.remove(); } catch(e) {} }
   _map = null; window._parcelMap = null;
-  // Force-clear Leaflet's internal container flag so re-init never fails
   if (mapDiv._leaflet_id) delete mapDiv._leaflet_id;
   Object.keys(_mapLayers).forEach(k => delete _mapLayers[k]);
 
@@ -4126,54 +4213,147 @@ function initParcelMap(r) {
   const lng = r._lng || -81.5;
   const geometry = r.parcel_info?.geometry;
 
-  console.log('[Map] geometry length:', geometry?.length, 'lat:', lat, 'lng:', lng);
-
   if (placeholder) placeholder.style.display = 'none';
   if (mapDiv)      mapDiv.style.display = 'block';
   if (controls)    controls.style.display = 'flex';
+  if (expBtn)      expBtn.style.display = 'block';
 
-  _map = L.map('parcel-map', { zoomControl: true }).setView([lat, lng], 14);
+  _map = L.map('parcel-map', { zoomControl: true, attributionControl: true }).setView([lat, lng], 14);
   window._parcelMap = _map;
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_map);
 
-  // FIX 2 — use extractPolygonCoords for defensive nesting handling
+  _mapLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap, FEMA NFHL, USFWS NWI', maxZoom: 19
+  }).addTo(_map);
+
+  _mapLayers['_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Esri World Imagery', maxZoom: 19
+  });
+
   const coords = extractPolygonCoords(geometry);
   if (coords && coords.length > 2) {
-    console.log('[Map] Drawing polygon with', coords.length, 'points');
-    const poly = L.polygon(coords, {
-      color: '#22C55E', weight: 3,
-      fillColor: '#22C55E', fillOpacity: 0.12
-    }).addTo(_map);
+    const poly = L.polygon(coords, { color: '#22C55E', weight: 3, fillColor: '#22C55E', fillOpacity: 0.12 }).addTo(_map);
     _mapLayers['parcel'] = poly;
-    try { _map.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 16 }); } catch(e) {}
+    try { _map.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 17 }); } catch(e) {}
   } else {
-    console.log('[Map] No polygon — using circle marker');
-    const marker = L.circleMarker([lat, lng], {
-      radius: 14, color: '#22C55E', weight: 2,
-      fillColor: '#22C55E', fillOpacity: 0.2
-    }).addTo(_map);
+    const marker = L.circleMarker([lat, lng], { radius: 14, color: '#22C55E', weight: 2, fillColor: '#22C55E', fillOpacity: 0.2 }).addTo(_map);
     _mapLayers['parcel'] = marker;
     _map.setView([lat, lng], 15);
   }
 
   try {
-    const floodLayer = L.tileLayer.wms('https://hazards.fema.gov/gis/nfhl/services/public/NFHL/MapServer/WMSServer', { layers: '28', format: 'image/png', transparent: true, opacity: 0.4, attribution: 'FEMA NFHL' });
-    floodLayer.addTo(_map); _mapLayers['flood'] = floodLayer;
+    _mapLayers['flood'] = L.tileLayer.wms('https://hazards.fema.gov/gis/nfhl/services/public/NFHL/MapServer/WMSServer', {
+      layers: '28', format: 'image/png', transparent: true, opacity: 0.45, attribution: 'FEMA NFHL'
+    });
+    _mapLayers['flood'].addTo(_map);
   } catch(e) {}
 
   try {
-    const wetLayer = L.tileLayer.wms('https://www.fws.gov/wetlands/arcgis/services/Wetlands/MapServer/WMSServer', { layers: '1', format: 'image/png', transparent: true, opacity: 0.4, attribution: 'USFWS NWI' });
-    wetLayer.addTo(_map); _mapLayers['wetlands'] = wetLayer;
+    _mapLayers['wetlands'] = L.tileLayer.wms('https://www.fws.gov/wetlands/arcgis/services/Wetlands/MapServer/WMSServer', {
+      layers: '1', format: 'image/png', transparent: true, opacity: 0.45, attribution: 'USFWS NWI'
+    });
+    _mapLayers['wetlands'].addTo(_map);
   } catch(e) {}
 
   setTimeout(() => { if (_map) _map.invalidateSize(); }, 350);
 }
 
-function toggleMapLayer(btn) {
+function toggleMapLayer(btn, mapId) {
   const layer = btn.dataset.layer;
-  if (!_mapLayers[layer] || !_map) return;
-  if (_map.hasLayer(_mapLayers[layer])) { _map.removeLayer(_mapLayers[layer]); btn.classList.remove('active'); }
-  else { _map.addLayer(_mapLayers[layer]); btn.classList.add('active'); }
+  const targetMap = mapId === 'mapModalMap' ? window._modalMap : _map;
+  if (!_mapLayers[layer] || !targetMap) return;
+  if (targetMap.hasLayer(_mapLayers[layer])) { targetMap.removeLayer(_mapLayers[layer]); btn.classList.remove('active'); }
+  else { targetMap.addLayer(_mapLayers[layer]); btn.classList.add('active'); }
+}
+
+let _satOn = false;
+function toggleSatellite(btn) {
+  if (!_map || !_mapLayers['_osm'] || !_mapLayers['_sat']) return;
+  _satOn = !_satOn;
+  if (_satOn) { _map.removeLayer(_mapLayers['_osm']); _mapLayers['_sat'].addTo(_map); btn.classList.add('active'); }
+  else { _map.removeLayer(_mapLayers['_sat']); _mapLayers['_osm'].addTo(_map); btn.classList.remove('active'); }
+}
+
+let _modalMap = null; window._modalMap = null;
+const _modalLayers = {};
+
+function expandMap() {
+  if (!_openParcel) return;
+  const modal = document.getElementById('mapModal');
+  const mapDiv = document.getElementById('mapModalMap');
+  if (!modal || !mapDiv) return;
+  const titleEl = document.getElementById('mapModalTitle');
+  if (titleEl) titleEl.textContent = _openParcel.address || 'Parcel Map';
+  modal.style.display = 'block';
+
+  if (_modalMap) { try { _modalMap.remove(); } catch(e) {} }
+  if (mapDiv._leaflet_id) delete mapDiv._leaflet_id;
+  Object.keys(_modalLayers).forEach(k => delete _modalLayers[k]);
+  _modalMap = null; window._modalMap = null;
+
+  const lat = _openParcel._lat || 28.0;
+  const lng = _openParcel._lng || -81.5;
+  const geometry = _openParcel.parcel_info?.geometry;
+
+  _modalMap = L.map('mapModalMap', { zoomControl: true }).setView([lat, lng], 14);
+  window._modalMap = _modalMap;
+
+  _modalLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap, FEMA NFHL, USFWS NWI', maxZoom: 19
+  }).addTo(_modalMap);
+  _modalLayers['_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Esri World Imagery', maxZoom: 19
+  });
+
+  const coords = extractPolygonCoords(geometry);
+  if (coords && coords.length > 2) {
+    const poly = L.polygon(coords, { color: '#22C55E', weight: 3, fillColor: '#22C55E', fillOpacity: 0.12 }).addTo(_modalMap);
+    _modalLayers['parcel'] = poly;
+    try { _modalMap.fitBounds(poly.getBounds(), { padding: [60, 60], maxZoom: 17 }); } catch(e) {}
+  } else {
+    const marker = L.circleMarker([lat, lng], { radius: 16, color: '#22C55E', weight: 2, fillColor: '#22C55E', fillOpacity: 0.2 }).addTo(_modalMap);
+    _modalLayers['parcel'] = marker;
+    _modalMap.setView([lat, lng], 15);
+  }
+
+  try {
+    _modalLayers['flood'] = L.tileLayer.wms('https://hazards.fema.gov/gis/nfhl/services/public/NFHL/MapServer/WMSServer', {
+      layers: '28', format: 'image/png', transparent: true, opacity: 0.45, attribution: 'FEMA NFHL'
+    });
+    _modalLayers['flood'].addTo(_modalMap);
+  } catch(e) {}
+
+  try {
+    _modalLayers['wetlands'] = L.tileLayer.wms('https://www.fws.gov/wetlands/arcgis/services/Wetlands/MapServer/WMSServer', {
+      layers: '1', format: 'image/png', transparent: true, opacity: 0.45, attribution: 'USFWS NWI'
+    });
+    _modalLayers['wetlands'].addTo(_modalMap);
+  } catch(e) {}
+
+  setTimeout(() => { if (_modalMap) _modalMap.invalidateSize(); }, 200);
+}
+
+function closeMapModal() {
+  const modal = document.getElementById('mapModal');
+  if (modal) modal.style.display = 'none';
+  if (_modalMap) { try { _modalMap.remove(); } catch(e) {} }
+  _modalMap = null; window._modalMap = null;
+  const mapDiv = document.getElementById('mapModalMap');
+  if (mapDiv && mapDiv._leaflet_id) delete mapDiv._leaflet_id;
+}
+
+let _modalSatOn = false;
+function toggleModalSatellite(btn) {
+  if (!_modalMap || !_modalLayers['_osm'] || !_modalLayers['_sat']) return;
+  _modalSatOn = !_modalSatOn;
+  if (_modalSatOn) { _modalMap.removeLayer(_modalLayers['_osm']); _modalLayers['_sat'].addTo(_modalMap); btn.classList.add('active'); }
+  else { _modalMap.removeLayer(_modalLayers['_sat']); _modalLayers['_osm'].addTo(_modalMap); btn.classList.remove('active'); }
+}
+
+function toggleModalLayer(btn) {
+  const layer = btn.dataset.mlayer;
+  if (!_modalLayers[layer] || !_modalMap) return;
+  if (_modalMap.hasLayer(_modalLayers[layer])) { _modalMap.removeLayer(_modalLayers[layer]); btn.classList.remove('active'); }
+  else { _modalMap.addLayer(_modalLayers[layer]); btn.classList.add('active'); }
 }
 
 // ── LARGE BATCH QUEUE (Task 30)
@@ -4677,7 +4857,7 @@ function downloadCSV() { exportCSV(); }
 
 // FIX 3 — Close panel on Escape
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDetailPanel(); hideExportModal(); }
+  if (e.key === 'Escape') { closeDetailPanel(); hideExportModal(); closeMapModal(); }
 });
 
 function toggleMode() {
@@ -4694,6 +4874,17 @@ function toggleMode() {
   }
 }
 
+document.addEventListener('click', function(e) {
+  const panel = document.getElementById('filterPanel');
+  const btn = document.getElementById('filterPanelBtn');
+  if (!panel || panel.style.display === 'none') return;
+  if (!panel.contains(e.target) && btn && !btn.contains(e.target)) panel.style.display = 'none';
+});
+document.addEventListener('click', function(e) {
+  const modal = document.getElementById('mapModal');
+  if (!modal || modal.style.display === 'none') return;
+  if (e.target === modal) closeMapModal();
+});
 document.addEventListener('DOMContentLoaded', () => closeDetailPanel());
 </script>
 
