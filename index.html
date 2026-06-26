@@ -590,7 +590,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 <nav class="nav">
   <div class="nav-logo" onclick="window.location.hash='#landing'">Parcel<span class="iq">IQ</span></div>
   <div class="nav-right" id="navRight">
-    <button id="modeToggle" class="mode-toggle-btn" onclick="toggleMode()"><span id="modeIcon">☀️</span></button>
     <span class="fl-pill">FL Beta</span>
     <button class="btn-o btn-sm hide-mob" onclick="window.location.hash='#login'">Log in</button>
     <button class="btn-p btn-sm" onclick="window.location.hash='#signup'">Start free →</button>
@@ -1523,14 +1522,17 @@ window.addEventListener('hashchange', router);
 function updateNav() {
   const el = document.getElementById('navRight');
   if (!el) return;
+  const modeBtn = '<button id="modeToggle" class="mode-toggle-btn" onclick="toggleMode()"><span id="modeIcon">' + (document.documentElement.dataset.theme === 'light' ? '🌙' : '☀️') + '</span></button>';
   if (currentUser) {
     el.innerHTML =
+      modeBtn +
       '<span class="fl-pill">FL Beta</span>' +
       '<a class="nav-link hide-mob" onclick="window.location.hash=\'#dashboard\'">Dashboard</a>' +
       '<span class="nav-user hide-mob">' + escHtml(currentUser.email) + '</span>' +
       '<button class="btn-o btn-sm" onclick="doSignout()">Sign out</button>';
   } else {
     el.innerHTML =
+      modeBtn +
       '<span class="fl-pill">FL Beta</span>' +
       '<button class="btn-o btn-sm hide-mob" onclick="window.location.hash=\'#login\'">Log in</button>' +
       '<button class="btn-p btn-sm" onclick="window.location.hash=\'#signup\'">Start free →</button>';
@@ -4038,11 +4040,7 @@ function toggleMode() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  closeDetailPanel();
-  const icon = document.getElementById('modeIcon');
-  if (icon) icon.textContent = document.documentElement.dataset.theme === 'light' ? '🌙' : '☀️';
-});
+document.addEventListener('DOMContentLoaded', () => closeDetailPanel());
 </script>
 
 <!-- ════════ UPGRADE MODAL ════════ -->
