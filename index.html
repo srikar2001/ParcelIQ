@@ -4100,21 +4100,73 @@ function exportExcel() {
 }
 
 function exportPDF() {
-  const rows = batchState.results.map(r =>
-    '<tr><td>' + escHtml(r.address) + '</td>' +
-    '<td style="color:' + (r.verdict === 'KILL' ? '#C0392B' : r.verdict === 'PURSUE' ? '#1E8449' : '#D68910') + ';font-weight:bold">' + escHtml(r.verdict) + '</td>' +
-    '<td>' + (r.score != null ? r.score : 'AUTO') + '</td>' +
-    '<td>' + escHtml((r.flags||[]).join(', ')) + '</td></tr>'
-  ).join('');
-  const html =
-    '<!DOCTYPE html><html><head><title>ParcelIQ Results</title>' +
-    '<style>body{font-family:Arial,sans-serif;font-size:11px;padding:20px}h1{font-size:16px;margin-bottom:4px}p{color:#666;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#1B2A4A;color:white;padding:6px 8px;text-align:left;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}tr:nth-child(even){background:#f9f9f9}</style>' +
-    '</head><body>' +
-    '<h1>ParcelIQ Results — ' + escHtml(batchState.name || 'Batch') + '</h1>' +
-    '<p>Generated ' + new Date().toLocaleString() + ' · ' + batchState.results.length + ' parcels</p>' +
-    '<table><thead><tr><th>Address</th><th>Verdict</th><th>Score</th><th>Flags</th></tr></thead>' +
-    '<tbody>' + rows + '</tbody></table>' +
-    '</body></html>';
+  const results = batchState.results;
+  const flOnly  = results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
+  const kills   = flOnly.filter(r => r.verdict === 'KILL').length;
+  const reviews = flOnly.filter(r => r.verdict === 'REVIEW').length;
+  const pursues = flOnly.filter(r => r.verdict === 'PURSUE').length;
+
+  const verdictCfg = {
+    KILL:    { bg:'#FEE2E2', color:'#991B1B', label:'KILL' },
+    REVIEW:  { bg:'#FEF3C7', color:'#92400E', label:'REVIEW' },
+    PURSUE:  { bg:'#D1FAE5', color:'#065F46', label:'PURSUE' },
+    ERROR:   { bg:'#F3F4F6', color:'#6B7280', label:'ERROR' },
+    OUTSIDE_COVERAGE: { bg:'#F3F4F6', color:'#9CA3AF', label:'OUTSIDE' },
+  };
+
+  const rows = results.map((r, i) => {
+    const v   = verdictCfg[r.verdict] || verdictCfg.ERROR;
+    const pi  = r.parcel_info || {};
+    const ac  = pi.acreage != null ? pi.acreage + ' ac' : '—';
+    const flags = (r.flags||[]).join(' · ') || '—';
+    const bg  = i % 2 === 0 ? '#ffffff' : '#F9FAFB';
+    return '<tr style="background:' + bg + '">' +
+      '<td style="padding:8px 10px;border-bottom:1px solid #E5E7EB;font-size:10px;color:#111827;max-width:220px">' + escHtml(r.address) + '</td>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid #E5E7EB;white-space:nowrap">' +
+        '<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:' + v.bg + ';color:' + v.color + ';font-size:9px;font-weight:700;letter-spacing:.5px">' + v.label + '</span>' +
+      '</td>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid #E5E7EB;font-size:10px;color:#374151;text-align:center">' + (r.score != null ? r.score : '—') + '</td>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid #E5E7EB;font-size:10px;color:#374151;text-align:center">' + escHtml(ac) + '</td>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid #E5E7EB;font-size:9px;color:#6B7280">' + escHtml(flags) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ParcelIQ — ' + escHtml(batchState.name || 'Results') + '</title>' +
+  '<style>' +
+  '@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");' +
+  '*{box-sizing:border-box;margin:0;padding:0}' +
+  'body{font-family:"Inter",system-ui,sans-serif;background:#fff;color:#111827;padding:32px 40px;font-size:11px}' +
+  '@media print{body{padding:20px 28px}@page{margin:16mm 14mm;size:A4 landscape}}' +
+  '.cover{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid #111827}' +
+  '.logo{font-size:20px;font-weight:800;letter-spacing:-.3px;color:#111827}.logo span{color:#16A34A}' +
+  '.cover-right{text-align:right}' +
+  '.batch-name{font-size:16px;font-weight:700;color:#111827;margin-bottom:4px}' +
+  '.batch-meta{font-size:11px;color:#6B7280}' +
+  '.stats-row{display:flex;gap:16px;margin-bottom:24px}' +
+  '.stat{flex:1;border:1px solid #E5E7EB;border-radius:8px;padding:14px 16px;text-align:center}' +
+  '.stat-num{font-size:22px;font-weight:800;line-height:1;margin-bottom:4px}' +
+  '.stat-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#6B7280}' +
+  '.s-total .stat-num{color:#111827}.s-kill .stat-num{color:#991B1B}.s-review .stat-num{color:#92400E}.s-pursue .stat-num{color:#065F46}' +
+  'table{width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #E5E7EB}' +
+  'thead tr{background:#111827}' +
+  'th{padding:9px 10px;text-align:left;font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#fff}' +
+  '.footer{margin-top:20px;font-size:9px;color:#9CA3AF;display:flex;justify-content:space-between}' +
+  '</style></head><body>' +
+  '<div class="cover">' +
+    '<div class="logo">Parcel<span>IQ</span></div>' +
+    '<div class="cover-right"><div class="batch-name">' + escHtml(batchState.name || 'Screening Results') + '</div><div class="batch-meta">Generated ' + new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}) + ' · Florida · Live Data</div></div>' +
+  '</div>' +
+  '<div class="stats-row">' +
+    '<div class="stat s-total"><div class="stat-num">' + flOnly.length + '</div><div class="stat-lbl">Total Screened</div></div>' +
+    '<div class="stat s-kill"><div class="stat-num">' + kills + '</div><div class="stat-lbl">Kill</div></div>' +
+    '<div class="stat s-review"><div class="stat-num">' + reviews + '</div><div class="stat-lbl">Review</div></div>' +
+    '<div class="stat s-pursue"><div class="stat-num">' + pursues + '</div><div class="stat-lbl">Pursue</div></div>' +
+    '<div class="stat s-total"><div class="stat-num">~' + Math.round(flOnly.length * 30 / 60 * 10) / 10 + 'h</div><div class="stat-lbl">Hours Saved</div></div>' +
+  '</div>' +
+  '<table><thead><tr><th>Address</th><th>Verdict</th><th>Score</th><th>Size</th><th>Flags / Issues</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+  '<div class="footer"><span>ParcelIQ · Florida Parcel Screening · parcel-iq-nine.vercel.app</span><span>' + results.length + ' parcels · 6 live sources: FEMA · NWI · USFWS · EPA · Roads · FL DOR</span></div>' +
+  '</body></html>';
+
   const iframe = document.createElement('iframe');
   iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:none';
   document.body.appendChild(iframe);
@@ -4124,8 +4176,8 @@ function exportPDF() {
   setTimeout(() => {
     iframe.contentWindow.focus();
     iframe.contentWindow.print();
-    setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 2000);
-  }, 400);
+    setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 3000);
+  }, 600);
 }
 
 function downloadCSV() { exportCSV(); }
