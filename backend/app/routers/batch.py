@@ -20,6 +20,7 @@ from app.collectors.parcel_fl import get_parcel_data
 from app.collectors.waterways import get_waterway_proximity
 from app.collectors.elevation import get_elevation
 from app.collectors.soil import get_soil_data
+from app.collectors.evacuation import get_evacuation_zone
 from app.core.insight_engine import score_parcel
 from app.core.cache import get_cached_result, save_cached_result
 
@@ -75,6 +76,7 @@ _PARCEL_DEFAULT    = {"found": False, "source": "FL DOR Cadastral", "geometry": 
 _WATERWAYS_DEFAULT = {"waterway_nearby": False, "waterway_type": None, "source": "OpenStreetMap"}
 _ELEVATION_DEFAULT = {"elevation_ft": None, "source": "USGS National Elevation Dataset"}
 _SOIL_DEFAULT      = {"soil_drainage": None, "soil_name": None, "septic_suitable": None, "source": "USDA Web Soil Survey"}
+_EVAC_DEFAULT      = {"evac_zone": None, "evac_risk": None, "source": "FL Division of Emergency Management"}
 
 # In-memory job store for large batches (Task 30)
 _jobs: dict = {}
@@ -124,7 +126,7 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
 
     lat, lng = geo["lat"], geo["lng"]
 
-    flood, wetlands, habitat, epa, roads, parcel_data, waterways, elevation, soil = await asyncio.gather(
+    flood, wetlands, habitat, epa, roads, parcel_data, waterways, elevation, soil, evac = await asyncio.gather(
         _safe(get_flood_zone(lat, lng), _FLOOD_DEFAULT),
         _safe(get_wetlands(lat, lng), _WETLANDS_DEFAULT),
         _safe(get_critical_habitat(lat, lng), _HABITAT_DEFAULT),
@@ -134,9 +136,10 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
         _safe(get_waterway_proximity(lat, lng), _WATERWAYS_DEFAULT),
         _safe(get_elevation(lat, lng), _ELEVATION_DEFAULT),
         _safe(get_soil_data(lat, lng), _SOIL_DEFAULT),
+        _safe(get_evacuation_zone(lat, lng), _EVAC_DEFAULT),
     )
 
-    result = score_parcel(flood, wetlands, habitat, epa, roads, parcel_data, waterways, elevation, soil)
+    result = score_parcel(flood, wetlands, habitat, epa, roads, parcel_data, waterways, elevation, soil, evac)
 
     out = {
         "address": geo.get("formatted_address", address),
@@ -156,6 +159,9 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
             "soil_drainage": soil.get("soil_drainage"),
             "soil_name": soil.get("soil_name"),
             "septic_suitable": soil.get("septic_suitable"),
+            "evac_zone": evac.get("evac_zone"),
+            "evac_risk": evac.get("evac_risk"),
+            "evac_county": evac.get("evac_county"),
         },
         "_lat": lat,
         "_lng": lng,

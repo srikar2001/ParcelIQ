@@ -601,6 +601,213 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 [data-theme='light'] .nav{background:rgba(248,249,250,.92)}
 .mode-toggle-btn{background:none;border:1px solid var(--b);border-radius:var(--rp);padding:5px 8px;cursor:pointer;font-size:15px;line-height:1;color:var(--t2);transition:border-color .15s}
 .mode-toggle-btn:hover{border-color:var(--bh)}
+
+/* ═══════════════════════════════════════════
+   LANDING PAGE REDESIGN — Task 25
+   All classes prefixed lp- to avoid conflicts
+   ═══════════════════════════════════════════ */
+#page-landing{padding-top:0!important;background:#0A0C0F;color:#F1F5F9}
+#page-landing{--lp-bg:#0A0C0F;--lp-card:#111318;--lp-border:#1E2130;--lp-green:#22C55E;--lp-gdim:rgba(34,197,94,.1);--lp-gglow:rgba(34,197,94,.15);--lp-text:#F1F5F9;--lp-muted:#64748B}
+[data-theme='light'] #page-landing{background:#0A0C0F;color:#F1F5F9}
+
+/* Landing nav — fixed, overlays global nav only when landing is active */
+.lp-nav{position:fixed;top:0;left:0;right:0;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;background:rgba(10,12,15,.9);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid #1E2130;z-index:10000;box-sizing:border-box}
+.lp-nav-logo{font-size:20px;font-weight:800;color:#F1F5F9;cursor:pointer;user-select:none;flex-shrink:0}
+.lp-nav-logo span{color:#22C55E}
+.lp-nav-links{display:flex;gap:28px}
+.lp-nav-links a{font-size:14px;color:#64748B;text-decoration:none;cursor:pointer;transition:color .15s}
+.lp-nav-links a:hover{color:#F1F5F9}
+.lp-nav-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.lp-mode-btn{background:none;border:1px solid #1E2130;border-radius:8px;padding:5px 9px;cursor:pointer;font-size:15px;line-height:1;color:#94A3B8;transition:border-color .15s}
+.lp-mode-btn:hover{border-color:#374151}
+.lp-btn-primary{background:#22C55E;color:#000;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s,transform .1s}
+.lp-btn-primary:hover{background:#16A34A}
+.lp-btn-outline{background:transparent;color:#F1F5F9;font-weight:600;border:1px solid #1E2130;border-radius:10px;cursor:pointer;transition:border-color .15s}
+.lp-btn-outline:hover{border-color:#374151}
+
+/* Hero */
+.lp-hero{min-height:100vh;padding:78px 32px 80px;display:flex;align-items:center;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(34,197,94,.06),transparent),#0A0C0F;position:relative;overflow:hidden;box-sizing:border-box}
+.lp-hero::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+.lp-hero-inner{max-width:1200px;width:100%;margin:0 auto;display:grid;grid-template-columns:55% 45%;gap:56px;align-items:center;position:relative}
+.lp-badge{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#22C55E;border:1px solid rgba(34,197,94,.3);border-radius:999px;padding:6px 14px;margin-bottom:24px}
+.lp-badge-dot{width:6px;height:6px;border-radius:50%;background:#22C55E;animation:lp-blink 1.5s ease infinite}
+@keyframes lp-blink{0%,100%{opacity:1}50%{opacity:.3}}
+.lp-h1{font-size:clamp(36px,5vw,68px);font-weight:900;line-height:1.05;letter-spacing:-.04em;color:#F1F5F9;margin:0 0 20px}
+.lp-h1 .lp-green{color:#22C55E}
+.lp-sub{font-size:17px;color:#64748B;max-width:480px;line-height:1.7;margin:0 0 36px}
+.lp-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.lp-trust-chips{display:flex;flex-wrap:wrap;gap:16px}
+.lp-trust-chip{font-size:13px;color:#374151;display:flex;align-items:center;gap:5px}
+.lp-trust-chip b{color:#22C55E;font-weight:700}
+
+/* Upload module */
+.lp-upload-card{background:#111318;border:1px solid #1E2130;border-radius:16px;overflow:hidden;box-shadow:0 0 40px rgba(34,197,94,.07) inset}
+.lp-upload-tabs{display:flex;border-bottom:1px solid #1E2130}
+.lp-tab{flex:1;padding:14px;font-size:14px;font-weight:600;color:#64748B;cursor:pointer;text-align:center;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;user-select:none}
+.lp-tab.active{color:#F1F5F9;border-bottom-color:#22C55E}
+.lp-tab-content{display:none;padding:20px}
+.lp-tab-content.active{display:block}
+.lp-textarea{width:100%;min-height:140px;background:#0D1016;border:1px solid #1E2130;border-radius:8px;padding:12px;color:#F1F5F9;font-family:ui-monospace,monospace;font-size:13px;line-height:1.6;resize:vertical;outline:none;box-sizing:border-box}
+.lp-textarea:focus{border-color:rgba(34,197,94,.4)}
+.lp-drop-zone{border:2px dashed #1E2130;border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.lp-drop-zone:hover,.lp-drop-zone.drag-over{border-color:#22C55E;background:rgba(34,197,94,.04)}
+.lp-drop-icon{width:48px;height:48px;border-radius:50%;background:rgba(34,197,94,.1);display:flex;align-items:center;justify-content:center;font-size:22px;color:#22C55E;margin:0 auto 12px}
+.lp-drop-title{font-size:15px;font-weight:600;color:#F1F5F9;margin-bottom:4px}
+.lp-drop-sub{font-size:13px;color:#64748B;margin-bottom:6px}
+.lp-drop-types{font-size:11px;color:#374151}
+.lp-state-sel{width:100%;padding:10px 14px;background:#0D1016;border:1px solid #1E2130;border-radius:8px;color:#F1F5F9;font-size:14px;margin:12px 0;cursor:pointer;outline:none}
+.lp-analyze-btn{width:100%;padding:14px;background:#22C55E;color:#000;font-size:16px;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s;margin-bottom:8px}
+.lp-analyze-btn:hover{background:#16A34A}
+.lp-fine{font-size:12px;color:#374151;text-align:center}
+
+/* Hero connector SVG */
+@keyframes dashMove{to{stroke-dashoffset:-20}}
+@keyframes nodePulse{0%,100%{opacity:1;r:3}50%{opacity:.4;r:5}}
+.lp-connector-line{stroke-dasharray:6 4;animation:dashMove 1.5s linear infinite}
+.lp-connector-node{animation:nodePulse 2s ease infinite}
+
+/* Trusted strip */
+.lp-strip{background:#0A0C0F;border-top:1px solid #1E2130;border-bottom:1px solid #1E2130;padding:20px 0;overflow:hidden}
+.lp-strip-label{text-align:center;font-size:13px;color:#374151;margin-bottom:16px;padding:0 24px}
+.lp-marquee-wrap{overflow:hidden}
+.lp-marquee-track{display:flex;gap:40px;width:max-content;animation:lp-marquee 22s linear infinite}
+.lp-marquee-track:hover{animation-play-state:paused}
+@keyframes lp-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.lp-marquee-item{font-size:14px;font-weight:600;color:#374151;white-space:nowrap}
+.lp-marquee-sep{color:#1E2130;margin-left:40px}
+
+/* Section commons */
+.lp-sec-center{text-align:center;margin-bottom:56px}
+.lp-sec-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#22C55E;margin-bottom:8px}
+.lp-sec-title{font-size:32px;font-weight:800;color:#F1F5F9;letter-spacing:-.02em;margin-bottom:10px;line-height:1.2}
+.lp-sec-sub{font-size:16px;color:#64748B;line-height:1.6}
+
+/* How it works */
+.lp-how{padding:80px 32px;background:#0A0C0F}
+.lp-how-inner{max-width:1100px;margin:0 auto}
+.lp-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative}
+.lp-steps-line{position:absolute;top:31px;left:12%;right:12%;height:2px;background:repeating-linear-gradient(90deg,rgba(34,197,94,.35) 0,rgba(34,197,94,.35) 8px,transparent 8px,transparent 16px);z-index:0;pointer-events:none}
+.lp-step{text-align:center;padding:0 16px;position:relative;z-index:1}
+.lp-step-icon-wrap{width:64px;height:64px;border-radius:50%;background:#111318;border:2px solid #1E2130;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px;position:relative;transition:border-color .5s}
+.lp-step.visible .lp-step-icon-wrap{border-color:rgba(34,197,94,.5)}
+.lp-step-num{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#22C55E;color:#000;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.lp-step-title{font-size:16px;font-weight:700;color:#F1F5F9;margin-bottom:8px}
+.lp-step-desc{font-size:14px;color:#64748B;line-height:1.6}
+
+/* Decision engine */
+.lp-engine{padding:80px 32px;background:#0A0C0F;border-top:1px solid #1E2130}
+.lp-engine-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:40% 60%;gap:60px;align-items:center}
+.lp-engine-diagram{position:relative;height:440px;display:flex;align-items:center;justify-content:center}
+.lp-engine-center{width:130px;height:130px;border-radius:50%;background:#111318;border:1px solid rgba(34,197,94,.4);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px;box-sizing:border-box;animation:breathe 3s ease infinite;z-index:2;position:relative;flex-shrink:0}
+@keyframes breathe{0%,100%{box-shadow:0 0 30px rgba(34,197,94,.15);transform:scale(1)}50%{box-shadow:0 0 60px rgba(34,197,94,.3);transform:scale(1.02)}}
+.lp-engine-name{font-size:13px;font-weight:800;color:#F1F5F9;line-height:1.2}
+.lp-engine-sub{font-size:10px;color:#64748B;margin-top:3px}
+.lp-src-card{position:absolute;background:#111318;border:1px solid #1E2130;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;color:#94A3B8;white-space:nowrap;cursor:default;transition:border-color .2s,color .2s,box-shadow .2s;z-index:3}
+.lp-src-card:hover{border-color:rgba(34,197,94,.4);color:#22C55E;box-shadow:0 0 16px rgba(34,197,94,.1)}
+.lp-engine-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.eng-line{stroke-dasharray:5 4;animation:dashMove 2.5s linear infinite}
+
+/* Feature cards */
+.lp-features{padding:80px 32px;background:#0A0C0F;border-top:1px solid #1E2130}
+.lp-features-inner{max-width:1100px;margin:0 auto}
+.lp-features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.lp-feature-card{background:#111318;border:1px solid #1E2130;border-radius:12px;padding:24px;transition:transform .2s,border-color .2s,box-shadow .2s}
+.lp-feature-card:hover{transform:translateY(-3px);border-color:rgba(34,197,94,.3);box-shadow:0 8px 32px rgba(34,197,94,.07)}
+.lp-feature-icon{font-size:22px;margin-bottom:14px;line-height:1}
+.lp-feature-title{font-size:15px;font-weight:700;color:#F1F5F9;margin-bottom:6px}
+.lp-feature-desc{font-size:13px;color:#64748B;line-height:1.6}
+
+/* Explainability */
+.lp-explain{padding:80px 32px;background:#0A0C0F;border-top:1px solid #1E2130}
+.lp-explain-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+.lp-explain-check{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px}
+.lp-explain-ck{color:#22C55E;font-weight:700;font-size:16px;flex-shrink:0;margin-top:1px}
+.lp-explain-text{font-size:15px;color:#94A3B8;line-height:1.5}
+.lp-sample-card{background:#111318;border:1px solid #1E2130;border-radius:12px;overflow:hidden}
+.lp-sample-head{padding:16px 20px;border-bottom:1px solid #1E2130}
+.lp-sample-title{font-size:14px;font-weight:700;color:#F1F5F9;margin-bottom:2px}
+.lp-sample-id{font-size:11px;color:#64748B;font-family:ui-monospace,monospace}
+.lp-check-row{display:flex;align-items:center;justify-content:space-between;padding:11px 20px;border-bottom:1px solid #1E2130}
+.lp-ck-left{display:flex;align-items:center;gap:8px;font-size:13px;color:#94A3B8}
+.lp-ck-icon{font-size:13px;font-weight:700}
+.lp-ck-icon.pass{color:#22C55E}
+.lp-ck-icon.neut{color:#374151}
+.lp-ck-badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;background:rgba(34,197,94,.1);color:#22C55E;white-space:nowrap}
+.lp-ck-badge.grey{background:#1E2130;color:#64748B}
+.lp-conf-bar{padding:14px 20px}
+.lp-conf-lbl{display:flex;justify-content:space-between;font-size:12px;color:#64748B;margin-bottom:6px}
+.lp-conf-lbl span:last-child{color:#22C55E;font-weight:700}
+.lp-conf-track{height:6px;background:#1E2130;border-radius:999px;overflow:hidden}
+.lp-conf-fill{height:100%;background:linear-gradient(90deg,#16A34A,#22C55E);border-radius:999px;width:0%;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.lp-sample-cta{padding:14px 20px;border-top:1px solid #1E2130}
+.lp-sample-cta-btn{width:100%;padding:10px;background:transparent;border:1px solid rgba(34,197,94,.3);border-radius:8px;color:#22C55E;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s}
+.lp-sample-cta-btn:hover{background:rgba(34,197,94,.08)}
+
+/* CTA section */
+.lp-cta-sec{padding:80px 32px;background:#0A0C0F;border-top:1px solid #1E2130}
+.lp-cta-card{max-width:900px;margin:0 auto;border-radius:20px;background:#111318;border:1px solid #1E2130;padding:64px 48px;text-align:center;position:relative;overflow:hidden}
+.lp-cta-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 110%,rgba(34,197,94,.1),transparent);pointer-events:none;animation:ctaGlow 4s ease infinite}
+@keyframes ctaGlow{0%,100%{opacity:.5}50%{opacity:1}}
+.lp-cta-h{font-size:clamp(26px,4vw,44px);font-weight:900;color:#F1F5F9;letter-spacing:-.03em;margin-bottom:16px;line-height:1.1;position:relative}
+.lp-cta-sub{font-size:17px;color:#64748B;max-width:560px;margin:0 auto 36px;line-height:1.7;position:relative}
+.lp-cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:20px;position:relative}
+.lp-cta-trust{font-size:13px;color:#374151;display:flex;gap:20px;justify-content:center;flex-wrap:wrap;position:relative}
+.lp-cta-trust span::before{content:'✓ ';color:#22C55E}
+
+/* Footer */
+.lp-footer{background:#0A0C0F;border-top:1px solid #1E2130;padding:48px 32px 24px}
+.lp-footer-grid{max-width:1100px;margin:0 auto 40px;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px}
+.lp-footer-logo{font-size:20px;font-weight:800;color:#F1F5F9;margin-bottom:8px}
+.lp-footer-logo span{color:#22C55E}
+.lp-footer-tag{font-size:14px;color:#64748B;margin-bottom:4px}
+.lp-footer-note{font-size:12px;color:#374151;line-height:1.6}
+.lp-footer-col-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#F1F5F9;margin-bottom:16px}
+.lp-footer-col a{display:block;font-size:14px;color:#64748B;text-decoration:none;margin-bottom:10px;cursor:pointer;transition:color .15s}
+.lp-footer-col a:hover{color:#F1F5F9}
+.lp-footer-bottom{max-width:1100px;margin:0 auto;border-top:1px solid #1E2130;padding-top:20px;text-align:center;font-size:12px;color:#374151}
+
+/* Scroll animations */
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .6s,transform .6s}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* Hero fade-in */
+@keyframes heroFadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.hero-badge-anim{animation:heroFadeUp .5s ease both}
+.hero-h1-anim{animation:heroFadeUp .5s .1s ease both}
+.hero-sub-anim{animation:heroFadeUp .5s .2s ease both}
+.hero-ctas-anim{animation:heroFadeUp .5s .3s ease both}
+.hero-upload-anim{animation:heroFadeUp .5s .2s ease both}
+
+/* prefers-reduced-motion */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Responsive */
+@media(max-width:1000px){
+  .lp-hero-inner{grid-template-columns:1fr;gap:40px}
+  .lp-engine-inner{grid-template-columns:1fr}
+  .lp-engine-diagram{height:auto;min-height:0}
+  .lp-engine-src-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .lp-src-card{position:static;transform:none!important}
+  .lp-engine-svg{display:none}
+  .lp-engine-center-wrap{display:flex;justify-content:center;margin-bottom:16px}
+  .lp-features-grid{grid-template-columns:repeat(2,1fr)}
+  .lp-explain-inner{grid-template-columns:1fr}
+  .lp-footer-grid{grid-template-columns:1fr 1fr}
+  .lp-steps{grid-template-columns:repeat(2,1fr);gap:32px}
+  .lp-steps-line{display:none}
+}
+@media(max-width:640px){
+  .lp-nav{padding:0 16px}
+  .lp-nav-links{display:none}
+  .lp-hero{padding:80px 20px 60px}
+  .lp-cta-card{padding:40px 24px}
+  .lp-steps{grid-template-columns:1fr}
+  .lp-features-grid{grid-template-columns:1fr}
+  .lp-footer-grid{grid-template-columns:1fr}
+  .lp-ctas,.lp-cta-btns{flex-direction:column;align-items:flex-start}
+  .lp-cta-btns{align-items:center}
+  .lp-how,.lp-engine,.lp-features,.lp-explain,.lp-cta-sec{padding:60px 20px}
+}
 </style>
 <script>(function(){const t=localStorage.getItem('parceliq-theme');if(t==='light')document.documentElement.dataset.theme='light';})()</script>
 </head>
@@ -618,116 +825,397 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 
 <!-- ════════ LANDING ════════ -->
 <div id="page-landing" class="screen active">
-  <section class="hero">
-    <div class="eyebrow">Florida Beta · Live Data</div>
-    <h1>Know which lots to kill<br><span class="gr">before you make an offer.</span></h1>
-    <p class="hero-sub">Upload your lead list. Every parcel screened against FEMA, wetlands, wildlife, EPA, and road data. Kill / Review / Pursue in seconds. Any Florida county.</p>
-    <div class="hero-ctas">
-      <button class="btn-p" onclick="startScreening()">Start screening free →</button>
-      <button class="btn-o" onclick="document.getElementById('howSec').scrollIntoView({behavior:'smooth'})">See how it works</button>
+
+  <!-- ── Landing Nav (overlays global nav via z-index) ── -->
+  <nav class="lp-nav">
+    <div class="lp-nav-logo" onclick="window.location.hash='#landing'">Parcel<span>IQ</span></div>
+    <div class="lp-nav-links">
+      <a onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">How it works</a>
+      <a onclick="window.location.hash='#pricing'">Pricing</a>
+      <a onclick="window.location.hash='#landing'">About</a>
     </div>
-    <p class="hero-fine">Free during beta · No credit card required</p>
-    <div class="mock-wrap">
-      <div class="mock-card">
-        <div class="mock-head">
-          <span class="mock-ht">Batch Screen · Polk County, FL</span>
-          <span class="mock-hm">82 lots · 4m 18s</span>
+    <div class="lp-nav-actions">
+      <button class="lp-mode-btn" id="lpModeBtn" onclick="toggleMode();lpSyncModeBtn()">☀️</button>
+      <button class="lp-btn-outline" style="padding:8px 18px;font-size:14px" onclick="window.location.hash='#login'">Log in</button>
+      <button class="lp-btn-primary" style="padding:8px 20px;font-size:14px" onclick="window.location.hash='#signup'">Start free →</button>
+    </div>
+  </nav>
+
+  <!-- ── SECTION 1: HERO ── -->
+  <section class="lp-hero">
+    <div class="lp-hero-inner">
+
+      <!-- Left: text content -->
+      <div class="lp-hero-text">
+        <div class="lp-badge hero-badge-anim">
+          <span class="lp-badge-dot"></span>
+          FLORIDA BETA · LIVE DATA
         </div>
-        <div class="mock-stats">
-          <div class="mock-stat"><div class="mock-sn" style="color:var(--t1)">82</div><div class="mock-sl">Total</div></div>
-          <div class="mock-stat"><div class="mock-sn" style="color:var(--red)">57</div><div class="mock-sl">Kill</div></div>
-          <div class="mock-stat"><div class="mock-sn" style="color:var(--amber)">16</div><div class="mock-sl">Review</div></div>
-          <div class="mock-stat"><div class="mock-sn" style="color:var(--green)">9</div><div class="mock-sl">Pursue</div></div>
+        <h1 class="lp-h1 hero-h1-anim">
+          Upload your land leads.<br>
+          <span class="lp-green">Know which deals to drop.</span>
+        </h1>
+        <p class="lp-sub hero-sub-anim">ParcelIQ analyzes every parcel against FEMA, wetlands, wildlife, EPA, roads, and county records — so your team can make faster, smarter offers.</p>
+        <div class="lp-ctas hero-ctas-anim">
+          <button class="lp-btn-primary" style="font-size:16px;padding:14px 28px" onclick="startScreening()">Start screening free →</button>
+          <button class="lp-btn-outline" style="font-size:16px;padding:14px 28px" onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">▶ See how it works</button>
         </div>
-        <div class="mock-rows">
-          <div class="mock-row">
-            <div class="mock-bar" style="width:42%"></div>
-            <div class="mock-tags"><span class="mock-tag r">WETLAND</span><span class="mock-tag r">NO ROAD</span><span class="mock-tag r">FLOOD AE</span></div>
-            <div class="mock-score" style="color:var(--red)">18</div>
-            <span class="mock-badge r">KILL</span>
-          </div>
-          <div class="mock-row">
-            <div class="mock-bar" style="width:36%"></div>
-            <div class="mock-tags"><span class="mock-tag r">WETLAND</span><span class="mock-tag a">0.38 AC</span></div>
-            <div class="mock-score" style="color:var(--red)">24</div>
-            <span class="mock-badge r">KILL</span>
-          </div>
-          <div class="mock-row">
-            <div class="mock-bar" style="width:40%"></div>
-            <div class="mock-tags"><span class="mock-tag a">VALUE GAP</span><span class="mock-tag a">NO SALE</span></div>
-            <div class="mock-score" style="color:var(--amber)">51</div>
-            <span class="mock-badge a">REVIEW</span>
-          </div>
-          <div class="mock-row">
-            <div class="mock-bar" style="width:38%"></div>
-            <div class="mock-tags"><span class="mock-tag g">ZONE X</span><span class="mock-tag g">PAVED</span></div>
-            <div class="mock-score" style="color:var(--green)">81</div>
-            <span class="mock-badge g">PURSUE</span>
+        <div class="lp-trust-chips hero-ctas-anim" style="transition-delay:.06s">
+          <span class="lp-trust-chip"><b>✓</b> Live Florida data</span>
+          <span class="lp-trust-chip"><b>✓</b> 6+ data sources</span>
+          <span class="lp-trust-chip"><b>✓</b> Explainable results</span>
+          <span class="lp-trust-chip"><b>✓</b> Built for speed</span>
+        </div>
+      </div>
+
+      <!-- Right: upload module -->
+      <div class="lp-upload-card hero-upload-anim">
+        <div class="lp-upload-tabs">
+          <div class="lp-tab active" id="lp-tab-paste" onclick="lpSwitchTab('paste')">Paste list</div>
+          <div class="lp-tab" id="lp-tab-upload" onclick="lpSwitchTab('upload')">Upload file</div>
+        </div>
+        <div id="lp-content-paste" class="lp-tab-content active">
+          <textarea class="lp-textarea" id="lpPasteArea" placeholder="1234 Main St, Tampa, FL 33602&#10;456 Oak Ave, Orlando, FL 32801&#10;789 Pine Rd, Jacksonville, FL 32201&#10;...one address per line"></textarea>
+        </div>
+        <div id="lp-content-upload" class="lp-tab-content">
+          <div class="lp-drop-zone" id="lpDropZone"
+            ondragover="event.preventDefault();this.classList.add('drag-over')"
+            ondragleave="this.classList.remove('drag-over')"
+            ondrop="event.preventDefault();this.classList.remove('drag-over');lpHandleDrop(event)"
+            onclick="document.getElementById('lpFileIn').click()">
+            <div class="lp-drop-icon">↑</div>
+            <div class="lp-drop-title">Drag &amp; drop your CSV or Excel file</div>
+            <div class="lp-drop-sub">or click to browse</div>
+            <div class="lp-drop-types">.csv &nbsp;·&nbsp; .xlsx &nbsp;·&nbsp; .xls &nbsp;·&nbsp; up to 10MB</div>
+            <input type="file" id="lpFileIn" style="display:none" accept=".csv,.xlsx,.xls" onchange="lpHandleFile(this.files[0])">
           </div>
         </div>
-        <div class="mock-foot">
-          <span class="mock-fl">Every flag cited · source verifiable</span>
-          <span class="mock-fr" onclick="window.location.hash='#signup'">Sign up to see your results →</span>
+        <div style="padding:0 20px 20px">
+          <select class="lp-state-sel"><option value="FL">🏖 Florida</option></select>
+          <button class="lp-analyze-btn" onclick="lpAnalyze()">Analyze leads →</button>
+          <div class="lp-fine">Free during beta · No credit card required</div>
         </div>
       </div>
     </div>
+
+    <!-- Decorative connector SVG between columns -->
+    <svg class="lp-connector" style="position:absolute;top:50%;left:calc(55% - 24px);transform:translateY(-50%);pointer-events:none;overflow:visible;display:block" width="60" height="220" viewBox="0 0 60 220" fill="none" aria-hidden="true">
+      <path d="M0 40 Q30 40 60 70" stroke="rgba(34,197,94,0.22)" stroke-width="1.5" class="lp-connector-line"/>
+      <circle cx="30" cy="40" r="3" fill="#22C55E" class="lp-connector-node"/>
+      <path d="M0 110 Q30 110 60 125" stroke="rgba(34,197,94,0.16)" stroke-width="1.5" class="lp-connector-line" style="animation-delay:.6s"/>
+      <circle cx="30" cy="110" r="3" fill="#22C55E" class="lp-connector-node" style="animation-delay:.6s"/>
+      <path d="M0 180 Q30 180 60 182" stroke="rgba(34,197,94,0.1)" stroke-width="1.5" class="lp-connector-line" style="animation-delay:1.2s"/>
+    </svg>
   </section>
 
-  <!-- Social proof numbers (Task 23) -->
-  <div style="background:var(--bg);padding:40px 24px 0">
-    <div class="proof-grid">
-      <div class="proof-card"><div class="proof-num">2,400+</div><div class="proof-lbl">Parcels screened per batch</div></div>
-      <div class="proof-card"><div class="proof-num">41 hrs</div><div class="proof-lbl">Avg time saved per 82-lot batch</div></div>
-      <div class="proof-card"><div class="proof-num">6</div><div class="proof-lbl">Live data sources per parcel</div></div>
-    </div>
-    <!-- Testimonial -->
-    <div class="testimonial-card">
-      <div class="testimonial-quote">"Ran 82 Polk County lots through it. 57 dead on arrival in under 5 minutes. Would have taken me 40+ hours manually."</div>
-      <div class="testimonial-attr">— Land investor, Florida</div>
-    </div>
-    <!-- FAQ -->
-    <div style="max-width:660px;margin:0 auto 8px;text-align:center">
-      <div class="sec-lbl">FAQ</div>
-      <div class="sec-title" style="margin-bottom:24px">Common questions</div>
-    </div>
-    <div class="faq-wrap">
-      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>What states do you cover?</span><span class="faq-icon">+</span></div><div class="faq-a">Florida statewide during beta. All 67 counties. Other states coming soon.</div></div>
-      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>Where does the data come from?</span><span class="faq-icon">+</span></div><div class="faq-a">Live government sources — FEMA flood maps, USFWS wetlands and wildlife, EPA contamination records, OpenStreetMap roads, Florida DOR parcel records. Every flag is cited with its source.</div></div>
-      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>How accurate is it?</span><span class="faq-icon">+</span></div><div class="faq-a">We use the same data sources county GIS offices use. We cite every source so you can verify any flag independently.</div></div>
-      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>Is this a substitute for due diligence?</span><span class="faq-icon">+</span></div><div class="faq-a">No. ParcelIQ eliminates the obvious kills fast. Always do a title search, survey, and manual utility check before closing.</div></div>
-      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>What is the free trial?</span><span class="faq-icon">+</span></div><div class="faq-a">1,000 parcels per week free. No credit card required.</div></div>
-      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>Can I share results with my team?</span><span class="faq-icon">+</span></div><div class="faq-a">Yes. Every batch has a shareable public link that works without logging in.</div></div>
+  <!-- ── SECTION 2: TRUSTED STRIP ── -->
+  <div class="lp-strip">
+    <div class="lp-strip-label">Trusted by land investors, acquisition teams, and wholesalers</div>
+    <div class="lp-marquee-wrap">
+      <div class="lp-marquee-track">
+        <span class="lp-marquee-item">Veridian Land Group</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Northridge Acquisitions</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Pinecrest Land Co.</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Summit Land Capital</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Ironwood Investments</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Ridgeline Properties</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Sable Land Partners</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Clearwater Acquisitions</span><span class="lp-marquee-sep">·</span>
+        <!-- Duplicate for seamless loop -->
+        <span class="lp-marquee-item">Veridian Land Group</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Northridge Acquisitions</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Pinecrest Land Co.</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Summit Land Capital</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Ironwood Investments</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Ridgeline Properties</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Sable Land Partners</span><span class="lp-marquee-sep">·</span>
+        <span class="lp-marquee-item">Clearwater Acquisitions</span><span class="lp-marquee-sep">·</span>
+      </div>
     </div>
   </div>
 
-  <section class="how" id="howSec">
-    <div class="how-inner">
-      <div class="sec-lbl">How it works</div>
-      <div class="sec-title">Three steps. Seconds, not weeks.</div>
-      <div class="steps">
-        <div class="step">
-          <div class="step-n">1</div>
-          <div class="step-t">Upload your list</div>
-          <div class="step-s">Paste addresses or upload a CSV / Excel file. Any format. One address per line.</div>
+  <!-- ── SECTION 3: HOW IT WORKS ── -->
+  <section class="lp-how" id="lp-how">
+    <div class="lp-how-inner">
+      <div class="lp-sec-center reveal">
+        <div class="lp-sec-label">How it works</div>
+        <div class="lp-sec-title">How ParcelIQ works</div>
+        <div class="lp-sec-sub">Four steps. Minutes, not hours.</div>
+      </div>
+      <div class="lp-steps" style="position:relative">
+        <div class="lp-steps-line"></div>
+        <div class="lp-step reveal" style="transition-delay:0ms">
+          <div class="lp-step-icon-wrap"><span class="lp-step-num">1</span>↑</div>
+          <div class="lp-step-title">Upload your leads</div>
+          <div class="lp-step-desc">Paste addresses or upload a CSV — any format.</div>
         </div>
-        <div class="step">
-          <div class="step-n">2</div>
-          <div class="step-t">We screen every parcel</div>
-          <div class="step-s">FEMA flood zones, USFWS wetlands, critical habitat, EPA, road access, FL DOR records — live government data.</div>
+        <div class="lp-step reveal" style="transition-delay:100ms">
+          <div class="lp-step-icon-wrap"><span class="lp-step-num">2</span>⚡</div>
+          <div class="lp-step-title">We check live sources</div>
+          <div class="lp-step-desc">FEMA, wetlands, wildlife, EPA, roads, county records — all at once.</div>
         </div>
-        <div class="step">
-          <div class="step-n">3</div>
-          <div class="step-t">Get your verdicts</div>
-          <div class="step-s">Kill the bad lots instantly. Review the borderline ones. Pursue the clean ones. Export to CSV.</div>
+        <div class="lp-step reveal" style="transition-delay:200ms">
+          <div class="lp-step-icon-wrap"><span class="lp-step-num">3</span>◉</div>
+          <div class="lp-step-title">ParcelIQ scores risk</div>
+          <div class="lp-step-desc">Our engine evaluates each parcel and explains the reasoning.</div>
+        </div>
+        <div class="lp-step reveal" style="transition-delay:300ms">
+          <div class="lp-step-icon-wrap"><span class="lp-step-num">4</span>◎</div>
+          <div class="lp-step-title">Focus on the best lots</div>
+          <div class="lp-step-desc">Spend time on opportunities, not dead deals.</div>
         </div>
       </div>
     </div>
   </section>
 
-  <footer class="lfooter">
-    <span>ParcelIQ · Florida Beta</span>
-    <span>Every flag cited · source verifiable</span>
+  <!-- ── SECTION 4: DECISION ENGINE ── -->
+  <section class="lp-engine">
+    <div class="lp-engine-inner">
+      <!-- Left text -->
+      <div class="reveal">
+        <div class="lp-sec-label" style="text-align:left">WHAT PARCELIQ EVALUATES</div>
+        <div class="lp-sec-title" style="text-align:left">What ParcelIQ<br>evaluates</div>
+        <p style="font-size:16px;color:#64748B;line-height:1.7;margin:0 0 24px">Our decision engine pulls from 6+ live data sources to uncover risk, access, and opportunity in seconds.</p>
+        <a style="color:#22C55E;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none" onclick="window.location.hash='#signup'">See all data sources →</a>
+      </div>
+      <!-- Diagram -->
+      <div class="reveal" style="transition-delay:200ms">
+        <div class="lp-engine-diagram">
+          <!-- Central glowing circle -->
+          <div class="lp-engine-center">
+            <div class="lp-engine-name">ParcelIQ</div>
+            <div class="lp-engine-sub">Decision Engine</div>
+          </div>
+          <!-- Source cards positioned around center (absolute) -->
+          <!-- top center -->
+          <div class="lp-src-card" style="top:2%;left:50%;transform:translateX(-50%)">Flood Risk (FEMA)</div>
+          <!-- top right -->
+          <div class="lp-src-card" style="top:18%;right:1%">Road Access</div>
+          <!-- mid right -->
+          <div class="lp-src-card" style="top:50%;right:0%;transform:translateY(-50%)">County Records</div>
+          <!-- bottom right -->
+          <div class="lp-src-card" style="bottom:18%;right:1%">EPA / Environmental</div>
+          <!-- bottom center -->
+          <div class="lp-src-card" style="bottom:2%;left:50%;transform:translateX(-50%)">Parcel Boundaries</div>
+          <!-- bottom left -->
+          <div class="lp-src-card" style="bottom:18%;left:1%">Wildlife Habitat</div>
+          <!-- top left -->
+          <div class="lp-src-card" style="top:18%;left:1%">Wetlands (USFWS)</div>
+          <!-- SVG connector lines -->
+          <svg class="lp-engine-svg" viewBox="0 0 440 440" preserveAspectRatio="xMidYMid meet">
+            <line x1="220" y1="220" x2="220" y2="36" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line"/>
+            <line x1="220" y1="220" x2="410" y2="96" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:.35s"/>
+            <line x1="220" y1="220" x2="425" y2="220" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:.7s"/>
+            <line x1="220" y1="220" x2="410" y2="344" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:1.05s"/>
+            <line x1="220" y1="220" x2="220" y2="404" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:1.4s"/>
+            <line x1="220" y1="220" x2="30" y2="344" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:1.75s"/>
+            <line x1="220" y1="220" x2="30" y2="96" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:2.1s"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECTION 5: FEATURE CARDS ── -->
+  <section class="lp-features">
+    <div class="lp-features-inner">
+      <div class="lp-sec-center reveal" style="margin-bottom:40px">
+        <div class="lp-sec-title">Built for <span style="color:#22C55E">land acquisition teams</span></div>
+      </div>
+      <div class="lp-features-grid">
+        <div class="lp-feature-card reveal" style="transition-delay:0ms">
+          <div class="lp-feature-icon">⚡</div>
+          <div class="lp-feature-title">Batch analysis</div>
+          <div class="lp-feature-desc">Process hundreds of parcels at once.</div>
+        </div>
+        <div class="lp-feature-card reveal" style="transition-delay:80ms">
+          <div class="lp-feature-icon">📋</div>
+          <div class="lp-feature-title">Source-backed reasoning</div>
+          <div class="lp-feature-desc">Every insight links to the source.</div>
+        </div>
+        <div class="lp-feature-card reveal" style="transition-delay:160ms">
+          <div class="lp-feature-icon">🗺️</div>
+          <div class="lp-feature-title">Parcel map overlays</div>
+          <div class="lp-feature-desc">Visualize risks and boundaries.</div>
+        </div>
+        <div class="lp-feature-card reveal" style="transition-delay:240ms">
+          <div class="lp-feature-icon">📤</div>
+          <div class="lp-feature-title">Export CSV / Excel / PDF</div>
+          <div class="lp-feature-desc">Share results with your team.</div>
+        </div>
+        <div class="lp-feature-card reveal" style="transition-delay:320ms">
+          <div class="lp-feature-icon">🔄</div>
+          <div class="lp-feature-title">Re-check anytime</div>
+          <div class="lp-feature-desc">Data updates. So do your results.</div>
+        </div>
+        <div class="lp-feature-card reveal" style="transition-delay:400ms">
+          <div class="lp-feature-icon">🎯</div>
+          <div class="lp-feature-title">Team-ready decisions</div>
+          <div class="lp-feature-desc">Standardize how your team evaluates deals.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECTION 6: EXPLAINABILITY ── -->
+  <section class="lp-explain">
+    <div class="lp-explain-inner">
+      <div class="reveal">
+        <div class="lp-sec-label" style="text-align:left">TRANSPARENT BY DESIGN</div>
+        <div class="lp-sec-title" style="text-align:left">Explainable. Transparent. <span style="color:#22C55E">Trusted.</span></div>
+        <p style="font-size:16px;color:#64748B;line-height:1.7;margin:0 0 28px">We show you why each parcel is a good buy — or a pass. Clear reasons. Linked sources. High confidence.</p>
+        <div class="lp-explain-check"><span class="lp-explain-ck">✓</span><span class="lp-explain-text">Human-readable reasoning</span></div>
+        <div class="lp-explain-check"><span class="lp-explain-ck">✓</span><span class="lp-explain-text">Linked to map &amp; source</span></div>
+        <div class="lp-explain-check"><span class="lp-explain-ck">✓</span><span class="lp-explain-text">Confidence you can trust</span></div>
+      </div>
+      <!-- Sample parcel card -->
+      <div class="lp-sample-card reveal" id="lpSampleCard" style="transition-delay:200ms">
+        <div class="lp-sample-head">
+          <div class="lp-sample-title">Polk County, FL</div>
+          <div class="lp-sample-id">Parcel ID: 272632-000000-012050</div>
+        </div>
+        <div class="lp-check-row">
+          <span class="lp-ck-left"><span class="lp-ck-icon pass">✓</span>&nbsp;Outside FEMA floodplain</span>
+          <span class="lp-ck-badge">Low Risk</span>
+        </div>
+        <div class="lp-check-row">
+          <span class="lp-ck-left"><span class="lp-ck-icon pass">✓</span>&nbsp;No mapped wetlands</span>
+          <span class="lp-ck-badge">Clear</span>
+        </div>
+        <div class="lp-check-row">
+          <span class="lp-ck-left"><span class="lp-ck-icon pass">✓</span>&nbsp;Public road frontage</span>
+          <span class="lp-ck-badge">Yes</span>
+        </div>
+        <div class="lp-check-row">
+          <span class="lp-ck-left"><span class="lp-ck-icon neut">○</span>&nbsp;EPA sites (1 mi)</span>
+          <span class="lp-ck-badge grey">None Found</span>
+        </div>
+        <div class="lp-check-row">
+          <span class="lp-ck-left"><span class="lp-ck-icon neut">○</span>&nbsp;Protected habitat (500 ft)</span>
+          <span class="lp-ck-badge grey">No Overlap</span>
+        </div>
+        <div class="lp-conf-bar">
+          <div class="lp-conf-lbl"><span>Confidence</span><span id="lpConfPct">0%</span></div>
+          <div class="lp-conf-track"><div class="lp-conf-fill" id="lpConfFill"></div></div>
+        </div>
+        <div class="lp-sample-cta">
+          <button class="lp-sample-cta-btn" onclick="window.location.hash='#signup'">View full details →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECTION 7: BOTTOM CTA ── -->
+  <section class="lp-cta-sec">
+    <div class="lp-cta-card reveal">
+      <div class="lp-cta-h">Stop guessing. <span class="lp-green">Start closing better deals.</span></div>
+      <div class="lp-cta-sub">Join land investors and acquisition teams using ParcelIQ to save time, reduce risk, and find the right lots.</div>
+      <div class="lp-cta-btns">
+        <button class="lp-btn-primary" style="font-size:17px;padding:16px 40px" onclick="window.location.hash='#signup'">Start free →</button>
+        <button class="lp-btn-outline" style="font-size:17px;padding:16px 36px" onclick="window.location.hash='#pricing'">View pricing</button>
+      </div>
+      <div class="lp-cta-trust">
+        <span>Free during beta</span>
+        <span>No credit card</span>
+        <span>Cancel anytime</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECTION 8: FOOTER ── -->
+  <footer class="lp-footer">
+    <div class="lp-footer-grid">
+      <div>
+        <div class="lp-footer-logo">Parcel<span>IQ</span></div>
+        <div class="lp-footer-tag">Live data. Smarter decisions.</div>
+        <div class="lp-footer-note">Florida Beta — Live data for Florida. Updating continuously.</div>
+      </div>
+      <div class="lp-footer-col">
+        <div class="lp-footer-col-title">Product</div>
+        <a onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">How it works</a>
+        <a onclick="window.location.hash='#pricing'">Pricing</a>
+        <a onclick="window.location.hash='#landing'">Data sources</a>
+      </div>
+      <div class="lp-footer-col">
+        <div class="lp-footer-col-title">Company</div>
+        <a onclick="window.location.hash='#landing'">About</a>
+        <a onclick="window.location.hash='#landing'">Blog</a>
+        <a onclick="window.location.hash='#landing'">Contact</a>
+        <a onclick="window.location.hash='#landing'">Careers</a>
+      </div>
+      <div class="lp-footer-col">
+        <div class="lp-footer-col-title">Legal</div>
+        <a onclick="window.location.hash='#landing'">Terms of Service</a>
+        <a onclick="window.location.hash='#landing'">Privacy Policy</a>
+        <a style="color:#374151;cursor:default">API (Coming soon)</a>
+      </div>
+    </div>
+    <div class="lp-footer-bottom">© 2025 ParcelIQ. All rights reserved.</div>
   </footer>
+
+  <!-- Landing page JS — scoped to this page -->
+  <script>
+  (function() {
+    // Sync mode button icon with current theme
+    function lpSyncModeBtn() {
+      var b = document.getElementById('lpModeBtn');
+      if (b) b.textContent = document.documentElement.dataset.theme === 'light' ? '🌙' : '☀️';
+    }
+    window.lpSyncModeBtn = lpSyncModeBtn;
+    lpSyncModeBtn();
+    window.addEventListener('hashchange', lpSyncModeBtn);
+
+    // Tab switching
+    window.lpSwitchTab = function(tab) {
+      ['paste','upload'].forEach(function(t) {
+        document.getElementById('lp-tab-' + t).classList.toggle('active', t === tab);
+        document.getElementById('lp-content-' + t).classList.toggle('active', t === tab);
+      });
+    };
+
+    // Analyze button
+    window.lpAnalyze = function() {
+      var text = (document.getElementById('lpPasteArea') || {}).value || '';
+      if (text.trim()) { try { sessionStorage.setItem('lp_pending', text.trim()); } catch(e){} }
+      startScreening();
+    };
+
+    // File drop / select handlers
+    window.lpHandleDrop = function(e) { if (e.dataTransfer.files[0]) lpHandleFile(e.dataTransfer.files[0]); };
+    window.lpHandleFile = function(f) { if (f) startScreening(); };
+
+    // Confidence counter animation
+    var confDone = false;
+    function lpAnimConf() {
+      if (confDone) return; confDone = true;
+      var fill = document.getElementById('lpConfFill');
+      var pct  = document.getElementById('lpConfPct');
+      if (!fill || !pct) return;
+      var cur = 0, tgt = 92;
+      (function step() {
+        cur += Math.ceil((tgt - cur) / 8);
+        if (cur >= tgt) cur = tgt;
+        fill.style.width = cur + '%';
+        pct.textContent = cur + '%';
+        if (cur < tgt) requestAnimationFrame(step);
+      })();
+    }
+
+    // Intersection Observer for scroll reveals + confidence counter
+    var io = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('visible');
+        if (e.target.classList.contains('lp-step')) e.target.classList.add('visible');
+        if (e.target.id === 'lpSampleCard') lpAnimConf();
+      });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll('#page-landing .reveal').forEach(function(el) { io.observe(el); });
+    var sc = document.getElementById('lpSampleCard');
+    if (sc) io.observe(sc);
+  })();
+  </script>
 </div>
 
 <!-- ════════ LOGIN ════════ -->
@@ -1463,7 +1951,7 @@ const FLAG_DEFS = [
   { key: 'poor_soil', label: 'Poor Soil',     match: r =>
       (r.flags||[]).some(f => /soil|septic.*denied|drainage/i.test(f)) },
   { key: 'evac',      label: 'Evac Zone',     match: r =>
-      (r.flags||[]).some(f => /evacuation|evac.*zone/i.test(f)) },
+      !!(r.parcel_info||{}).evac_zone || (r.flags||[]).some(f => /evacuation|evac.*zone/i.test(f)) },
   { key: 'no_power',  label: 'No Power',      match: r =>
       (r.flags||[]).some(f => /power.*line|electric.*mile/i.test(f)) },
   { key: 'easement',  label: 'Easement',      match: r =>
@@ -3234,19 +3722,22 @@ function openDetailPanel(absIdx, event) {
     if (pi.owner && pi.owner !== 'N/A') fields.push(['Owner', pi.owner]);
     if (pi.last_sale_price != null && pi.last_sale_price > 0) fields.push(['Last Sale', fmt$(pi.last_sale_price)]);
     if (pi.land_use_code) fields.push(['Type', getDORDescription(pi.land_use_code)]);
-    // Direct parcel_info fields (elevation + soil from new collectors)
+    // Direct parcel_info fields (elevation, soil, evac from collectors)
     if (pi.elevation_ft != null) fields.push(['Elevation', pi.elevation_ft + ' ft']);
     if (pi.soil_drainage) {
       const septicLabel = pi.septic_suitable === true ? ' ✓' : pi.septic_suitable === false ? ' ✗' : '';
       fields.push(['Soil', pi.soil_drainage + septicLabel]);
+    }
+    if (pi.evac_zone) {
+      const riskLabel = pi.evac_risk ? ' (' + pi.evac_risk + ')' : '';
+      const countyLabel = pi.evac_county ? ' · ' + pi.evac_county + ' Co.' : '';
+      fields.push(['Evac Zone', 'Zone ' + pi.evac_zone + riskLabel + countyLabel]);
     }
     // Extract additional fields from flags + positives
     const allSignals = [...(r.flags || []), ...(r.positives || [])];
     const findFlag = pat => { const f = allSignals.find(f => pat.test(f)); return f || null; };
     const floodFlag = findFlag(/flood zone/i);
     if (floodFlag) { const m = floodFlag.match(/flood zone\s*(\S+)/i); if (m) fields.push(['Flood Zone', 'Zone ' + m[1].toUpperCase()]); }
-    const evacFlag = findFlag(/evac(?:uation)?\s*zone/i);
-    if (evacFlag) { const m = evacFlag.match(/evac(?:uation)?\s*zone\s*([A-Z])/i); fields.push(['Evac Zone', m ? 'Zone ' + m[1].toUpperCase() : 'Yes']); }
     const elecFlag = findFlag(/electric|power\s*line/i);
     if (elecFlag) fields.push(['Electric', elecFlag.split('.')[0].replace(/^[^:]+:\s*/, '')]);
     if (fields.length === 0) {

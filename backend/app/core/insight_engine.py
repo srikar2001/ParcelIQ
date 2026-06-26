@@ -17,6 +17,7 @@ def score_parcel(
     waterways: dict | None = None,
     elevation: dict | None = None,
     soil: dict | None = None,
+    evac: dict | None = None,
 ) -> dict:
     flags: list[str] = []
     positives: list[str] = []
@@ -35,6 +36,8 @@ def score_parcel(
         sources_checked.append(elevation.get("source", "USGS National Elevation Dataset"))
     if soil:
         sources_checked.append(soil.get("source", "USDA Web Soil Survey"))
+    if evac:
+        sources_checked.append(evac.get("source", "FL Division of Emergency Management"))
 
     # ── STEP 1: Auto-kill checks
     flood_zone = flood.get("zone") or ""
@@ -148,6 +151,27 @@ def score_parcel(
         elif septic is True:
             score += 4
             positives.append(f"Well-drained soil ({drainage}) — septic feasible")
+
+    # Hurricane evacuation zone (FL FDEM)
+    if evac:
+        zone = evac.get("evac_zone")
+        risk = evac.get("evac_risk")
+        county = evac.get("evac_county", "")
+        county_str = f" ({county} County)" if county else ""
+        if zone == "A":
+            score -= 18
+            flags.append(f"Hurricane Evacuation Zone A{county_str} — highest surge risk, mandatory evac")
+        elif zone == "B":
+            score -= 12
+            flags.append(f"Hurricane Evacuation Zone B{county_str} — high surge risk")
+        elif zone == "C":
+            score -= 6
+            flags.append(f"Hurricane Evacuation Zone C{county_str} — moderate surge risk")
+        elif zone in ("D", "E", "F"):
+            score -= 2
+            flags.append(f"Hurricane Evacuation Zone {zone}{county_str}")
+        elif zone is None:
+            positives.append("Not in a hurricane evacuation zone")
 
     # Additions
     if flood_zone == "X":
