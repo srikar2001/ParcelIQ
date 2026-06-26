@@ -1639,7 +1639,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </div>
       <button class="dp-close" onclick="closeDetailPanel()">✕</button>
     </div>
-    <div style="display:flex;align-items:center;gap:10px">
+    <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end">
       <div id="dpBadge"></div>
       <div class="dp-score-num" id="dpScore"></div>
     </div>
@@ -3906,7 +3906,7 @@ function renderTable(results, offset) {
       }
     }
     const signalsHtml = buildSignals(r);
-    const scoreStr   = (isOutside || isError) ? '' : (ev === 'KILL' || r.auto_kill) ? '—' : (r.score ? String(r.score) : '—');
+    const scoreStr   = (isOutside || isError) ? '' : (r.score ? String(r.score) : '');
     const scoreColor = (isOutside || isError) ? '' : r.auto_kill ? 'var(--red)' : verdictColor(ev);
     const verdictLabel = isOutside ? 'Not FL' : isGeoFail ? 'Not found' : isTimeout ? 'Timeout' : ev;
     return '<tr class="' + rowClass + '" id="trow-' + absIdx + '" onclick="openDetailPanel(' + absIdx + ',event)">' +
@@ -3989,7 +3989,7 @@ function openDetailPanel(absIdx, event) {
   setT('dpApn', pi.apn ? 'APN: ' + pi.apn : '');
   const scoreEl = document.getElementById('dpScore');
   if (scoreEl) {
-    scoreEl.textContent = (ev === 'KILL' || r.auto_kill) ? '—' : (r.score || '—');
+    scoreEl.textContent = r.score ? String(r.score) : '';
     scoreEl.style.color = ev === 'KILL' ? 'var(--red)' : ev === 'REVIEW' ? 'var(--amber)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--t2)';
   }
   setH('dpBadge', '<span class="verdict-badge ' + vc + '">' + escHtml(ev) + '</span>');
@@ -4020,6 +4020,18 @@ function openDetailPanel(absIdx, event) {
     }
     whyEl.className = 'dp-why ' + whyCls;
     whyEl.innerHTML = whyText;
+    // Append assessed/sale value to insights box
+    let _valStr = '';
+    if (pi.last_sale_price != null && pi.last_sale_price > 0) {
+      _valStr = 'Last sale: ' + fmt$(pi.last_sale_price) + (pi.last_sale_year ? ' (' + pi.last_sale_year + ')' : '');
+    } else if (pi.just_value != null && pi.just_value > 0) {
+      _valStr = 'Assessed: ' + fmt$(pi.just_value);
+    } else if (pi.land_value != null && pi.land_value > 0) {
+      _valStr = 'Land value: ' + fmt$(pi.land_value);
+    }
+    if (_valStr) {
+      whyEl.innerHTML += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.15);font-size:11px;opacity:.75">&#128176; ' + escHtml(_valStr) + '</div>';
+    }
   }
   // Risk flags (red/amber/grey only — no positives mixed in)
   const dpFlags = document.getElementById('dpFlags');
@@ -5177,6 +5189,14 @@ document.addEventListener('click', function(e) {
   if (e.target === modal) closeMapModal();
 });
 document.addEventListener('DOMContentLoaded', () => closeDetailPanel());
+document.addEventListener('click', function(e) {
+  if (!_openParcel) return;
+  const panel = document.getElementById('detailPanel');
+  if (!panel) return;
+  if (panel.contains(e.target)) return;
+  if (e.target.closest('.res-trow')) return;
+  closeDetailPanel();
+});
 </script>
 
 <!-- ════════ UPGRADE MODAL ════════ -->
