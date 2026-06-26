@@ -426,8 +426,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .dp-grid-item{background:var(--bg);border-radius:var(--rs);padding:8px 10px}
 .dp-grid-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
 .dp-grid-val{font-size:13px;font-weight:600;color:var(--t1)}
-.dp-map-placeholder{height:180px;background:rgba(13,15,18,.8);border:1px solid var(--b);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:12px;text-align:center;padding:16px;line-height:1.5;margin:0 16px 14px}
-.map-controls{display:flex;gap:6px;padding:0 16px 8px;flex-wrap:wrap}
+.dp-map-placeholder{height:280px;width:100%;background:rgba(13,15,18,.8);border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:12px;text-align:center;padding:16px;line-height:1.5}
+.map-controls{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;border-bottom:1px solid var(--b)}
 .map-toggle{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t3);cursor:pointer;transition:all .15s}
 .map-toggle.active{background:var(--gbg);color:var(--green);border-color:rgba(34,197,94,.3)}
 .leaflet-container{border-radius:var(--rs)}
@@ -1076,6 +1076,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
     </div>
     <button class="dp-close" onclick="closeDetailPanel()">✕</button>
   </div>
+  <div class="map-controls" id="mapControls" style="display:none">
+    <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this)">Parcel</button>
+    <button class="map-toggle active" data-layer="flood" onclick="toggleMapLayer(this)">Flood zones</button>
+    <button class="map-toggle active" data-layer="wetlands" onclick="toggleMapLayer(this)">Wetlands</button>
+  </div>
+  <div id="dpMapPlaceholder" class="dp-map-placeholder" style="display:none">Loading map…</div>
+  <div id="parcel-map" style="height:280px;width:100%;margin:0;border-radius:0;overflow:hidden;display:none"></div>
   <div id="dpWhy" class="dp-why"></div>
   <div class="dp-section" id="dpFlagsSection">
     <div class="dp-sec-title">Risk Flags &amp; Signals</div>
@@ -1085,15 +1092,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
     <div class="dp-sec-title">Parcel Info</div>
     <div class="dp-grid" id="dpInfo"></div>
   </div>
-  <div id="dpMapPlaceholder" class="dp-map-placeholder">
-    Loading map…
-  </div>
-  <div class="map-controls" id="mapControls" style="display:none">
-    <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this)">Parcel</button>
-    <button class="map-toggle active" data-layer="flood" onclick="toggleMapLayer(this)">Flood zones</button>
-    <button class="map-toggle active" data-layer="wetlands" onclick="toggleMapLayer(this)">Wetlands</button>
-  </div>
-  <div id="parcel-map" style="height:220px;border-radius:var(--rs);overflow:hidden;margin:0 16px 14px;display:none"></div>
   <div class="dp-section">
     <div class="dp-sec-title">Notes</div>
     <div id="dpNoteDisplay" style="display:none">
@@ -3218,20 +3216,48 @@ function openDetailPanel(absIdx, event) {
   const dpInfo = document.getElementById('dpInfo');
   if (dpInfo) {
     const fields = [];
-    if (pi.acreage != null) fields.push(['Size', pi.acreage + ' ac']);
+    const ac = getAcreage(r);
+    if (ac != null) fields.push(['Size', ac + ' ac']);
     const county = extractCounty(r.address || '');
     if (county) fields.push(['County', county]);
-    if (pi.owner) fields.push(['Owner', pi.owner]);
+    if (pi.owner && pi.owner !== 'N/A') fields.push(['Owner', pi.owner]);
     if (pi.last_sale_price != null && pi.last_sale_price > 0) fields.push(['Last Sale', fmt$(pi.last_sale_price)]);
     if (pi.land_use_code) fields.push(['Type', getDORDescription(pi.land_use_code)]);
-    dpInfo.innerHTML = fields.map(([l,v]) => '<div class="dp-grid-item"><div class="dp-grid-lbl">' + escHtml(l) + '</div><div class="dp-grid-val">' + escHtml(String(v)) + '</div></div>').join('');
+    // Extract additional fields from flags + positives
+    const allSignals = [...(r.flags || []), ...(r.positives || [])];
+    const findFlag = pat => { const f = allSignals.find(f => pat.test(f)); return f || null; };
+    const floodFlag = findFlag(/flood zone/i);
+    if (floodFlag) { const m = floodFlag.match(/flood zone\s*(\S+)/i); if (m) fields.push(['Flood Zone', 'Zone ' + m[1].toUpperCase()]); }
+    const elevFlag = findFlag(/elevation.*\d+\s*ft/i);
+    if (elevFlag) { const m = elevFlag.match(/(\d+(?:\.\d+)?)\s*ft/i); if (m) fields.push(['Elevation', m[1] + ' ft']); }
+    const soilFlag = findFlag(/drainage|soil/i);
+    if (soilFlag) fields.push(['Soil', soilFlag.replace(/^[^:]+:\s*/,'').split('.')[0]]);
+    const evacFlag = findFlag(/evac(?:uation)?\s*zone/i);
+    if (evacFlag) { const m = evacFlag.match(/evac(?:uation)?\s*zone\s*([A-Z])/i); fields.push(['Evac Zone', m ? 'Zone ' + m[1].toUpperCase() : 'Yes']); }
+    const elecFlag = findFlag(/electric|power\s*line/i);
+    if (elecFlag) fields.push(['Electric', elecFlag.split('.')[0].replace(/^[^:]+:\s*/, '')]);
+    if (fields.length === 0) {
+      dpInfo.innerHTML = '<div style="font-size:12px;color:var(--t3);grid-column:1/-1">No parcel data available.</div>';
+    } else {
+      dpInfo.innerHTML = fields.map(([l,v]) => {
+        const vs = String(v).trim();
+        if (!vs || vs === 'null' || vs === 'undefined' || vs === 'N/A') return '';
+        return '<div class="dp-grid-item"><div class="dp-grid-lbl">' + escHtml(l) + '</div><div class="dp-grid-val">' + escHtml(vs) + '</div></div>';
+      }).join('');
+    }
   }
   // Sources
   setH('dpSources', 'Sources: ' + (r.sources || ['FEMA','Wetlands','Wildlife','EPA','Roads','County Records']).map(s => escHtml(translateSource(s))).join(' · '));
   _loadNoteForPanel(r);
+  // Show map placeholder while panel animates open, then init map
+  const _ph = document.getElementById('dpMapPlaceholder');
+  const _mc = document.getElementById('mapControls');
+  if (_ph) { _ph.style.display = 'flex'; _ph.textContent = 'Loading map…'; }
+  if (_mc) _mc.style.display = 'none';
   panel.style.display = '';
   panel.classList.add('open');
-  setTimeout(() => initParcelMap(r), 320);
+  setTimeout(() => initParcelMap(r), 350);
+  setTimeout(() => { if (window._parcelMap) window._parcelMap.invalidateSize(); }, 700);
 }
 
 function closeDetailPanel() {
@@ -3581,7 +3607,8 @@ function initParcelMap(r) {
   const placeholder = document.getElementById('dpMapPlaceholder');
   const mapDiv      = document.getElementById('parcel-map');
   const controls    = document.getElementById('mapControls');
-  if (!mapDiv || typeof L === 'undefined') { if (placeholder) placeholder.style.display = 'flex'; return; }
+  if (!mapDiv || typeof L === 'undefined') { if (placeholder) { placeholder.style.display = 'flex'; } return; }
+  if (placeholder) placeholder.style.display = 'none';
 
   // Destroy any existing map — sync both references, then wipe container's leaflet ID
   const existing = _map || window._parcelMap;
