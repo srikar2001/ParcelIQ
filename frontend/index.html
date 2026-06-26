@@ -216,6 +216,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .batch-date{font-size:12px;color:var(--t3)}
 .batch-stats{display:flex;gap:10px;font-size:12px;flex-shrink:0}
 .batch-arr{color:var(--t3)}
+.batch-del{background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;padding:4px 8px;border-radius:var(--rs);transition:all .15s;flex-shrink:0}
+.batch-del:hover{color:var(--red);background:var(--rbg)}
 
 /* ══════════════════ PROCESSING ══════════════════ */
 .proc-wrap{text-align:center;padding:40px 24px;width:100%}
@@ -832,26 +834,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
     </aside>
     <!-- Main -->
     <main class="dash-main">
-      <div class="dash-top">
-        <div class="dash-welcome-name" id="dashWelcome">Welcome back</div>
-        <div class="dash-welcome-date" id="dashDate">—</div>
-      </div>
-      <div class="dash-qs-grid">
-        <div class="dash-qs-card"><div class="dash-qs-num dq-zero" id="dqTotal">0</div><div class="dash-qs-lbl">Batches Run</div></div>
-        <div class="dash-qs-card"><div class="dash-qs-num dq-zero" id="dqKill">0</div><div class="dash-qs-lbl">Parcels Screened</div></div>
-        <div class="dash-qs-card"><div class="dash-qs-num dq-zero" id="dqReview">0</div><div class="dash-qs-lbl">Kills</div></div>
-        <div class="dash-qs-card"><div class="dash-qs-num dq-zero" id="dqPursue">0 hrs</div><div class="dash-qs-lbl">Hours Saved</div></div>
-      </div>
-      <div id="statsHint" class="stats-hint" style="display:none">Screen your first batch to see your stats here</div>
-      <div id="gettingStarted" class="gs-card" style="display:none">
-        <div class="gs-title">Getting Started</div>
-        <div class="gs-desc">ParcelIQ screens vacant land parcels for flood risk, wetlands, wildlife, contamination, and road access — in seconds.</div>
-        <div class="gs-steps">
-          <div class="gs-step"><span class="gs-n">1</span><span>Paste FL addresses below (one per line) or upload a CSV</span></div>
-          <div class="gs-step"><span class="gs-n">2</span><span>Click Screen Parcels</span></div>
-          <div class="gs-step"><span class="gs-n">3</span><span>Review Kill / Review / Pursue verdicts</span></div>
-        </div>
-      </div>
       <div class="dash-form-card">
         <div class="dash-lbl">New Batch Screen</div>
         <div style="display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid var(--b);padding-bottom:16px;align-items:center;flex-wrap:wrap">
@@ -2108,76 +2090,36 @@ function buildSignals(r) {
 
 // FIX 5: Load dashboard sidebar + stats
 async function loadDashboardData() {
-  const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   updateUIWithProfile();
-  setEl('dashDate', new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }));
-
   if (sb && currentUser) {
     try {
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const [{ data }, { count: weeklyCount }] = await Promise.all([
-        sb.from('batches').select('total,kills').eq('user_id', currentUser.id),
-        sb.from('parcel_results').select('*', { count: 'exact', head: true })
-          .eq('user_id', currentUser.id).gte('created_at', weekAgo),
-      ]);
-      if (data && data.length) {
-        const batchCount   = data.length;
-        const totalParcels = data.reduce((a, b) => a + (b.total || 0), 0);
-        const totalKills   = data.reduce((a, b) => a + (b.kills || 0), 0);
-        const hrsSaved     = (Math.round(totalParcels * 0.25 * 10) / 10) + ' hrs';
-
-        ['dqTotal','dqKill','dqReview','dqPursue'].forEach(id => {
-          const el = document.getElementById(id); if (el) el.classList.remove('dq-zero');
-        });
-        setEl('dqTotal', batchCount);
-        setEl('dqKill',  totalParcels);
-        setEl('dqReview', totalKills);
-        setEl('dqPursue', hrsSaved);
-
-        const hint = document.getElementById('statsHint');
-        if (hint) hint.style.display = 'none';
-        const gs = document.getElementById('gettingStarted');
-        if (gs) gs.style.display = 'none';
-
-        const wc        = weeklyCount || 0;
-        const remaining = 1000 - wc;
-        setEl('dashUsed', wc);
-        const fill = document.getElementById('dashUsageFill');
-        if (fill) fill.style.width = Math.min(Math.round(wc / 1000 * 100), 100) + '%';
-        const banner = document.getElementById('limitBanner');
-        if (banner) {
-          if (remaining <= 0) {
-            banner.textContent = 'Weekly limit reached (1,000 parcels). Resets Monday.';
-            banner.classList.add('show');
-          } else if (remaining <= 100) {
-            banner.textContent = remaining + ' parcels remaining this week. Limit resets Monday.';
-            banner.classList.add('show');
-          } else {
-            banner.classList.remove('show');
-          }
+      const { count: wc } = await sb.from('parcel_results').select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id).gte('created_at', weekAgo);
+      const weeklyCount = wc || 0;
+      const remaining = 1000 - weeklyCount;
+      const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+      setEl('dashUsed', weeklyCount);
+      const fill = document.getElementById('dashUsageFill');
+      if (fill) fill.style.width = Math.min(Math.round(weeklyCount / 1000 * 100), 100) + '%';
+      const banner = document.getElementById('limitBanner');
+      if (banner) {
+        if (remaining <= 0) {
+          banner.textContent = 'Weekly limit reached (1,000 parcels). Resets Monday.';
+          banner.classList.add('show');
+        } else if (remaining <= 100) {
+          banner.textContent = remaining + ' parcels remaining this week. Limit resets Monday.';
+          banner.classList.add('show');
+        } else {
+          banner.classList.remove('show');
         }
-      } else {
-        _dashEmptyState();
       }
-    } catch(e) { _dashEmptyState(); }
-  } else {
-    _dashEmptyState();
+    } catch(e) {}
   }
   loadPastBatches();
 }
 
-function _dashEmptyState() {
-  ['dqTotal','dqKill','dqReview'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.textContent = '0'; el.classList.add('dq-zero'); }
-  });
-  const pEl = document.getElementById('dqPursue');
-  if (pEl) { pEl.textContent = '0 hrs'; pEl.classList.add('dq-zero'); }
-  const hint = document.getElementById('statsHint');
-  if (hint) hint.style.display = 'block';
-  const gs = document.getElementById('gettingStarted');
-  if (gs && !localStorage.getItem('parceliq-first-batch-done')) gs.style.display = 'block';
-}
+function _dashEmptyState() {}
 
 // ── SMART FILE UPLOAD — FIX 1
 const _HEADER_KW = ['address','property','street','parcel','owner','name','apn','folio','site','strap','col','field'];
@@ -2355,15 +2297,27 @@ function renderPastBatches(batches) {
   el.innerHTML = batches.map(b => {
     const d  = new Date(b.created_at);
     const ds = d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-    const name = escHtml(b.name || (b.total||0) + ' lots screened');
+    const name = escHtml(b.name || 'Batch · ' + d.toLocaleDateString());
     return '<div class="batch-card" onclick="loadBatchResults(\'' + b.id + '\')">' +
       '<div class="batch-info"><div class="batch-name">' + name + '</div><div class="batch-date">' + ds + '</div></div>' +
       '<div class="batch-stats">' +
         '<span style="color:var(--red)">■ ' + (b.kills||0) + ' kill</span>' +
         '<span style="color:var(--amber)">■ ' + (b.reviews||0) + ' review</span>' +
         '<span style="color:var(--green)">■ ' + (b.pursues||0) + ' pursue</span>' +
-      '</div><div class="batch-arr">→</div></div>';
+      '</div><div class="batch-arr">→</div>' +
+      '<button class="batch-del" onclick="event.stopPropagation();deleteBatch(\'' + b.id + '\')" title="Delete batch">✕</button>' +
+      '</div>';
   }).join('');
+}
+
+async function deleteBatch(id) {
+  if (!currentUser || !sb) return;
+  if (!confirm('Delete this batch and all its results?')) return;
+  try {
+    await sb.from('parcel_results').delete().eq('batch_id', id).eq('user_id', currentUser.id);
+    await sb.from('batches').delete().eq('id', id).eq('user_id', currentUser.id);
+    loadPastBatches();
+  } catch(e) { toast('Could not delete batch'); }
 }
 
 function showResultsLoading() {
@@ -2620,9 +2574,6 @@ async function _executeBatch(lines, estimatedSet) {
       pursue: apiResults.filter(r => r.verdict === 'PURSUE').length,
     };
     await saveBatchToSupabase(batchState.name, { summary, results: apiResults });
-    localStorage.setItem('parceliq-first-batch-done', 'true');
-    const gsCard = document.getElementById('gettingStarted');
-    if (gsCard) gsCard.style.display = 'none';
     setTimeout(() => { renderBatchResults(); goTo('results'); }, 600);
   } catch(err) {
     if (err.isLimitExceeded) {
