@@ -133,6 +133,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .auth-err.show{display:block}
 .upgrade-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;align-items:center;justify-content:center;padding:24px}
 .upgrade-overlay.show{display:flex}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:301;align-items:center;justify-content:center;padding:24px}
+.modal-overlay.show{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);width:100%}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--b)}
+.modal-header button{background:none;border:none;color:var(--t2);font-size:16px;cursor:pointer;padding:2px 6px;border-radius:var(--rs);transition:color .15s}
+.modal-header button:hover{color:var(--t1)}
+.export-option-btn{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--card);border:1px solid var(--b);border-radius:var(--r);cursor:pointer;color:var(--t1);text-align:left;transition:all .15s;width:100%}
+.export-option-btn:hover{border-color:var(--green);background:var(--card-h)}
+.export-icon{font-size:22px;flex-shrink:0}
+.export-title{font-weight:600;font-size:14px;margin-bottom:2px}
+.export-sub{font-size:12px;color:var(--t2)}
 .upgrade-modal{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:36px 32px;max-width:420px;width:100%;text-align:center}
 .upgrade-modal-icon{font-size:36px;margin-bottom:12px}
 .upgrade-modal-title{font-size:20px;font-weight:800;color:var(--t1);margin-bottom:10px}
@@ -1013,7 +1024,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <div class="res-header-btns">
           <button class="btn-o btn-sm" id="rescreenAllBtn" onclick="rescreenAll()">↻ Re-run All</button>
           <button class="btn-o btn-sm" onclick="shareResults()">⤴ Share</button>
-          <button class="btn-o btn-sm" onclick="downloadCSV()">↓ Export CSV</button>
+          <button class="btn-o btn-sm" onclick="showExportModal()">↓ Export</button>
         </div>
       </div>
       <div class="stats-row">
@@ -4027,7 +4038,16 @@ function copyShareUrl() {
   navigator.clipboard?.writeText(inp.value).then(() => toast('Link copied!')).catch(() => { inp.select(); document.execCommand('copy'); toast('Link copied!'); });
 }
 
-function downloadCSV() {
+function showExportModal() {
+  const m = document.getElementById('exportModal');
+  if (m) m.classList.add('show');
+}
+function hideExportModal() {
+  const m = document.getElementById('exportModal');
+  if (m) m.classList.remove('show');
+}
+
+function exportCSV() {
   const rows = [['Address','Verdict','Score','Auto Kill','Kill Reason','Flags','Positives','Acreage','Owner','Last Sale','Land Use']];
   batchState.results.forEach(r => {
     const pi = r.parcel_info || {};
@@ -4047,16 +4067,66 @@ function downloadCSV() {
   const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  const csvName = batchState.name
+  const fname = batchState.name
     ? batchState.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.csv'
     : 'parceliq-' + new Date().toISOString().slice(0,10) + '.csv';
-  a.download = csvName;
+  a.download = fname;
   a.click();
 }
 
+function exportExcel() {
+  if (typeof XLSX === 'undefined') { toast('SheetJS not loaded — try CSV instead'); return; }
+  const rows = batchState.results.map(r => {
+    const pi = r.parcel_info || {};
+    return {
+      'Address': r.address,
+      'Verdict': r.verdict,
+      'Score': r.score ?? '',
+      'Auto Kill': r.auto_kill ? 'YES' : 'NO',
+      'Kill Reason': r.auto_kill_reason || '',
+      'Flags': (r.flags||[]).join('; '),
+      'Positives': (r.positives||[]).join('; '),
+      'Acreage': pi.acreage ?? '',
+      'Owner': pi.owner || '',
+      'Last Sale': pi.last_sale_price ?? '',
+      'Land Use': pi.land_use_code ? getDORDescription(pi.land_use_code) : '',
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'ParcelIQ Results');
+  const fname = (batchState.name || 'parceliq').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.xlsx';
+  XLSX.writeFile(wb, fname);
+}
+
+function exportPDF() {
+  const wins = window.open('', '_blank');
+  if (!wins) { toast('Pop-up blocked — please allow pop-ups and try again'); return; }
+  const rows = batchState.results.map(r =>
+    '<tr><td>' + escHtml(r.address) + '</td>' +
+    '<td style="color:' + (r.verdict === 'KILL' ? '#C0392B' : r.verdict === 'PURSUE' ? '#1E8449' : '#D68910') + ';font-weight:bold">' + escHtml(r.verdict) + '</td>' +
+    '<td>' + (r.score != null ? r.score : 'AUTO') + '</td>' +
+    '<td>' + escHtml((r.flags||[]).join(', ')) + '</td></tr>'
+  ).join('');
+  wins.document.write(
+    '<html><head><title>ParcelIQ Results</title>' +
+    '<style>body{font-family:Arial,sans-serif;font-size:11px;padding:20px}h1{font-size:16px;margin-bottom:4px}p{color:#666;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#1B2A4A;color:white;padding:6px 8px;text-align:left;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}tr:nth-child(even){background:#f9f9f9}</style>' +
+    '</head><body>' +
+    '<h1>ParcelIQ Results — ' + escHtml(batchState.name || 'Batch') + '</h1>' +
+    '<p>Generated ' + new Date().toLocaleString() + ' · ' + batchState.results.length + ' parcels</p>' +
+    '<table><thead><tr><th>Address</th><th>Verdict</th><th>Score</th><th>Flags</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>' +
+    '</body></html>'
+  );
+  wins.document.close();
+  wins.print();
+}
+
+function downloadCSV() { exportCSV(); }
+
 // FIX 3 — Close panel on Escape
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeDetailPanel();
+  if (e.key === 'Escape') { closeDetailPanel(); hideExportModal(); }
 });
 
 function toggleMode() {
@@ -4077,6 +4147,29 @@ document.addEventListener('DOMContentLoaded', () => closeDetailPanel());
 </script>
 
 <!-- ════════ UPGRADE MODAL ════════ -->
+<div id="exportModal" class="modal-overlay" onclick="if(event.target===this)hideExportModal()">
+  <div class="modal-card" style="max-width:360px">
+    <div class="modal-header">
+      <span style="font-weight:700">Export results</span>
+      <button onclick="hideExportModal()">✕</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:10px">
+      <button class="export-option-btn" onclick="exportCSV();hideExportModal()">
+        <span class="export-icon">📄</span>
+        <div><div class="export-title">CSV</div><div class="export-sub">Opens in Excel, Google Sheets</div></div>
+      </button>
+      <button class="export-option-btn" onclick="exportExcel();hideExportModal()">
+        <span class="export-icon">📊</span>
+        <div><div class="export-title">Excel (.xlsx)</div><div class="export-sub">Formatted spreadsheet with columns</div></div>
+      </button>
+      <button class="export-option-btn" onclick="exportPDF();hideExportModal()">
+        <span class="export-icon">🖨️</span>
+        <div><div class="export-title">PDF</div><div class="export-sub">Printable summary — opens print dialog</div></div>
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="upgradeModal" class="upgrade-overlay" onclick="if(event.target===this)hideUpgradeModal()">
   <div class="upgrade-modal">
     <div class="upgrade-modal-icon">🚫</div>
