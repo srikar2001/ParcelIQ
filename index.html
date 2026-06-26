@@ -538,10 +538,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .up-tab.active{background:var(--card-h);color:var(--t1);font-weight:600}
 .up-drop-zone{border:2px dashed var(--b);border-radius:var(--r);background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;cursor:pointer;transition:all .2s;min-height:180px}
 .up-drop-zone.drag-over{border-color:var(--green);background:rgba(34,197,94,.04)}
+.drag-over .up-drop-zone{border-color:var(--green)!important;background:var(--gbg)!important}
 .up-drop-icon{font-size:28px;margin-bottom:10px;opacity:.5}
 .up-drop-title{font-size:14px;font-weight:600;color:var(--t1);margin-bottom:4px}
 .up-drop-sub{font-size:12px;color:var(--t3)}
+.up-drop-hint{font-size:11px;color:var(--t3);margin-top:6px;opacity:.7}
 .up-file-preview{background:var(--card-h);border:1px solid var(--b);border-radius:var(--rs);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:13px;color:var(--t1)}
+.file-confirm-card{background:var(--card-h);border:1px solid var(--b);border-radius:var(--rs);padding:14px 16px}
+.file-confirm-name{display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:600;color:var(--t1);margin-bottom:4px}
+.file-confirm-meta{font-size:13px;color:var(--t3)}
+.file-confirm-remove{background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;padding:2px 6px;font-family:'Inter',sans-serif;transition:color .15s}
+.file-confirm-remove:hover{color:var(--red)}
 .up-addr-count{font-size:12px;color:var(--t3);text-align:right;margin-top:4px}
 /* ══ SHARED VIEW BANNER */
 .shared-banner{background:rgba(245,158,11,.08);border-bottom:1px solid rgba(245,158,11,.25);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--amber)}
@@ -890,9 +897,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
             onclick="document.getElementById('csvUpload').click()"
             ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
             <div class="up-drop-icon">☁</div>
-            <div class="up-drop-title">Drag CSV or Excel here</div>
-            <div class="up-drop-sub">or click to browse · .csv .xlsx .xls</div>
+            <div class="up-drop-title">Drop your CSV or Excel file anywhere on this page</div>
+            <div class="up-drop-sub">or click here to browse</div>
+            <div class="up-drop-hint">.csv  .xlsx  .xls  up to 10MB</div>
           </div>
+          <div id="fileConfirmCard" class="file-confirm-card" style="display:none"></div>
           <div id="filePreview" style="display:none"></div>
           <div id="fileError" style="display:none;font-size:13px;color:var(--red);margin-top:8px"></div>
         </div>
@@ -3781,6 +3790,21 @@ function updateAddrCount() {
   if (hint) hint.textContent = n > 0 ? 'Screening ' + n + ' address' + (n!==1?'es':'') : '';
 }
 
+function switchUploadTab() {
+  switchUpTab('file');
+}
+
+function removeUploadedFile() {
+  document.getElementById('batchInput').value = '';
+  const dz = document.getElementById('dropZone');
+  const card = document.getElementById('fileConfirmCard');
+  if (dz) dz.style.display = '';
+  if (card) card.style.display = 'none';
+  const errEl = document.getElementById('fileError');
+  if (errEl) errEl.style.display = 'none';
+  updateAddrCount();
+}
+
 function handleDragOver(e) {
   e.preventDefault(); e.stopPropagation();
   const dz = document.getElementById('dropZone');
@@ -3803,6 +3827,28 @@ function handleFileUpload(e) {
   processUploadedFile(file);
   e.target.value = '';
 }
+
+// FIX 1 — dashboard-wide drag target
+(function() {
+  const dashPage = document.getElementById('page-dashboard');
+  if (dashPage) {
+    dashPage.addEventListener('dragover', e => {
+      e.preventDefault();
+      switchUploadTab();
+      dashPage.classList.add('drag-over');
+    });
+    dashPage.addEventListener('dragleave', e => {
+      if (!e.relatedTarget || !dashPage.contains(e.relatedTarget))
+        dashPage.classList.remove('drag-over');
+    });
+    dashPage.addEventListener('drop', e => {
+      e.preventDefault();
+      dashPage.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) processUploadedFile(file);
+    });
+  }
+})();
 function processUploadedFile(file) {
   const errEl = document.getElementById('fileError');
   const prevEl = document.getElementById('filePreview');
@@ -3827,12 +3873,15 @@ function processUploadedFile(file) {
         seen.add(key); valid.push(text);
       }
       document.getElementById('batchInput').value = valid.join('\n');
-      if (prevEl) {
-        prevEl.style.display = 'block';
-        prevEl.innerHTML = '<div class="up-file-preview"><span>' + escHtml(file.name) + '</span><span style="color:var(--green);font-size:13px;font-weight:600">Found ' + valid.length + ' valid addresses</span></div>' + (skipped > 0 ? '<div style="font-size:11px;color:var(--t3);margin-top:4px">Skipped ' + skipped + ' invalid rows</div>' : '');
+      const confirmCard = document.getElementById('fileConfirmCard');
+      const dz = document.getElementById('dropZone');
+      if (confirmCard) {
+        confirmCard.innerHTML =
+          '<div class="file-confirm-name"><span>📄 ' + escHtml(file.name) + '</span><button class="file-confirm-remove" onclick="removeUploadedFile()">✕ Remove</button></div>' +
+          '<div class="file-confirm-meta">Found <strong>' + valid.length + '</strong> valid FL addresses' + (skipped > 0 ? ' · ' + skipped + ' skipped' : '') + '</div>';
+        confirmCard.style.display = '';
       }
-      // Switch to paste mode to show addresses
-      switchUpTab('paste');
+      if (dz) dz.style.display = 'none';
       updateAddrCount();
       toast('Found ' + valid.length + ' valid addresses from ' + file.name, 4000);
     } catch(err) { if (errEl) { errEl.textContent = 'Could not parse file: ' + err.message; errEl.style.display = 'block'; } }
