@@ -15,6 +15,8 @@ def score_parcel(
     roads: dict,
     parcel: dict,
     waterways: dict | None = None,
+    elevation: dict | None = None,
+    soil: dict | None = None,
 ) -> dict:
     flags: list[str] = []
     positives: list[str] = []
@@ -29,6 +31,10 @@ def score_parcel(
     ]
     if waterways:
         sources_checked.append(waterways.get("source", "OpenStreetMap"))
+    if elevation:
+        sources_checked.append(elevation.get("source", "USGS National Elevation Dataset"))
+    if soil:
+        sources_checked.append(soil.get("source", "USDA Web Soil Survey"))
 
     # ── STEP 1: Auto-kill checks
     flood_zone = flood.get("zone") or ""
@@ -117,6 +123,31 @@ def score_parcel(
         if abs(just_value - land_value) / max(just_value, 1) > 0.15:
             score -= 2
             flags.append("Just value and land value diverge >15%")
+
+    # Elevation (USGS)
+    if elevation:
+        elev_ft = elevation.get("elevation_ft")
+        if elev_ft is not None:
+            if elev_ft < 2:
+                score -= 20
+                flags.append(f"Very low elevation ({elev_ft} ft) — extreme storm surge / flood risk")
+            elif elev_ft < 5:
+                score -= 12
+                flags.append(f"Low elevation ({elev_ft} ft) — storm surge and flood risk")
+            elif elev_ft >= 20:
+                score += 4
+                positives.append(f"Good elevation ({elev_ft} ft) — above typical flood levels")
+
+    # Soil drainage (USDA)
+    if soil:
+        septic = soil.get("septic_suitable")
+        drainage = soil.get("soil_drainage") or ""
+        if septic is False:
+            score -= 12
+            flags.append(f"Poor soil drainage ({drainage}) — septic system likely not feasible")
+        elif septic is True:
+            score += 4
+            positives.append(f"Well-drained soil ({drainage}) — septic feasible")
 
     # Additions
     if flood_zone == "X":
