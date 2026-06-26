@@ -290,12 +290,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .res-filter-row{margin-bottom:12px}
 .filter-pills{display:flex;gap:6px;flex-wrap:wrap}
 .sumchip{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:6px 14px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s}
-.filter-chip{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.filter-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--b);flex-wrap:wrap;min-height:46px}
+.filter-bar-label{font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.filter-chips{display:flex;flex-wrap:wrap;gap:6px}
+.filter-chip{padding:4px 12px;border-radius:999px;border:1px solid var(--b);background:transparent;color:var(--t2);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .15s}
 .filter-chip:hover{border-color:var(--bh);color:var(--t1)}
-.filter-chip.active{background:rgba(34,197,94,.12);border-color:var(--green);color:var(--green)}
-.chip-count{font-size:10px;font-weight:700;background:var(--card-h);padding:1px 5px;border-radius:8px;color:var(--t3)}
-.filter-chip.active .chip-count{background:rgba(34,197,94,.2);color:var(--green)}
-#filterChips{display:flex;flex-wrap:wrap;gap:6px;padding:10px 0 4px}
+.filter-chip.active{background:var(--gbg);border-color:var(--green);color:var(--green)}
+.chip-count{font-size:10px;opacity:.7;margin-left:3px}
+.filter-clear-btn{background:none;border:none;color:var(--t3);font-size:12px;cursor:pointer;margin-left:auto;padding:4px 8px;font-family:'Inter',sans-serif}
+.filter-clear-btn:hover{color:var(--t1)}
 .sumchip:hover{border-color:var(--bh);color:var(--t1)}
 .sumchip.on{background:var(--t1);color:#000;border-color:var(--t1)}
 .sumchip.kill.on{background:var(--red);color:#fff;border-color:var(--red)}
@@ -967,13 +970,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         </div>
       </div>
       <div class="rsb-section">
-        <div class="rsb-label" style="display:flex;justify-content:space-between;align-items:center">
-          Filter by Flag
-          <a id="sbClearFilters" class="rsb-clear-link" onclick="clearFlagFilters()" style="display:none">Clear</a>
-        </div>
-        <div id="sbFlagList"></div>
-      </div>
-      <div class="rsb-section">
         <div class="rsb-rules-header" onclick="toggleRulesPanel()">
           <span class="rsb-label" style="margin-bottom:0">Screening Rules</span>
           <span id="rulesChevron" style="font-size:10px;color:var(--t3)">&#9658;</span>
@@ -1033,7 +1029,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           <button class="sumchip pursue" onclick="filterResults('PURSUE',this)">Pursue</button>
         </div>
       </div>
-      <div id="filterChips"></div>
+      <div class="filter-bar" id="filterBar" style="display:none">
+        <span class="filter-bar-label">Filter:</span>
+        <div class="filter-chips" id="filterChips"></div>
+        <button class="filter-clear-btn" id="filterClearBtn" onclick="clearFlagFilters()" style="display:none">Clear all</button>
+      </div>
       <div class="limit-banner" id="resLimitBanner"></div>
       <div class="nonfl-banner" id="nonflBanner"></div>
       <div class="res-table-wrap" id="resTableWrap">
@@ -2350,8 +2350,8 @@ function showResultsLoading() {
     const tbody = wrap.querySelector('tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--t3);font-size:13px">Restoring your batch…</td></tr>';
   }
-  const chips = document.getElementById('filterChips');
-  if (chips) chips.innerHTML = '';
+  const fb = document.getElementById('filterBar');
+  if (fb) fb.style.display = 'none';
 }
 
 async function loadBatchResults(batchId) {
@@ -2777,26 +2777,18 @@ function buildFlagFilters(results) {
     const chip = document.createElement('button');
     chip.className = 'filter-chip' + (_activeFilters.has(def.key) ? ' active' : '');
     chip.dataset.flagKey = def.key;
-    chip.innerHTML = def.label + ' <span class="chip-count">' + count + '</span>';
+    chip.innerHTML = def.label + '<span class="chip-count">' + count + '</span>';
     chip.onclick = () => toggleFlagFilter(def.key, def.match, chip);
     container.appendChild(chip);
   });
+  // Show/hide the bar and Clear all button
+  const fb = document.getElementById('filterBar');
+  if (fb) fb.style.display = results.length > 0 ? 'flex' : 'none';
+  const clearBtn = document.getElementById('filterClearBtn');
+  if (clearBtn) clearBtn.style.display = _activeFilters.size > 0 ? '' : 'none';
 }
 
 function renderFlagFilters() {
-  const list = document.getElementById('sbFlagList');
-  if (list) {
-    const base = batchState.results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE' && r.verdict !== 'ERROR');
-    list.innerHTML = FLAG_DEFS.map(f => {
-      const cnt = base.filter(r => f.match(r)).length;
-      if (cnt === 0) return '';
-      const active = _activeFilters.has(f.key);
-      return '<div class="rsb-flag-item' + (active ? ' active' : '') + '" onclick="toggleFlagFilter(\'' + f.key + '\')">' +
-        '<span>' + f.label + '</span><span class="rsb-count">' + cnt + '</span></div>';
-    }).join('');
-  }
-  const cl = document.getElementById('sbClearFilters');
-  if (cl) cl.style.display = _activeFilters.size > 0 ? '' : 'none';
   buildFlagFilters(batchState.results);
 }
 
