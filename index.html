@@ -426,7 +426,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .dp-grid-item{background:var(--bg);border-radius:var(--rs);padding:8px 10px}
 .dp-grid-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
 .dp-grid-val{font-size:13px;font-weight:600;color:var(--t1)}
-.dp-map-placeholder{height:280px;width:100%;background:rgba(13,15,18,.8);border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:12px;text-align:center;padding:16px;line-height:1.5}
+.dp-map-placeholder{height:280px;margin:0 12px 12px;background:rgba(13,15,18,.8);border:1px solid var(--b);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:12px;text-align:center;padding:16px;line-height:1.5}
 .map-controls{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;border-bottom:1px solid var(--b)}
 .map-toggle{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t3);cursor:pointer;transition:all .15s}
 .map-toggle.active{background:var(--gbg);color:var(--green);border-color:rgba(34,197,94,.3)}
@@ -1082,7 +1082,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
     <button class="map-toggle active" data-layer="wetlands" onclick="toggleMapLayer(this)">Wetlands</button>
   </div>
   <div id="dpMapPlaceholder" class="dp-map-placeholder" style="display:none">Loading map…</div>
-  <div id="parcel-map" style="height:280px;width:100%;margin:0;border-radius:0;overflow:hidden;display:none"></div>
+  <div id="parcel-map" style="height:280px;margin:0 12px 12px;border-radius:var(--rs);overflow:hidden;display:none"></div>
   <div id="dpWhy" class="dp-why"></div>
   <div class="dp-section" id="dpFlagsSection">
     <div class="dp-sec-title">Risk Flags &amp; Signals</div>
@@ -3628,7 +3628,7 @@ function initParcelMap(r) {
   if (mapDiv)      mapDiv.style.display = 'block';
   if (controls)    controls.style.display = 'flex';
 
-  _map = L.map('parcel-map', { zoomControl: true }).setView([lat, lng], 16);
+  _map = L.map('parcel-map', { zoomControl: true }).setView([lat, lng], 14);
   window._parcelMap = _map;
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_map);
 
@@ -3641,7 +3641,7 @@ function initParcelMap(r) {
       fillColor: '#22C55E', fillOpacity: 0.12
     }).addTo(_map);
     _mapLayers['parcel'] = poly;
-    try { _map.fitBounds(poly.getBounds(), { padding: [30, 30], maxZoom: 18 }); } catch(e) {}
+    try { _map.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 16 }); } catch(e) {}
   } else {
     console.log('[Map] No polygon — using circle marker');
     const marker = L.circleMarker([lat, lng], {
@@ -3649,7 +3649,7 @@ function initParcelMap(r) {
       fillColor: '#22C55E', fillOpacity: 0.2
     }).addTo(_map);
     _mapLayers['parcel'] = marker;
-    _map.setView([lat, lng], 17);
+    _map.setView([lat, lng], 15);
   }
 
   try {
