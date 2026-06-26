@@ -327,8 +327,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .fp-item input[type=checkbox]{width:13px;height:13px;accent-color:var(--green);cursor:pointer;flex-shrink:0}
 .fp-item-count{font-size:10px;color:var(--t3);margin-left:auto}
 /* ── Map expand ── */
-.map-wrap{position:relative;margin:0 12px 12px}
-.map-expand-btn{position:absolute;bottom:8px;right:8px;z-index:800;background:rgba(13,15,18,.85);border:1px solid var(--b);border-radius:4px;color:var(--t2);font-size:11px;font-weight:600;padding:4px 8px;cursor:pointer;font-family:'Inter',sans-serif;backdrop-filter:blur(4px)}
+.map-wrap{margin:0 12px 12px}
+.map-controls{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--b)}
+.map-expand-btn{margin-left:auto;background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:11px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap}
 .map-expand-btn:hover{color:var(--t1);border-color:var(--bh)}
 #mapModal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.8);backdrop-filter:blur(4px)}
 .map-modal-inner{position:absolute;inset:40px;background:var(--card);border:1px solid var(--b);border-radius:var(--r);display:flex;flex-direction:column;overflow:hidden}
@@ -880,8 +881,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           FLORIDA BETA · LIVE DATA
         </div>
         <h1 class="lp-h1 hero-h1-anim">
-          Screen every land lead.<br>
-          <span class="lp-green">Kill the bad ones in seconds.</span>
+          Upload your leads.<br>
+          <span class="lp-green">We'll Kill the bad ones.</span>
         </h1>
         <p class="lp-sub hero-sub-anim">ParcelIQ analyzes every parcel against FEMA, wetlands, wildlife, EPA, roads, and county records — so your team can make faster, smarter offers.</p>
         <div class="lp-ctas hero-ctas-anim">
@@ -1602,41 +1603,46 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 
 <!-- ════════ DETAIL PANEL ════════ -->
 <div id="detailPanel" class="detail-panel">
+  <!-- 1. Header: address + verdict -->
   <div class="dp-header">
     <div class="dp-addr">
       <div class="dp-street" id="dpStreet"></div>
       <div class="dp-apn" id="dpApn"></div>
-      <div class="dp-timestamp" id="dpTimestamp"></div>
     </div>
-    <div class="dp-score-block">
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <div id="dpBadge"></div>
       <div class="dp-score-num" id="dpScore"></div>
-      <div id="dpBadge" style="margin-top:4px"></div>
+      <button class="dp-close" onclick="closeDetailPanel()">✕</button>
     </div>
-    <button class="dp-close" onclick="closeDetailPanel()">✕</button>
   </div>
-  <div id="dpWhy" class="dp-why"></div>
+  <!-- 2. Map controls + map -->
   <div class="map-controls" id="mapControls" style="display:none">
-    <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this,'parcel-map')">Parcel</button>
-    <button class="map-toggle active" data-layer="flood" onclick="toggleMapLayer(this,'parcel-map')">Flood zones</button>
-    <button class="map-toggle active" data-layer="wetlands" onclick="toggleMapLayer(this,'parcel-map')">Wetlands</button>
+    <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this)">Parcel</button>
+    <button class="map-toggle active" data-layer="flood" onclick="toggleMapLayer(this)">Flood zones</button>
+    <button class="map-toggle active" data-layer="wetlands" onclick="toggleMapLayer(this)">Wetlands</button>
     <button class="map-toggle" data-layer="satellite" onclick="toggleSatellite(this)">Satellite</button>
-  </div>
-  <div class="map-wrap">
-    <div id="dpMapPlaceholder" class="dp-map-placeholder" style="display:none;height:220px;margin:0">Loading map…</div>
-    <div id="parcel-map" style="height:220px;border-radius:var(--rs);overflow:hidden;display:none"></div>
     <button class="map-expand-btn" id="mapExpandBtn" onclick="expandMap()" style="display:none">&#x2922; Expand</button>
   </div>
+  <div class="map-wrap">
+    <div id="dpMapPlaceholder" class="dp-map-placeholder" style="display:none;height:240px;margin:0">Loading map…</div>
+    <div id="parcel-map" style="height:240px;border-radius:var(--rs);overflow:hidden;display:none"></div>
+  </div>
+  <!-- 3. Key parcel data -->
+  <div class="dp-section" id="dpInfoSection">
+    <div class="dp-sec-title">Parcel Info</div>
+    <div class="dp-grid" id="dpInfo"></div>
+  </div>
+  <!-- 4. Verdict explanation -->
+  <div id="dpWhy" class="dp-why" style="margin-top:0"></div>
+  <!-- 5. Risk flags -->
   <div class="dp-section" id="dpFlagsSection">
     <div class="dp-sec-title">Risk Flags</div>
     <div id="dpFlags"></div>
   </div>
+  <!-- 6. Positive signals -->
   <div class="dp-section" id="dpPositivesSection" style="display:none">
     <div class="dp-sec-title" style="color:var(--green)">Positive Signals</div>
     <div id="dpPositives"></div>
-  </div>
-  <div class="dp-section" id="dpInfoSection">
-    <div class="dp-sec-title">Parcel Info</div>
-    <div class="dp-grid" id="dpInfo"></div>
   </div>
   <div class="dp-section">
     <div class="dp-sec-title">Notes</div>
@@ -2894,8 +2900,8 @@ function showResultsLoading() {
     const tbody = wrap.querySelector('tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--t3);font-size:13px">Restoring your batch…</td></tr>';
   }
-  const fb = document.getElementById('filterBar');
-  if (fb) fb.style.display = 'none';
+  const badge = document.getElementById('activeFilterCount');
+  if (badge) badge.style.display = 'none';
 }
 
 async function loadBatchResults(batchId) {
@@ -3739,10 +3745,9 @@ function openDetailPanel(absIdx, event) {
   const setH = (id, v) => { const e = document.getElementById(id); if (e) e.innerHTML = v; };
   setT('dpStreet', r.address || '');
   setT('dpApn', pi.apn ? 'APN: ' + pi.apn : '');
-  setT('dpTimestamp', '');
   const scoreEl = document.getElementById('dpScore');
   if (scoreEl) {
-    scoreEl.textContent = r.score != null ? r.score : (r.auto_kill ? '0' : '—');
+    scoreEl.textContent = (ev === 'KILL' || r.auto_kill) ? '—' : (r.score != null ? r.score : '—');
     scoreEl.style.color = ev === 'KILL' ? 'var(--red)' : ev === 'REVIEW' ? 'var(--amber)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--t2)';
   }
   setH('dpBadge', '<span class="verdict-badge ' + vc + '">' + escHtml(ev) + '</span>');
@@ -4208,6 +4213,14 @@ function initParcelMap(r) {
   _map = null; window._parcelMap = null;
   if (mapDiv._leaflet_id) delete mapDiv._leaflet_id;
   Object.keys(_mapLayers).forEach(k => delete _mapLayers[k]);
+  _satOn = false;
+
+  // Reset all toggle button states
+  if (controls) {
+    controls.querySelectorAll('.map-toggle').forEach(b => {
+      b.classList.toggle('active', b.dataset.layer !== 'satellite');
+    });
+  }
 
   const lat = r._lat || 28.0;
   const lng = r._lng || -81.5;
@@ -4216,24 +4229,24 @@ function initParcelMap(r) {
   if (placeholder) placeholder.style.display = 'none';
   if (mapDiv)      mapDiv.style.display = 'block';
   if (controls)    controls.style.display = 'flex';
-  if (expBtn)      expBtn.style.display = 'block';
+  if (expBtn)      expBtn.style.display = '';
 
-  _map = L.map('parcel-map', { zoomControl: true, attributionControl: true }).setView([lat, lng], 14);
+  _map = L.map('parcel-map', { zoomControl: true }).setView([lat, lng], 14);
   window._parcelMap = _map;
 
   _mapLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap, FEMA NFHL, USFWS NWI', maxZoom: 19
+    attribution: '© OpenStreetMap · FEMA · USFWS', maxZoom: 19
   }).addTo(_map);
 
   _mapLayers['_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Esri World Imagery', maxZoom: 19
+    attribution: 'Esri', maxZoom: 19
   });
 
   const coords = extractPolygonCoords(geometry);
   if (coords && coords.length > 2) {
     const poly = L.polygon(coords, { color: '#22C55E', weight: 3, fillColor: '#22C55E', fillOpacity: 0.12 }).addTo(_map);
     _mapLayers['parcel'] = poly;
-    try { _map.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 17 }); } catch(e) {}
+    try { _map.fitBounds(poly.getBounds(), { padding: [32, 32], maxZoom: 17 }); } catch(e) {}
   } else {
     const marker = L.circleMarker([lat, lng], { radius: 14, color: '#22C55E', weight: 2, fillColor: '#22C55E', fillOpacity: 0.2 }).addTo(_map);
     _mapLayers['parcel'] = marker;
@@ -4242,14 +4255,14 @@ function initParcelMap(r) {
 
   try {
     _mapLayers['flood'] = L.tileLayer.wms('https://hazards.fema.gov/gis/nfhl/services/public/NFHL/MapServer/WMSServer', {
-      layers: '28', format: 'image/png', transparent: true, opacity: 0.45, attribution: 'FEMA NFHL'
+      layers: '28', format: 'image/png', transparent: true, opacity: 0.45, attribution: ''
     });
     _mapLayers['flood'].addTo(_map);
   } catch(e) {}
 
   try {
     _mapLayers['wetlands'] = L.tileLayer.wms('https://www.fws.gov/wetlands/arcgis/services/Wetlands/MapServer/WMSServer', {
-      layers: '1', format: 'image/png', transparent: true, opacity: 0.45, attribution: 'USFWS NWI'
+      layers: '1', format: 'image/png', transparent: true, opacity: 0.45, attribution: ''
     });
     _mapLayers['wetlands'].addTo(_map);
   } catch(e) {}
@@ -4257,12 +4270,11 @@ function initParcelMap(r) {
   setTimeout(() => { if (_map) _map.invalidateSize(); }, 350);
 }
 
-function toggleMapLayer(btn, mapId) {
+function toggleMapLayer(btn) {
   const layer = btn.dataset.layer;
-  const targetMap = mapId === 'mapModalMap' ? window._modalMap : _map;
-  if (!_mapLayers[layer] || !targetMap) return;
-  if (targetMap.hasLayer(_mapLayers[layer])) { targetMap.removeLayer(_mapLayers[layer]); btn.classList.remove('active'); }
-  else { targetMap.addLayer(_mapLayers[layer]); btn.classList.add('active'); }
+  if (!_mapLayers[layer] || !_map) return;
+  if (_map.hasLayer(_mapLayers[layer])) { _map.removeLayer(_mapLayers[layer]); btn.classList.remove('active'); }
+  else { _map.addLayer(_mapLayers[layer]); btn.classList.add('active'); }
 }
 
 let _satOn = false;
