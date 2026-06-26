@@ -999,6 +999,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
     </aside>
     <!-- Main -->
     <main class="res-main">
+      <div id="streamBar" style="display:none;align-items:center;gap:12px;padding:10px 16px;background:var(--gbg);border-bottom:1px solid rgba(34,197,94,.2);margin-bottom:2px">
+        <div style="flex:1;height:3px;background:var(--b);border-radius:999px;overflow:hidden">
+          <div id="streamFill" style="height:100%;background:var(--green);border-radius:999px;width:0%;transition:width .3s"></div>
+        </div>
+        <span id="streamCount" style="font-size:12px;color:var(--t2);white-space:nowrap"></span>
+      </div>
       <div class="res-header">
         <div>
           <div class="res-title" id="resTitleCount">Results</div>
@@ -2507,89 +2513,116 @@ async function _executeBatch(lines, estimatedSet) {
     return;
   }
 
-  const countEl = document.getElementById('procCount');
-  if (countEl) countEl.textContent = 'Screening ' + flLines.length + ' parcel' + (flLines.length !== 1 ? 's' : '');
-
-  goTo('processing');
-
-  const dots = document.querySelectorAll('#procDots .proc-dot');
-  const t0   = Date.now();
-
-  window._screenStart = null;
-  updateProgress(0, flLines.length, null);
-  dots.forEach(d => d.classList.remove('done'));
-  const subEl0 = document.getElementById('batchSub');
-  if (subEl0) subEl0.textContent = 'Checking 6 live data sources per parcel';
-
-  // Split into pairs; fire all in parallel so total time ≈ one big call
-  // but progress updates as each pair finishes
-  const SUB = 2;
-  const groups = [];
-  for (let i = 0; i < flLines.length; i += SUB) groups.push(flLines.slice(i, i + SUB));
-
-  let done = 0;
-  const rawResults = [];
+  const t0 = Date.now();
+  batchState._streaming = false;
+  batchState.results    = [...outsideResults];
+  batchState.filtered   = 'all';
 
   try {
-    await Promise.all(groups.map(async (group) => {
-      const headers = { 'Content-Type': 'application/json' };
-      if (currentSession?.access_token) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
-      const resp = await fetch(API + '/api/batch', {
-        method: 'POST', headers,
-        body: JSON.stringify({ parcels: group.map(a => ({ address: a })), state: 'FL' }),
-      });
-      if (resp.status === 429) {
-        const e = Object.assign(new Error('limit_exceeded'), { isLimitExceeded: true });
-        throw e;
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession?.access_token) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
+    const resp = await fetch(API + '/api/batch/stream', {
+      method: 'POST', headers,
+      body: JSON.stringify({ parcels: flLines.map(a => ({ address: a })), state: 'FL' }),
+    });
+    if (resp.status === 429) {
+      throw Object.assign(new Error('limit_exceeded'), { isLimitExceeded: true });
+    }
+    if (!resp.ok) throw new Error('Server error ' + resp.status);
+
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines2 = buf.split('\n');
+      buf = lines2.pop();
+      for (const line of lines2) {
+        if (!line.startsWith('data: ')) continue;
+        let ev;
+        try { ev = JSON.parse(line.slice(6)); } catch(e) { continue; }
+
+        if (ev.type === 'progress' && ev.latest) {
+          if (!batchState._streaming) {
+            batchState._streaming = true;
+            renderBatchResults();
+            goTo('results');
+          }
+          batchState.results.push({
+            ...ev.latest,
+            _estimated: _estimatedAddresses.has((ev.latest.address || '').toLowerCase()),
+          });
+          _refreshTable();
+          updateStreamProgress(ev.completed, ev.total);
+          updateStatCards();
+        } else if (ev.type === 'complete') {
+          batchState._streaming = false;
+          batchState.elapsed    = Math.round((Date.now() - t0) / 1000);
+          updateStreamProgress(ev.summary.total, ev.summary.total);
+          const flResults = batchState.results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
+          const summary = {
+            total:  flResults.length,
+            kill:   flResults.filter(r => r.verdict === 'KILL').length,
+            review: flResults.filter(r => r.verdict === 'REVIEW').length,
+            pursue: flResults.filter(r => r.verdict === 'PURSUE').length,
+          };
+          await saveBatchToSupabase(batchState.name, { summary, results: flResults });
+          renderBatchResults();
+        }
       }
-      if (!resp.ok) throw new Error('Server error ' + resp.status);
-      const data = await resp.json();
-      for (const r of (data.results || [])) {
-        rawResults.push(r);
-        done++;
-        updateProgress(done, flLines.length, r.address);
-        const dotIdx = Math.floor((done / flLines.length) * dots.length);
-        for (let d = 0; d < dotIdx && d < dots.length; d++) dots[d].classList.add('done');
-      }
-    }));
-
-    batchState.elapsed = Math.round((Date.now() - t0) / 1000);
-    updateProgress(flLines.length, flLines.length, null);
-    dots.forEach(d => d.classList.add('done'));
-    const statEl = document.getElementById('batchStat');
-    const subEl  = document.getElementById('batchSub');
-    if (statEl) statEl.textContent = 'Screening complete';
-    if (subEl)  subEl.textContent  = rawResults.length + ' parcels screened';
-
-    const apiResults = rawResults.map(r => ({
-      ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase())
-    }));
-    batchState.results  = [...outsideResults, ...apiResults];
-    batchState.filtered = 'all';
-
-    const summary = {
-      total:  apiResults.length,
-      kill:   apiResults.filter(r => r.verdict === 'KILL').length,
-      review: apiResults.filter(r => r.verdict === 'REVIEW').length,
-      pursue: apiResults.filter(r => r.verdict === 'PURSUE').length,
-    };
-    await saveBatchToSupabase(batchState.name, { summary, results: apiResults });
-    setTimeout(() => { renderBatchResults(); goTo('results'); }, 600);
+    }
   } catch(err) {
     if (err.isLimitExceeded) {
       goTo('dashboard');
       setTimeout(() => showUpgradeModal(), 150);
     } else {
       const isNetwork = (err instanceof TypeError) || (err.message || '').toLowerCase().includes('failed to fetch') || (err.message || '').toLowerCase().includes('networkerror');
-      showProcError(
-        isNetwork ? 'Cannot reach the screening service.' : 'Something went wrong screening your batch.',
-        isNetwork ? 'Check your internet connection.' : 'Your addresses were not lost.'
-      );
+      if (batchState._streaming) {
+        toast(isNetwork ? 'Connection lost — partial results shown.' : 'Streaming interrupted.', 5000);
+        batchState._streaming = false;
+      } else {
+        toast(isNetwork ? 'Cannot reach the screening service.' : 'Something went wrong. Please try again.', 5000);
+      }
     }
   } finally {
+    batchState._streaming = false;
     const btn2 = document.getElementById('runBatchBtn');
     if (btn2) { btn2.disabled = false; btn2.textContent = 'Screen Parcels →'; }
   }
+}
+
+function updateStreamProgress(completed, total) {
+  const bar   = document.getElementById('streamBar');
+  const fill  = document.getElementById('streamFill');
+  const count = document.getElementById('streamCount');
+  if (!bar) return;
+  bar.style.display = 'flex';
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  if (fill)  fill.style.width = pct + '%';
+  if (count) count.textContent = completed + ' / ' + total + ' screened';
+  if (completed >= total) {
+    setTimeout(() => { if (bar) bar.style.display = 'none'; }, 2000);
+  }
+}
+
+function updateStatCards() {
+  const results = batchState.results;
+  const flOnly  = results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
+  const kill    = flOnly.filter(r => effectiveVerdict(r) === 'KILL').length;
+  const review  = flOnly.filter(r => effectiveVerdict(r) === 'REVIEW').length;
+  const pursue  = flOnly.filter(r => effectiveVerdict(r) === 'PURSUE').length;
+  const total   = flOnly.length;
+  const setEl   = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setEl('statTotal', total); setEl('statKill', kill); setEl('statReview', review); setEl('statPursue', pursue);
+  setEl('sbKill', kill); setEl('sbReview', review); setEl('sbPursue', pursue);
+  const mins = total * 30;
+  const hrs  = Math.round(mins / 6) / 10;
+  setEl('timeSaved', '~' + (hrs >= 1 ? hrs + ' hrs' : mins + ' min'));
+  setEl('sbTimeSaved', '~' + (hrs >= 1 ? hrs + ' hrs' : mins + ' min'));
+  setEl('resTitleCount', batchState.name || total + ' lot' + (total !== 1 ? 's' : '') + ' screened');
 }
 
 function updateProgress(completed, total, latestAddress) {
@@ -2854,7 +2887,7 @@ function _refreshTable() {
     }));
   }
   _currentDisplayed = filtered;
-  _currentPage = 1;
+  if (!batchState._streaming) _currentPage = 1;
   renderPage();
 }
 
