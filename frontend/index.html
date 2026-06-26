@@ -3234,15 +3234,17 @@ function openDetailPanel(absIdx, event) {
     if (pi.owner && pi.owner !== 'N/A') fields.push(['Owner', pi.owner]);
     if (pi.last_sale_price != null && pi.last_sale_price > 0) fields.push(['Last Sale', fmt$(pi.last_sale_price)]);
     if (pi.land_use_code) fields.push(['Type', getDORDescription(pi.land_use_code)]);
+    // Direct parcel_info fields (elevation + soil from new collectors)
+    if (pi.elevation_ft != null) fields.push(['Elevation', pi.elevation_ft + ' ft']);
+    if (pi.soil_drainage) {
+      const septicLabel = pi.septic_suitable === true ? ' ✓' : pi.septic_suitable === false ? ' ✗' : '';
+      fields.push(['Soil', pi.soil_drainage + septicLabel]);
+    }
     // Extract additional fields from flags + positives
     const allSignals = [...(r.flags || []), ...(r.positives || [])];
     const findFlag = pat => { const f = allSignals.find(f => pat.test(f)); return f || null; };
     const floodFlag = findFlag(/flood zone/i);
     if (floodFlag) { const m = floodFlag.match(/flood zone\s*(\S+)/i); if (m) fields.push(['Flood Zone', 'Zone ' + m[1].toUpperCase()]); }
-    const elevFlag = findFlag(/elevation.*\d+\s*ft/i);
-    if (elevFlag) { const m = elevFlag.match(/(\d+(?:\.\d+)?)\s*ft/i); if (m) fields.push(['Elevation', m[1] + ' ft']); }
-    const soilFlag = findFlag(/drainage|soil/i);
-    if (soilFlag) fields.push(['Soil', soilFlag.replace(/^[^:]+:\s*/,'').split('.')[0]]);
     const evacFlag = findFlag(/evac(?:uation)?\s*zone/i);
     if (evacFlag) { const m = evacFlag.match(/evac(?:uation)?\s*zone\s*([A-Z])/i); fields.push(['Evac Zone', m ? 'Zone ' + m[1].toUpperCase() : 'Yes']); }
     const elecFlag = findFlag(/electric|power\s*line/i);
