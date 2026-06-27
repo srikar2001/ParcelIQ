@@ -2257,10 +2257,9 @@ async function router() {
   // #landing is intentionally excluded — the logo should always reach the landing page.
   const _authOnlyPages = new Set(['#login', '#signup', '#forgot', '', '#']);
   if (_authOnlyPages.has(hash) && currentSession) {
-    // Redirect logged-in users away from auth pages — to last batch or dashboard
     const lastBatch = sessionStorage.getItem('piq-last-batch');
     if (lastBatch) { goTo('results'); return; }
-    goTo('dashboard'); return;
+    goTo('landing'); return;
   }
   if (PROTECTED.has(hash)) {
     // Trust currentSession first (already resolved by _authReadyPromise); fall back to getSession
@@ -2275,8 +2274,6 @@ async function router() {
       loadBatchResults(lastBatch);
       return;
     }
-    // If logged in with no batch, go to dashboard; otherwise go to landing
-    if (currentSession) { goTo('dashboard'); return; }
     goTo('landing'); return;
   }
   if (hash === '#dashboard') { loadDashboardData(); updateNav(); }
@@ -2324,6 +2321,7 @@ async function doLogin() {
     currentSession = data.session; currentUser = data.user;
     updateNav();
     loadUserProfile(); // fire-and-forget — never blocks navigation
+    toast('Signed in successfully');
     _runPendingOrResults();
   } catch(e) {
     err.textContent = e.message || 'Login failed.'; err.classList.add('show');
@@ -2460,7 +2458,7 @@ function _runPendingOrResults() {
   }
   const lastBatch = sessionStorage.getItem('piq-last-batch');
   if (lastBatch) { goTo('results'); return; }
-  goTo('dashboard');
+  goTo('landing');
 }
 
 // _authReadyPromise resolves on the FIRST onAuthStateChange event (session restore or null).

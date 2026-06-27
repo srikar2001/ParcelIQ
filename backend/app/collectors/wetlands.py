@@ -34,9 +34,12 @@ async def _query(client: httpx.AsyncClient, lng: float, lat: float, buffer: floa
 async def get_wetlands(lat: float, lng: float) -> dict:
     for attempt in range(2):
         try:
-            async with httpx.AsyncClient(timeout=20.0) as client:
-                on_parcel = await _query(client, lng, lat)
-                nearby    = await _query(client, lng, lat, buffer=0.001)
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                # Run both queries in parallel instead of sequential
+                on_parcel, nearby = await asyncio.gather(
+                    _query(client, lng, lat),
+                    _query(client, lng, lat, buffer=0.001),
+                )
 
             wetland_type = None
             wetland_code = None
@@ -54,7 +57,7 @@ async def get_wetlands(lat: float, lng: float) -> dict:
             }
         except Exception as e:
             if attempt == 0:
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(0.5)
                 continue
             print(f"[Wetlands] Error after 2 attempts: {e}")
             return ERROR

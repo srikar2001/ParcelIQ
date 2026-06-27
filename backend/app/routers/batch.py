@@ -110,9 +110,9 @@ class BatchRequest(BaseModel):
     state: str = "FL"
 
 
-async def _safe(coro, default):
+async def _safe(coro, default, timeout: float = 25.0):
     try:
-        return await coro
+        return await asyncio.wait_for(coro, timeout=timeout)
     except Exception:
         return default
 
@@ -213,7 +213,20 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
 
 async def _process_parcel_safe(parcel: ParcelInput) -> dict:
     try:
-        return await _process_parcel(parcel)
+        return await asyncio.wait_for(_process_parcel(parcel), timeout=45.0)
+    except asyncio.TimeoutError:
+        return {
+            "address": parcel.address,
+            "verdict": "ERROR",
+            "score": None,
+            "auto_kill": False,
+            "auto_kill_reason": None,
+            "flags": [],
+            "positives": [],
+            "parcel_info": {},
+            "sources": [],
+            "error": "Processing timed out — external data sources were too slow. Please retry.",
+        }
     except Exception as e:
         return {
             "address": parcel.address,
