@@ -924,13 +924,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       <!-- Right: upload module -->
       <div class="lp-upload-card hero-upload-anim">
         <div class="lp-upload-tabs">
-          <div class="lp-tab active" id="lp-tab-paste" onclick="lpSwitchTab('paste')">Paste list</div>
-          <div class="lp-tab" id="lp-tab-upload" onclick="lpSwitchTab('upload')">Upload file</div>
+          <div class="lp-tab active" id="lp-tab-upload" onclick="lpSwitchTab('upload')">Upload file</div>
+          <div class="lp-tab" id="lp-tab-paste" onclick="lpSwitchTab('paste')">Paste list</div>
         </div>
-        <div id="lp-content-paste" class="lp-tab-content active">
-          <textarea class="lp-textarea" id="lpPasteArea" placeholder="1234 Main St, Tampa, FL 33602&#10;456 Oak Ave, Orlando, FL 32801&#10;789 Pine Rd, Jacksonville, FL 32201&#10;...one address per line"></textarea>
-        </div>
-        <div id="lp-content-upload" class="lp-tab-content">
+        <div id="lp-content-upload" class="lp-tab-content active">
           <div class="lp-drop-zone" id="lpDropZone"
             ondragover="event.preventDefault();this.classList.add('drag-over')"
             ondragleave="this.classList.remove('drag-over')"
@@ -942,6 +939,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
             <div class="lp-drop-types">.csv &nbsp;·&nbsp; .xlsx &nbsp;·&nbsp; .xls &nbsp;·&nbsp; up to 10MB</div>
             <input type="file" id="lpFileIn" style="display:none" accept=".csv,.xlsx,.xls" onchange="lpHandleFile(this.files[0])">
           </div>
+        </div>
+        <div id="lp-content-paste" class="lp-tab-content">
+          <textarea class="lp-textarea" id="lpPasteArea" placeholder="1234 Main St, Tampa, FL 33602&#10;456 Oak Ave, Orlando, FL 32801&#10;789 Pine Rd, Jacksonville, FL 32201&#10;...one address per line"></textarea>
         </div>
         <div style="padding:0 20px 20px">
           <select class="lp-state-sel"><option value="FL">🏖 Florida</option></select>
