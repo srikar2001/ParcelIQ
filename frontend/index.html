@@ -722,7 +722,7 @@ body.on-results .detail-panel{top:0}
 .lp-nav-logo{font-size:20px;font-weight:800;color:#F1F5F9;cursor:pointer;user-select:none;flex-shrink:0}
 .lp-nav-logo span{color:#22C55E}
 .lp-nav-links{display:flex;gap:28px}
-.lp-nav-links a{font-size:14px;color:#94A3B8;text-decoration:none;cursor:pointer;transition:color .15s}
+.lp-nav-links a{font-size:14px;color:#F1F5F9;text-decoration:none;cursor:pointer;transition:color .15s}
 .lp-nav-links a:hover{color:#F1F5F9}
 .lp-nav-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .lp-mode-btn{background:none;border:1px solid #1E2130;border-radius:8px;padding:5px 9px;cursor:pointer;font-size:15px;line-height:1;color:#94A3B8;transition:border-color .15s}
@@ -2335,7 +2335,7 @@ function updateLpNav() {
   if (currentUser) {
     const name = (userProfile?.full_name || currentUser.email || '').split(/[\s@]/)[0] || 'Account';
     el.innerHTML =
-      '<span style="font-size:13px;color:#CBD5E1;margin-right:4px">Hi, ' + name + '</span>' +
+      '<span style="font-size:13px;color:#F1F5F9;margin-right:4px">Hi, ' + name + '</span>' +
       '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="window.location.hash=\'#results\'">My results</button>' +
       '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="doSignout()">Sign out</button>';
   } else {
