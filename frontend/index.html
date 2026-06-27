@@ -1510,7 +1510,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       <div class="proc-error-title" id="procErrTitle">Something went wrong</div>
       <div class="proc-error-sub" id="procErrSub">Your addresses were not lost.</div>
       <button class="btn-p btn-sm" onclick="retryLastBatch()">↻ Try again</button>
-      <button class="btn-o btn-sm" onclick="goTo('dashboard')" style="margin-left:8px">← Dashboard</button>
+      <button class="btn-o btn-sm" onclick="window.location.hash='#landing'" style="margin-left:8px">← Upload</button>
     </div>
   </div>
 </div>
@@ -1532,13 +1532,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <div id="sidebarBatchList" style="display:none;margin-top:6px"></div>
       </div>
       <div class="rsb-section">
-        <div class="rsb-rules-header" onclick="toggleRulesPanel()">
-          <span class="rsb-label" style="margin-bottom:0">Screening Rules</span>
-          <span id="rulesChevron" style="font-size:10px;color:var(--t3)">&#9658;</span>
-        </div>
-        <div id="rulesPanel" style="display:none;margin-top:8px"></div>
-      </div>
-      <div class="rsb-section">
         <div class="rsb-label">Time Saved</div>
         <div class="rsb-time-val" id="sbTimeSaved">—</div>
         <div class="rsb-time-sub">at 30 min/parcel</div>
@@ -1553,7 +1546,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <div class="rsb-usage-track"><div class="rsb-usage-fill" id="sbUsageFill" style="width:0%"></div></div>
         <div class="rsb-usage-sub">Resets Monday · Free trial</div>
       </div>
-      <button class="rsb-new-btn" onclick="window.location.hash='#dashboard'">← New Batch</button>
+      <div class="rsb-section" style="padding-bottom:10px">
+        <div class="rsb-label">New Batch</div>
+        <input type="text" id="sbBatchName" class="inp" placeholder="Batch name (optional)" style="background:var(--bg);margin-bottom:8px;font-size:12px;padding:6px 10px;width:100%;box-sizing:border-box">
+        <textarea id="sbBatchInput" class="addr-box" placeholder="Paste addresses, one per line..." style="height:76px;font-size:12px;resize:vertical;margin-bottom:8px;width:100%;box-sizing:border-box"></textarea>
+        <button class="rsb-new-btn" onclick="runSidebarBatch()" id="sbRunBtn" style="background:var(--green);color:#000;font-weight:700;width:100%">Screen →</button>
+      </div>
+      <button class="rsb-new-btn" onclick="window.location.hash='#landing'">↑ Upload Page</button>
       <button class="rsb-new-btn" style="margin-top:6px" onclick="window.location.hash='#settings'">⚙ Settings</button>
       <button class="rsb-new-btn" style="margin-top:6px;background:rgba(239,68,68,.08);color:var(--red);border:1px solid rgba(239,68,68,.25);font-weight:600" onclick="doSignout()">Sign out</button>
     </aside>
@@ -1622,6 +1621,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         </table>
       </div>
       <div id="pagiContainer"></div>
+      <div id="addParcelRow" style="display:flex;gap:8px;margin:4px 0 12px;align-items:center">
+        <input class="inp" id="addParcelInput" placeholder="Add a parcel: 123 Main St, Tampa FL..." style="flex:1;background:var(--bg);font-size:13px">
+        <button class="btn-p btn-sm" onclick="addSingleParcel()" id="addParcelBtn">+ Add</button>
+      </div>
       <div id="resSummary" style="display:none"></div>
       <div class="res-footer">
         <span>Every flag cited · source verifiable</span>
@@ -1789,11 +1792,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
   <div class="sett-layout">
     <aside class="sett-sidebar">
       <div class="dsb-nav" style="margin-top:12px">
-        <div class="dsb-nav-item" onclick="window.location.hash='#dashboard'">← Dashboard</div>
+        <div class="dsb-nav-item" onclick="window.location.hash='#results'">← Results</div>
         <div class="dsb-nav-item active" style="margin-top:8px">Account</div>
         <div class="dsb-nav-item" onclick="scrollSettSection('sett-sec-security')">Password</div>
         <div class="dsb-nav-item" onclick="scrollSettSection('sett-sec-preferences')">Preferences</div>
         <div class="dsb-nav-item" onclick="scrollSettSection('sett-sec-notifications')">Notifications</div>
+        <div class="dsb-nav-item" onclick="scrollSettSection('sett-sec-rules')">Screening Rules</div>
         <div class="dsb-nav-item" onclick="window.location.hash='#pricing'">Upgrade Plan</div>
       </div>
     </aside>
@@ -1911,6 +1915,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           <span class="sett-lbl">Email alerts</span>
           <span class="sett-val" style="color:var(--t3)">Coming soon</span>
         </div>
+      </div>
+
+      <!-- SCREENING RULES -->
+      <div class="sett-section" id="sett-sec-rules">
+        <div class="sett-section-title">Screening Rules</div>
+        <div style="font-size:13px;color:var(--t2);margin-bottom:16px;line-height:1.5">Control how parcels are scored and verdicted. Toggles are saved automatically and apply on your next visit to Results.</div>
+        <div id="settRulesPanel"></div>
       </div>
 
       <!-- DANGER ZONE -->
@@ -2087,7 +2098,7 @@ async function router() {
   // #landing is intentionally excluded — the logo should always reach the landing page.
   const _authOnlyPages = new Set(['#login', '#signup', '#forgot', '', '#']);
   if (_authOnlyPages.has(hash) && currentSession) {
-    goTo('dashboard'); return;
+    goTo('results'); return;
   }
   if (PROTECTED.has(hash)) {
     // Trust currentSession first (already resolved by _authReadyPromise); fall back to getSession
@@ -2102,7 +2113,7 @@ async function router() {
       loadBatchResults(lastBatch);
       return;
     }
-    goTo('dashboard'); return;
+    goTo('landing'); return;
   }
   if (hash === '#dashboard') { loadDashboardData(); updateNav(); }
   if (hash === '#settings') { loadSettingsPage(); updateNav(); }
@@ -2120,7 +2131,7 @@ function updateNav() {
     el.innerHTML =
       modeBtn +
       '<span class="fl-pill">FL Beta</span>' +
-      '<a class="nav-link hide-mob" onclick="window.location.hash=\'#dashboard\'">Dashboard</a>' +
+      '<a class="nav-link hide-mob" onclick="window.location.hash=\'#results\'">Results</a>' +
       '';
   } else {
     el.innerHTML =
@@ -2139,7 +2150,7 @@ async function doLogin() {
   const btn   = document.getElementById('loginBtn');
   err.classList.remove('show');
   if (!email || !pw) { err.textContent = 'Email and password required.'; err.classList.add('show'); return; }
-  if (!sb) { goTo('dashboard'); return; }
+  if (!sb) { goTo('landing'); return; }
   btn.disabled = true; btn.textContent = 'Signing in…';
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
@@ -2147,7 +2158,7 @@ async function doLogin() {
     currentSession = data.session; currentUser = data.user;
     updateNav();
     loadUserProfile(); // fire-and-forget — never blocks navigation
-    goTo('dashboard');
+    goTo('results');
   } catch(e) {
     err.textContent = e.message || 'Login failed.'; err.classList.add('show');
   } finally { btn.disabled = false; btn.textContent = 'Log in'; }
@@ -2163,7 +2174,7 @@ async function doSignup() {
   if (!email || !pw) { err.textContent = 'Email and password required.'; err.classList.add('show'); return; }
   if (pw !== confirm) { err.textContent = 'Passwords do not match.'; err.classList.add('show'); return; }
   if (pw.length < 8)  { err.textContent = 'Password must be at least 8 characters.'; err.classList.add('show'); return; }
-  if (!sb) { goTo('dashboard'); return; }
+  if (!sb) { goTo('landing'); return; }
   btn.disabled = true; btn.textContent = 'Creating account…';
   try {
     const { data, error } = await sb.auth.signUp({ email, password: pw });
@@ -2172,7 +2183,7 @@ async function doSignup() {
     updateNav();
     loadUserProfile(); // fire-and-forget
     toast('Welcome to ParcelIQ!');
-    goTo('dashboard');
+    goTo('results');
   } catch(e) {
     err.textContent = e.message || 'Signup failed.'; err.classList.add('show');
   } finally { btn.disabled = false; btn.textContent = 'Create account →'; }
@@ -2263,7 +2274,7 @@ if (sb) {
       updateNav();
       // Navigate to dashboard only for explicit logins or OAuth callback — not session restores on protected pages
       const h = window.location.hash;
-      if (_AUTH_PAGES.has(h) || h.includes('access_token=')) goTo('dashboard');
+      if (_AUTH_PAGES.has(h) || h.includes('access_token=')) goTo('results');
     } else if (event === 'TOKEN_REFRESHED') {
       currentSession = session;
       updateNav();
@@ -2292,7 +2303,7 @@ async function signInWithGoogle() {
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin + '/#dashboard',
+      redirectTo: window.location.origin + '/#results',
     },
   });
   if (error) toast('Google sign-in failed: ' + error.message);
@@ -2306,7 +2317,7 @@ async function initApp() {
   // OAuth callback: access_token in hash — Supabase auto-processes it, then fires SIGNED_IN
   if (window.location.hash.includes('access_token=')) {
     setTimeout(() => {
-      window.history.replaceState({}, document.title, window.location.pathname + '#dashboard');
+      window.history.replaceState({}, document.title, window.location.pathname + '#results');
     }, 500);
     return;
   }
@@ -2320,7 +2331,7 @@ async function initApp() {
   if (session) {
     loadUserProfile(); // fire-and-forget
     if (_AUTH_PAGES.has(window.location.hash)) {
-      goTo('dashboard');
+      goTo('results');
       return;
     }
   }
@@ -3032,7 +3043,7 @@ async function deleteBatch(id) {
     try { sessionStorage.removeItem('piq-res-' + id); sessionStorage.removeItem('piq-batches'); } catch(e) {}
     loadPastBatches();
     _refreshSidebarIfOpen();
-    if (id === _currentBatchId) window.location.hash = '#dashboard';
+    if (id === _currentBatchId) window.location.hash = '#landing';
     toast('Batch deleted');
   } catch(e) { toast('Could not delete batch'); }
 }
@@ -3185,7 +3196,7 @@ async function loadBatchResults(batchId) {
     batchState.name     = batch?.name || '';
     renderBatchResults();
     goTo('results');
-  } catch(e) { console.error('Load results error:', e); toast('Could not load batch'); goTo('dashboard'); }
+  } catch(e) { console.error('Load results error:', e); toast('Could not load batch'); goTo('landing'); }
 }
 
 async function _refreshBatchFromServer(batchId) {
@@ -3369,7 +3380,7 @@ async function _executeBatch(lines, estimatedSet) {
   }
 
   const btn = document.getElementById('runBatchBtn');
-  btn.disabled = true; btn.textContent = 'Screening…';
+  if (btn) { btn.disabled = true; btn.textContent = 'Screening…'; }
 
   // Task 30: route large batches through queue endpoint
   if (flLines.length > 50) {
@@ -3391,7 +3402,7 @@ async function _executeBatch(lines, estimatedSet) {
       };
       await saveBatchToSupabase(batchState.name, { summary, results: apiResults });
       renderBatchResults(); goTo('results');
-    } catch(e) { toast('Batch error: ' + e.message); goTo('dashboard'); }
+    } catch(e) { toast('Batch error: ' + e.message); goTo('landing'); }
     finally { if (btn) { btn.disabled = false; btn.textContent = 'Screen Parcels →'; } }
     return;
   }
@@ -3459,7 +3470,7 @@ async function _executeBatch(lines, estimatedSet) {
     }
   } catch(err) {
     if (err.isLimitExceeded) {
-      goTo('dashboard');
+      goTo('landing');
       setTimeout(() => showUpgradeModal(), 150);
     } else {
       const isNetwork = (err instanceof TypeError) || (err.message || '').toLowerCase().includes('failed to fetch') || (err.message || '').toLowerCase().includes('networkerror');
@@ -3474,6 +3485,89 @@ async function _executeBatch(lines, estimatedSet) {
     batchState._streaming = false;
     const btn2 = document.getElementById('runBatchBtn');
     if (btn2) { btn2.disabled = false; btn2.textContent = 'Screen Parcels →'; }
+  }
+}
+
+async function runSidebarBatch() {
+  const raw = (document.getElementById('sbBatchInput')?.value || '').trim();
+  if (!raw) { toast('Paste at least one address'); return; }
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) { toast('No valid addresses found'); return; }
+  const name = (document.getElementById('sbBatchName')?.value || '').trim();
+  batchState.name = name || 'Batch · ' + new Date().toLocaleDateString();
+  const sbBtn = document.getElementById('sbRunBtn');
+  if (sbBtn) { sbBtn.disabled = true; sbBtn.textContent = 'Screening…'; }
+  const restoreSbBtn = () => { if (sbBtn) { sbBtn.disabled = false; sbBtn.textContent = 'Screen →'; } };
+  const inp = document.getElementById('sbBatchInput');
+  const nameInp = document.getElementById('sbBatchName');
+  if (inp) inp.value = '';
+  if (nameInp) nameInp.value = '';
+  try {
+    await _executeBatch(lines, new Set());
+  } finally {
+    restoreSbBtn();
+  }
+}
+
+async function addSingleParcel() {
+  const addr = (document.getElementById('addParcelInput')?.value || '').trim();
+  if (!addr) { toast('Enter an address'); return; }
+  if (!isFloridaAddress(addr)) { toast('FL addresses only during beta'); return; }
+  const btn = document.getElementById('addParcelBtn');
+  const inp = document.getElementById('addParcelInput');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession?.access_token) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
+    const resp = await fetch(API + '/api/batch/stream', {
+      method: 'POST', headers,
+      body: JSON.stringify({ parcels: [{ address: addr }], state: 'FL' }),
+    });
+    if (!resp.ok) throw new Error('Server error ' + resp.status);
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '', newResult = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const evLines = buf.split('\n'); buf = evLines.pop();
+      for (const line of evLines) {
+        if (!line.startsWith('data: ')) continue;
+        let ev; try { ev = JSON.parse(line.slice(6)); } catch(e) { continue; }
+        if (ev.type === 'complete' && ev.results?.[0]) newResult = ev.results[0];
+      }
+    }
+    if (!newResult) throw new Error('No result returned');
+    batchState.results.push(newResult);
+    currentBatchResults = batchState.results;
+    if (inp) inp.value = '';
+    toast('Added: ' + (newResult.address || addr));
+    if (sb && currentUser && _currentBatchId) {
+      try {
+        await sb.from('parcel_results').insert({
+          batch_id: _currentBatchId, user_id: currentUser.id,
+          address: newResult.address || addr, verdict: newResult.verdict,
+          score: newResult.score, auto_kill: newResult.auto_kill || false,
+          auto_kill_reason: newResult.auto_kill_reason || null,
+          flags: newResult.flags || [], positives: newResult.positives || [],
+          parcel_info: newResult.parcel_info || {},
+        });
+      } catch(e) { console.warn('[addParcel] Supabase insert failed:', e); }
+    }
+    try {
+      const cacheKey = 'piq-res-' + (_currentBatchId || '');
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.rows) { parsed.rows.push(newResult); sessionStorage.setItem(cacheKey, JSON.stringify(parsed)); }
+      }
+    } catch(e) {}
+    renderBatchResults();
+  } catch(e) {
+    toast('Error: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '+ Add'; }
   }
 }
 
@@ -3632,10 +3726,10 @@ function effectiveVerdict(r) {
 }
 
 function renderRulesPanel() {
-  const panel = document.getElementById('rulesPanel');
+  const panel = document.getElementById('settRulesPanel');
   if (!panel) return;
   panel.innerHTML = RULES_DEF.map(d =>
-    '<div class="rsb-rule-row"><span>' + d.label + '</span>' +
+    '<div class="rsb-rule-row" style="padding:8px 0;border-bottom:1px solid var(--b)"><span style="font-size:13px;color:var(--t1)">' + d.label + '</span>' +
     '<label class="rsb-toggle"><input type="checkbox"' + (_screeningRules[d.key] ? ' checked' : '') +
     ' onchange="toggleRule(\'' + d.key + '\',this.checked)">' +
     '<span class="rsb-toggle-track"><span class="rsb-toggle-thumb"></span></span></label></div>'
@@ -3645,16 +3739,6 @@ function renderRulesPanel() {
 function toggleRule(key, val) {
   _screeningRules[key] = val;
   try { localStorage.setItem('parceliq-rules', JSON.stringify(_screeningRules)); } catch(e) {}
-  renderBatchResults();
-}
-
-function toggleRulesPanel() {
-  const panel = document.getElementById('rulesPanel');
-  const chevron = document.getElementById('rulesChevron');
-  if (!panel) return;
-  const open = panel.style.display !== 'none';
-  panel.style.display = open ? 'none' : 'block';
-  if (chevron) chevron.textContent = open ? '▸' : '▾';
 }
 
 function buildFilterPanel() {
@@ -5055,6 +5139,8 @@ function loadSettingsPage() {
   const usageEl = document.getElementById('settUsage');
   if (usageEl) usageEl.textContent = 'Loading…';
   _loadWeeklyUsage(usageEl);
+  if (!Object.keys(_screeningRules).length) _screeningRules = _loadRules();
+  renderRulesPanel();
 }
 
 async function _loadWeeklyUsage(el) {
