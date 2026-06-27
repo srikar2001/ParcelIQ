@@ -1,7 +1,9 @@
+import asyncio
 import httpx
 
 NWI_URL = "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Wetlands/FeatureServer/0/query"
 DEFAULT = {"wetland_on_parcel": False, "wetland_nearby": False, "wetland_type": None, "wetland_code": None, "source": "USFWS NWI"}
+ERROR   = {"wetland_on_parcel": None,  "wetland_nearby": None,  "wetland_type": None, "wetland_code": None, "source": "USFWS NWI", "error": True}
 
 
 async def _query(client: httpx.AsyncClient, lng: float, lat: float, buffer: float = 0) -> list:
@@ -25,30 +27,35 @@ async def _query(client: httpx.AsyncClient, lng: float, lat: float, buffer: floa
     resp.raise_for_status()
     data = resp.json()
     if "error" in data:
-        return []
+        raise RuntimeError(f"NWI error: {data['error']}")
     return data.get("features", [])
 
 
 async def get_wetlands(lat: float, lng: float) -> dict:
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            on_parcel = await _query(client, lng, lat)
-            nearby = await _query(client, lng, lat, buffer=0.001)
+    for attempt in range(2):
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                on_parcel = await _query(client, lng, lat)
+                nearby    = await _query(client, lng, lat, buffer=0.001)
 
-        wetland_type = None
-        wetland_code = None
-        if on_parcel:
-            attrs = on_parcel[0].get("attributes", {})
-            wetland_type = attrs.get("WETLAND_TYPE")
-            wetland_code = attrs.get("ATTRIBUTE")
+            wetland_type = None
+            wetland_code = None
+            if on_parcel:
+                attrs = on_parcel[0].get("attributes", {})
+                wetland_type = attrs.get("WETLAND_TYPE")
+                wetland_code = attrs.get("ATTRIBUTE")
 
-        return {
-            "wetland_on_parcel": len(on_parcel) > 0,
-            "wetland_nearby": len(nearby) > 0,
-            "wetland_type": wetland_type,
-            "wetland_code": wetland_code,
-            "source": "USFWS NWI",
-        }
-    except Exception as e:
-        print(f"[Wetlands] Error: {e}")
-        return DEFAULT
+            return {
+                "wetland_on_parcel": len(on_parcel) > 0,
+                "wetland_nearby":    len(nearby) > 0,
+                "wetland_type":      wetland_type,
+                "wetland_code":      wetland_code,
+                "source":            "USFWS NWI",
+            }
+        except Exception as e:
+            if attempt == 0:
+                await asyncio.sleep(1.0)
+                continue
+            print(f"[Wetlands] Error after 2 attempts: {e}")
+            return ERROR
+    return ERROR

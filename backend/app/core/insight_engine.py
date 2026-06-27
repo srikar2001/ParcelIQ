@@ -49,13 +49,22 @@ def score_parcel(
     auto_kill = False
     auto_kill_reason: str | None = None
 
-    flood_zone = flood.get("zone") or ""
+    flood_zone = (flood.get("zone") or "").strip().upper()
+
+    # Flag when FEMA API itself failed (distinct from area not being mapped)
+    if flood_zone == "ERROR":
+        flags.append("Flood zone data unavailable — verify with FEMA manually")
+
     if flood_zone in SFHA_ZONES and flood.get("sfha") is True:
         reason = f"FEMA Flood Zone {flood_zone}"
         flags.append(reason)
         if not auto_kill:
             auto_kill_reason = reason
         auto_kill = True
+
+    # Flag when NWI API itself failed
+    if wetlands.get("error") is True:
+        flags.append("Wetland data unavailable — verify with USFWS NWI manually")
 
     if wetlands.get("wetland_on_parcel") is True:
         reason = "Wetlands on parcel (USFWS NWI)"

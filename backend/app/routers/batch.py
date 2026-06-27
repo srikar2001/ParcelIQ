@@ -161,6 +161,9 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
         "auto_kill": result["auto_kill"],
         "auto_kill_reason": result["auto_kill_reason"],
         "flags": result["flags"],
+        "kill_flags": result.get("kill_flags", []),
+        "review_flags": result.get("review_flags", []),
+        "info_flags": result.get("info_flags", []),
         "positives": result["positives"],
         "parcel_info": {
             "acreage": parcel_data.get("acreage"),
