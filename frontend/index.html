@@ -5893,9 +5893,26 @@ async function runBatchFromModal() {
   const modalName = (document.getElementById('modalBatchName')?.value || '').trim();
   batchState.name = modalName || 'Batch · ' + new Date().toLocaleDateString();
   batchState.filtered = 'all';
+  batchState.results = [];
+  batchState._streaming = false;
   const btn = document.getElementById('modRunBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<div class="upmod-spin"></div> Starting…'; }
   closeUploadModal();
+  // Immediately show screening state so old results don't linger
+  showScreen('page-results');
+  const _s = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  _s('resTitleCount', batchState.name);
+  _s('resMeta', 'Screening ' + lines.length + ' parcel' + (lines.length !== 1 ? 's' : '') + '…');
+  _s('statTotal', '—'); _s('statKill', '—'); _s('statPursue', '—'); _s('timeSaved', '—');
+  const _tw = document.getElementById('resTableWrap');
+  if (_tw) {
+    const _tb = _tw.querySelector('tbody');
+    if (_tb) _tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:48px;color:var(--t3);font-size:13px">' +
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:14px">' +
+      '<div style="width:22px;height:22px;border:2px solid var(--b);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite"></div>' +
+      'Screening ' + lines.length + ' parcel' + (lines.length !== 1 ? 's' : '') + '…</div></td></tr>';
+  }
+  updateStreamProgress(0, lines.length);
   _estimatedAddresses = new Set();
   _lastBatchLines = lines;
   _lastBatchEstimated = new Set();
