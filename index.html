@@ -265,6 +265,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .res-layout{display:flex;min-height:calc(100vh - 58px)}
 .res-sidebar.rsb-hidden{width:0!important;min-width:0!important;padding-left:0!important;padding-right:0!important;padding-top:0!important;padding-bottom:0!important;opacity:0;overflow:hidden!important;border-right-width:0!important;pointer-events:none}
 
+/* Merge nav into sidebar on results page */
+body.on-results .nav{display:none!important}
+body.on-results #page-results{padding-top:0}
+body.on-results .res-layout{min-height:100vh}
+body.on-results .res-sidebar{top:0;height:100vh}
+body.on-results .detail-panel{top:0}
+
 /* Results Sidebar */
 .res-sidebar{width:240px;flex-shrink:0;background:var(--card);border-right:1px solid var(--b);padding:24px 16px;display:flex;flex-direction:column;gap:20px;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto;transition:width .28s cubic-bezier(.4,0,.2,1),padding .28s cubic-bezier(.4,0,.2,1),opacity .2s ease,border-width .28s ease}
 .rsb-section{display:flex;flex-direction:column;gap:4px}
@@ -306,6 +313,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .rsb-item:hover{background:var(--b);color:var(--t1)}
 .rsb-item.active{background:var(--b);color:var(--t1);font-weight:500}
 .rsb-grp-lbl{font-size:11px;font-weight:500;color:var(--t3);padding:14px 10px 5px;letter-spacing:.02em}
+.rsb-prev-hdr{cursor:pointer;display:flex!important;align-items:center;justify-content:space-between;padding-right:8px;transition:color .12s}
+.rsb-prev-hdr:hover{color:var(--t1)}
+.rsb-chev{transition:transform .2s ease;flex-shrink:0}
+.rsb-prev-hdr.rsb-prev-open .rsb-chev{transform:rotate(90deg)}
 .rsb-footer{margin-top:auto;border-top:1px solid var(--b);padding-top:12px;display:flex;flex-direction:column;gap:10px}
 .rsb-usage-row{display:flex;flex-direction:column;gap:4px;padding:0 2px}
 .rsb-usage-bar{height:3px;background:var(--b);border-radius:99px;overflow:hidden}
@@ -1612,7 +1623,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       <!-- Brand + toggle -->
       <div class="rsb-top">
         <span class="rsb-brand">ParcelIQ</span>
-        <button class="rsb-toggle-btn" onclick="toggleResultsSidebar()" title="Collapse sidebar"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span class="fl-pill" style="font-size:10px;padding:2px 7px;letter-spacing:.4px">FL Beta</span>
+          <button id="rsbModeToggle" class="rsb-toggle-btn" onclick="toggleMode()" title="Toggle theme" style="font-size:14px;padding:3px 5px;line-height:1"><span id="rsbModeIcon">☀️</span></button>
+          <button class="rsb-toggle-btn" onclick="toggleResultsSidebar()" title="Collapse sidebar"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>
+        </div>
       </div>
       <!-- New Screen -->
       <button class="rsb-new-scan" onclick="window.location.hash='#landing'">
@@ -1626,9 +1641,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           All Parcels
         </div>
       </div>
-      <!-- Previously Screened -->
-      <div class="rsb-grp-lbl">Previously Screened</div>
-      <div id="sidebarBatchList" style="overflow-y:auto;max-height:200px;display:flex;flex-direction:column;gap:1px"></div>
+      <!-- Previously Screened (collapsible) -->
+      <div class="rsb-grp-lbl rsb-prev-hdr" id="rsbPrevHdr" onclick="togglePrevScreened()">
+        Previously Screened
+        <svg class="rsb-chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,2 8,6 4,10"/></svg>
+      </div>
+      <div id="sidebarBatchList" style="overflow-y:auto;max-height:200px;display:none;flex-direction:column;gap:1px"></div>
       <!-- Footer -->
       <div class="rsb-footer">
         <div class="rsb-usage-row">
@@ -2102,6 +2120,7 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(id);
   if (el) el.classList.add('active');
+  document.body.classList.toggle('on-results', id === 'page-results');
 }
 
 // ── HASH ROUTER
@@ -2215,7 +2234,8 @@ window.addEventListener('hashchange', router);
 function updateNav() {
   const el = document.getElementById('navRight');
   if (!el) return;
-  const modeBtn = '<button id="modeToggle" class="mode-toggle-btn" onclick="toggleMode()"><span id="modeIcon">' + (document.documentElement.dataset.theme === 'light' ? '🌙' : '☀️') + '</span></button>';
+  const themeIcon = document.documentElement.dataset.theme === 'light' ? '🌙' : '☀️';
+  const modeBtn = '<button id="modeToggle" class="mode-toggle-btn" onclick="toggleMode()"><span id="modeIcon">' + themeIcon + '</span></button>';
   if (currentUser) {
     el.innerHTML =
       modeBtn +
@@ -2228,6 +2248,8 @@ function updateNav() {
       '<button class="btn-o btn-sm hide-mob" onclick="window.location.hash=\'#login\'">Log in</button>' +
       '<button class="btn-p btn-sm" onclick="window.location.hash=\'#signup\'">Start free →</button>';
   }
+  const rmi = document.getElementById('rsbModeIcon');
+  if (rmi) rmi.textContent = themeIcon;
 }
 
 // ── AUTH
@@ -3175,6 +3197,23 @@ function toggleResultsSidebar() {
   } else {
     if (openBtn) openBtn.style.display = 'none';
     sidebar.classList.remove('rsb-hidden');
+  }
+}
+
+function togglePrevScreened() {
+  const hdr = document.getElementById('rsbPrevHdr');
+  const list = document.getElementById('sidebarBatchList');
+  if (!list) return;
+  const isOpen = hdr && hdr.classList.contains('rsb-prev-open');
+  if (isOpen) {
+    if (hdr) hdr.classList.remove('rsb-prev-open');
+    list.style.display = 'none';
+  } else {
+    if (hdr) hdr.classList.add('rsb-prev-open');
+    list.style.display = 'flex';
+    if (!list.children.length || (list.children.length === 1 && list.children[0].textContent.includes('Loading'))) {
+      _loadSidebarBatches();
+    }
   }
 }
 
@@ -5462,11 +5501,13 @@ function toggleMode() {
   if (isLight) {
     delete html.dataset.theme;
     localStorage.removeItem('parceliq-theme');
-    document.getElementById('modeIcon').textContent = '☀️';
+    const mi = document.getElementById('modeIcon'); if (mi) mi.textContent = '☀️';
+    const rmi = document.getElementById('rsbModeIcon'); if (rmi) rmi.textContent = '☀️';
   } else {
     html.dataset.theme = 'light';
     localStorage.setItem('parceliq-theme', 'light');
-    document.getElementById('modeIcon').textContent = '🌙';
+    const mi = document.getElementById('modeIcon'); if (mi) mi.textContent = '🌙';
+    const rmi = document.getElementById('rsbModeIcon'); if (rmi) rmi.textContent = '🌙';
   }
 }
 
