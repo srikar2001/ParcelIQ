@@ -280,6 +280,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .rsb-state-val{font-size:13px;font-weight:600;color:var(--t1)}
 .rsb-new-btn{margin-top:auto;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;padding:9px 14px;border-radius:var(--rs);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;text-align:left;transition:all .15s;width:100%}
 .rsb-new-btn:hover{border-color:var(--bh);color:var(--t1)}
+.rsb-batch-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:var(--rs);cursor:pointer;font-size:12px;color:var(--t2);transition:all .15s;margin-bottom:1px}
+.rsb-batch-item:hover{background:var(--card-h);color:var(--t1)}
+.rsb-batch-item.active{background:rgba(34,197,94,.08);color:var(--t1);font-weight:600}
+.rsb-batch-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rsb-batch-acts{display:none;align-items:center;gap:2px;flex-shrink:0}
+.rsb-batch-item:hover .rsb-batch-acts{display:flex}
+.rsb-batch-act{background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px;padding:1px 4px;border-radius:3px;line-height:1}
+.rsb-batch-act:hover{color:var(--t1);background:var(--b)}
 .rsb-flag-item{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--t2);padding:6px 10px;border-radius:var(--rs);cursor:pointer;transition:all .15s;border-left:2px solid transparent}
 .rsb-flag-item:hover{background:var(--card-h);color:var(--t1)}
 .rsb-flag-item.active{border-left-color:var(--green);color:var(--t1);font-weight:600;background:rgba(34,197,94,.06)}
@@ -1016,7 +1024,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       <div class="reveal">
         <div class="lp-sec-label" style="text-align:left">WHAT PARCELIQ EVALUATES</div>
         <div class="lp-sec-title" style="text-align:left">What ParcelIQ<br>evaluates</div>
-        <p style="font-size:16px;color:#64748B;line-height:1.7;margin:0 0 24px">Our decision engine pulls from 6+ live data sources to uncover risk, access, and opportunity in seconds.</p>
+        <p style="font-size:16px;color:#64748B;line-height:1.7;margin:0 0 24px">Our decision engine pulls from FEMA, USFWS, EPA, OpenStreetMap, USDA, and FL DOR to uncover risk, access, and opportunity in seconds.</p>
         <a style="color:#22C55E;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none" onclick="window.location.hash='#signup'">See all data sources →</a>
       </div>
       <!-- Diagram -->
@@ -1353,7 +1361,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
     <aside class="dash-sidebar">
       <div class="dash-avatar" id="dashAvatar">?</div>
       <div class="dash-uname" id="dashName">—</div>
-      <div class="dash-uemail" id="dashEmail">—</div>
       <div class="dash-plan">Beta · Free</div>
       <div class="dsb-divider"></div>
       <nav class="dsb-nav">
@@ -1394,7 +1401,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <!-- Batch form -->
         <div id="dashBatchForm">
         <div class="dash-title">Screen your parcels</div>
-        <div class="dash-sub">Florida statewide · 6 live sources · Kill / Pursue in seconds</div>
+        <div class="dash-sub">Florida statewide · Kill / Pursue in seconds</div>
         <label style="font-size:12px;color:var(--t2);font-weight:500;display:block;margin-bottom:6px">Batch name (optional)</label>
         <input type="text" id="batchNameInput" class="inp" placeholder="e.g. Polk County June leads" style="margin-bottom:12px;background:var(--bg)">
         <!-- Upload tabs (Task 22) -->
@@ -1516,12 +1523,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       <div class="rsb-section">
         <div class="rsb-label">Workspace</div>
         <div class="rsb-nav-item rsb-all active" onclick="filterResults('all',null)">All Parcels</div>
-        <div class="rsb-nav-item rsb-kill" onclick="filterResults('KILL',null)">
-          <span>Kill</span><span class="rsb-count" id="sbKill">—</span>
+      </div>
+      <div class="rsb-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleSidebarBatches()">
+          <span class="rsb-label" style="margin-bottom:0">Previously Screened</span>
+          <span id="sidebarBatchChevron" style="font-size:10px;color:var(--t3)">&#9658;</span>
         </div>
-        <div class="rsb-nav-item rsb-pursue" onclick="filterResults('PURSUE',null)">
-          <span>Pursue</span><span class="rsb-count" id="sbPursue">—</span>
-        </div>
+        <div id="sidebarBatchList" style="display:none;margin-top:6px"></div>
       </div>
       <div class="rsb-section">
         <div class="rsb-rules-header" onclick="toggleRulesPanel()">
@@ -1547,7 +1555,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </div>
       <button class="rsb-new-btn" onclick="window.location.hash='#dashboard'">← New Batch</button>
       <button class="rsb-new-btn" style="margin-top:6px" onclick="window.location.hash='#settings'">⚙ Settings</button>
-      <button class="rsb-new-btn" style="margin-top:6px;background:transparent;color:var(--t3);border:1px solid var(--b)" onclick="doSignout()">Sign out</button>
+      <button class="rsb-new-btn" style="margin-top:6px;background:rgba(239,68,68,.08);color:var(--red);border:1px solid rgba(239,68,68,.25);font-weight:600" onclick="doSignout()">Sign out</button>
     </aside>
     <!-- Main -->
     <main class="res-main">
@@ -1739,7 +1747,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
           <li>500 parcels / month</li>
           <li>All Florida counties</li>
           <li>Kill / Pursue verdicts</li>
-          <li>6 live data sources</li>
+          <li>FEMA · USFWS · EPA · Roads · FL DOR</li>
           <li>CSV export</li>
           <li>Past batch history</li>
         </ul>
@@ -1772,7 +1780,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <button class="btn-o btn-full" onclick="toast('Added to waitlist!')">Join Waitlist →</button>
       </div>
     </div>
-    <div class="pricing-all">All plans include: Florida statewide · 6 live data sources · Kill / Pursue · CSV export<br>No contracts · Cancel anytime</div>
+    <div class="pricing-all">All plans include: Florida statewide · Kill / Pursue · CSV export · No contracts · Cancel anytime</div>
   </div>
 </div>
 
@@ -2113,7 +2121,7 @@ function updateNav() {
       modeBtn +
       '<span class="fl-pill">FL Beta</span>' +
       '<a class="nav-link hide-mob" onclick="window.location.hash=\'#dashboard\'">Dashboard</a>' +
-      '<span class="nav-user hide-mob">' + escHtml(currentUser.email) + '</span>';
+      '';
   } else {
     el.innerHTML =
       modeBtn +
@@ -2451,7 +2459,7 @@ function renderSharedResults(results, container) {
     </div>
     <div style="margin-top:32px;padding:28px;background:linear-gradient(135deg,rgba(34,197,94,.08),rgba(34,197,94,.03));border:1px solid rgba(34,197,94,.2);border-radius:14px;text-align:center">
       <div style="font-size:18px;font-weight:700;margin-bottom:8px">Screen your own parcels — free</div>
-      <div style="font-size:13px;color:#94A3B8;margin-bottom:16px">Florida statewide · 6 live sources · Kill / Pursue in seconds</div>
+      <div style="font-size:13px;color:#94A3B8;margin-bottom:16px">Florida statewide · Kill / Pursue in seconds</div>
       <button onclick='window.location.hash="#signup"'
         style='background:#22C55E;color:#000;border:none;padding:11px 28px;border-radius:99px;cursor:pointer;font-weight:700;font-size:15px'>
         Create free account →
@@ -2498,8 +2506,7 @@ function updateUIWithProfile() {
   const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   setEl('dashWelcome', 'Welcome back, ' + firstName);
   setEl('dashAvatar',  initial);
-  setEl('dashName',    p.full_name || p.email || '—');
-  setEl('dashEmail',   p.email || '—');
+  setEl('dashName',    p.full_name || p.email?.split('@')[0] || '—');
 }
 
 // FIX 3: DOR code descriptions
@@ -3011,6 +3018,7 @@ async function renameBatch(id, currentName) {
     await sb.from('batches').update({ name: newName.trim() }).eq('id', id).eq('user_id', currentUser.id);
     try { sessionStorage.removeItem('piq-batches'); } catch(e) {}
     loadPastBatches();
+    _refreshSidebarIfOpen();
     toast('Renamed');
   } catch(e) { toast('Rename failed'); }
 }
@@ -3023,8 +3031,75 @@ async function deleteBatch(id) {
     await sb.from('batches').delete().eq('id', id).eq('user_id', currentUser.id);
     try { sessionStorage.removeItem('piq-res-' + id); sessionStorage.removeItem('piq-batches'); } catch(e) {}
     loadPastBatches();
+    _refreshSidebarIfOpen();
+    if (id === _currentBatchId) window.location.hash = '#dashboard';
     toast('Batch deleted');
   } catch(e) { toast('Could not delete batch'); }
+}
+
+function _refreshSidebarIfOpen() {
+  const list = document.getElementById('sidebarBatchList');
+  if (list && list.style.display !== 'none') _loadSidebarBatches();
+}
+
+function toggleSidebarBatches() {
+  const list = document.getElementById('sidebarBatchList');
+  const chev = document.getElementById('sidebarBatchChevron');
+  if (!list) return;
+  const open = list.style.display !== 'none';
+  list.style.display = open ? 'none' : '';
+  if (chev) chev.textContent = open ? '►' : '▼';
+  if (!open) _loadSidebarBatches();
+}
+
+async function _loadSidebarBatches() {
+  const list = document.getElementById('sidebarBatchList');
+  if (!list) return;
+  list.innerHTML = '<div style="font-size:11px;color:var(--t3);padding:4px 8px">Loading…</div>';
+  let batches = null;
+  try {
+    const cached = sessionStorage.getItem('piq-batches');
+    if (cached) batches = JSON.parse(cached);
+  } catch(e) {}
+  if (!batches && sb && currentUser) {
+    try {
+      const { data } = await sb.from('batches').select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false }).limit(20);
+      batches = data || [];
+      if (batches.length) { try { sessionStorage.setItem('piq-batches', JSON.stringify(batches)); } catch(e) {} }
+    } catch(e) { batches = []; }
+  }
+  _renderSidebarBatches(batches || []);
+}
+
+function _renderSidebarBatches(batches) {
+  const list = document.getElementById('sidebarBatchList');
+  if (!list) return;
+  if (!batches.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--t3);padding:4px 8px">No batches yet</div>';
+    return;
+  }
+  list.innerHTML = batches.map(b => {
+    const name = b.name || 'Batch · ' + new Date(b.created_at).toLocaleDateString();
+    const en = escHtml(name).replace(/'/g, '&#39;');
+    const active = b.id === _currentBatchId;
+    return '<div class="rsb-batch-item' + (active ? ' active' : '') + '" id="rsb-bc-' + b.id + '" onclick="_sidebarBatchClick(\'' + b.id + '\')">' +
+      '<span class="rsb-batch-name" title="' + en + '">' + en + '</span>' +
+      '<div class="rsb-batch-acts">' +
+        '<button class="rsb-batch-act" onclick="event.stopPropagation();renameBatch(\'' + b.id + '\',\'' + en + '\')" title="Rename">✎</button>' +
+        '<button class="rsb-batch-act" style="color:var(--red)" onclick="event.stopPropagation();deleteBatch(\'' + b.id + '\')" title="Delete">✕</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function _sidebarBatchClick(id) {
+  if (id === _currentBatchId) return;
+  loadBatchResults(id);
+  document.querySelectorAll('.rsb-batch-item').forEach(el => el.classList.remove('active'));
+  const item = document.getElementById('rsb-bc-' + id);
+  if (item) item.classList.add('active');
 }
 
 function showResultsLoading() {
@@ -3740,7 +3815,7 @@ function renderBatchResults() {
   const setEl    = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
   setEl('resTitleCount', batchState.name || results.length + ' lot' + (results.length !== 1 ? 's' : '') + ' screened');
-  setEl('resMeta', (batchState.elapsed ? 'Done in ' + batchState.elapsed + 's · ' : '') + '6 live sources · ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }));
+  setEl('resMeta', (batchState.elapsed ? 'Done in ' + batchState.elapsed + 's · ' : '') + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }));
   setEl('statTotal', total); setEl('statKill', kills); setEl('statPursue', pursues);
   setEl('sbKill', kills); setEl('sbPursue', pursues);
 
@@ -5147,7 +5222,7 @@ function exportPDF() {
     '<div class="stat s-total"><div class="stat-num">~' + Math.round(flOnly.length * 30 / 60 * 10) / 10 + 'h</div><div class="stat-lbl">Hours Saved</div></div>' +
   '</div>' +
   '<table><thead><tr><th>Address</th><th>Verdict</th><th>Score</th><th>Size</th><th>Flags / Issues</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-  '<div class="footer"><span>ParcelIQ · Florida Parcel Screening · parcel-iq-nine.vercel.app</span><span>' + results.length + ' parcels · 6 live sources: FEMA · NWI · USFWS · EPA · Roads · FL DOR</span></div>' +
+  '<div class="footer"><span>ParcelIQ · Florida Parcel Screening · parcel-iq-nine.vercel.app</span><span>' + results.length + ' parcels · FEMA · NWI · USFWS · EPA · Roads · FL DOR</span></div>' +
   '</body></html>';
 
   const iframe = document.createElement('iframe');
