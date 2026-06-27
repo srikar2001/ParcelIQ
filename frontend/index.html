@@ -707,8 +707,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .lp-drop-sub{font-size:13px;color:#64748B;margin-bottom:6px}
 .lp-drop-types{font-size:11px;color:#374151}
 .lp-state-sel{width:100%;padding:10px 14px;background:#0D1016;border:1px solid #1E2130;border-radius:8px;color:#F1F5F9;font-size:14px;margin:12px 0;cursor:pointer;outline:none}
-.lp-analyze-btn{width:100%;padding:14px;background:#22C55E;color:#000;font-size:16px;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s;margin-bottom:8px}
+.lp-analyze-btn{width:100%;padding:14px;background:#22C55E;color:#000;font-size:16px;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:10px}
 .lp-analyze-btn:hover{background:#16A34A}
+.lp-analyze-btn:disabled{opacity:.7;cursor:not-allowed}
+@keyframes _piq-spin{to{transform:rotate(360deg)}}
+.lp-spinner{width:16px;height:16px;border:2px solid rgba(0,0,0,.25);border-top-color:#000;border-radius:50%;animation:_piq-spin .65s linear infinite;flex-shrink:0}
 .lp-fine{font-size:12px;color:#374151;text-align:center}
 
 /* Hero connector SVG */
@@ -1523,7 +1526,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
     <aside class="res-sidebar" id="resSidebar">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green)">ParcelIQ</span>
-        <button onclick="toggleResultsSidebar()" title="Collapse sidebar" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:16px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--t1)'" onmouseout="this.style.color='var(--t3)'">✕</button>
+        <button onclick="toggleResultsSidebar()" title="Collapse sidebar" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px;border-radius:6px;display:flex;align-items:center" onmouseover="this.style.background='var(--b)'" onmouseout="this.style.background='none'"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>
       </div>
       <div class="rsb-section">
         <div class="rsb-label">Workspace</div>
@@ -1563,7 +1566,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </div>
       <div class="res-header">
         <div style="display:flex;align-items:center;gap:10px">
-          <button id="sidebarOpenBtn" onclick="toggleResultsSidebar()" title="Show sidebar" style="display:none;background:none;border:1px solid var(--b);cursor:pointer;color:var(--t2);font-size:14px;padding:4px 8px;border-radius:6px">☰</button>
+          <button id="sidebarOpenBtn" onclick="toggleResultsSidebar()" title="Show sidebar" style="display:none;background:none;border:1px solid var(--b);cursor:pointer;color:var(--t2);padding:5px 7px;border-radius:6px;align-items:center"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>
           <div>
             <div class="res-title" id="resTitleCount">Results</div>
             <div class="res-meta-txt" id="resMeta"></div>
@@ -2245,9 +2248,18 @@ async function doResetPassword() {
 
 // FIX 7: Start Screening checks auth first — never assumes logged out
 async function startScreening() {
-  const session = await initAuth();
-  if (!session) { goTo('login'); return; }
-  _runPendingOrResults();
+  const analyzeBtn = document.querySelector('.lp-analyze-btn');
+  const ctaBtns = document.querySelectorAll('.lp-analyze-btn, .lp-btn-primary');
+  ctaBtns.forEach(b => { b.disabled = true; });
+  if (analyzeBtn) analyzeBtn.innerHTML = '<span class="lp-spinner"></span>Analyzing…';
+  try {
+    const session = await initAuth();
+    if (!session) { goTo('login'); return; }
+    _runPendingOrResults();
+  } catch(e) {
+    ctaBtns.forEach(b => { b.disabled = false; });
+    if (analyzeBtn) analyzeBtn.innerHTML = 'Analyze leads →';
+  }
 }
 
 function _runPendingOrResults() {
