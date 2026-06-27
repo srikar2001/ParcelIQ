@@ -1360,7 +1360,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <div class="dsb-nav-item active">Dashboard</div>
         <div class="dsb-nav-item" onclick="window.location.hash='#pricing'">Pricing</div>
         <div class="dsb-nav-item" onclick="window.location.hash='#settings'">Settings</div>
-        <div class="dsb-nav-item dsb-signout" onclick="doSignout()">Sign out</div>
       </nav>
       <div class="dsb-usage">
         <div class="dsb-usage-top">
@@ -1395,7 +1394,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <!-- Batch form -->
         <div id="dashBatchForm">
         <div class="dash-title">Screen your parcels</div>
-        <div class="dash-sub">Florida statewide · 6 live sources · Kill / Review / Pursue in seconds</div>
+        <div class="dash-sub">Florida statewide · 6 live sources · Kill / Pursue in seconds</div>
         <label style="font-size:12px;color:var(--t2);font-weight:500;display:block;margin-bottom:6px">Batch name (optional)</label>
         <input type="text" id="batchNameInput" class="inp" placeholder="e.g. Polk County June leads" style="margin-bottom:12px;background:var(--bg)">
         <!-- Upload tabs (Task 22) -->
@@ -1520,9 +1519,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <div class="rsb-nav-item rsb-kill" onclick="filterResults('KILL',null)">
           <span>Kill</span><span class="rsb-count" id="sbKill">—</span>
         </div>
-        <div class="rsb-nav-item rsb-review" onclick="filterResults('REVIEW',null)">
-          <span>Review</span><span class="rsb-count" id="sbReview">—</span>
-        </div>
         <div class="rsb-nav-item rsb-pursue" onclick="filterResults('PURSUE',null)">
           <span>Pursue</span><span class="rsb-count" id="sbPursue">—</span>
         </div>
@@ -1551,6 +1547,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       </div>
       <button class="rsb-new-btn" onclick="window.location.hash='#dashboard'">← New Batch</button>
       <button class="rsb-new-btn" style="margin-top:6px" onclick="window.location.hash='#settings'">⚙ Settings</button>
+      <button class="rsb-new-btn" style="margin-top:6px;background:transparent;color:var(--t3);border:1px solid var(--b)" onclick="doSignout()">Sign out</button>
     </aside>
     <!-- Main -->
     <main class="res-main">
@@ -1574,7 +1571,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
       <div class="stats-row">
         <div class="stat-card"><div class="stat-num" id="statTotal">—</div><div class="stat-lbl">Total</div></div>
         <div class="stat-card"><div class="stat-num c-r" id="statKill">—</div><div class="stat-lbl">Kill</div></div>
-        <div class="stat-card"><div class="stat-num c-a" id="statReview">—</div><div class="stat-lbl">Review</div></div>
         <div class="stat-card"><div class="stat-num c-g" id="statPursue">—</div><div class="stat-lbl">Pursue</div></div>
       </div>
       <div class="time-banner">
@@ -1589,7 +1585,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <div class="filter-pills">
           <button class="sumchip all on" onclick="filterResults('all',this)">All</button>
           <button class="sumchip kill" onclick="filterResults('KILL',this)">Kill</button>
-          <button class="sumchip review" onclick="filterResults('REVIEW',this)">Review</button>
           <button class="sumchip pursue" onclick="filterResults('PURSUE',this)">Pursue</button>
         </div>
         <div style="position:relative">
@@ -1745,7 +1740,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <ul class="ptier-ul">
           <li>500 parcels / month</li>
           <li>All Florida counties</li>
-          <li>Kill / Review / Pursue verdicts</li>
+          <li>Kill / Pursue verdicts</li>
           <li>6 live data sources</li>
           <li>CSV export</li>
           <li>Past batch history</li>
@@ -1779,7 +1774,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <button class="btn-o btn-full" onclick="toast('Added to waitlist!')">Join Waitlist →</button>
       </div>
     </div>
-    <div class="pricing-all">All plans include: Florida statewide · 6 live data sources · Kill / Review / Pursue · CSV export<br>No contracts · Cancel anytime</div>
+    <div class="pricing-all">All plans include: Florida statewide · 6 live data sources · Kill / Pursue · CSV export<br>No contracts · Cancel anytime</div>
   </div>
 </div>
 
@@ -1882,7 +1877,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
         <div class="sett-field">
           <span class="sett-lbl">Default sort</span>
           <select class="state-sel" id="settDefaultSort" onchange="localStorage.setItem('piq-default-sort',this.value)" style="width:auto;background:var(--bg)">
-            <option value="default">Kill → Review → Pursue</option>
+            <option value="default">Kill → Pursue</option>
             <option value="score_desc">Score: High → Low</option>
             <option value="score_asc">Score: Low → High</option>
           </select>
@@ -2459,7 +2454,7 @@ function renderSharedResults(results, container) {
     </div>
     <div style="margin-top:32px;padding:28px;background:linear-gradient(135deg,rgba(34,197,94,.08),rgba(34,197,94,.03));border:1px solid rgba(34,197,94,.2);border-radius:14px;text-align:center">
       <div style="font-size:18px;font-weight:700;margin-bottom:8px">Screen your own parcels — free</div>
-      <div style="font-size:13px;color:#94A3B8;margin-bottom:16px">Florida statewide · 6 live sources · Kill / Review / Pursue in seconds</div>
+      <div style="font-size:13px;color:#94A3B8;margin-bottom:16px">Florida statewide · 6 live sources · Kill / Pursue in seconds</div>
       <button onclick='window.location.hash="#signup"'
         style='background:#22C55E;color:#000;border:none;padding:11px 28px;border-radius:99px;cursor:pointer;font-weight:700;font-size:15px'>
         Create free account →
@@ -2929,7 +2924,6 @@ function renderPastBatches(batches) {
       '</div>' +
       '<div class="batch-stats">' +
         '<span style="color:var(--red)">■ ' + (b.kills||0) + '</span>' +
-        '<span style="color:var(--amber)">■ ' + (b.reviews||0) + '</span>' +
         '<span style="color:var(--green)">■ ' + (b.pursues||0) + '</span>' +
       '</div>' +
       '<button class="batch-icon-btn" onclick="event.stopPropagation();renameBatch(\'' + id + '\',\'' + name.replace(/'/g,'\\\'') + '\')" title="Rename">✎</button>' +
@@ -3037,7 +3031,7 @@ async function deleteBatch(id) {
 }
 
 function showResultsLoading() {
-  const ids = ['statTotal','statKill','statReview','statPursue','timeSaved','resTitleCount','resMeta'];
+  const ids = ['statTotal','statKill','statPursue','timeSaved','resTitleCount','resMeta'];
   ids.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = id === 'resTitleCount' ? 'Loading…' : '…'; });
   const wrap = document.getElementById('resTableWrap');
   if (wrap) {
@@ -3429,12 +3423,11 @@ function updateStatCards() {
   const results = batchState.results;
   const flOnly  = results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
   const kill    = flOnly.filter(r => effectiveVerdict(r) === 'KILL').length;
-  const review  = flOnly.filter(r => effectiveVerdict(r) === 'REVIEW').length;
   const pursue  = flOnly.filter(r => effectiveVerdict(r) === 'PURSUE').length;
   const total   = flOnly.length;
   const setEl   = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  setEl('statTotal', total); setEl('statKill', kill); setEl('statReview', review); setEl('statPursue', pursue);
-  setEl('sbKill', kill); setEl('sbReview', review); setEl('sbPursue', pursue);
+  setEl('statTotal', total); setEl('statKill', kill); setEl('statPursue', pursue);
+  setEl('sbKill', kill); setEl('sbPursue', pursue);
   const mins = total * 30;
   const hrs  = Math.round(mins / 6) / 10;
   setEl('timeSaved', '~' + (hrs >= 1 ? hrs + ' hrs' : mins + ' min'));
@@ -3563,7 +3556,7 @@ function effectiveVerdict(r) {
   }
   if (_screeningRules.noRoadPenalty && hasFlag(/road data unavailable/i)) adj -= 5;
   const score = Math.max(0, Math.min(100, (r.score ?? 50) + adj));
-  return score <= 34 ? 'KILL' : score <= 54 ? 'REVIEW' : 'PURSUE';
+  return score <= 34 ? 'KILL' : 'PURSUE';
 }
 
 function renderRulesPanel() {
@@ -3647,7 +3640,7 @@ function clearAllFilters() {
 function clearFlagFilters() { clearAllFilters(); }
 
 function defaultSort(results) {
-  const verdictOrder = { KILL: 0, REVIEW: 1, PURSUE: 2, ERROR: 3, OUTSIDE_COVERAGE: 4 };
+  const verdictOrder = { KILL: 0, PURSUE: 1, ERROR: 2, OUTSIDE_COVERAGE: 3 };
   return [...results].sort((a, b) => {
     const va = verdictOrder[a.verdict] ?? 5;
     const vb = verdictOrder[b.verdict] ?? 5;
@@ -3685,7 +3678,7 @@ function updateSortButtons() {
 
 function _refreshTable() {
   const verdict = batchState.filtered;
-  const o = { KILL: 0, REVIEW: 1, PURSUE: 2, ERROR: 3, OUTSIDE_COVERAGE: 10 };
+  const o = { KILL: 0, PURSUE: 1, ERROR: 2, OUTSIDE_COVERAGE: 10 };
   let sorted;
   if (!batchState.sortCol) {
     sorted = defaultSort(batchState.results);
@@ -3745,15 +3738,14 @@ function renderBatchResults() {
   const flOnly   = results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
   const outside  = results.filter(r => r.verdict === 'OUTSIDE_COVERAGE');
   const kills    = flOnly.filter(r => effectiveVerdict(r) === 'KILL').length;
-  const reviews  = flOnly.filter(r => effectiveVerdict(r) === 'REVIEW').length;
   const pursues  = flOnly.filter(r => effectiveVerdict(r) === 'PURSUE').length;
   const total    = flOnly.length;
   const setEl    = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
   setEl('resTitleCount', batchState.name || results.length + ' lot' + (results.length !== 1 ? 's' : '') + ' screened');
   setEl('resMeta', (batchState.elapsed ? 'Done in ' + batchState.elapsed + 's · ' : '') + '6 live sources · ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }));
-  setEl('statTotal', total); setEl('statKill', kills); setEl('statReview', reviews); setEl('statPursue', pursues);
-  setEl('sbKill', kills); setEl('sbReview', reviews); setEl('sbPursue', pursues);
+  setEl('statTotal', total); setEl('statKill', kills); setEl('statPursue', pursues);
+  setEl('sbKill', kills); setEl('sbPursue', pursues);
 
   const mins = total * 30;
   const hrs  = Math.round(mins / 6) / 10;
@@ -3811,7 +3803,7 @@ function renderBatchResults() {
 
 function updateSidebarActive(verdict) {
   document.querySelectorAll('.rsb-nav-item').forEach(el => el.classList.remove('active'));
-  const map = { all:'.rsb-all', KILL:'.rsb-kill', REVIEW:'.rsb-review', PURSUE:'.rsb-pursue' };
+  const map = { all:'.rsb-all', KILL:'.rsb-kill', PURSUE:'.rsb-pursue' };
   const el = document.querySelector(map[verdict]);
   if (el) el.classList.add('active');
 }
@@ -4005,16 +3997,10 @@ function openDetailPanel(absIdx, event) {
   // Why box
   const whyEl = document.getElementById('dpWhy');
   if (whyEl) {
-    const whyCls = ev === 'KILL' ? 'dp-why-k' : ev === 'REVIEW' ? 'dp-why-r' : 'dp-why-p';
+    const whyCls = ev === 'KILL' ? 'dp-why-k' : 'dp-why-p';
     let whyText = '';
     if (ev === 'KILL') {
       whyText = escHtml(getKillExplanation(r.auto_kill_reason));
-    } else if (ev === 'REVIEW') {
-      const reviewFlags = (r.review_flags || r.flags || []);
-      const flagList = reviewFlags.length > 0
-        ? reviewFlags.map(f => escHtml(translateFlag(f))).join(', ')
-        : 'unknown flags';
-      whyText = 'No fatal flaws but manual verification needed for: <strong>' + flagList + '</strong>';
     } else if (ev === 'PURSUE') {
       const explanation = getPursueExplanation(r);
       const positives = (r.positives || []);
@@ -4489,7 +4475,7 @@ function filterResults(verdict, btn) {
   if (btn) {
     btn.classList.add('on');
   } else {
-    const map = { all:'.sumchip.all', KILL:'.sumchip.kill', REVIEW:'.sumchip.review', PURSUE:'.sumchip.pursue' };
+    const map = { all:'.sumchip.all', KILL:'.sumchip.kill', PURSUE:'.sumchip.pursue' };
     const chip = document.querySelector(map[verdict]);
     if (chip) chip.classList.add('on');
   }
@@ -5104,12 +5090,10 @@ function exportPDF() {
   const results = batchState.results;
   const flOnly  = results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
   const kills   = flOnly.filter(r => r.verdict === 'KILL').length;
-  const reviews = flOnly.filter(r => r.verdict === 'REVIEW').length;
   const pursues = flOnly.filter(r => r.verdict === 'PURSUE').length;
 
   const verdictCfg = {
     KILL:    { bg:'#FEE2E2', color:'#991B1B', label:'KILL' },
-    REVIEW:  { bg:'#FEF3C7', color:'#92400E', label:'REVIEW' },
     PURSUE:  { bg:'#D1FAE5', color:'#065F46', label:'PURSUE' },
     ERROR:   { bg:'#F3F4F6', color:'#6B7280', label:'ERROR' },
     OUTSIDE_COVERAGE: { bg:'#F3F4F6', color:'#9CA3AF', label:'OUTSIDE' },
@@ -5147,7 +5131,7 @@ function exportPDF() {
   '.stat{flex:1;border:1px solid #E5E7EB;border-radius:8px;padding:14px 16px;text-align:center}' +
   '.stat-num{font-size:22px;font-weight:800;line-height:1;margin-bottom:4px}' +
   '.stat-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#6B7280}' +
-  '.s-total .stat-num{color:#111827}.s-kill .stat-num{color:#991B1B}.s-review .stat-num{color:#92400E}.s-pursue .stat-num{color:#065F46}' +
+  '.s-total .stat-num{color:#111827}.s-kill .stat-num{color:#991B1B}.s-pursue .stat-num{color:#065F46}' +
   'table{width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #E5E7EB}' +
   'thead tr{background:#111827}' +
   'th{padding:9px 10px;text-align:left;font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#fff}' +
@@ -5160,7 +5144,6 @@ function exportPDF() {
   '<div class="stats-row">' +
     '<div class="stat s-total"><div class="stat-num">' + flOnly.length + '</div><div class="stat-lbl">Total Screened</div></div>' +
     '<div class="stat s-kill"><div class="stat-num">' + kills + '</div><div class="stat-lbl">Kill</div></div>' +
-    '<div class="stat s-review"><div class="stat-num">' + reviews + '</div><div class="stat-lbl">Review</div></div>' +
     '<div class="stat s-pursue"><div class="stat-num">' + pursues + '</div><div class="stat-lbl">Pursue</div></div>' +
     '<div class="stat s-total"><div class="stat-num">~' + Math.round(flOnly.length * 30 / 60 * 10) / 10 + 'h</div><div class="stat-lbl">Hours Saved</div></div>' +
   '</div>' +

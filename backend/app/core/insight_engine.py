@@ -45,30 +45,54 @@ def score_parcel(
     if easement:
         sources_checked.append(easement.get("source", "USDA NRCS"))
 
-    # ── STEP 1: Auto-kill checks
+    # ── STEP 1: Auto-kill checks (mark fatal flaws, continue scoring)
+    auto_kill = False
+    auto_kill_reason: str | None = None
+
     flood_zone = flood.get("zone") or ""
     if flood_zone in SFHA_ZONES and flood.get("sfha") is True:
-        return _kill(f"FEMA Flood Zone {flood_zone}", flags, sources_checked)
+        reason = f"FEMA Flood Zone {flood_zone}"
+        flags.append(reason)
+        if not auto_kill:
+            auto_kill_reason = reason
+        auto_kill = True
 
     if wetlands.get("wetland_on_parcel") is True:
-        return _kill("Wetlands on parcel (USFWS NWI)", flags, sources_checked)
+        reason = "Wetlands on parcel (USFWS NWI)"
+        flags.append(reason)
+        if not auto_kill:
+            auto_kill_reason = reason
+        auto_kill = True
 
     land_use = str(parcel.get("land_use_code") or "")
     if land_use in PUBLIC_CODES:
-        return _kill("Public/conservation land", flags, sources_checked)
+        reason = "Public/conservation land"
+        flags.append(reason)
+        if not auto_kill:
+            auto_kill_reason = reason
+        auto_kill = True
 
-    # FIX 1 — Critical habitat is auto-kill
     if habitat.get("habitat_found") is True:
         species = habitat.get("species") or []
         sp = ", ".join(species[:2]) if species else "listed species"
-        return _kill(f"Critical habitat: {sp}", flags, sources_checked)
+        reason = f"Critical habitat: {sp}"
+        flags.append(reason)
+        if not auto_kill:
+            auto_kill_reason = reason
+        auto_kill = True
 
     if easement and easement.get("easement_found") is True:
         etype = easement.get("easement_type") or "conservation easement"
-        return _kill(f"Conservation easement: {etype} — development permanently restricted", flags, sources_checked)
+        reason = f"Conservation easement: {etype} — development permanently restricted"
+        flags.append(reason)
+        if not auto_kill:
+            auto_kill_reason = reason
+        auto_kill = True
 
-    # ── STEP 2: Scoring
+    # ── STEP 2: Scoring (always runs — auto-kills get a -60 penalty per fatal flaw)
     score = 100
+    if auto_kill:
+        score -= 60
 
     acreage = parcel.get("acreage")
     just_value = parcel.get("just_value")
@@ -219,52 +243,29 @@ def score_parcel(
         score += 3 if dist == "< 500m" else 1
         positives.append(f"Power infrastructure {dist}")
 
-    # ── STEP 3: Clamp + verdict
+    # ── STEP 3: Clamp + verdict (KILL or PURSUE only — no REVIEW tier)
     score = max(0, min(100, score))
 
-    if score <= 34:
+    if auto_kill or score <= 34:
         verdict = "KILL"
-    elif score <= 54:
-        verdict = "REVIEW"
     else:
         verdict = "PURSUE"
 
-    # FIX 6 — Flag categories
     kill_flags   = [f for f in flags if any(x in f.lower() for x in
-                    ["wetland", "flood", "habitat", "public", "contamination"])]
-    review_flags = [f for f in flags if f not in kill_flags
-                    and any(x in f.lower() for x in
-                    ["road", "small", "agricultural", "zone a", "dirt"])]
-    info_flags   = [f for f in flags if f not in kill_flags + review_flags]
+                    ["wetland", "flood", "habitat", "public", "contamination", "easement"])]
+    info_flags   = [f for f in flags if f not in kill_flags]
 
     return {
         "verdict": verdict,
         "score": score,
-        "auto_kill": False,
-        "auto_kill_reason": None,
+        "auto_kill": auto_kill,
+        "auto_kill_reason": auto_kill_reason,
         "flags": flags,
         "positives": positives,
         "sources_checked": sources_checked,
         "kill_flags": kill_flags,
-        "review_flags": review_flags,
-        "info_flags": info_flags,
-    }
-
-
-def _kill(reason: str, flags: list[str], sources_checked: list[str]) -> dict:
-    flags.append(reason)
-    return {
-        "verdict": "KILL",
-        "score": 0,
-        "auto_kill": True,
-        "auto_kill_reason": reason,
-        "flags": flags,
-        "positives": [],
-        "sources_checked": sources_checked,
-        "kill_flags": flags,
         "review_flags": [],
-        "info_flags": [],
-        "green_flags": [],
+        "info_flags": info_flags,
     }
 
 
