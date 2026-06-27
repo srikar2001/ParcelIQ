@@ -389,7 +389,7 @@ body.on-results .detail-panel{top:0}
 .map-expand-btn{margin-left:auto;background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:11px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap}
 .map-expand-btn:hover{color:var(--t1);border-color:var(--bh)}
 #mapModal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.8);backdrop-filter:blur(4px)}
-.map-modal-inner{position:absolute;inset:40px;background:var(--card);border:1px solid var(--b);border-radius:var(--r);display:flex;flex-direction:column;overflow:hidden}
+.map-modal-inner{position:absolute;inset:80px 15vw;background:var(--card);border:1px solid var(--b);border-radius:var(--r);display:flex;flex-direction:column;overflow:hidden}
 .map-modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--b);flex-shrink:0;flex-wrap:wrap;gap:8px}
 .map-modal-title{font-size:13px;font-weight:700;color:var(--t1);margin-right:auto}
 .map-modal-close{background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer;line-height:1;padding:0 4px}
@@ -1765,7 +1765,7 @@ body.on-results .detail-panel{top:0}
   </div>
   <div class="map-wrap">
     <div id="dpMapPlaceholder" class="dp-map-placeholder" style="display:none;height:240px;margin:0">Loading map…</div>
-    <div id="parcel-map" style="height:240px;border-radius:var(--rs);overflow:hidden;display:none"></div>
+    <div id="parcel-map" style="height:240px;border-radius:var(--rs);overflow:hidden;display:none;cursor:pointer" title="Click to expand map" onclick="expandMap()"></div>
   </div>
   <!-- 3. Key parcel data -->
   <div class="dp-section" id="dpInfoSection">
@@ -4817,8 +4817,8 @@ function _makeFemaLayer(opacity) {
   const FemaGrid = L.GridLayer.extend({
     createTile: function(coords, done) {
       const img = document.createElement('img');
-      // hue-rotate(130deg) shifts FEMA's light-blue (~200°) to dark pink (~330°)
-      img.style.cssText = 'width:256px;height:256px;filter:hue-rotate(130deg) saturate(6) brightness(0.55)';
+      // hue-rotate(130deg) shifts FEMA's light-blue (~200°) to deep pink (~330°)
+      img.style.cssText = 'width:256px;height:256px;filter:hue-rotate(130deg) saturate(8) brightness(0.35)';
       const b = this._tileCoordsToBounds(coords);
       const bbox = b.getWest() + ',' + b.getSouth() + ',' + b.getEast() + ',' + b.getNorth();
       img.onload  = function() { done(null, img); };
@@ -5543,6 +5543,8 @@ document.addEventListener('click', function(e) {
   if (!panel) return;
   if (panel.contains(e.target)) return;
   if (e.target.closest('.res-trow')) return;
+  const mapModal = document.getElementById('mapModal');
+  if (mapModal && mapModal.contains(e.target)) return;
   closeDetailPanel();
 });
 </script>
