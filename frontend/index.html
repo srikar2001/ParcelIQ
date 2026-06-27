@@ -16,7 +16,7 @@
   --green:#22C55E;--gd:#16A34A;--gbg:rgba(34,197,94,.1);
   --red:#EF4444;--rbg:rgba(239,68,68,.1);
   --amber:#F59E0B;--abg:rgba(245,158,11,.1);
-  --t1:#F1F5F9;--t2:#94A3B8;--t3:#64748B;
+  --t1:#F1F5F9;--t2:#CBD5E1;--t3:#94A3B8;
   --r:12px;--rs:8px;--rp:999px;
   --rd:#EF4444;--am:#F59E0B;--sg2:#22C55E;--sg:#16A34A;--ink4:#64748B;
 }
@@ -288,7 +288,7 @@ body.on-results .detail-panel{top:0}
 .rsb-state-val{font-size:13px;font-weight:600;color:var(--t1)}
 .rsb-new-btn{margin-top:auto;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;padding:9px 14px;border-radius:var(--rs);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;text-align:left;transition:all .15s;width:100%}
 .rsb-new-btn:hover{border-color:var(--bh);color:var(--t1)}
-.rsb-batch-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:var(--rs);cursor:pointer;font-size:12px;color:var(--t2);transition:all .15s;margin-bottom:1px}
+.rsb-batch-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:var(--rs);cursor:pointer;font-size:12px;color:var(--t1);transition:all .15s;margin-bottom:1px}
 .rsb-batch-item:hover{background:var(--card-h);color:var(--t1)}
 .rsb-batch-item.active{background:rgba(34,197,94,.08);color:var(--t1);font-weight:600}
 .rsb-batch-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -319,7 +319,7 @@ body.on-results .detail-panel{top:0}
 .rsb-toggle-btn:hover{background:var(--b);color:var(--t1)}
 .rsb-new-scan{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.22);border-radius:8px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;transition:background .12s;margin-top:4px}
 .rsb-new-scan:hover{background:rgba(34,197,94,.18)}
-.rsb-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--t2);transition:background .12s,color .12s;user-select:none}
+.rsb-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--t1);transition:background .12s,color .12s;user-select:none}
 .rsb-item:hover{background:var(--b);color:var(--t1)}
 .rsb-item.active{background:var(--b);color:var(--t1);font-weight:500}
 .rsb-grp-lbl{font-size:13px;font-weight:600;color:var(--t1);padding:14px 10px 5px;letter-spacing:.01em}
@@ -617,7 +617,7 @@ body.on-results .detail-panel{top:0}
 .sett-section-title{font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.08em;margin-bottom:20px}
 .sett-field{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px;margin-bottom:16px}
 .sett-field:last-child{margin-bottom:0}
-.sett-lbl{font-size:13px;color:var(--t2);flex-shrink:0;min-width:80px}
+.sett-lbl{font-size:13px;color:var(--t1);flex-shrink:0;min-width:80px}
 .sett-val{font-size:13px;color:var(--t1);flex:1}
 .sett-note{font-size:12px;color:var(--t3);margin-top:4px}
 .sett-link{font-size:12px;color:var(--green);cursor:pointer;text-decoration:none;background:none;border:none;padding:0;font-family:inherit}
@@ -1976,7 +1976,7 @@ body.on-results .detail-panel{top:0}
         <div class="sett-section-title">Security</div>
         <div class="sett-field">
           <span class="sett-lbl">Password</span>
-          <span class="sett-val" style="color:var(--t3)">••••••••</span>
+          <span class="sett-val" style="color:var(--t1)">••••••••</span>
           <button class="sett-link" onclick="const s=document.getElementById('pwSection');s.classList.toggle('open');if(s.classList.contains('open'))s.scrollIntoView({behavior:'smooth',block:'nearest'})">Change</button>
         </div>
         <div class="sett-pw-section" id="pwSection">
@@ -1989,7 +1989,7 @@ body.on-results .detail-panel{top:0}
         </div>
         <div class="sett-field" style="margin-top:12px">
           <span class="sett-lbl">Two-factor auth</span>
-          <span class="sett-val" style="color:var(--t3)">Not enabled</span>
+          <span class="sett-val" style="color:var(--t1)">Not enabled</span>
           <span class="sett-val" style="font-size:11px;color:var(--t3);margin-left:6px">(coming soon)</span>
         </div>
       </div>
@@ -2004,7 +2004,7 @@ body.on-results .detail-panel{top:0}
         </div>
         <div class="sett-field">
           <span class="sett-lbl">Limit</span>
-          <span class="sett-val" style="color:var(--t3)">1,000 parcels / week · Resets Monday</span>
+          <span class="sett-val" style="color:var(--t1)">1,000 parcels / week · Resets Monday</span>
         </div>
         <div class="sett-field">
           <span class="sett-lbl">Used this week</span>
@@ -2047,12 +2047,12 @@ body.on-results .detail-panel{top:0}
           <span class="sett-lbl">Batch complete</span>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="settNotifBatch" onchange="localStorage.setItem('piq-notif-batch',this.checked?'1':'')" style="width:16px;height:16px;accent-color:var(--green)">
-            <span class="sett-val" style="color:var(--t3)">Show browser notification when a batch finishes</span>
+            <span class="sett-val" style="color:var(--t1)">Show browser notification when a batch finishes</span>
           </label>
         </div>
         <div class="sett-field">
           <span class="sett-lbl">Email alerts</span>
-          <span class="sett-val" style="color:var(--t3)">Coming soon</span>
+          <span class="sett-val" style="color:var(--t1)">Coming soon</span>
         </div>
       </div>
 
