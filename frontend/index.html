@@ -295,6 +295,13 @@ body.on-results .detail-panel{top:0}
 .rsb-batch-acts{display:flex;align-items:center;gap:1px;flex-shrink:0;opacity:0;transition:opacity .15s}
 .rsb-item:hover .rsb-batch-acts,.rsb-item.active .rsb-batch-acts{opacity:1}
 .rsb-batch-star{color:var(--t3)}.rsb-batch-star.starred{color:#F59E0B}
+.rsb-3dot-wrap{position:relative;flex-shrink:0;opacity:0;transition:opacity .15s}
+.rsb-item:hover .rsb-3dot-wrap,.rsb-item.active .rsb-3dot-wrap{opacity:1}
+.rsb-3dot-btn{background:none;border:none;color:var(--t3);cursor:pointer;font-size:18px;padding:0 5px;border-radius:4px;line-height:1;letter-spacing:2px}
+.rsb-3dot-btn:hover{color:var(--t1);background:var(--b)}
+.rsb-3dot-menu{position:absolute;right:0;top:calc(100% + 2px);background:var(--card);border:1px solid var(--b);border-radius:var(--rs);z-index:9999;min-width:130px;box-shadow:0 4px 16px rgba(0,0,0,.4);padding:3px 0;display:none}
+.rsb-3dot-menu button{display:block;width:100%;text-align:left;background:none;border:none;padding:7px 12px;font-size:12px;color:var(--t2);cursor:pointer;font-family:'Inter',sans-serif;transition:background .1s,color .1s;white-space:nowrap}
+.rsb-3dot-menu button:hover{background:var(--card-h);color:var(--t1)}
 #resTitleCount:hover~#batchTitleEditBtn,#batchTitleEditBtn:hover{opacity:1!important}
 #resTitleCount:hover+#batchTitleEditBtn{opacity:1!important}
 .rsb-batch-act{background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px;padding:1px 4px;border-radius:3px;line-height:1}
@@ -307,7 +314,7 @@ body.on-results .detail-panel{top:0}
 .rsb-rule-row{display:flex;align-items:center;justify-content:space-between;padding:5px 2px;font-size:12px;color:var(--t2)}
 /* ── Claude-style sidebar ── */
 .rsb-top{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;border-bottom:1px solid var(--b)}
-.rsb-brand{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--t1)}
+.rsb-brand{font-size:19px;font-weight:800;letter-spacing:-.03em;color:var(--t1)}
 .rsb-toggle-btn{background:none;border:none;cursor:pointer;color:var(--t3);padding:5px;border-radius:6px;display:flex;align-items:center;transition:background .12s,color .12s}
 .rsb-toggle-btn:hover{background:var(--b);color:var(--t1)}
 .rsb-new-scan{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.22);border-radius:8px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;transition:background .12s;margin-top:4px}
@@ -315,7 +322,7 @@ body.on-results .detail-panel{top:0}
 .rsb-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--t2);transition:background .12s,color .12s;user-select:none}
 .rsb-item:hover{background:var(--b);color:var(--t1)}
 .rsb-item.active{background:var(--b);color:var(--t1);font-weight:500}
-.rsb-grp-lbl{font-size:11px;font-weight:500;color:var(--t3);padding:14px 10px 5px;letter-spacing:.02em}
+.rsb-grp-lbl{font-size:12px;font-weight:600;color:var(--t2);padding:14px 10px 5px;letter-spacing:.01em}
 .rsb-prev-hdr{cursor:pointer;display:flex!important;align-items:center;justify-content:space-between;padding-right:8px;transition:color .12s}
 .rsb-prev-hdr:hover{color:var(--t1)}
 .rsb-chev{transition:transform .2s ease;flex-shrink:0}
@@ -418,6 +425,10 @@ body.on-results .detail-panel{top:0}
 [data-theme='light'] .res-table{background:var(--card)}
 [data-theme='light'] .rsb-top{background:var(--card)}
 [data-theme='light'] .detail-panel{box-shadow:-4px 0 24px rgba(0,0,0,.08)}
+[data-theme='light'] .sumchip.all.on{background:var(--t2);color:#fff;border-color:var(--t2)}
+[data-theme='light'] #sidebarBatchList .rsb-item{border-bottom:1px solid var(--b)}
+[data-theme='light'] #sidebarBatchList .rsb-item:last-child{border-bottom:none}
+[data-theme='light'] .rsb-3dot-menu{box-shadow:0 4px 16px rgba(0,0,0,.15)}
 .res-table th{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--t3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--b);white-space:nowrap}
 .res-trow{cursor:pointer;border-bottom:1px solid var(--b);transition:background .12s}
 .res-trow:hover{background:var(--card-h)}
@@ -1632,7 +1643,7 @@ body.on-results .detail-panel{top:0}
     <aside class="res-sidebar" id="resSidebar">
       <!-- Brand + toggle -->
       <div class="rsb-top">
-        <span class="rsb-brand" onclick="showScreen('page-landing')" style="cursor:pointer" title="Go to home">ParcelIQ</span>
+        <span class="rsb-brand" onclick="showScreen('page-landing')" style="cursor:pointer" title="Go to home">Parcel<span style="color:var(--green)">IQ</span></span>
         <div style="display:flex;align-items:center;gap:4px">
           <span class="fl-pill" style="font-size:10px;padding:2px 7px;letter-spacing:.4px">FL Beta</span>
           <button id="rsbModeToggle" class="rsb-toggle-btn" onclick="toggleMode()" title="Toggle theme" style="font-size:14px;padding:3px 5px;line-height:1"><span id="rsbModeIcon">☀️</span></button>
@@ -1659,6 +1670,12 @@ body.on-results .detail-panel{top:0}
       <div id="sidebarBatchList" style="overflow-y:auto;max-height:200px;display:none;flex-direction:column;gap:1px"></div>
       <!-- Footer -->
       <div class="rsb-footer">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 2px 6px">
+          <div>
+            <div class="rsb-time-val" id="sbTotalTimeSaved">—</div>
+            <div class="rsb-time-sub">All-time saved</div>
+          </div>
+        </div>
         <div class="rsb-usage-row">
           <div class="rsb-usage-bar"><div class="rsb-usage-bar-fill" id="sbUsageFill" style="width:0%"></div></div>
           <div class="rsb-usage-txt"><span id="sbUsageCount">—</span> / 1,000 this week</div>
@@ -1691,7 +1708,7 @@ body.on-results .detail-panel{top:0}
           <div>
             <div style="display:flex;align-items:center;gap:6px">
               <div class="res-title" id="resTitleCount" style="cursor:text" title="Click to rename" onclick="inlineEditBatchTitle(this)">Results</div>
-              <button onclick="inlineEditBatchTitle(document.getElementById('resTitleCount'))" title="Rename batch" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:1px 4px;opacity:0;transition:opacity .15s" id="batchTitleEditBtn">✎</button>
+              <button onclick="inlineEditBatchTitle(document.getElementById('resTitleCount'))" title="Rename batch" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:1px 4px;opacity:.3;transition:opacity .15s" id="batchTitleEditBtn">✎</button>
             </div>
             <div class="res-meta-txt" id="resMeta"></div>
           </div>
@@ -1706,7 +1723,7 @@ body.on-results .detail-panel{top:0}
         <div class="stat-card"><div class="stat-num" id="statTotal">—</div><div class="stat-lbl">Total</div></div>
         <div class="stat-card"><div class="stat-num c-r" id="statKill">—</div><div class="stat-lbl">Kill</div></div>
         <div class="stat-card"><div class="stat-num c-g" id="statPursue">—</div><div class="stat-lbl">Pursue</div></div>
-        <div class="stat-card"><div class="stat-num" id="timeSaved" style="font-size:18px">—</div><div class="stat-lbl">Time Saved</div></div>
+        <div class="stat-card"><div class="stat-num c-g" id="timeSaved" style="font-size:18px">—</div><div class="stat-lbl">Time Saved</div></div>
       </div>
       <div class="res-filter-row">
         <div class="filter-pills">
@@ -3304,6 +3321,21 @@ async function _loadSidebarBatches() {
     } catch(e) { batches = []; }
   }
   _renderSidebarBatches(batches || []);
+  // Load overall time saved (total parcel count for user)
+  if (sb && currentUser) {
+    (async () => {
+      try {
+        const { count } = await sb.from('parcel_results').select('id', { count: 'exact', head: true }).eq('user_id', currentUser.id);
+        if (count != null) {
+          const allMins = count * 30;
+          const allHrs = Math.round(allMins / 6) / 10;
+          const ts = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
+          const el = document.getElementById('sbTotalTimeSaved');
+          if (el) el.textContent = ts;
+        }
+      } catch(e) {}
+    })();
+  }
 }
 
 function _renderSidebarBatches(batches) {
@@ -3313,26 +3345,47 @@ function _renderSidebarBatches(batches) {
     list.innerHTML = '<div style="font-size:12px;color:var(--t3);padding:4px 8px">No batches yet</div>';
     return;
   }
+  const starredIds = JSON.parse(localStorage.getItem('piq-starred') || '[]');
   list.innerHTML = batches.map(b => {
     const name = b.name || 'Batch · ' + new Date(b.created_at).toLocaleDateString();
     const en = escHtml(name).replace(/'/g, '&#39;');
     const active = b.id === _currentBatchId;
-    const starred = JSON.parse(localStorage.getItem('piq-starred') || '[]');
-    const isStar = starred.includes(b.id);
+    const isStar = starredIds.includes(b.id);
     return '<div class="rsb-item' + (active ? ' active' : '') + '" id="rsb-bc-' + b.id + '" onclick="_sidebarBatchClick(\'' + b.id + '\')" style="justify-content:space-between;padding:5px 10px">' +
+      (isStar ? '<span style="color:#F59E0B;font-size:10px;flex-shrink:0;margin-right:2px">★</span>' : '') +
       '<span class="rsb-batch-name" title="' + en + '">' + en + '</span>' +
-      '<div class="rsb-batch-acts">' +
-        '<button class="rsb-batch-act rsb-batch-star' + (isStar ? ' starred' : '') + '" onclick="event.stopPropagation();starBatch(\'' + b.id + '\')" title="' + (isStar ? 'Unstar' : 'Star') + '">★</button>' +
-        '<button class="rsb-batch-act" onclick="event.stopPropagation();editBatch(\'' + b.id + '\',\'' + en + '\')" title="Edit addresses">✏</button>' +
-        '<button class="rsb-batch-act" onclick="event.stopPropagation();renameBatch(\'' + b.id + '\',\'' + en + '\')" title="Rename">✎</button>' +
-        '<button class="rsb-batch-act" style="color:var(--red)" onclick="event.stopPropagation();deleteBatch(\'' + b.id + '\')" title="Delete">✕</button>' +
+      '<div class="rsb-3dot-wrap" onclick="event.stopPropagation()">' +
+        '<button class="rsb-3dot-btn" onclick="toggleBatchMenu(\'' + b.id + '\',event)" title="Options">···</button>' +
+        '<div class="rsb-3dot-menu" id="bm-' + b.id + '">' +
+          '<button onclick="starBatch(\'' + b.id + '\');closeBatchMenu()">' + (isStar ? '☆ Unstar' : '★ Star') + '</button>' +
+          '<button onclick="renameBatch(\'' + b.id + '\',\'' + en + '\');closeBatchMenu()">✎ Rename</button>' +
+          '<button onclick="deleteBatch(\'' + b.id + '\');closeBatchMenu()" style="color:var(--red)">✕ Delete</button>' +
+        '</div>' +
       '</div>' +
     '</div>';
   }).join('');
 }
 
+let _openBatchMenu = null;
+function toggleBatchMenu(id, event) {
+  event.stopPropagation();
+  const menu = document.getElementById('bm-' + id);
+  if (!menu) return;
+  if (_openBatchMenu && _openBatchMenu !== menu) { _openBatchMenu.style.display = 'none'; }
+  const isOpen = menu.style.display === 'block';
+  menu.style.display = isOpen ? 'none' : 'block';
+  _openBatchMenu = isOpen ? null : menu;
+}
+function closeBatchMenu() {
+  if (_openBatchMenu) { _openBatchMenu.style.display = 'none'; _openBatchMenu = null; }
+}
+document.addEventListener('click', function(e) {
+  if (_openBatchMenu && !e.target.closest('.rsb-3dot-wrap')) { _openBatchMenu.style.display = 'none'; _openBatchMenu = null; }
+});
+
 function _sidebarBatchClick(id) {
   if (id === _currentBatchId) return;
+  closeBatchMenu();
   loadBatchResults(id);
   document.querySelectorAll('#sidebarBatchList .rsb-item').forEach(el => el.classList.remove('active'));
   const item = document.getElementById('rsb-bc-' + id);
@@ -5013,7 +5066,7 @@ function expandMap() {
   if (titleEl) titleEl.textContent = _openParcel.address || 'Parcel Map';
   const verdictEl = document.getElementById('mapModalVerdict');
   if (verdictEl) {
-    const v = _openParcel.verdict || '';
+    const v = effectiveVerdict(_openParcel);
     verdictEl.textContent = v;
     verdictEl.className = 'verdict-badge ' + verdictClass(v);
     verdictEl.style.display = v ? 'inline-flex' : 'none';
