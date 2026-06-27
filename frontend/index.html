@@ -2321,6 +2321,7 @@ function updateLpNav() {
     const name = (userProfile?.full_name || currentUser.email || '').split(/[\s@]/)[0] || 'Account';
     el.innerHTML =
       '<span style="font-size:13px;color:#64748B;margin-right:4px">Hi, ' + name + '</span>' +
+      '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="window.location.hash=\'#results\'">My results</button>' +
       '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="doSignout()">Sign out</button>';
   } else {
     el.innerHTML =
