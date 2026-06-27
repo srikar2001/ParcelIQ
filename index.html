@@ -1234,8 +1234,50 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
     };
 
     // File drop / select handlers
-    window.lpHandleDrop = function(e) { if (e.dataTransfer.files[0]) lpHandleFile(e.dataTransfer.files[0]); };
-    window.lpHandleFile = function(f) { if (f) startScreening(); };
+    window.lpHandleDrop = function(e) {
+      e.preventDefault();
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) window.lpHandleFile(f);
+    };
+    window.lpHandleFile = function(f) {
+      if (!f) return;
+      var btn = document.querySelector('.lp-analyze-btn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="lp-spinner"></span>Reading file…'; }
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          if (typeof XLSX === 'undefined') {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Analyze leads →'; }
+            alert('File parsing unavailable — paste addresses instead.');
+            return;
+          }
+          var wb = XLSX.read(ev.target.result, { type: 'binary' });
+          var ws = wb.Sheets[wb.SheetNames[0]];
+          var rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+          var valid = [], seen = {};
+          rows.forEach(function(row) {
+            var text = row.slice(0, 4).map(function(c) { return String(c == null ? '' : c).trim(); }).filter(Boolean).join(', ');
+            if (!text || text.length < 10 || !/\d/.test(text)) return;
+            var lc = text.toLowerCase();
+            if (typeof _isHeaderRow === 'function' && _isHeaderRow(text)) return;
+            if (seen[lc]) return;
+            seen[lc] = true;
+            valid.push(text);
+          });
+          if (!valid.length) {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Analyze leads →'; }
+            alert('No addresses found in the file. Make sure addresses are in the first column.');
+            return;
+          }
+          try { sessionStorage.setItem('lp_pending', valid.join('\n')); } catch(e) {}
+          startScreening();
+        } catch(err) {
+          if (btn) { btn.disabled = false; btn.innerHTML = 'Analyze leads →'; }
+          alert('Could not parse file: ' + err.message);
+        }
+      };
+      reader.readAsBinaryString(f);
+    };
 
     // Confidence counter animation
     var confDone = false;
