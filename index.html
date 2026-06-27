@@ -4810,7 +4810,9 @@ function filterResults(verdict, btn) {
 let _map = null;
 const _mapLayers = {};
 
-// FEMA NFHL flood zones via REST export (WMS endpoint is broken/404)
+// FEMA NFHL flood zones via REST export (layer 28 = Flood Hazard Zones polygon fill only)
+// Request size=512 so browser scales to 256px — doubles internal map scale, keeping it
+// within FEMA's minScale:36111 threshold at Leaflet zoom 13+.
 function _makeFemaLayer(opacity) {
   const FemaGrid = L.GridLayer.extend({
     createTile: function(coords, done) {
@@ -4821,12 +4823,12 @@ function _makeFemaLayer(opacity) {
       img.onload  = function() { done(null, img); };
       img.onerror = function() { done(null, img); };
       img.src = 'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/export' +
-        '?bbox=' + bbox + '&bboxSR=4326&imageSR=4326&size=256,256' +
-        '&format=png32&transparent=true&layers=28&f=image';
+        '?bbox=' + bbox + '&bboxSR=4326&imageSR=4326&size=512,512' +
+        '&format=png32&transparent=true&layers=show:28&f=image';
       return img;
     }
   });
-  return new FemaGrid({ opacity: opacity, attribution: 'FEMA NFHL', tileSize: 256 });
+  return new FemaGrid({ opacity: opacity, attribution: 'FEMA NFHL', tileSize: 256, minZoom: 13 });
 }
 
 // USFWS NWI wetlands via working USGS-hosted WMS (www.fws.gov is unreliable)
