@@ -4817,7 +4817,8 @@ function _makeFemaLayer(opacity) {
   const FemaGrid = L.GridLayer.extend({
     createTile: function(coords, done) {
       const img = document.createElement('img');
-      img.style.cssText = 'width:256px;height:256px';
+      // hue-rotate(160deg) shifts FEMA's light-blue fill (~200° hue) to orange-red (~0°)
+      img.style.cssText = 'width:256px;height:256px;filter:hue-rotate(160deg) saturate(3) brightness(1.1)';
       const b = this._tileCoordsToBounds(coords);
       const bbox = b.getWest() + ',' + b.getSouth() + ',' + b.getEast() + ',' + b.getNorth();
       img.onload  = function() { done(null, img); };
