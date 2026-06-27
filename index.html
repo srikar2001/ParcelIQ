@@ -1028,7 +1028,7 @@ body.on-results .detail-panel{top:0}
         </div>
         <div style="padding:0 20px 20px">
           <select class="lp-state-sel"><option value="FL">🏖 Florida</option></select>
-          <button class="lp-analyze-btn" onclick="lpAnalyze()">Analyze leads →</button>
+          <button class="lp-analyze-btn" onclick="lpAnalyze()">Start screening →</button>
           <div class="lp-fine">Free during beta · No credit card required</div>
         </div>
       </div>
@@ -2298,7 +2298,7 @@ async function router() {
   if (hash === '#landing' || hash === '' || hash === '#') {
     // Reset analyze button in case user navigated away while it was loading
     const ab = document.querySelector('.lp-analyze-btn');
-    if (ab) { ab.disabled = false; ab.innerHTML = 'Analyze leads →'; }
+    if (ab) { ab.disabled = false; ab.innerHTML = 'Start screening →'; }
     updateLpNav();
   }
   showScreen(HASH_MAP[hash] || 'page-landing');
@@ -2487,14 +2487,14 @@ async function startScreening() {
   const analyzeBtn = document.querySelector('.lp-analyze-btn');
   const ctaBtns = document.querySelectorAll('.lp-analyze-btn, .lp-btn-primary');
   ctaBtns.forEach(b => { b.disabled = true; });
-  if (analyzeBtn) analyzeBtn.innerHTML = '<span class="lp-spinner"></span>Analyzing…';
+  if (analyzeBtn) analyzeBtn.innerHTML = '<span class="lp-spinner"></span>Screening…';
   try {
     const session = await initAuth();
     if (!session) { goTo('login'); return; }
     _runPendingOrResults();
   } catch(e) {
     ctaBtns.forEach(b => { b.disabled = false; });
-    if (analyzeBtn) analyzeBtn.innerHTML = 'Analyze leads →';
+    if (analyzeBtn) analyzeBtn.innerHTML = 'Start screening →';
   }
 }
 
@@ -3701,7 +3701,7 @@ function showUpgradeModal() {
   document.getElementById('upgradeModal')?.classList.add('show');
   // Reset any buttons that may be in loading state when the modal fires
   const analyzeBtn = document.querySelector('.lp-analyze-btn');
-  if (analyzeBtn) { analyzeBtn.disabled = false; analyzeBtn.innerHTML = 'Analyze leads →'; }
+  if (analyzeBtn) { analyzeBtn.disabled = false; analyzeBtn.innerHTML = 'Start screening →'; }
   document.querySelectorAll('.lp-btn-primary').forEach(b => { b.disabled = false; });
   const runBtn = document.getElementById('runBatchBtn');
   if (runBtn) { runBtn.disabled = false; runBtn.textContent = 'Screen Parcels →'; }
@@ -5134,7 +5134,7 @@ function initParcelMap(r) {
   // Reset all toggle button states
   if (controls) {
     controls.querySelectorAll('.map-toggle').forEach(b => {
-      b.classList.toggle('active', b.dataset.layer !== 'satellite');
+      b.classList.toggle('active', b.dataset.layer === 'parcel');
     });
   }
 
@@ -5169,8 +5169,8 @@ function initParcelMap(r) {
     _map.setView([lat, lng], 15);
   }
 
-  _mapLayers['flood']    = _makeFemaLayer(0.5).addTo(_map);
-  _mapLayers['wetlands'] = _makeWetlandsLayer(0.5).addTo(_map);
+  _mapLayers['flood']    = _makeFemaLayer(0.5);
+  _mapLayers['wetlands'] = _makeWetlandsLayer(0.5);
 
   setTimeout(() => { if (_map) _map.invalidateSize(); }, 350);
 }
@@ -5240,13 +5240,13 @@ function expandMap() {
     _modalMap.setView([lat, lng], 15);
   }
 
-  _modalLayers['flood']    = _makeFemaLayer(0.5).addTo(_modalMap);
-  _modalLayers['wetlands'] = _makeWetlandsLayer(0.5).addTo(_modalMap);
+  _modalLayers['flood']    = _makeFemaLayer(0.5);
+  _modalLayers['wetlands'] = _makeWetlandsLayer(0.5);
 
-  // Reset toggle button states: parcel, flood, wetlands active; satellite off
+  // Reset toggle button states: only parcel active by default
   document.querySelectorAll('#mapModal .map-toggle[data-mlayer]').forEach(btn => {
     const lyr = btn.dataset.mlayer;
-    btn.classList.toggle('active', lyr !== 'satellite');
+    btn.classList.toggle('active', lyr === 'parcel');
   });
 
   setTimeout(() => { if (_modalMap) _modalMap.invalidateSize(); }, 200);
