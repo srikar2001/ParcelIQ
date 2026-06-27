@@ -5072,7 +5072,7 @@ function _makeFemaLayer(opacity) {
     createTile: function(coords, done) {
       const img = document.createElement('img');
       // hue-rotate(210deg)→gold-yellow, contrast(2) sharpens zone lines, drop-shadow adds visible border glow
-      img.style.cssText = 'width:256px;height:256px;filter:hue-rotate(210deg) saturate(8) brightness(0.65) contrast(2) drop-shadow(0 0 2px rgba(180,140,0,.9))';
+      img.style.cssText = 'width:256px;height:256px;filter:hue-rotate(210deg) saturate(8) brightness(0.65) contrast(2) drop-shadow(0 0 1px rgba(255,180,0,1)) drop-shadow(0 0 3px rgba(255,180,0,1)) drop-shadow(0 0 6px rgba(255,180,0,.6))';
       const b = this._tileCoordsToBounds(coords);
       const bbox = b.getWest() + ',' + b.getSouth() + ',' + b.getEast() + ',' + b.getNorth();
       img.onload  = function() { done(null, img); };
@@ -5092,7 +5092,7 @@ function _makeWetlandsLayer(opacity) {
   const WetWMS = L.TileLayer.WMS.extend({
     createTile: function(coords, done) {
       const tile = L.TileLayer.WMS.prototype.createTile.call(this, coords, done);
-      tile.style.filter = 'drop-shadow(0 0 2px rgba(34,160,80,.85))';
+      tile.style.filter = 'drop-shadow(0 0 1px rgba(34,197,94,1)) drop-shadow(0 0 3px rgba(34,197,94,1)) drop-shadow(0 0 6px rgba(34,197,94,.6))';
       return tile;
     }
   });
