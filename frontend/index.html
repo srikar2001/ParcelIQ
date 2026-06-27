@@ -1733,7 +1733,7 @@ body.on-results .detail-panel{top:0}
         <div class="stat-card"><div class="stat-num" id="statTotal">—</div><div class="stat-lbl">Total</div></div>
         <div class="stat-card"><div class="stat-num c-r" id="statKill">—</div><div class="stat-lbl">Kill</div></div>
         <div class="stat-card"><div class="stat-num c-g" id="statPursue">—</div><div class="stat-lbl">Pursue</div></div>
-        <div class="stat-card"><div class="stat-num c-g" id="timeSaved" style="font-size:18px">—</div><div class="stat-lbl">Time Saved</div></div>
+        <div class="stat-card"><div class="stat-num c-g" id="timeSaved">—</div><div class="stat-lbl">Time Saved</div></div>
       </div>
       <div class="res-filter-row">
         <div class="filter-pills">
@@ -4008,7 +4008,7 @@ function updateStatCards() {
   setEl('sbKill', kill); setEl('sbPursue', pursue);
   const mins = total * 30;
   const hrs  = Math.round(mins / 6) / 10;
-  setEl('timeSaved', '~' + (hrs >= 1 ? hrs + ' hrs' : mins + ' min'));
+  setEl('timeSaved', hrs >= 1 ? '~' + hrs + 'h' : mins + 'm');
   setEl('resTitleCount', batchState.name || total + ' lot' + (total !== 1 ? 's' : '') + ' screened');
 }
 
@@ -4318,7 +4318,7 @@ function renderBatchResults() {
 
   const mins = total * 30;
   const hrs  = Math.round(mins / 6) / 10;
-  const ts = '~' + (hrs >= 1 ? hrs + ' hrs' : mins + ' min');
+  const ts = hrs >= 1 ? '~' + hrs + 'h' : mins + 'm';
   setEl('timeSaved', ts);
 
   // Non-FL banner
