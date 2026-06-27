@@ -216,7 +216,26 @@ async def _process_parcel_safe(parcel: ParcelInput) -> dict:
 
 
 @router.post("/batch/stream")
-async def batch_screen_stream(request: BatchRequest):
+async def batch_screen_stream(
+    request: BatchRequest,
+    authorization: Optional[str] = Header(None),
+):
+    if authorization:
+        token   = authorization.removeprefix('Bearer ').strip()
+        user_id = await _user_id_from_token(token)
+        if user_id:
+            used = await _weekly_usage(user_id)
+            if used + len(request.parcels) > WEEKLY_LIMIT:
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        'limit_exceeded': True,
+                        'used': used,
+                        'limit': WEEKLY_LIMIT,
+                        'message': 'Weekly screening limit reached',
+                    },
+                )
+
     async def event_generator():
         parcels = request.parcels
         total = len(parcels)
