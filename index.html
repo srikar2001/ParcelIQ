@@ -722,7 +722,7 @@ body.on-results .detail-panel{top:0}
 .lp-nav-logo{font-size:20px;font-weight:800;color:#F1F5F9;cursor:pointer;user-select:none;flex-shrink:0}
 .lp-nav-logo span{color:#22C55E}
 .lp-nav-links{display:flex;gap:28px}
-.lp-nav-links a{font-size:14px;color:#64748B;text-decoration:none;cursor:pointer;transition:color .15s}
+.lp-nav-links a{font-size:14px;color:#94A3B8;text-decoration:none;cursor:pointer;transition:color .15s}
 .lp-nav-links a:hover{color:#F1F5F9}
 .lp-nav-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .lp-mode-btn{background:none;border:1px solid #1E2130;border-radius:8px;padding:5px 9px;cursor:pointer;font-size:15px;line-height:1;color:#94A3B8;transition:border-color .15s}
@@ -1645,7 +1645,7 @@ body.on-results .detail-panel{top:0}
     <aside class="res-sidebar" id="resSidebar">
       <!-- Brand + toggle -->
       <div class="rsb-top">
-        <span class="rsb-brand" onclick="showScreen('page-landing')" style="cursor:pointer" title="Go to home">Parcel<span style="color:var(--green)">IQ</span></span>
+        <span class="rsb-brand" onclick="goTo('landing')" style="cursor:pointer" title="Go to home">Parcel<span style="color:var(--green)">IQ</span></span>
         <div style="display:flex;align-items:center;gap:4px">
           <span class="fl-pill" style="font-size:10px;padding:2px 7px;letter-spacing:.4px">FL Beta</span>
           <button id="rsbModeToggle" class="rsb-toggle-btn" onclick="toggleMode()" title="Toggle theme" style="font-size:14px;padding:3px 5px;line-height:1"><span id="rsbModeIcon">☀️</span></button>
@@ -1654,13 +1654,9 @@ body.on-results .detail-panel{top:0}
       </div>
       <!-- Nav -->
       <div style="display:flex;flex-direction:column;gap:1px">
-        <div class="rsb-nav-item" onclick="window.location.hash='#landing'" style="gap:8px">
+        <div class="rsb-nav-item" onclick="goTo('landing')" style="gap:8px">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="7" y1="0.5" x2="7" y2="13.5"/><line x1="0.5" y1="7" x2="13.5" y2="7"/></svg>
           New Screen
-        </div>
-        <div class="rsb-nav-item" onclick="window.location.hash='#settings'" style="gap:8px">
-          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="2"/><path d="M7.5 1.5v1.2M7.5 12.3v1.2M1.5 7.5h1.2M12.3 7.5h1.2M3.4 3.4l.85.85M10.75 10.75l.85.85M3.4 11.6l.85-.85M10.75 4.25l.85-.85"/></svg>
-          Settings
         </div>
       </div>
       <!-- Previously Screened (collapsible) -->
@@ -1671,6 +1667,10 @@ body.on-results .detail-panel{top:0}
       <div id="sidebarBatchList" style="overflow-y:auto;max-height:200px;display:none;flex-direction:column;gap:1px"></div>
       <!-- Footer -->
       <div class="rsb-footer">
+        <div class="rsb-nav-item" onclick="goTo('settings')" style="gap:8px">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="2"/><path d="M7.5 1.5v1.2M7.5 12.3v1.2M1.5 7.5h1.2M12.3 7.5h1.2M3.4 3.4l.85.85M10.75 10.75l.85.85M3.4 11.6l.85-.85M10.75 4.25l.85-.85"/></svg>
+          Settings
+        </div>
         <button onclick="window.location.hash='#pricing'" style="width:100%;padding:8px 12px;background:var(--green);color:#000;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.02em">⬆ Upgrade Plan</button>
         <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 2px 6px">
           <div>
@@ -2274,6 +2274,13 @@ async function router() {
       loadBatchResults(lastBatch);
       return;
     }
+    if (currentSession) {
+      // No local cache — try loading most recent batch from Supabase
+      showScreen('page-results');
+      showResultsLoading();
+      _loadMostRecentBatch();
+      return;
+    }
     goTo('landing'); return;
   }
   if (hash === '#dashboard') { loadDashboardData(); updateNav(); }
@@ -2288,6 +2295,16 @@ async function router() {
 }
 
 window.addEventListener('hashchange', router);
+
+async function _loadMostRecentBatch() {
+  if (!sb || !currentUser) { goTo('landing'); return; }
+  try {
+    const { data } = await sb.from('batches').select('id').eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false }).limit(1).single();
+    if (data?.id) { loadBatchResults(data.id); }
+    else { goTo('landing'); }
+  } catch(e) { goTo('landing'); }
+}
 
 // ── NAV — FIX 6: consistent auth-aware nav
 function updateNav() {
@@ -2318,7 +2335,7 @@ function updateLpNav() {
   if (currentUser) {
     const name = (userProfile?.full_name || currentUser.email || '').split(/[\s@]/)[0] || 'Account';
     el.innerHTML =
-      '<span style="font-size:13px;color:#64748B;margin-right:4px">Hi, ' + name + '</span>' +
+      '<span style="font-size:13px;color:#CBD5E1;margin-right:4px">Hi, ' + name + '</span>' +
       '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="window.location.hash=\'#results\'">My results</button>' +
       '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="doSignout()">Sign out</button>';
   } else {
