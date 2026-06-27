@@ -948,13 +948,15 @@ body.on-results .detail-panel{top:0}
 
   <!-- ── Landing Nav (overlays global nav via z-index) ── -->
   <nav class="lp-nav">
-    <div class="lp-nav-logo" onclick="window.location.hash='#landing'">Parcel<span>IQ</span></div>
-    <div class="lp-nav-links">
-      <a onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">How it works</a>
-      <a onclick="window.location.hash='#pricing'">Pricing</a>
-      <a onclick="window.location.hash='#landing'">About</a>
+    <div style="display:flex;align-items:center;gap:32px">
+      <div class="lp-nav-logo" onclick="window.location.hash='#landing'">Parcel<span>IQ</span></div>
+      <div class="lp-nav-links">
+        <a onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">How it works</a>
+        <a onclick="window.location.hash='#pricing'">Pricing</a>
+        <a onclick="window.location.hash='#landing'">About</a>
+      </div>
     </div>
-    <div class="lp-nav-actions">
+    <div class="lp-nav-actions" id="lpNavActions">
       <button class="lp-btn-outline" style="padding:8px 18px;font-size:14px" onclick="window.location.hash='#login'">Log in</button>
       <button class="lp-btn-primary" style="padding:8px 20px;font-size:14px" onclick="window.location.hash='#signup'">Start free →</button>
     </div>
@@ -2278,6 +2280,12 @@ async function router() {
   }
   if (hash === '#dashboard') { loadDashboardData(); updateNav(); }
   if (hash === '#settings') { loadSettingsPage(); updateNav(); }
+  if (hash === '#landing' || hash === '' || hash === '#') {
+    // Reset analyze button in case user navigated away while it was loading
+    const ab = document.querySelector('.lp-analyze-btn');
+    if (ab) { ab.disabled = false; ab.innerHTML = 'Analyze leads →'; }
+    updateLpNav();
+  }
   showScreen(HASH_MAP[hash] || 'page-landing');
 }
 
@@ -2303,6 +2311,22 @@ function updateNav() {
   }
   const rmi = document.getElementById('rsbModeIcon');
   if (rmi) rmi.textContent = themeIcon;
+  updateLpNav();
+}
+
+function updateLpNav() {
+  const el = document.getElementById('lpNavActions');
+  if (!el) return;
+  if (currentUser) {
+    const name = (userProfile?.full_name || currentUser.email || '').split(/[\s@]/)[0] || 'Account';
+    el.innerHTML =
+      '<span style="font-size:13px;color:#64748B;margin-right:4px">Hi, ' + name + '</span>' +
+      '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="doSignout()">Sign out</button>';
+  } else {
+    el.innerHTML =
+      '<button class="lp-btn-outline" style="padding:8px 18px;font-size:14px" onclick="window.location.hash=\'#login\'">Log in</button>' +
+      '<button class="lp-btn-primary" style="padding:8px 20px;font-size:14px" onclick="window.location.hash=\'#signup\'">Start free →</button>';
+  }
 }
 
 // ── AUTH
@@ -2542,6 +2566,7 @@ async function initApp() {
     new Promise(r => setTimeout(() => r(currentSession), 800)),
   ]);
   updateNav();
+  updateLpNav();
   if (session) {
     loadUserProfile(); // fire-and-forget
     if (_AUTH_PAGES.has(window.location.hash)) {
