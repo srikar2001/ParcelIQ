@@ -399,6 +399,21 @@ body.on-results .detail-panel{top:0}
 .map-expand-btn{margin-left:auto;background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:11px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap}
 .map-expand-btn:hover{color:var(--t1);border-color:var(--bh)}
 #mapModal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.8);backdrop-filter:blur(4px)}
+#uploadModal{display:none;position:fixed;inset:0;z-index:2001;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px}
+#uploadModal.show{display:flex}
+.upmod-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);width:100%;max-width:560px;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;animation:upmodIn .2s ease}
+@keyframes upmodIn{from{opacity:0;transform:translateY(-12px) scale(.97)}to{opacity:1;transform:none}}
+.upmod-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px;border-bottom:1px solid var(--b);flex-shrink:0}
+.upmod-title{font-size:18px;font-weight:800;color:var(--t1)}
+.upmod-close{background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer;padding:0 4px;line-height:1;transition:color .15s;font-family:'Inter',sans-serif}
+.upmod-close:hover{color:var(--t1)}
+.upmod-body{padding:22px;flex:1}
+.upmod-label{font-size:12px;color:var(--t2);font-weight:500;margin-bottom:6px;display:block;letter-spacing:.02em}
+.upmod-run-btn{width:100%;padding:14px;background:var(--green);color:#000;font-size:15px;font-weight:700;border:none;border-radius:var(--rs);cursor:pointer;transition:background .15s;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:10px;font-family:'Inter',sans-serif}
+.upmod-run-btn:hover{background:#16A34A}
+.upmod-run-btn:disabled{opacity:.7;cursor:not-allowed}
+.upmod-addr-count{font-size:12px;color:var(--t3);text-align:right;margin-top:4px}
+.upmod-spin{width:15px;height:15px;border:2px solid rgba(0,0,0,.25);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
 .map-modal-inner{position:absolute;inset:80px 15vw;background:var(--card);border:1px solid var(--b);border-radius:var(--r);display:flex;flex-direction:column;overflow:hidden}
 .map-modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--b);flex-shrink:0;flex-wrap:wrap;gap:8px}
 .map-modal-title{font-size:13px;font-weight:700;color:var(--t1);margin-right:auto}
@@ -1654,14 +1669,14 @@ body.on-results .detail-panel{top:0}
       </div>
       <!-- Nav -->
       <div style="display:flex;flex-direction:column;gap:1px">
-        <div class="rsb-nav-item" onclick="goTo('landing')">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="7" y1="0.5" x2="7" y2="13.5"/><line x1="0.5" y1="7" x2="13.5" y2="7"/></svg>
-          New Screen
+        <div class="rsb-nav-item" onclick="openUploadModal()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,9 2,12 12,12 12,9"/><line x1="7" y1="8" x2="7" y2="1"/><polyline points="4,4 7,1 10,4"/></svg>
+          Upload
         </div>
       </div>
-      <!-- Previously Screened (collapsible) -->
+      <!-- Recents (collapsible) -->
       <div class="rsb-grp-lbl rsb-prev-hdr" id="rsbPrevHdr" onclick="togglePrevScreened()">
-        Previously Screened
+        Recents
         <svg class="rsb-chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,2 8,6 4,10"/></svg>
       </div>
       <div id="sidebarBatchList" style="overflow-y:auto;max-height:200px;display:none;flex-direction:column;gap:1px"></div>
@@ -3414,7 +3429,16 @@ async function _loadSidebarBatches() {
     } catch(e) { batches = []; }
   }
   _renderSidebarBatches(batches || []);
-  // Load overall time saved (total parcel count for user)
+  // All-time saved: show cached value instantly, refresh in background if stale
+  const _TSK = 'piq-ts-cache';
+  try {
+    const _cached = JSON.parse(localStorage.getItem(_TSK) || 'null');
+    if (_cached?.val) {
+      const el = document.getElementById('sbTotalTimeSaved');
+      if (el) el.textContent = _cached.val;
+      if (Date.now() - (_cached.ts || 0) < 5 * 60 * 1000) return; // fresh — skip network
+    }
+  } catch(e) {}
   if (sb && currentUser) {
     (async () => {
       try {
@@ -3422,9 +3446,10 @@ async function _loadSidebarBatches() {
         if (count != null) {
           const allMins = count * 30;
           const allHrs = Math.round(allMins / 6) / 10;
-          const ts = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
+          const val = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
           const el = document.getElementById('sbTotalTimeSaved');
-          if (el) el.textContent = ts;
+          if (el) el.textContent = val;
+          try { localStorage.setItem(_TSK, JSON.stringify({ val, ts: Date.now() })); } catch(e) {}
         }
       } catch(e) {}
     })();
@@ -5734,6 +5759,147 @@ async function shareResults() {
   }
 }
 function hideShareModal() { document.getElementById('shareModal')?.classList.remove('show'); }
+
+// ── UPLOAD MODAL
+function openUploadModal() {
+  document.getElementById('uploadModal')?.classList.add('show');
+  const mn = document.getElementById('modalBatchName');
+  const mi = document.getElementById('modalBatchInput');
+  if (mn) mn.value = '';
+  if (mi) mi.value = '';
+  document.getElementById('modAddrCount').textContent = '';
+  switchModalTab('paste');
+  const fc = document.getElementById('modFileConfirmCard');
+  if (fc) { fc.style.display = 'none'; fc.innerHTML = ''; }
+  const dz = document.getElementById('modDropZone');
+  if (dz) dz.style.display = '';
+  const iconWrap = document.getElementById('modDropIconWrap');
+  if (iconWrap) iconWrap.innerHTML = '☁';
+  const title = document.getElementById('modDropTitle');
+  if (title) title.textContent = 'Drop your CSV or Excel file here';
+  const err = document.getElementById('modFileError');
+  if (err) err.style.display = 'none';
+  const btn = document.getElementById('modRunBtn');
+  if (btn) { btn.disabled = false; btn.innerHTML = 'Screen Parcels →'; }
+  setTimeout(() => document.getElementById('modalBatchName')?.focus(), 80);
+}
+function closeUploadModal() {
+  document.getElementById('uploadModal')?.classList.remove('show');
+}
+function switchModalTab(mode) {
+  const paste = document.getElementById('modPasteMode');
+  const file  = document.getElementById('modFileMode');
+  const tabP  = document.getElementById('modTabPaste');
+  const tabF  = document.getElementById('modTabFile');
+  if (mode === 'paste') {
+    if (paste) paste.style.display = '';
+    if (file)  file.style.display  = 'none';
+    tabP?.classList.add('active'); tabF?.classList.remove('active');
+  } else {
+    if (paste) paste.style.display = 'none';
+    if (file)  file.style.display  = '';
+    tabP?.classList.remove('active'); tabF?.classList.add('active');
+  }
+}
+function updateModalAddrCount() {
+  const ta = document.getElementById('modalBatchInput');
+  const el = document.getElementById('modAddrCount');
+  if (!ta || !el) return;
+  const n = ta.value.split('\n').map(l=>l.trim()).filter(Boolean).length;
+  el.textContent = n > 0 ? n + ' address' + (n !== 1 ? 'es' : '') + ' ready to screen' : '';
+}
+function handleModDragOver(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('modDropZone')?.classList.add('drag-over');
+}
+function handleModDragLeave(e) {
+  document.getElementById('modDropZone')?.classList.remove('drag-over');
+}
+function handleModDrop(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('modDropZone')?.classList.remove('drag-over');
+  const file = e.dataTransfer?.files?.[0];
+  if (file) processModalFile(file);
+}
+function handleModalFileUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  processModalFile(file);
+  e.target.value = '';
+}
+function removeModalFile() {
+  document.getElementById('modalBatchInput').value = '';
+  const dz   = document.getElementById('modDropZone');
+  const card = document.getElementById('modFileConfirmCard');
+  const iconWrap = document.getElementById('modDropIconWrap');
+  const title    = document.getElementById('modDropTitle');
+  if (dz)   dz.style.display = '';
+  if (card) { card.style.display = 'none'; card.innerHTML = ''; }
+  if (iconWrap) iconWrap.innerHTML = '☁';
+  if (title)    title.textContent  = 'Drop your CSV or Excel file here';
+  updateModalAddrCount();
+}
+function processModalFile(file) {
+  const errEl    = document.getElementById('modFileError');
+  const dz       = document.getElementById('modDropZone');
+  const iconWrap = document.getElementById('modDropIconWrap');
+  const title    = document.getElementById('modDropTitle');
+  if (!/\.(csv|xlsx|xls)$/i.test(file.name)) {
+    if (errEl) { errEl.textContent = 'Please upload a CSV or Excel file (.csv, .xlsx, .xls)'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (errEl) errEl.style.display = 'none';
+  if (iconWrap) iconWrap.innerHTML = '<div class="upmod-spin"></div>';
+  if (title)    title.textContent  = 'Reading ' + file.name + '…';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      if (typeof XLSX === 'undefined') { toast('Paste addresses manually — SheetJS not loaded'); return; }
+      const wb   = XLSX.read(ev.target.result, { type: 'binary' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      let skipped = 0; const seen = new Set(); const valid = [];
+      for (const row of rows) {
+        const text = row.slice(0,4).map(c=>String(c||'').trim()).filter(Boolean).join(', ');
+        if (!text || _isHeaderRow(text) || text.length < 10 || !/\d/.test(text)) { skipped++; continue; }
+        const key = text.toLowerCase();
+        if (seen.has(key)) { skipped++; continue; }
+        seen.add(key); valid.push(text);
+      }
+      document.getElementById('modalBatchInput').value = valid.join('\n');
+      const confirmCard = document.getElementById('modFileConfirmCard');
+      if (dz) dz.style.display = 'none';
+      if (confirmCard) {
+        confirmCard.innerHTML =
+          '<div class="file-confirm-name"><span>📄 ' + escHtml(file.name) + '</span>' +
+          '<button class="file-confirm-remove" onclick="removeModalFile()">✕ Remove</button></div>' +
+          '<div class="file-confirm-meta">Found <strong>' + valid.length + '</strong> addresses' +
+          (skipped > 0 ? ' · ' + skipped + ' skipped' : '') + '</div>';
+        confirmCard.style.display = '';
+      }
+      updateModalAddrCount();
+      toast('Found ' + valid.length + ' addresses from ' + file.name, 4000);
+      switchModalTab('paste');
+    } catch(err) {
+      if (iconWrap) iconWrap.innerHTML = '☁';
+      if (title)    title.textContent  = 'Drop your CSV or Excel file here';
+      if (errEl) { errEl.textContent = 'Could not parse file: ' + err.message; errEl.style.display = 'block'; }
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+async function runBatchFromModal() {
+  const modalAddresses = (document.getElementById('modalBatchInput')?.value || '').trim();
+  if (!modalAddresses) { toast('Paste at least one address'); return; }
+  const modalName = (document.getElementById('modalBatchName')?.value || '').trim();
+  const btn = document.getElementById('modRunBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="upmod-spin"></div> Starting…'; }
+  const dashInput = document.getElementById('batchInput');
+  const dashName  = document.getElementById('batchNameInput');
+  if (dashInput) dashInput.value = modalAddresses;
+  if (dashName)  dashName.value  = modalName;
+  closeUploadModal();
+  await runBatch();
+}
 function copyShareUrl() {
   const inp = document.getElementById('shareUrlInput');
   if (!inp) return;
@@ -5883,7 +6049,7 @@ function downloadCSV() { exportCSV(); }
 
 // FIX 3 — Close panel on Escape
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDetailPanel(); hideExportModal(); closeMapModal(); }
+  if (e.key === 'Escape') { closeDetailPanel(); hideExportModal(); closeMapModal(); closeUploadModal(); }
 });
 
 function toggleMode() {
@@ -5981,6 +6147,47 @@ document.addEventListener('click', function(e) {
     <div class="upgrade-modal-btns">
       <button class="btn-p btn-sm" onclick="hideUpgradeModal();goTo('pricing')">View pricing</button>
       <button class="btn-o btn-sm" onclick="hideUpgradeModal()">OK</button>
+    </div>
+  </div>
+</div>
+<!-- ════════ UPLOAD MODAL ════════ -->
+<div id="uploadModal" onclick="if(event.target===this)closeUploadModal()">
+  <div class="upmod-card">
+    <div class="upmod-header">
+      <div class="upmod-title">New Screen</div>
+      <button class="upmod-close" onclick="closeUploadModal()">✕</button>
+    </div>
+    <div class="upmod-body">
+      <label class="upmod-label">Batch name (optional)</label>
+      <input type="text" id="modalBatchName" class="inp" placeholder="e.g. Polk County June leads" style="margin-bottom:18px;background:var(--bg);width:100%">
+      <div class="up-tabs">
+        <button class="up-tab active" id="modTabPaste" onclick="switchModalTab('paste')">Paste addresses</button>
+        <button class="up-tab" id="modTabFile" onclick="switchModalTab('file')">Upload file</button>
+      </div>
+      <!-- Paste mode -->
+      <div id="modPasteMode">
+        <textarea id="modalBatchInput" class="addr-box" placeholder="Paste addresses here, one per line:
+
+123 Main St, Tampa FL 33601
+456 Oak Ave, Orlando FL 32801
+789 Pine Rd, Okeechobee FL 33801" oninput="updateModalAddrCount()" style="min-height:180px"></textarea>
+        <div class="upmod-addr-count" id="modAddrCount"></div>
+      </div>
+      <!-- File upload mode -->
+      <div id="modFileMode" style="display:none">
+        <input type="file" id="modalCsvUpload" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleModalFileUpload(event)">
+        <div class="up-drop-zone" id="modDropZone"
+          onclick="document.getElementById('modalCsvUpload').click()"
+          ondragover="handleModDragOver(event)" ondragleave="handleModDragLeave(event)" ondrop="handleModDrop(event)">
+          <div id="modDropIconWrap" style="font-size:30px;margin-bottom:10px;opacity:.55">☁</div>
+          <div class="up-drop-title" id="modDropTitle">Drop your CSV or Excel file here</div>
+          <div class="up-drop-sub">or click to browse</div>
+          <div class="up-drop-hint">.csv · .xlsx · .xls · up to 10 MB</div>
+        </div>
+        <div id="modFileConfirmCard" class="file-confirm-card" style="display:none"></div>
+        <div id="modFileError" style="display:none;font-size:13px;color:var(--red);margin-top:8px"></div>
+      </div>
+      <button class="upmod-run-btn" id="modRunBtn" onclick="runBatchFromModal()">Screen Parcels →</button>
     </div>
   </div>
 </div>
