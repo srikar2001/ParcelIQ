@@ -411,6 +411,13 @@ body.on-results .detail-panel{top:0}
 .res-table-wrap{border:1px solid var(--b);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
 .res-table{width:100%;border-collapse:collapse}
 .res-table thead{background:rgba(13,15,18,.7)}
+[data-theme='light'] .res-table thead{background:rgba(0,0,0,.04)}
+[data-theme='light'] .res-expand-row td{background:rgba(0,0,0,.02)}
+[data-theme='light'] .dp-map-placeholder{background:rgba(0,0,0,.04)}
+[data-theme='light'] .vb-outside{border-color:var(--bh)}
+[data-theme='light'] .res-table{background:var(--card)}
+[data-theme='light'] .rsb-top{background:var(--card)}
+[data-theme='light'] .detail-panel{box-shadow:-4px 0 24px rgba(0,0,0,.08)}
 .res-table th{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--t3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--b);white-space:nowrap}
 .res-trow{cursor:pointer;border-bottom:1px solid var(--b);transition:background .12s}
 .res-trow:hover{background:var(--card-h)}
@@ -1717,6 +1724,11 @@ body.on-results .detail-panel{top:0}
       </div>
       <div class="limit-banner" id="resLimitBanner"></div>
       <div class="nonfl-banner" id="nonflBanner"></div>
+      <!-- Add parcel bar -->
+      <div id="addParcelRow" style="display:flex;gap:6px;margin:0 0 10px;align-items:flex-start">
+        <textarea id="addParcelInput" rows="1" placeholder="Add parcel: 123 Main St, Tampa FL... (one per line for multiple)" style="flex:1;font-family:'Inter',sans-serif;font-size:12px;padding:7px 10px;border:1px solid var(--b);border-radius:var(--rs);background:var(--bg);color:var(--t1);outline:none;resize:none;line-height:1.5;overflow:hidden;transition:height .15s" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')addSingleParcel()"></textarea>
+        <button class="btn-p btn-sm" onclick="addSingleParcel()" id="addParcelBtn" style="flex-shrink:0;white-space:nowrap;padding:7px 12px;font-size:12px">+ Add</button>
+      </div>
       <div class="res-table-wrap" id="resTableWrap">
         <table class="res-table">
           <thead>
@@ -1734,10 +1746,6 @@ body.on-results .detail-panel{top:0}
         </table>
       </div>
       <div id="pagiContainer"></div>
-      <div id="addParcelRow" style="display:flex;gap:8px;margin:4px 0 12px;align-items:center">
-        <input class="inp" id="addParcelInput" placeholder="Add a parcel: 123 Main St, Tampa FL..." style="flex:1;background:var(--bg);font-size:13px">
-        <button class="btn-p btn-sm" onclick="addSingleParcel()" id="addParcelBtn">+ Add</button>
-      </div>
       <div id="resSummary" style="display:none"></div>
       <div class="res-footer">
         <span>Every flag cited · source verifiable</span>
@@ -3728,23 +3736,23 @@ async function runSidebarBatch() {
 }
 
 async function addSingleParcel() {
-  const addr = (document.getElementById('addParcelInput')?.value || '').trim();
-  if (!addr) { toast('Enter an address'); return; }
-  if (!isFloridaAddress(addr)) { toast('FL addresses only during beta'); return; }
-  const btn = document.getElementById('addParcelBtn');
   const inp = document.getElementById('addParcelInput');
-  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  const rawVal = (inp?.value || '').trim();
+  if (!rawVal) { toast('Enter an address'); return; }
+  const addrs = rawVal.split('\n').map(a => a.trim()).filter(Boolean);
+  const btn = document.getElementById('addParcelBtn');
+  if (btn) { btn.disabled = true; btn.textContent = addrs.length > 1 ? '…' + addrs.length : '…'; }
   try {
     const headers = { 'Content-Type': 'application/json' };
     if (currentSession?.access_token) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
     const resp = await fetch(API + '/api/batch/stream', {
       method: 'POST', headers,
-      body: JSON.stringify({ parcels: [{ address: addr }], state: 'FL' }),
+      body: JSON.stringify({ parcels: addrs.map(a => ({ address: a })), state: 'FL' }),
     });
     if (!resp.ok) throw new Error('Server error ' + resp.status);
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
-    let buf = '', newResult = null;
+    let buf = '', newResults = [];
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -3753,24 +3761,24 @@ async function addSingleParcel() {
       for (const line of evLines) {
         if (!line.startsWith('data: ')) continue;
         let ev; try { ev = JSON.parse(line.slice(6)); } catch(e) { continue; }
-        if (ev.type === 'complete' && ev.results?.[0]) newResult = ev.results[0];
+        if (ev.type === 'complete') newResults = ev.results || [];
       }
     }
-    if (!newResult) throw new Error('No result returned');
-    batchState.results.push(newResult);
+    if (!newResults.length) throw new Error('No result returned');
+    batchState.results.push(...newResults);
     currentBatchResults = batchState.results;
-    if (inp) inp.value = '';
-    toast('Added: ' + (newResult.address || addr));
+    if (inp) { inp.value = ''; inp.style.height = 'auto'; }
+    toast('Added ' + newResults.length + ' parcel' + (newResults.length > 1 ? 's' : ''));
     if (sb && currentUser && _currentBatchId) {
       try {
-        await sb.from('parcel_results').insert({
+        await sb.from('parcel_results').insert(newResults.map(r => ({
           batch_id: _currentBatchId, user_id: currentUser.id,
-          address: newResult.address || addr, verdict: newResult.verdict,
-          score: newResult.score, auto_kill: newResult.auto_kill || false,
-          auto_kill_reason: newResult.auto_kill_reason || null,
-          flags: newResult.flags || [], positives: newResult.positives || [],
-          parcel_info: newResult.parcel_info || {},
-        });
+          address: r.address, verdict: r.verdict,
+          score: r.score, auto_kill: r.auto_kill || false,
+          auto_kill_reason: r.auto_kill_reason || null,
+          flags: r.flags || [], positives: r.positives || [],
+          parcel_info: r.parcel_info || {},
+        })));
       } catch(e) { console.warn('[addParcel] Supabase insert failed:', e); }
     }
     try {
@@ -4871,8 +4879,8 @@ function _makeFemaLayer(opacity) {
   const FemaGrid = L.GridLayer.extend({
     createTile: function(coords, done) {
       const img = document.createElement('img');
-      // hue-rotate(210deg) lands at ~50° (gold-yellow), contrast(2) sharpens zone boundary lines
-      img.style.cssText = 'width:256px;height:256px;filter:hue-rotate(210deg) saturate(8) brightness(0.65) contrast(2)';
+      // hue-rotate(210deg)→gold-yellow, contrast(2) sharpens zone lines, drop-shadow adds visible border glow
+      img.style.cssText = 'width:256px;height:256px;filter:hue-rotate(210deg) saturate(8) brightness(0.65) contrast(2) drop-shadow(0 0 2px rgba(180,140,0,.9))';
       const b = this._tileCoordsToBounds(coords);
       const bbox = b.getWest() + ',' + b.getSouth() + ',' + b.getEast() + ',' + b.getNorth();
       img.onload  = function() { done(null, img); };
@@ -4888,7 +4896,15 @@ function _makeFemaLayer(opacity) {
 
 // USFWS NWI wetlands via working USGS-hosted WMS (www.fws.gov is unreliable)
 function _makeWetlandsLayer(opacity) {
-  return L.tileLayer.wms(
+  // Extend WMS layer to add drop-shadow border glow on each tile
+  const WetWMS = L.TileLayer.WMS.extend({
+    createTile: function(coords, done) {
+      const tile = L.TileLayer.WMS.prototype.createTile.call(this, coords, done);
+      tile.style.filter = 'drop-shadow(0 0 2px rgba(34,160,80,.85))';
+      return tile;
+    }
+  });
+  return new WetWMS(
     'https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/services/Wetlands/MapServer/WMSServer',
     { layers: '0', format: 'image/png', transparent: true, opacity: opacity, attribution: 'USFWS NWI' }
   );
