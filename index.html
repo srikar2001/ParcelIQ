@@ -2113,8 +2113,7 @@ function updateNav() {
       modeBtn +
       '<span class="fl-pill">FL Beta</span>' +
       '<a class="nav-link hide-mob" onclick="window.location.hash=\'#dashboard\'">Dashboard</a>' +
-      '<span class="nav-user hide-mob">' + escHtml(currentUser.email) + '</span>' +
-      '<button class="btn-o btn-sm" onclick="doSignout()">Sign out</button>';
+      '<span class="nav-user hide-mob">' + escHtml(currentUser.email) + '</span>';
   } else {
     el.innerHTML =
       modeBtn +
@@ -3905,7 +3904,7 @@ function renderTable(results, offset) {
       }
     }
     const signalsHtml = buildSignals(r);
-    const scoreStr   = (isOutside || isError) ? '' : (r.score ? String(r.score) : '');
+    const scoreStr   = (isOutside || isError) ? '' : (r.score != null ? String(r.score || '—') : '');
     const scoreColor = (isOutside || isError) ? '' : r.auto_kill ? 'var(--red)' : verdictColor(ev);
     const verdictLabel = isOutside ? 'Not FL' : isGeoFail ? 'Not found' : isTimeout ? 'Timeout' : ev;
     return '<tr class="' + rowClass + '" id="trow-' + absIdx + '" onclick="openDetailPanel(' + absIdx + ',event)">' +
@@ -3988,7 +3987,7 @@ function openDetailPanel(absIdx, event) {
   setT('dpApn', pi.apn ? 'APN: ' + pi.apn : '');
   const scoreEl = document.getElementById('dpScore');
   if (scoreEl) {
-    scoreEl.textContent = r.score ? String(r.score) : '';
+    scoreEl.textContent = r.score != null ? String(r.score || '—') : '';
     scoreEl.style.color = ev === 'KILL' ? 'var(--red)' : ev === 'REVIEW' ? 'var(--amber)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--t2)';
   }
   setH('dpBadge', '<span class="verdict-badge ' + vc + '">' + escHtml(ev) + '</span>');
@@ -4065,6 +4064,8 @@ function openDetailPanel(absIdx, event) {
       fields.push(['Est. Value', fmt$(pi.just_value)]);
     } else if (pi.land_value != null && pi.land_value > 0) {
       fields.push(['Land Value', fmt$(pi.land_value)]);
+    } else {
+      fields.push(['Value', 'Re-scan to load']);
     }
     if (pi.land_use_code) fields.push(['Type', getDORDescription(pi.land_use_code)]);
     // Direct parcel_info fields (elevation, soil, evac from collectors)
