@@ -4810,6 +4810,33 @@ function filterResults(verdict, btn) {
 let _map = null;
 const _mapLayers = {};
 
+// FEMA NFHL flood zones via REST export (WMS endpoint is broken/404)
+function _makeFemaLayer(opacity) {
+  const FemaGrid = L.GridLayer.extend({
+    createTile: function(coords, done) {
+      const img = document.createElement('img');
+      img.style.cssText = 'width:256px;height:256px';
+      const b = this._tileCoordsToBounds(coords);
+      const bbox = b.getWest() + ',' + b.getSouth() + ',' + b.getEast() + ',' + b.getNorth();
+      img.onload  = function() { done(null, img); };
+      img.onerror = function() { done(null, img); };
+      img.src = 'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/export' +
+        '?bbox=' + bbox + '&bboxSR=4326&imageSR=4326&size=256,256' +
+        '&format=png32&transparent=true&layers=show:28&f=image';
+      return img;
+    }
+  });
+  return new FemaGrid({ opacity: opacity, attribution: 'FEMA NFHL', tileSize: 256 });
+}
+
+// USFWS NWI wetlands via working USGS-hosted WMS (www.fws.gov is unreliable)
+function _makeWetlandsLayer(opacity) {
+  return L.tileLayer.wms(
+    'https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/services/Wetlands/MapServer/WMSServer',
+    { layers: '0', format: 'image/png', transparent: true, opacity: opacity, attribution: 'USFWS NWI' }
+  );
+}
+
 // FIX 1 — defensive coordinate extraction
 function extractPolygonCoords(geometry) {
   if (!geometry || !Array.isArray(geometry) || geometry.length === 0) return null;
@@ -4877,19 +4904,11 @@ function initParcelMap(r) {
     _map.setView([lat, lng], 15);
   }
 
-  try {
-    _mapLayers['flood'] = L.tileLayer.wms('https://hazards.fema.gov/gis/nfhl/services/public/NFHL/MapServer/WMSServer', {
-      layers: '28', format: 'image/png', transparent: true, opacity: 0.45, attribution: ''
-    });
-    _mapLayers['flood'].addTo(_map);
-  } catch(e) {}
+  _mapLayers['flood'] = _makeFemaLayer(0.5);
+  _mapLayers['flood'].addTo(_map);
 
-  try {
-    _mapLayers['wetlands'] = L.tileLayer.wms('https://www.fws.gov/wetlands/arcgis/services/Wetlands/MapServer/WMSServer', {
-      layers: '1', format: 'image/png', transparent: true, opacity: 0.45, attribution: ''
-    });
-    _mapLayers['wetlands'].addTo(_map);
-  } catch(e) {}
+  _mapLayers['wetlands'] = _makeWetlandsLayer(0.5);
+  _mapLayers['wetlands'].addTo(_map);
 
   setTimeout(() => { if (_map) _map.invalidateSize(); }, 350);
 }
@@ -4951,19 +4970,11 @@ function expandMap() {
     _modalMap.setView([lat, lng], 15);
   }
 
-  try {
-    _modalLayers['flood'] = L.tileLayer.wms('https://hazards.fema.gov/gis/nfhl/services/public/NFHL/MapServer/WMSServer', {
-      layers: '28', format: 'image/png', transparent: true, opacity: 0.45, attribution: 'FEMA NFHL'
-    });
-    _modalLayers['flood'].addTo(_modalMap);
-  } catch(e) {}
+  _modalLayers['flood'] = _makeFemaLayer(0.5);
+  _modalLayers['flood'].addTo(_modalMap);
 
-  try {
-    _modalLayers['wetlands'] = L.tileLayer.wms('https://www.fws.gov/wetlands/arcgis/services/Wetlands/MapServer/WMSServer', {
-      layers: '1', format: 'image/png', transparent: true, opacity: 0.45, attribution: 'USFWS NWI'
-    });
-    _modalLayers['wetlands'].addTo(_modalMap);
-  } catch(e) {}
+  _modalLayers['wetlands'] = _makeWetlandsLayer(0.5);
+  _modalLayers['wetlands'].addTo(_modalMap);
 
   setTimeout(() => { if (_modalMap) _modalMap.invalidateSize(); }, 200);
 }
