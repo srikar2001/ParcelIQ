@@ -1626,17 +1626,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 <!-- ════════ DETAIL PANEL ════════ -->
 <div id="detailPanel" class="detail-panel">
   <!-- 1. Header: address + verdict -->
-  <div class="dp-header" style="flex-direction:column;gap:8px">
-    <div style="display:flex;align-items:flex-start;gap:8px">
-      <div class="dp-addr" style="flex:1;min-width:0">
-        <div class="dp-street" id="dpStreet"></div>
-        <div class="dp-apn" id="dpApn"></div>
-      </div>
-      <button class="dp-close" onclick="closeDetailPanel()">✕</button>
+  <div class="dp-header" style="flex-direction:row;align-items:flex-start;gap:10px">
+    <div class="dp-addr" style="flex:1;min-width:0">
+      <div class="dp-street" id="dpStreet"></div>
+      <div class="dp-apn" id="dpApn"></div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end">
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;padding-top:2px">
       <div id="dpBadge"></div>
-      <div class="dp-score-num" id="dpScore"></div>
+      <div class="dp-score-num" id="dpScore" style="font-size:20px"></div>
+      <button class="dp-close" onclick="closeDetailPanel()">✕</button>
     </div>
   </div>
   <!-- 2. Map controls + map -->
