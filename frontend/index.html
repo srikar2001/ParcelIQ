@@ -2257,7 +2257,10 @@ async function router() {
   // #landing is intentionally excluded — the logo should always reach the landing page.
   const _authOnlyPages = new Set(['#login', '#signup', '#forgot', '', '#']);
   if (_authOnlyPages.has(hash) && currentSession) {
-    goTo('results'); return;
+    // Redirect logged-in users away from auth pages — to last batch or dashboard
+    const lastBatch = sessionStorage.getItem('piq-last-batch');
+    if (lastBatch) { goTo('results'); return; }
+    goTo('dashboard'); return;
   }
   if (PROTECTED.has(hash)) {
     // Trust currentSession first (already resolved by _authReadyPromise); fall back to getSession
@@ -2272,6 +2275,8 @@ async function router() {
       loadBatchResults(lastBatch);
       return;
     }
+    // If logged in with no batch, go to dashboard; otherwise go to landing
+    if (currentSession) { goTo('dashboard'); return; }
     goTo('landing'); return;
   }
   if (hash === '#dashboard') { loadDashboardData(); updateNav(); }
@@ -2453,7 +2458,9 @@ function _runPendingOrResults() {
     const lines = pending.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
     if (lines.length) { _executeBatch(lines, new Set()); return; }
   }
-  goTo('results');
+  const lastBatch = sessionStorage.getItem('piq-last-batch');
+  if (lastBatch) { goTo('results'); return; }
+  goTo('dashboard');
 }
 
 // _authReadyPromise resolves on the FIRST onAuthStateChange event (session restore or null).
