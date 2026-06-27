@@ -1789,8 +1789,8 @@ body.on-results .detail-panel{top:0}
   <!-- 2. Map controls + map -->
   <div class="map-controls" id="mapControls" style="display:none">
     <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this)">Parcel</button>
-    <button class="map-toggle active" data-layer="flood" onclick="toggleMapLayer(this)">Flood zones</button>
-    <button class="map-toggle active" data-layer="wetlands" onclick="toggleMapLayer(this)">Wetlands</button>
+    <button class="map-toggle" data-layer="flood" onclick="toggleMapLayer(this)">Flood zones</button>
+    <button class="map-toggle" data-layer="wetlands" onclick="toggleMapLayer(this)">Wetlands</button>
     <button class="map-toggle" data-layer="satellite" onclick="toggleSatellite(this)">Satellite</button>
     <button class="map-expand-btn" id="mapExpandBtn" onclick="expandMap()" style="display:none">&#x2922; Expand</button>
   </div>
@@ -1847,8 +1847,8 @@ body.on-results .detail-panel{top:0}
       <div class="map-modal-title" id="mapModalTitle">Parcel Map</div>
       <span id="mapModalVerdict" class="verdict-badge" style="display:none"></span>
       <button class="map-toggle active" data-mlayer="parcel" onclick="toggleModalLayer(this)">Parcel</button>
-      <button class="map-toggle active" data-mlayer="flood" onclick="toggleModalLayer(this)">Flood zones</button>
-      <button class="map-toggle active" data-mlayer="wetlands" onclick="toggleModalLayer(this)">Wetlands</button>
+      <button class="map-toggle" data-mlayer="flood" onclick="toggleModalLayer(this)">Flood zones</button>
+      <button class="map-toggle" data-mlayer="wetlands" onclick="toggleModalLayer(this)">Wetlands</button>
       <button class="map-toggle" data-mlayer="satellite" onclick="toggleModalSatellite(this)">Satellite</button>
       <button class="map-modal-close" onclick="closeMapModal()">✕</button>
     </div>
@@ -3375,7 +3375,7 @@ function _renderSidebarBatches(batches) {
       (isStar ? '<span style="color:#F59E0B;font-size:10px;flex-shrink:0;margin-right:2px">★</span>' : '') +
       '<span class="rsb-batch-name" title="' + en + '">' + en + '</span>' +
       '<div class="rsb-3dot-wrap" onclick="event.stopPropagation()">' +
-        '<button class="rsb-3dot-btn" onclick="toggleBatchMenu(\'' + b.id + '\',event)" title="Options">···</button>' +
+        '<button class="rsb-3dot-btn" onclick="toggleBatchMenu(\'' + b.id + '\',event)" title="Options">⋮</button>' +
         '<div class="rsb-3dot-menu" id="bm-' + b.id + '">' +
           '<button onclick="starBatch(\'' + b.id + '\');closeBatchMenu()">' + (isStar ? '☆ Unstar' : '★ Star') + '</button>' +
           '<button onclick="renameBatch(\'' + b.id + '\',\'' + en + '\');closeBatchMenu()">✎ Rename</button>' +
@@ -3603,6 +3603,14 @@ async function saveBatchToSupabase(batchName, results) {
 
 function showUpgradeModal() {
   document.getElementById('upgradeModal')?.classList.add('show');
+  // Reset any buttons that may be in loading state when the modal fires
+  const analyzeBtn = document.querySelector('.lp-analyze-btn');
+  if (analyzeBtn) { analyzeBtn.disabled = false; analyzeBtn.innerHTML = 'Analyze leads →'; }
+  document.querySelectorAll('.lp-btn-primary').forEach(b => { b.disabled = false; });
+  const runBtn = document.getElementById('runBatchBtn');
+  if (runBtn) { runBtn.disabled = false; runBtn.textContent = 'Screen Parcels →'; }
+  const sbBtn = document.getElementById('sbRunBtn');
+  if (sbBtn) { sbBtn.disabled = false; sbBtn.textContent = 'Screen →'; }
 }
 function hideUpgradeModal() {
   document.getElementById('upgradeModal')?.classList.remove('show');
@@ -5066,10 +5074,8 @@ function initParcelMap(r) {
   }
 
   _mapLayers['flood'] = _makeFemaLayer(0.5);
-  _mapLayers['flood'].addTo(_map);
-
   _mapLayers['wetlands'] = _makeWetlandsLayer(0.5);
-  _mapLayers['wetlands'].addTo(_map);
+  // Not added by default — user toggles them on via buttons
 
   setTimeout(() => { if (_map) _map.invalidateSize(); }, 350);
 }
@@ -5140,15 +5146,13 @@ function expandMap() {
   }
 
   _modalLayers['flood'] = _makeFemaLayer(0.5);
-  _modalLayers['flood'].addTo(_modalMap);
-
   _modalLayers['wetlands'] = _makeWetlandsLayer(0.5);
-  _modalLayers['wetlands'].addTo(_modalMap);
+  // Not added by default — user toggles via buttons
 
-  // Reset all modal toggle buttons to their default active/inactive state
+  // Reset toggle button states: only parcel active by default
   document.querySelectorAll('#mapModal .map-toggle[data-mlayer]').forEach(btn => {
     const lyr = btn.dataset.mlayer;
-    btn.classList.toggle('active', lyr !== 'satellite');
+    btn.classList.toggle('active', lyr === 'parcel');
   });
 
   setTimeout(() => { if (_modalMap) _modalMap.invalidateSize(); }, 200);

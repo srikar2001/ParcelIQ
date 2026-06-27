@@ -34,7 +34,12 @@ _SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 _SUPABASE_KEY = os.environ.get('SUPABASE_ANON_KEY', '')
 
 
-async def _user_id_from_token(token: str) -> Optional[str]:
+_VIP_LIMITS: dict[str, int] = {
+    'srikarvudaru1@gmail.com': 10_000,
+}
+
+async def _user_id_from_token(token: str) -> Optional[tuple[str, str]]:
+    """Returns (user_id, email) or None."""
     if not token or not _SUPABASE_URL:
         return None
     try:
@@ -43,10 +48,18 @@ async def _user_id_from_token(token: str) -> Optional[str]:
                 f'{_SUPABASE_URL}/auth/v1/user',
                 headers={'Authorization': f'Bearer {token}', 'apikey': _SUPABASE_KEY},
             )
-        return r.json().get('id') if r.status_code == 200 else None
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        uid = data.get('id')
+        email = data.get('email', '')
+        return (uid, email) if uid else None
     except Exception:
         return None
 
+
+def _limit_for(email: str) -> int:
+    return _VIP_LIMITS.get(email, WEEKLY_LIMIT)
 
 async def _weekly_usage(user_id: str) -> int:
     if not user_id or not _SUPABASE_URL:
@@ -221,17 +234,19 @@ async def batch_screen_stream(
     authorization: Optional[str] = Header(None),
 ):
     if authorization:
-        token   = authorization.removeprefix('Bearer ').strip()
-        user_id = await _user_id_from_token(token)
-        if user_id:
-            used = await _weekly_usage(user_id)
-            if used + len(request.parcels) > WEEKLY_LIMIT:
+        token    = authorization.removeprefix('Bearer ').strip()
+        id_email = await _user_id_from_token(token)
+        if id_email:
+            user_id, email = id_email
+            limit = _limit_for(email)
+            used  = await _weekly_usage(user_id)
+            if used + len(request.parcels) > limit:
                 return JSONResponse(
                     status_code=429,
                     content={
                         'limit_exceeded': True,
                         'used': used,
-                        'limit': WEEKLY_LIMIT,
+                        'limit': limit,
                         'message': 'Weekly screening limit reached',
                     },
                 )
@@ -277,17 +292,19 @@ async def batch_screen(
     authorization: Optional[str] = Header(None),
 ):
     if authorization:
-        token   = authorization.removeprefix('Bearer ').strip()
-        user_id = await _user_id_from_token(token)
-        if user_id:
-            used = await _weekly_usage(user_id)
-            if used + len(request.parcels) > WEEKLY_LIMIT:
+        token    = authorization.removeprefix('Bearer ').strip()
+        id_email = await _user_id_from_token(token)
+        if id_email:
+            user_id, email = id_email
+            limit = _limit_for(email)
+            used  = await _weekly_usage(user_id)
+            if used + len(request.parcels) > limit:
                 return JSONResponse(
                     status_code=429,
                     content={
                         'limit_exceeded': True,
                         'used': used,
-                        'limit': WEEKLY_LIMIT,
+                        'limit': limit,
                         'message': 'Weekly screening limit reached',
                     },
                 )
