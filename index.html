@@ -2350,7 +2350,24 @@ async function doSignup() {
   } finally { btn.disabled = false; btn.textContent = 'Create account →'; }
 }
 
+function _clearUserData() {
+  // Wipe every piq-* key so the next user never sees stale data
+  try {
+    Object.keys(sessionStorage).filter(k => k.startsWith('piq-')).forEach(k => sessionStorage.removeItem(k));
+  } catch(e) {}
+  try {
+    ['piq-starred', 'piq-batches-cache'].forEach(k => localStorage.removeItem(k));
+  } catch(e) {}
+  // Reset in-memory state
+  _weeklyUsed = null;
+  _currentBatchId = null;
+  batchState.results = [];
+  batchState.name = '';
+  batchState.filtered = 'all';
+}
+
 async function doSignout() {
+  _clearUserData();
   if (sb) await sb.auth.signOut().catch(() => {});
   currentSession = null; currentUser = null; userProfile = null; window.userProfile = null;
   updateNav();
@@ -2452,6 +2469,8 @@ if (sb) {
     // Resolve initial auth promise on the very first event (INITIAL_SESSION, SIGNED_IN, or SIGNED_OUT)
     if (_authResolve) { _authResolve(session); _authResolve = null; }
     if (event === 'SIGNED_IN') {
+      // Clear any stale data from a previously logged-in user before loading this user's data
+      _clearUserData();
       await loadUserProfile();
       updateNav();
       // Navigate to dashboard only for explicit logins or OAuth callback — not session restores on protected pages
@@ -2461,6 +2480,7 @@ if (sb) {
       currentSession = session;
       updateNav();
     } else if (event === 'SIGNED_OUT') {
+      _clearUserData();
       currentSession = null; currentUser = null; userProfile = null; window.userProfile = null;
       updateNav();
       goTo('landing');
@@ -3470,11 +3490,12 @@ async function loadBatchResults(batchId) {
   showResultsLoading();
   try {
     const [{ data: batch }, { data: results }] = await Promise.all([
-      sb.from('batches').select('name').eq('id', batchId).single(),
+      sb.from('batches').select('name').eq('id', batchId).eq('user_id', currentUser.id).single(),
       sb.from('parcel_results').select('*')
         .eq('batch_id', batchId).eq('user_id', currentUser.id)
         .order('score', { ascending: true }),
     ]);
+    if (!batch) { toast('Batch not found'); goTo('landing'); return; }
     if (!results || results.length === 0) {
       // Batch exists in DB but parcel_results are gone or were never saved (silent insert failure)
       const tbody = document.getElementById('resTableBody');
@@ -3513,7 +3534,7 @@ async function _refreshBatchFromServer(batchId) {
   // Cache is missing — fetch from Supabase as fallback
   try {
     const [{ data: batch }, { data: results }] = await Promise.all([
-      sb.from('batches').select('name').eq('id', batchId).single(),
+      sb.from('batches').select('name').eq('id', batchId).eq('user_id', currentUser.id).single(),
       sb.from('parcel_results').select('*')
         .eq('batch_id', batchId).eq('user_id', currentUser.id)
         .order('score', { ascending: true }),
