@@ -30,8 +30,9 @@ router = APIRouter(prefix="/api")
 
 BATCH_SIZE   = 10
 WEEKLY_LIMIT = 1000
-_SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
-_SUPABASE_KEY = os.environ.get('SUPABASE_ANON_KEY', '')
+_SUPABASE_URL     = os.environ.get('SUPABASE_URL', '')
+_SUPABASE_KEY     = os.environ.get('SUPABASE_ANON_KEY', '')
+_SUPABASE_SVC_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', _SUPABASE_KEY)  # bypasses RLS
 
 
 _VIP_LIMITS: dict[str, int] = {
@@ -71,8 +72,8 @@ async def _weekly_usage(user_id: str) -> int:
                 f'{_SUPABASE_URL}/rest/v1/parcel_results',
                 params={'select': 'id', 'user_id': f'eq.{user_id}', 'created_at': f'gte.{since}'},
                 headers={
-                    'apikey': _SUPABASE_KEY,
-                    'Authorization': f'Bearer {_SUPABASE_KEY}',
+                    'apikey': _SUPABASE_SVC_KEY,
+                    'Authorization': f'Bearer {_SUPABASE_SVC_KEY}',
                     'Prefer': 'count=exact',
                     'Range': '0-0',
                 },

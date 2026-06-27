@@ -2368,6 +2368,7 @@ function _clearUserData() {
 
 async function doSignout() {
   _clearUserData();
+  _lastSignedInUserId = null;
   if (sb) await sb.auth.signOut().catch(() => {});
   currentSession = null; currentUser = null; userProfile = null; window.userProfile = null;
   updateNav();
@@ -2460,6 +2461,7 @@ function _runPendingOrResults() {
 // before Supabase has finished restoring from localStorage.
 let _authResolve;
 const _authReadyPromise = new Promise(resolve => { _authResolve = resolve; });
+let _lastSignedInUserId = null; // track who was last signed in to detect account switches
 
 // onAuthStateChange — handles OAuth callbacks, explicit logins, and sign-outs
 if (sb) {
@@ -2469,8 +2471,12 @@ if (sb) {
     // Resolve initial auth promise on the very first event (INITIAL_SESSION, SIGNED_IN, or SIGNED_OUT)
     if (_authResolve) { _authResolve(session); _authResolve = null; }
     if (event === 'SIGNED_IN') {
-      // Clear any stale data from a previously logged-in user before loading this user's data
-      _clearUserData();
+      const incomingId = session?.user?.id;
+      // Only clear stale data if a DIFFERENT user is signing in — not on same-user session restores
+      if (incomingId && _lastSignedInUserId && _lastSignedInUserId !== incomingId) {
+        _clearUserData();
+      }
+      _lastSignedInUserId = incomingId || null;
       await loadUserProfile();
       updateNav();
       // Navigate to dashboard only for explicit logins or OAuth callback — not session restores on protected pages
@@ -2481,6 +2487,7 @@ if (sb) {
       updateNav();
     } else if (event === 'SIGNED_OUT') {
       _clearUserData();
+      _lastSignedInUserId = null;
       currentSession = null; currentUser = null; userProfile = null; window.userProfile = null;
       updateNav();
       goTo('landing');
