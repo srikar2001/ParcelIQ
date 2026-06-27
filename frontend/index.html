@@ -2229,6 +2229,25 @@ let _currentPage    = 1;
 let _rowsPerPage    = 25;
 let _selectedRows   = new Set();
 let _openParcel     = null;
+let _weeklyUsed     = null; // cached weekly usage count
+const _WEEKLY_LIMIT = 1000;
+
+async function checkWeeklyLimit(count = 1) {
+  if (!currentUser || !sb) return true; // not logged in, let backend handle
+  if (_weeklyUsed === null) {
+    try {
+      const weekAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+      const { count: wc } = await sb.from('parcel_results').select('id', { count:'exact', head:true })
+        .eq('user_id', currentUser.id).gte('created_at', weekAgo);
+      _weeklyUsed = wc || 0;
+    } catch(e) { return true; }
+  }
+  if (_weeklyUsed + count > _WEEKLY_LIMIT) {
+    showUpgradeModal();
+    return false;
+  }
+  return true;
+}
 
 // FIX 6: router is async — calls initAuth() before allowing protected pages
 async function router() {
@@ -2873,6 +2892,7 @@ async function loadDashboardData() {
       const { count: wc } = await sb.from('parcel_results').select('*', { count: 'exact', head: true })
         .eq('user_id', currentUser.id).gte('created_at', weekAgo);
       const weeklyCount = wc || 0;
+      _weeklyUsed = weeklyCount;
       const remaining = 1000 - weeklyCount;
       const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
       setEl('dashUsed', weeklyCount);
@@ -3575,6 +3595,8 @@ async function saveBatchToSupabase(batchName, results) {
         });
       }
     }
+    // Invalidate cached usage count so next check refetches accurate value
+    if (_weeklyUsed !== null) _weeklyUsed += rows.length;
     return batch.id;
   } catch(e) { console.error('Save error:', e); return null; }
 }
@@ -3686,6 +3708,11 @@ async function _executeBatch(lines, estimatedSet) {
     return;
   }
 
+  if (!(await checkWeeklyLimit(flLines.length))) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Screen Parcels →'; }
+    return;
+  }
+
   const t0 = Date.now();
   batchState._streaming = false;
   batchState.results    = [...outsideResults];
@@ -3772,6 +3799,7 @@ async function runSidebarBatch() {
   if (!raw) { toast('Paste at least one address'); return; }
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
   if (!lines.length) { toast('No valid addresses found'); return; }
+  if (!(await checkWeeklyLimit(lines.length))) return;
   const name = (document.getElementById('sbBatchName')?.value || '').trim();
   batchState.name = name || 'Batch · ' + new Date().toLocaleDateString();
   const sbBtn = document.getElementById('sbRunBtn');
@@ -3793,6 +3821,7 @@ async function addSingleParcel() {
   const rawVal = (inp?.value || '').trim();
   if (!rawVal) { toast('Enter an address'); return; }
   const addrs = rawVal.split('\n').map(a => a.trim()).filter(Boolean);
+  if (!(await checkWeeklyLimit(addrs.length))) return;
   const btn = document.getElementById('addParcelBtn');
   if (btn) { btn.disabled = true; btn.textContent = addrs.length > 1 ? '…' + addrs.length : '…'; }
   try {
@@ -3951,6 +3980,7 @@ function retryLastBatch() {
 }
 
 async function rescreenParcel(newAddress, originalAddress) {
+  if (!(await checkWeeklyLimit(1))) return;
   try {
     toast('Rescreening…', 2000);
     const resp = await fetch(API + '/api/batch', {
@@ -4158,6 +4188,7 @@ function loadSbUsage() {
     .eq('user_id', currentUser.id).gte('created_at', weekAgo)
     .then(({ count }) => {
       const wc = count || 0;
+      _weeklyUsed = wc;
       const el   = document.getElementById('sbUsageCount');
       const fill = document.getElementById('sbUsageFill');
       if (el)   el.textContent = wc;
@@ -4627,6 +4658,7 @@ async function deleteNote() {
 // ── RE-SCREEN FROM PANEL (Task 17)
 async function rescreenFromPanel() {
   if (!_openParcel) return;
+  if (!(await checkWeeklyLimit(1))) return;
   const btn = document.getElementById('dpRescreenBtn');
   const ts  = document.getElementById('dpTimestamp');
   if (btn) { btn.disabled = true; btn.textContent = '↻ Screening…'; }
@@ -4699,8 +4731,9 @@ async function _saveRescreenToSupa(origRow, nr) {
 async function rescreenRow(event, idx) {
   event.stopPropagation();
   const btn = event.currentTarget;
-  const original = _currentDisplayed[idx];          // idx is position in _currentDisplayed
+  const original = _currentDisplayed[idx];
   if (!original || btn.classList.contains('spinning')) return;
+  if (!(await checkWeeklyLimit(1))) return;
   const bIdx = batchState.results.findIndex(r => r.address === original.address);
   btn.classList.add('spinning');
   try {
@@ -4738,6 +4771,7 @@ async function rescreenRow(event, idx) {
 async function rescreenSelected() {
   const indices = [..._selectedRows].sort((a, b) => a - b);
   if (!indices.length) return;
+  if (!(await checkWeeklyLimit(indices.length))) return;
   const btn      = document.getElementById('rescreenSelBtn');
   const progWrap = document.getElementById('bulkProgress');
   const progBar  = document.getElementById('bulkProgressBar');
@@ -4788,6 +4822,7 @@ async function rescreenSelected() {
 async function rescreenAll() {
   const total = batchState.results.length;
   if (!total) return;
+  if (!(await checkWeeklyLimit(total))) return;
   const btn = document.getElementById('rescreenAllBtn');
   if (btn && btn.dataset.running) return;
   if (btn) { btn.dataset.running = '1'; btn.textContent = '↻ 0/' + total; btn.disabled = true; }
@@ -5196,6 +5231,7 @@ async function submitBatchEdit() {
 
   const addrs = textarea.value.split('\n').map(a => a.trim()).filter(Boolean);
   if (!addrs.length) { toast('Add at least one address'); return; }
+  if (!(await checkWeeklyLimit(addrs.length))) return;
 
   submitBtn.disabled = true;
   submitBtn.textContent = 'Re-screening…';
