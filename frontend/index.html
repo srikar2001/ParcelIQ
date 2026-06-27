@@ -1674,12 +1674,9 @@ body.on-results .detail-panel{top:0}
           Upload
         </div>
       </div>
-      <!-- Recents (collapsible) -->
-      <div class="rsb-grp-lbl rsb-prev-hdr" id="rsbPrevHdr" onclick="togglePrevScreened()">
-        Recents
-        <svg class="rsb-chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,2 8,6 4,10"/></svg>
-      </div>
-      <div id="sidebarBatchList" style="overflow-y:auto;max-height:200px;display:none;flex-direction:column;gap:1px"></div>
+      <!-- Recents (always open) -->
+      <div class="rsb-grp-lbl" id="rsbPrevHdr">Recents</div>
+      <div id="sidebarBatchList" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:1px"></div>
       <!-- Footer -->
       <div class="rsb-footer">
         <div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px 6px;text-align:center">
@@ -5767,8 +5764,9 @@ function openUploadModal() {
   const mi = document.getElementById('modalBatchInput');
   if (mn) mn.value = '';
   if (mi) mi.value = '';
-  document.getElementById('modAddrCount').textContent = '';
-  switchModalTab('paste');
+  const ac = document.getElementById('modAddrCount');
+  if (ac) ac.textContent = '';
+  switchModalTab('file');
   const fc = document.getElementById('modFileConfirmCard');
   if (fc) { fc.style.display = 'none'; fc.innerHTML = ''; }
   const dz = document.getElementById('modDropZone');
@@ -5888,17 +5886,20 @@ function processModalFile(file) {
   reader.readAsBinaryString(file);
 }
 async function runBatchFromModal() {
-  const modalAddresses = (document.getElementById('modalBatchInput')?.value || '').trim();
-  if (!modalAddresses) { toast('Paste at least one address'); return; }
+  const raw = (document.getElementById('modalBatchInput')?.value || '').trim();
+  if (!raw) { toast('Paste at least one address'); return; }
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) { toast('No valid addresses found'); return; }
   const modalName = (document.getElementById('modalBatchName')?.value || '').trim();
+  batchState.name = modalName || 'Batch · ' + new Date().toLocaleDateString();
+  batchState.filtered = 'all';
   const btn = document.getElementById('modRunBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<div class="upmod-spin"></div> Starting…'; }
-  const dashInput = document.getElementById('batchInput');
-  const dashName  = document.getElementById('batchNameInput');
-  if (dashInput) dashInput.value = modalAddresses;
-  if (dashName)  dashName.value  = modalName;
   closeUploadModal();
-  await runBatch();
+  _estimatedAddresses = new Set();
+  _lastBatchLines = lines;
+  _lastBatchEstimated = new Set();
+  await _executeBatch(lines, new Set());
 }
 function copyShareUrl() {
   const inp = document.getElementById('shareUrlInput');
@@ -6159,22 +6160,13 @@ document.addEventListener('click', function(e) {
     </div>
     <div class="upmod-body">
       <label class="upmod-label">Batch name (optional)</label>
-      <input type="text" id="modalBatchName" class="inp" placeholder="e.g. Polk County June leads" style="margin-bottom:18px;background:var(--bg);width:100%">
+      <input type="text" id="modalBatchName" class="inp" placeholder="e.g. Polk County June leads" style="margin-bottom:18px;background:var(--bg);width:100%" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('modalBatchInput').focus()}">
       <div class="up-tabs">
-        <button class="up-tab active" id="modTabPaste" onclick="switchModalTab('paste')">Paste addresses</button>
-        <button class="up-tab" id="modTabFile" onclick="switchModalTab('file')">Upload file</button>
+        <button class="up-tab active" id="modTabFile" onclick="switchModalTab('file')">Upload file</button>
+        <button class="up-tab" id="modTabPaste" onclick="switchModalTab('paste')">Paste addresses</button>
       </div>
-      <!-- Paste mode -->
-      <div id="modPasteMode">
-        <textarea id="modalBatchInput" class="addr-box" placeholder="Paste addresses here, one per line:
-
-123 Main St, Tampa FL 33601
-456 Oak Ave, Orlando FL 32801
-789 Pine Rd, Okeechobee FL 33801" oninput="updateModalAddrCount()" style="min-height:180px"></textarea>
-        <div class="upmod-addr-count" id="modAddrCount"></div>
-      </div>
-      <!-- File upload mode -->
-      <div id="modFileMode" style="display:none">
+      <!-- File upload mode (default) -->
+      <div id="modFileMode">
         <input type="file" id="modalCsvUpload" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleModalFileUpload(event)">
         <div class="up-drop-zone" id="modDropZone"
           onclick="document.getElementById('modalCsvUpload').click()"
@@ -6186,6 +6178,15 @@ document.addEventListener('click', function(e) {
         </div>
         <div id="modFileConfirmCard" class="file-confirm-card" style="display:none"></div>
         <div id="modFileError" style="display:none;font-size:13px;color:var(--red);margin-top:8px"></div>
+      </div>
+      <!-- Paste mode (hidden by default) -->
+      <div id="modPasteMode" style="display:none">
+        <textarea id="modalBatchInput" class="addr-box" placeholder="Paste addresses here, one per line:
+
+123 Main St, Tampa FL 33601
+456 Oak Ave, Orlando FL 32801
+789 Pine Rd, Okeechobee FL 33801" oninput="updateModalAddrCount()" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runBatchFromModal()}" style="min-height:180px"></textarea>
+        <div class="upmod-addr-count" id="modAddrCount"></div>
       </div>
       <button class="upmod-run-btn" id="modRunBtn" onclick="runBatchFromModal()">Screen Parcels →</button>
     </div>
