@@ -4822,7 +4822,7 @@ function _makeFemaLayer(opacity) {
       img.onerror = function() { done(null, img); };
       img.src = 'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/export' +
         '?bbox=' + bbox + '&bboxSR=4326&imageSR=4326&size=256,256' +
-        '&format=png32&transparent=true&layers=show:28&f=image';
+        '&format=png32&transparent=true&layers=28&f=image';
       return img;
     }
   });
