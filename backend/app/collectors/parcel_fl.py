@@ -58,7 +58,7 @@ async def get_parcel_data(lat: float, lng: float) -> dict:
         feature = features[0]
         attrs = feature.get("attributes", {})
         sq_footage = attrs.get("LND_SQFOOT")
-        acreage = round(sq_footage / 43560, 4) if sq_footage else None
+        acreage = round(sq_footage / 43560, 4) if sq_footage is not None else None
 
         # Extract and convert geometry
         geometry_rings = []

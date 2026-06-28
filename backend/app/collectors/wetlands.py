@@ -35,9 +35,9 @@ async def get_wetlands(lat: float, lng: float) -> dict:
     for attempt in range(2):
         try:
             async with httpx.AsyncClient(timeout=12.0) as client:
-                # Run both queries in parallel instead of sequential
+                # on_parcel uses ~50m buffer so edge wetlands (not at centroid) are caught
                 on_parcel, nearby = await asyncio.gather(
-                    _query(client, lng, lat),
+                    _query(client, lng, lat, buffer=0.00045),
                     _query(client, lng, lat, buffer=0.001),
                 )
 

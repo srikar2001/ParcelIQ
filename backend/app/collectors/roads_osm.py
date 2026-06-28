@@ -2,7 +2,7 @@ import httpx
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 HEADERS = {"User-Agent": "ParcelIQ/1.0", "Accept": "*/*"}
-DEFAULT = {"road_found": False, "road_surface": "none", "road_type": None, "source": "OpenStreetMap"}
+DEFAULT = {"road_found": False, "road_surface": "error", "road_type": None, "source": "OpenStreetMap"}
 
 PAVED = {"paved", "asphalt", "concrete", "cobblestone"}
 DIRT  = {"unpaved", "dirt", "gravel", "ground", "grass", "sand", "compacted"}

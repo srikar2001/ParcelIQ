@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -46,9 +46,13 @@ async def create_share(req: ShareRequest):
                     "Prefer": "return=minimal",
                 },
             )
+        if resp.status_code not in (200, 201):
+            raise HTTPException(status_code=500, detail=f"Failed to save share link: {resp.text}")
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[Share] DB error: {e}")
-        token = str(uuid.uuid4()).replace("-", "")[:16]
+        raise HTTPException(status_code=500, detail="Failed to save share link — database error")
 
     return {"share_url": f"{_FRONTEND_URL}/#shared/{token}", "token": token, "expires_at": expires}
 

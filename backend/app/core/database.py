@@ -7,7 +7,7 @@ Tables required (create in Supabase SQL editor):
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from supabase import create_client, Client
 
@@ -27,7 +27,7 @@ def _get_client() -> Client:
 
 async def get_cached_report(folio: str) -> dict | None:
     try:
-        cutoff = (datetime.now() - timedelta(hours=24)).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
         result = (
             _get_client()
             .table("reports")
@@ -59,7 +59,7 @@ async def cache_report(
             "report_json": report_json,
             "narrative": narrative,
             "buildability_score": score,
-            "updated_at": datetime.now().isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         existing = (
             _get_client()

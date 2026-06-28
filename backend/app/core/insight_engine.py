@@ -81,7 +81,9 @@ def score_parcel(
             auto_kill_reason = reason
         auto_kill = True
 
-    if habitat.get("habitat_found") is True:
+    if habitat.get("data_available") is False:
+        flags.append("Wildlife check unavailable — verify manually")
+    elif habitat.get("habitat_found") is True:
         species = habitat.get("species") or []
         sp = ", ".join(species[:2]) if species else "listed species"
         reason = f"Critical habitat: {sp}"
@@ -114,8 +116,7 @@ def score_parcel(
         score -= 25
         flags.append("EPA contamination record found")
 
-    # FIX 4 — OSM gaps in rural FL are common, not the same as landlocked
-    if roads.get("road_surface") == "none":
+    if roads.get("road_surface") in ("error", "unavailable", "none"):
         score -= 5
         flags.append("Road data unavailable — verify access")
 

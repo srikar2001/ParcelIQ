@@ -96,8 +96,59 @@ _EVAC_DEFAULT      = {"evac_zone": None, "evac_risk": None, "source": "FL Divisi
 _POWERLINES_DEFAULT = {"powerline_nearby": None, "powerline_distance": None, "source": "OpenStreetMap"}
 _EASEMENT_DEFAULT  = {"easement_found": False, "easement_type": None, "source": "USDA NRCS"}
 
-# In-memory job store for large batches (Task 30)
-_jobs: dict = {}
+_JOBS_TABLE = "batch_jobs"
+_SB_HEADERS_SVC = lambda: {
+    "apikey": _SUPABASE_SVC_KEY,
+    "Authorization": f"Bearer {_SUPABASE_SVC_KEY}",
+    "Content-Type": "application/json",
+}
+
+
+async def _job_create(job_id: str, total: int) -> None:
+    if not _SUPABASE_URL:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(
+                f"{_SUPABASE_URL}/rest/v1/{_JOBS_TABLE}",
+                json={"id": job_id, "status": "queued", "progress": 0, "total": total,
+                      "results": [], "created_at": datetime.now(timezone.utc).isoformat()},
+                headers={**_SB_HEADERS_SVC(), "Prefer": "return=minimal"},
+            )
+    except Exception as e:
+        print(f"[Jobs] Create error: {e}")
+
+
+async def _job_update(job_id: str, status: str, progress: int, results: list) -> None:
+    if not _SUPABASE_URL:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            await client.patch(
+                f"{_SUPABASE_URL}/rest/v1/{_JOBS_TABLE}",
+                params={"id": f"eq.{job_id}"},
+                json={"status": status, "progress": progress, "results": results},
+                headers={**_SB_HEADERS_SVC(), "Prefer": "return=minimal"},
+            )
+    except Exception as e:
+        print(f"[Jobs] Update error: {e}")
+
+
+async def _job_read(job_id: str) -> dict | None:
+    if not _SUPABASE_URL:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(
+                f"{_SUPABASE_URL}/rest/v1/{_JOBS_TABLE}",
+                params={"id": f"eq.{job_id}", "select": "*", "limit": "1"},
+                headers=_SB_HEADERS_SVC(),
+            )
+        rows = r.json()
+        return rows[0] if rows else None
+    except Exception as e:
+        print(f"[Jobs] Read error: {e}")
+        return None
 
 
 class ParcelInput(BaseModel):
@@ -346,26 +397,27 @@ async def batch_screen(
 
 # ── QUEUE for large batches (Task 30)
 async def _process_batch_background(job_id: str, parcels: list) -> None:
-    _jobs[job_id]["status"] = "processing"
+    accumulated: list = []
+    await _job_update(job_id, "processing", 0, [])
     for i in range(0, len(parcels), BATCH_SIZE):
         chunk = parcels[i:i + BATCH_SIZE]
         results = await asyncio.gather(*[_process_parcel_safe(p) for p in chunk])
-        _jobs[job_id]["results"].extend(results)
-        _jobs[job_id]["progress"] = len(_jobs[job_id]["results"])
-    _jobs[job_id]["status"] = "complete"
+        accumulated.extend(results)
+        await _job_update(job_id, "processing", len(accumulated), accumulated)
+    await _job_update(job_id, "complete", len(accumulated), accumulated)
 
 
 @router.post("/batch/queue")
 async def batch_queue(request: BatchRequest):
     job_id = str(uuid4())
-    _jobs[job_id] = {"status": "queued", "progress": 0, "total": len(request.parcels), "results": [], "error": None}
+    await _job_create(job_id, len(request.parcels))
     asyncio.create_task(_process_batch_background(job_id, request.parcels))
     return {"job_id": job_id, "total": len(request.parcels)}
 
 
 @router.get("/batch/status/{job_id}")
 async def batch_status(job_id: str):
-    job = _jobs.get(job_id)
+    job = await _job_read(job_id)
     if not job:
         return JSONResponse(status_code=404, content={"error": "Job not found"})
     return {

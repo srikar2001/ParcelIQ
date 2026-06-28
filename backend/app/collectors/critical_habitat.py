@@ -1,7 +1,8 @@
 import httpx
 
 URL = "https://services.arcgis.com/QVENGdaPbd4LUkLV/arcgis/rest/services/USFWS_Critical_Habitat/FeatureServer/0/query"
-DEFAULT = {"habitat_found": False, "species": [], "source": "USFWS Critical Habitat"}
+_CLEAN   = {"habitat_found": False, "species": [], "source": "USFWS Critical Habitat", "data_available": True}
+_ERROR   = {"habitat_found": False, "species": [], "source": "USFWS Critical Habitat", "data_available": False}
 BUFFER = 0.003  # ~200m — tight enough to stay parcel-local, wide enough to catch large polygons
 
 
@@ -23,11 +24,11 @@ async def get_critical_habitat(lat: float, lng: float) -> dict:
             data = resp.json()
 
         if "error" in data:
-            return DEFAULT
+            return _ERROR
 
         features = data.get("features", [])
         if not features:
-            return DEFAULT
+            return _CLEAN
 
         species = []
         for f in features:
@@ -40,7 +41,8 @@ async def get_critical_habitat(lat: float, lng: float) -> dict:
             "habitat_found": True,
             "species": species,
             "source": "USFWS Critical Habitat",
+            "data_available": True,
         }
     except Exception as e:
         print(f"[CriticalHabitat] Error: {e}")
-        return DEFAULT
+        return _ERROR
