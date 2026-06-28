@@ -323,6 +323,13 @@ body.on-results .detail-panel{top:0}
 .rsb-item:hover{background:var(--b);color:var(--t1)}
 .rsb-item.active{background:var(--b);color:var(--t1);font-weight:500}
 .rsb-grp-lbl{font-size:13px;font-weight:600;color:var(--t1);padding:14px 10px 5px;letter-spacing:.01em}
+.rsb-pick-card{margin:4px 2px 0;padding:9px 10px;background:rgba(255,200,0,.07);border:1px solid rgba(212,168,0,.25);border-radius:var(--rs);cursor:pointer;transition:all .15s}
+.rsb-pick-card:hover{background:rgba(255,200,0,.13);border-color:rgba(212,168,0,.45)}
+.rsb-pick-addr{font-size:12px;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:5px}
+.rsb-pick-meta{display:flex;align-items:center;gap:6px}
+.rsb-pick-empty{font-size:11px;color:var(--t3);padding:6px 10px 2px;font-style:italic}
+@keyframes rowFlash{0%,100%{background:transparent}40%{background:rgba(255,200,0,.18)}}
+.row-flash{animation:rowFlash 1.2s ease}
 .rsb-prev-hdr{cursor:pointer;display:flex!important;align-items:center;justify-content:space-between;padding-right:8px;transition:color .12s}
 .rsb-prev-hdr:hover{color:var(--t1)}
 .rsb-chev{transition:transform .2s ease;flex-shrink:0}
@@ -1698,6 +1705,11 @@ body.on-results .detail-panel{top:0}
       <div class="rsb-nav-item" onclick="">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="8" width="2.5" height="5" rx=".5"/><rect x="5.75" y="5" width="2.5" height="8" rx=".5"/><rect x="10.5" y="2" width="2.5" height="11" rx=".5"/></svg>
         Analytics
+      </div>
+      <!-- My Pick -->
+      <div class="rsb-grp-lbl">⭐ My Pick</div>
+      <div id="sidebarMyPick">
+        <div class="rsb-pick-empty">No parcel picked yet</div>
       </div>
       <!-- Recents (always open) -->
       <div class="rsb-grp-lbl" id="rsbPrevHdr">Recents</div>
@@ -6390,7 +6402,42 @@ function _cmpPickParcel(address) {
   const idx = batchState.results.findIndex(r => r.address === address);
   if (idx !== -1) batchState.results[idx]._starred = true;
   renderPage();
+  _updateSidebarPick();
   toast('⭐ Parcel picked');
+}
+
+function _updateSidebarPick() {
+  const wrap = document.getElementById('sidebarMyPick');
+  if (!wrap) return;
+  const picked = batchState.results.find(r => r._starred);
+  if (!picked) {
+    wrap.innerHTML = '<div class="rsb-pick-empty">No parcel picked yet</div>';
+    return;
+  }
+  const ev = effectiveVerdict(picked);
+  const vc = verdictClass(ev);
+  const { street } = splitAddress(picked.address || '');
+  const scoreStr = picked.auto_kill ? '⛔' : (picked.score != null ? picked.score : '—');
+  const scoreColor = picked.auto_kill ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : ev === 'KILL' ? 'var(--red)' : 'var(--amber)';
+  wrap.innerHTML = '<div class="rsb-pick-card" onclick="_sidebarPickJump()">'
+    + '<div class="rsb-pick-addr" title="' + escHtml(picked.address) + '">' + escHtml(street) + '</div>'
+    + '<div class="rsb-pick-meta">'
+    + '<span class="verdict-badge ' + vc + '" style="font-size:10px;padding:1px 7px">' + ev + '</span>'
+    + '<span style="font-size:12px;font-weight:700;color:' + scoreColor + '">' + scoreStr + '</span>'
+    + '</div>'
+    + '</div>';
+}
+
+function _sidebarPickJump() {
+  const picked = batchState.results.find(r => r._starred);
+  if (!picked) return;
+  const dispIdx = _currentDisplayed.findIndex(r => r.address === picked.address);
+  if (dispIdx === -1) { toast('Parcel not in current view — clear filters to find it'); return; }
+  const page = Math.ceil((dispIdx + 1) / _rowsPerPage);
+  if (page !== _currentPage) { _currentPage = page; renderPage(); }
+  const tr = document.getElementById('trow-' + dispIdx);
+  if (tr) { tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); tr.classList.add('row-flash'); setTimeout(() => tr.classList.remove('row-flash'), 1200); }
+  openDetailPanel(dispIdx);
 }
 </script>
 
