@@ -1725,12 +1725,16 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="rsb-footer">
         <div style="display:flex;gap:4px;padding:4px 2px 6px;text-align:center">
           <div style="flex:1;display:flex;flex-direction:column;align-items:center;border-right:1px solid var(--b);padding-right:4px">
-            <div class="rsb-time-val" id="sbLastScreenTime" style="font-size:16px">—</div>
+            <div class="rsb-time-val" id="sbLastScreenTime" style="font-size:15px">—</div>
             <div class="rsb-time-sub">Last batch</div>
           </div>
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding-left:4px">
-            <div class="rsb-time-val" id="sbTotalTimeSaved">—</div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;border-right:1px solid var(--b);padding:0 4px">
+            <div class="rsb-time-val" id="sbTotalTimeSaved" style="font-size:15px">—</div>
             <div class="rsb-time-sub">All-time saved</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding-left:4px">
+            <div class="rsb-time-val" id="sbTotalBatches" style="font-size:15px">—</div>
+            <div class="rsb-time-sub">Batches</div>
           </div>
         </div>
         <div class="rsb-nav-item" onclick="goTo('settings')">
@@ -3505,28 +3509,37 @@ async function _loadSidebarBatches() {
     } catch(e) { batches = []; }
   }
   _renderSidebarBatches(batches || []);
-  // All-time saved: show cached value instantly, refresh in background if stale
+  // All-time saved + batch count: show cached values instantly, refresh if stale
   const _TSK = 'piq-ts-cache';
   try {
     const _cached = JSON.parse(localStorage.getItem(_TSK) || 'null');
     if (_cached?.val) {
       const el = document.getElementById('sbTotalTimeSaved');
       if (el) el.textContent = _cached.val;
-      if (Date.now() - (_cached.ts || 0) < 5 * 60 * 1000) return; // fresh — skip network
     }
+    if (_cached?.batches != null) {
+      const el = document.getElementById('sbTotalBatches');
+      if (el) el.textContent = _cached.batches;
+    }
+    if (_cached?.val && Date.now() - (_cached.ts || 0) < 5 * 60 * 1000) return; // fresh — skip network
   } catch(e) {}
   if (sb && currentUser) {
     (async () => {
       try {
-        const { count } = await sb.from('parcel_results').select('id', { count: 'exact', head: true }).eq('user_id', currentUser.id);
-        if (count != null) {
-          const allMins = count * 30;
-          const allHrs = Math.round(allMins / 6) / 10;
-          const val = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
-          const el = document.getElementById('sbTotalTimeSaved');
-          if (el) el.textContent = val;
-          try { localStorage.setItem(_TSK, JSON.stringify({ val, ts: Date.now() })); } catch(e) {}
-        }
+        const [parcelsRes, batchesRes] = await Promise.all([
+          sb.from('parcel_results').select('id', { count: 'exact', head: true }).eq('user_id', currentUser.id),
+          sb.from('batches').select('id', { count: 'exact', head: true }).eq('user_id', currentUser.id),
+        ]);
+        const parcelCount = parcelsRes.count ?? 0;
+        const batchCount  = batchesRes.count ?? 0;
+        const allMins = parcelCount * 30;
+        const allHrs  = Math.round(allMins / 6) / 10;
+        const val = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
+        const elT = document.getElementById('sbTotalTimeSaved');
+        const elB = document.getElementById('sbTotalBatches');
+        if (elT) elT.textContent = val;
+        if (elB) elB.textContent = batchCount;
+        try { localStorage.setItem(_TSK, JSON.stringify({ val, batches: batchCount, ts: Date.now() })); } catch(e) {}
       } catch(e) {}
     })();
   }
@@ -3727,6 +3740,7 @@ async function saveBatchToSupabase(batchName, results) {
     try {
       sessionStorage.setItem('piq-res-' + batch.id, JSON.stringify({ name: batchName || '', rows: batchState.results }));
       sessionStorage.removeItem('piq-batches');
+      localStorage.removeItem('piq-ts-cache'); // bust stat cache so batch count refreshes
     } catch(e) {}
     const rows = (results.results || []).map(r => ({
       batch_id:          batch.id,
