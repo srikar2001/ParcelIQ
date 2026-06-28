@@ -3977,6 +3977,7 @@ async function _executeBatch(lines, estimatedSet) {
   batchState._streaming = true;
   batchState.results    = [...outsideResults];
   batchState.filtered   = 'all';
+  _currentPage          = 1;
   let _streamTotal = flLines.length;
   let _navigatedToResults = false;
 
