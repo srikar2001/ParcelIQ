@@ -2321,9 +2321,9 @@ async function checkWeeklyLimit(count = 1) {
   if (_weeklyUsed === null) {
     try {
       const weekAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString();
-      const { count: wc } = await sb.from('parcel_results').select('id', { count:'exact', head:true })
+      const { data: wb } = await sb.from('batches').select('total')
         .eq('user_id', currentUser.id).gte('created_at', weekAgo);
-      _weeklyUsed = wc || 0;
+      _weeklyUsed = wb?.reduce((s, b) => s + (b.total || 0), 0) || 0;
     } catch(e) { return true; }
   }
   if (_weeklyUsed + count > _WEEKLY_LIMIT) {
@@ -3052,9 +3052,9 @@ async function loadDashboardData() {
   if (sb && currentUser) {
     try {
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { count: wc } = await sb.from('parcel_results').select('*', { count: 'exact', head: true })
+      const { data: wb } = await sb.from('batches').select('total')
         .eq('user_id', currentUser.id).gte('created_at', weekAgo);
-      const weeklyCount = wc || 0;
+      const weeklyCount = wb?.reduce((s, b) => s + (b.total || 0), 0) || 0;
       _weeklyUsed = weeklyCount;
       const remaining = 1000 - weeklyCount;
       const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
@@ -3734,11 +3734,12 @@ async function saveBatchToSupabase(batchName, results) {
     if (!batch) return null;
     _currentBatchId = batch.id;
     try { sessionStorage.setItem('piq-last-batch', batch.id); } catch(e) {}
-    // Write cache NOW — before insert — so same-session reload works even if Supabase insert fails
+    // Always clear stat cache — in its own try so a full sessionStorage can't block it
+    try { localStorage.removeItem('piq-ts-cache'); } catch(e) {}
+    // Write result cache (may throw QuotaExceededError on large batches — that's OK)
     try {
       sessionStorage.setItem('piq-res-' + batch.id, JSON.stringify({ name: batchName || '', rows: batchState.results, elapsed: batchState.elapsed || 0 }));
       sessionStorage.removeItem('piq-batches');
-      localStorage.removeItem('piq-ts-cache'); // bust stat cache so batch count refreshes
     } catch(e) {}
     const rows = (results.results || []).map(r => ({
       batch_id:          batch.id,
@@ -3859,11 +3860,9 @@ async function runBatch() {
   if (sb && currentUser) {
     try {
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { count } = await sb.from('parcel_results')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', currentUser.id)
-        .gte('created_at', weekAgo);
-      const used      = count || 0;
+      const { data: wb } = await sb.from('batches').select('total')
+        .eq('user_id', currentUser.id).gte('created_at', weekAgo);
+      const used = wb?.reduce((s, b) => s + (b.total || 0), 0) || 0;
       const remaining = 1000 - used;
       if (remaining <= 0) { showUpgradeModal(); return; }
       const banner = document.getElementById('limitBanner');
@@ -4472,10 +4471,10 @@ function _refreshTable() {
 function loadSbUsage() {
   if (!sb || !currentUser) return;
   const weekAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString();
-  sb.from('parcel_results').select('*', { count:'exact', head:true })
+  sb.from('batches').select('total')
     .eq('user_id', currentUser.id).gte('created_at', weekAgo)
-    .then(({ count }) => {
-      const wc = count || 0;
+    .then(({ data }) => {
+      const wc = data?.reduce((s, b) => s + (b.total || 0), 0) || 0;
       _weeklyUsed = wc;
       const el   = document.getElementById('sbUsageCount');
       const fill = document.getElementById('sbUsageFill');
@@ -4532,10 +4531,10 @@ function renderBatchResults() {
   // Weekly usage banner on results page
   if (sb && currentUser) {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    sb.from('parcel_results').select('*', { count: 'exact', head: true })
+    sb.from('batches').select('total')
       .eq('user_id', currentUser.id).gte('created_at', weekAgo)
-      .then(({ count }) => {
-        const remaining = 1000 - (count || 0);
+      .then(({ data }) => {
+        const remaining = 1000 - (data?.reduce((s, b) => s + (b.total || 0), 0) || 0);
         const rb = document.getElementById('resLimitBanner');
         if (!rb) return;
         if (remaining <= 0) {
