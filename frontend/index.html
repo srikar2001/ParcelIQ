@@ -1730,7 +1730,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           </div>
           <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding-left:4px">
             <div class="rsb-time-val" id="sbTotalBatches">—</div>
-            <div class="rsb-time-sub">Parcels screened</div>
+            <div class="rsb-time-sub">Batches run</div>
           </div>
         </div>
         <div class="rsb-nav-item" onclick="goTo('settings')">
@@ -3512,9 +3512,9 @@ async function _loadSidebarBatches() {
       const el = document.getElementById('sbTotalTimeSaved');
       if (el) el.textContent = _cached.val;
     }
-    if (_cached?.parcels != null) {
+    if (_cached?.batches != null) {
       const el = document.getElementById('sbTotalBatches');
-      if (el) el.textContent = _cached.parcels.toLocaleString();
+      if (el) el.textContent = _cached.batches;
     }
     if (_cached?.val && Date.now() - (_cached.ts || 0) < 5 * 60 * 1000) return; // fresh — skip network
   } catch(e) {}
@@ -3533,8 +3533,8 @@ async function _loadSidebarBatches() {
         const elT = document.getElementById('sbTotalTimeSaved');
         const elB = document.getElementById('sbTotalBatches');
         if (elT) elT.textContent = val;
-        if (elB) elB.textContent = parcelCount.toLocaleString();
-        try { localStorage.setItem(_TSK, JSON.stringify({ val, parcels: parcelCount, ts: Date.now() })); } catch(e) {}
+        if (elB) elB.textContent = batchCount;
+        try { localStorage.setItem(_TSK, JSON.stringify({ val, batches: batchCount, ts: Date.now() })); } catch(e) {}
       } catch(e) {}
     })();
   }
@@ -3813,39 +3813,17 @@ function hideUpgradeModal() {
 }
 
 function _generateBatchName(lines) {
-  // Try to extract city or county name from addresses
-  const FL_COUNTIES = ['alachua','baker','bay','bradford','brevard','broward','calhoun','charlotte',
-    'citrus','clay','collier','columbia','miami-dade','desoto','dixie','duval','escambia','flagler',
-    'franklin','gadsden','gilchrist','glades','gulf','hamilton','hardee','hendry','hernando',
-    'highlands','hillsborough','holmes','indian river','jackson','jefferson','lafayette','lake',
-    'lee','leon','levy','liberty','madison','manatee','marion','martin','monroe','nassau',
-    'okaloosa','okeechobee','orange','osceola','palm beach','pasco','pinellas','polk','putnam',
-    'st. johns','st. lucie','santa rosa','sarasota','seminole','sumter','suwannee','taylor',
-    'union','volusia','wakulla','walton','washington'];
-  const cities = {};
-  for (const line of lines) {
-    const lower = line.toLowerCase();
-    // Check for county name in address
-    for (const county of FL_COUNTIES) {
-      if (lower.includes(county)) {
-        const key = county.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        cities[key] = (cities[key] || 0) + 1;
-      }
-    }
-    // Also check city part (text before ", FL")
-    const flMatch = line.match(/,\s*([^,]+?)\s+FL\s+\d/i);
-    if (flMatch) {
-      const city = flMatch[1].trim();
-      if (city.length > 2 && city.length < 25) cities[city] = (cities[city] || 0) + 1;
-    }
-  }
-  const topPlace = Object.entries(cities).sort((a, b) => b[1] - a[1])[0];
-  const mo = new Date().toLocaleString('en-US', { month: 'short' });
-  const day = new Date().getDate();
-  if (topPlace && topPlace[1] >= Math.max(2, Math.floor(lines.length * 0.15))) {
-    return topPlace[0] + ' · ' + mo + ' ' + day;
-  }
-  return lines.length + ' Parcels · ' + mo + ' ' + day;
+  const ADJ = ['Golden','Silver','Emerald','Azure','Coral','Sunrise','Sunset','Amber','Jade',
+    'Ivory','Rustic','Verdant','Sapphire','Crimson','Tawny','Misty','Serene','Wild',
+    'Sandy','Tidal','Coastal','Lush','Cedar','Cypress','Magnolia','Palm','Willow',
+    'Mossy','Dusky','Breezy','Sunlit','Shaded','Quiet','Broad','Deep'];
+  const NOUN = ['Acres','Ridge','Pines','Cove','Bay','Shores','Springs','Grove','Hollow',
+    'Bluff','Meadow','Landing','Hills','Preserve','Marsh','Bend','Vista','Crest',
+    'Glen','Harbor','Trace','Gate','Run','Point','Reach','Pass','Knoll','Flats',
+    'Creek','Vale'];
+  const adj  = ADJ [Math.floor(Math.random() * ADJ.length)];
+  const noun = NOUN[Math.floor(Math.random() * NOUN.length)];
+  return adj + ' ' + noun;
 }
 
 function showPricingComingSoon() {
