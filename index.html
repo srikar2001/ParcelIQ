@@ -3719,7 +3719,7 @@ async function saveBatchToSupabase(batchName, results) {
     const summary = results.summary || {};
     const insertPayload = {
       user_id:  currentUser.id,
-      name:     batchName || 'Batch ' + new Date().toLocaleDateString(),
+      name:     batchName || _generateBatchName([]),
       state:    'FL',
       total:    summary.total    || results.results?.length || 0,
       kills:    summary.kill     || 0,
@@ -3734,13 +3734,28 @@ async function saveBatchToSupabase(batchName, results) {
     if (!batch) return null;
     _currentBatchId = batch.id;
     try { sessionStorage.setItem('piq-last-batch', batch.id); } catch(e) {}
-    // Always clear stat cache — in its own try so a full sessionStorage can't block it
+    // Clear caches in isolated try blocks — sessionStorage.setItem can throw QuotaExceededError
+    // on large batches, and we must not let that block the stat/list cache busts
     try { localStorage.removeItem('piq-ts-cache'); } catch(e) {}
-    // Write result cache (may throw QuotaExceededError on large batches — that's OK)
+    try { sessionStorage.removeItem('piq-batches'); } catch(e) {}
     try {
       sessionStorage.setItem('piq-res-' + batch.id, JSON.stringify({ name: batchName || '', rows: batchState.results, elapsed: batchState.elapsed || 0 }));
-      sessionStorage.removeItem('piq-batches');
     } catch(e) {}
+    // BUG 2 fix: directly refresh "Batches run" count in DOM after insert — bypasses the
+    // race condition where the pre-save async block can re-set a stale cache after we clear it
+    if (sb && currentUser) {
+      sb.from('batches').select('id', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id)
+        .then(({ count: bc }) => {
+          const elB = document.getElementById('sbTotalBatches');
+          if (elB && bc != null) elB.textContent = bc;
+          try {
+            const _TSK = 'piq-ts-cache';
+            const ex = JSON.parse(localStorage.getItem(_TSK) || 'null') || {};
+            localStorage.setItem(_TSK, JSON.stringify({ ...ex, batches: bc, ts: Date.now() }));
+          } catch(e) {}
+        }).catch(() => {});
+    }
     const rows = (results.results || []).map(r => ({
       batch_id:          batch.id,
       user_id:           currentUser.id,
