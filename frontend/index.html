@@ -630,6 +630,10 @@ body.on-results .detail-panel{top:0}
 .res-trow:hover .row-cb,.row-cb:checked{opacity:1}
 #selAllCb{opacity:0;transition:opacity .12s}
 thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
+.row-star{background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;display:none;position:absolute;margin-top:1px}
+.res-trow:hover .row-star,.row-star-on{display:inline}
+.row-star-off{color:var(--t3)}
+.row-star-on{color:var(--amber)}
 .res-trow.selected{background:rgba(34,197,94,.05)}
 .res-trow.selected td:first-child{border-left:2px solid var(--green)}
 .res-trow.panel-selected{border-left:3px solid var(--green)}
@@ -1839,6 +1843,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;padding-top:2px">
       <div id="dpBadge"></div>
       <div class="dp-score-num" id="dpScore" style="font-size:20px"></div>
+      <button id="dpStarBtn" onclick="_toggleStarFromPanel()" title="Add to My Picks" style="background:none;border:none;font-size:18px;cursor:pointer;padding:0 2px;color:var(--t3);line-height:1;transition:color .12s">☆</button>
       <button class="dp-close" onclick="closeDetailPanel()">✕</button>
     </div>
   </div>
@@ -2141,7 +2146,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <h1 style="font-size:22px;font-weight:700;margin:0 0 4px;color:var(--t1)">⭐ My Picks</h1>
         <div style="font-size:13px;color:var(--t3)" id="picksSubtitle">Parcels you've picked from compare</div>
       </div>
-      <button onclick="showScreen('page-results')" style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">← Back to Results</button>
+      <button onclick="history.back()" style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">← Back to Results</button>
     </div>
     <div id="picksListWrap"></div>
   </div>
@@ -2374,6 +2379,11 @@ async function router() {
 }
 
 window.addEventListener('hashchange', router);
+window.addEventListener('popstate', () => {
+  if (window.location.hash !== '#picks') {
+    showScreen(HASH_MAP[window.location.hash] || 'page-results');
+  }
+});
 
 async function _loadMostRecentBatch() {
   if (!sb || !currentUser) { goTo('landing'); return; }
@@ -4568,9 +4578,11 @@ function renderTable(results, offset) {
     const rescreenedLabel = r._rescreened_at
       ? '<div style="font-size:10px;color:var(--t3);margin-top:2px">↻ Re-screened ' + _fmtTs(r._rescreened_at) + '</div>'
       : '';
+    const starredClass = r._starred ? 'row-star-on' : 'row-star-off';
     return '<tr class="' + rowClass + '" id="trow-' + absIdx + '" onclick="openDetailPanel(' + absIdx + ',event)">' +
-      '<td onclick="event.stopPropagation()" style="padding:8px 12px;width:32px">' +
+      '<td onclick="event.stopPropagation()" style="padding:8px 6px 8px 12px;width:32px">' +
         '<input type="checkbox" class="row-cb"' + (isSelected ? ' checked' : '') + ' onchange="toggleRowSelect(' + absIdx + ',event)">' +
+        '<button class="row-star ' + starredClass + '" onclick="_toggleStar(' + absIdx + ',event)" title="' + (r._starred ? 'Remove from My Picks' : 'Add to My Picks') + '">' + (r._starred ? '⭐' : '☆') + '</button>' +
       '</td>' +
       '<td class="tbl-parcel">' + addrHtml + autoKillChip + rescreenedLabel + '</td>' +
       '<td class="tbl-county">' + escHtml(county) + '</td>' +
@@ -4652,6 +4664,13 @@ function openDetailPanel(absIdx, event) {
     scoreEl.style.color = ev === 'KILL' ? 'var(--red)' : ev === 'REVIEW' ? 'var(--amber)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--t2)';
   }
   setH('dpBadge', '<span class="verdict-badge ' + vc + '">' + escHtml(ev) + '</span>');
+  const dpStar = document.getElementById('dpStarBtn');
+  if (dpStar) {
+    const starred = !!r._starred;
+    dpStar.textContent = starred ? '⭐' : '☆';
+    dpStar.title = starred ? 'Remove from My Picks' : 'Add to My Picks';
+    dpStar.style.color = starred ? 'var(--amber)' : 'var(--t3)';
+  }
   // Why box
   const whyEl = document.getElementById('dpWhy');
   if (whyEl) {
@@ -6440,6 +6459,7 @@ function _updateSidebarPick() {
 }
 
 function showPicksPage() {
+  history.pushState({ from: 'results' }, '', window.location.pathname + window.location.search + '#picks');
   showScreen('page-picks');
   renderPicksList();
 }
@@ -6503,6 +6523,32 @@ function _removePick(address) {
   renderPage();
   _updateSidebarPick();
   renderPicksList();
+}
+
+function _toggleStar(absIdx, event) {
+  if (event) event.stopPropagation();
+  const r = _currentDisplayed[absIdx];
+  if (!r) return;
+  const bIdx = batchState.results.findIndex(x => x.address === r.address);
+  if (bIdx === -1) return;
+  batchState.results[bIdx]._starred = !batchState.results[bIdx]._starred;
+  const isNow = batchState.results[bIdx]._starred;
+  renderPage();
+  _updateSidebarPick();
+  // refresh detail panel star if open
+  const dpStar = document.getElementById('dpStarBtn');
+  if (dpStar && _openParcel && _openParcel.address === r.address) {
+    _openParcel._starred = isNow;
+    dpStar.textContent = isNow ? '⭐' : '☆';
+    dpStar.title = isNow ? 'Remove from My Picks' : 'Add to My Picks';
+    dpStar.style.color = isNow ? 'var(--amber)' : 'var(--t3)';
+  }
+  toast(isNow ? '⭐ Added to My Picks' : 'Removed from My Picks');
+}
+
+function _toggleStarFromPanel() {
+  if (_openParcelIdx < 0) return;
+  _toggleStar(_openParcelIdx, null);
 }
 
 function _picksJumpToResults(address) {
