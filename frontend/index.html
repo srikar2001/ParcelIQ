@@ -598,15 +598,6 @@ body.on-results .detail-panel{top:0}
 .bulk-bar-btn.primary{background:var(--green);color:#000;border-color:var(--green)}
 .bulk-bar-btn.primary:hover{background:var(--gd)}
 
-/* ══ COMPARE BAR */
-#cmpBar{position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-top:1px solid var(--bh);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:197;transform:translateY(100%);transition:transform .22s cubic-bezier(.4,0,.2,1)}
-#cmpBar.show{transform:translateY(0)}
-.cmp-bar-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:5px 13px;border-radius:var(--rp);border:1px solid var(--bh);background:transparent;color:var(--t1);cursor:pointer;transition:all .15s}
-.cmp-bar-btn:hover:not(:disabled){background:var(--card)}
-.cmp-bar-btn.primary{background:var(--green);color:#000;border-color:var(--green)}
-.cmp-bar-btn.primary:hover:not(:disabled){opacity:.85}
-.cmp-bar-btn:disabled{opacity:.35;cursor:not-allowed}
-
 /* ══ COMPARE MODAL */
 #cmpModal{display:none;position:fixed;inset:0;z-index:2100;overflow-y:auto;background:rgba(0,0,0,.88);backdrop-filter:blur(4px)}
 #cmpModal.show{display:block}
@@ -1915,9 +1906,11 @@ body.on-results .detail-panel{top:0}
     </div>
   </div>
   <button class="bulk-bar-btn" id="rescreenSelBtn" onclick="rescreenSelected()">↻ Re-screen</button>
+  <button class="bulk-bar-btn" id="cmpCompareBtn" onclick="openCmpModal()" disabled style="opacity:.35;cursor:not-allowed">⊞ Compare</button>
   <button class="bulk-bar-btn primary" onclick="exportSelected()">↓ Export</button>
   <button class="bulk-bar-btn" onclick="clearSelection()">✕ Clear</button>
 </div>
+<div id="cmpMaxMsg" style="display:none;position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:var(--card-h);border:1px solid var(--bh);border-radius:var(--rp);padding:7px 16px;font-size:12px;color:var(--amber);z-index:201;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.4)">Max 3 parcels — uncheck one to change selection</div>
 
 <!-- ════════ PRICING ════════ -->
 <div id="page-pricing" class="screen">
@@ -5029,8 +5022,8 @@ function toggleRowSelect(absIdx, event) {
     _selectedRows.delete(absIdx);
   } else {
     if (_selectedRows.size >= _CMP_MAX) {
-      const msg = document.getElementById('cmpBarMsg');
-      if (msg) { msg.textContent = 'Max 3 parcels — uncheck one to change selection'; setTimeout(() => { if (msg) msg.textContent = ''; }, 3000); }
+      const tip = document.getElementById('cmpMaxMsg');
+      if (tip) { tip.style.display = 'block'; clearTimeout(tip._t); tip._t = setTimeout(() => { tip.style.display = 'none'; }, 2500); }
       const tr = document.getElementById('trow-' + absIdx);
       if (tr) { const cb = tr.querySelector('.row-cb'); if (cb) cb.checked = false; }
       updateBulkBar(); updateCmpBar(); return;
@@ -6197,6 +6190,7 @@ document.addEventListener('click', function(e) {
 // ════════════════════════════════════════════
 
 const _CMP_MAX = 3;
+const _titleCase = s => s ? s.replace(/\b\w/g, c => c.toUpperCase()) : s;
 
 const _CMP_ROWS = [
   { key: 'score',     label: 'Score'          },
@@ -6217,23 +6211,13 @@ const _CMP_ROWS = [
 ];
 
 function updateCmpBar() {
-  const bar  = document.getElementById('cmpBar');
-  const lbl  = document.getElementById('cmpBarLabel');
-  const msg  = document.getElementById('cmpBarMsg');
-  const btn  = document.getElementById('cmpCompareBtn');
-  const bulk = document.getElementById('bulkBar');
-  if (!bar) return;
+  const btn = document.getElementById('cmpCompareBtn');
+  if (!btn) return;
   const n = _selectedRows.size;
-  if (n === 0) {
-    bar.classList.remove('show');
-    if (bulk) bulk.style.bottom = '';
-    return;
-  }
-  bar.classList.add('show');
-  if (bulk && bulk.classList.contains('show')) bulk.style.bottom = '66px';
-  else if (bulk) bulk.style.bottom = '';
-  if (lbl) lbl.textContent = n + ' parcel' + (n !== 1 ? 's' : '') + ' selected';
-  if (btn) btn.disabled = n < 2;
+  const canCompare = n >= 2;
+  btn.disabled = !canCompare;
+  btn.style.opacity = canCompare ? '1' : '.35';
+  btn.style.cursor  = canCompare ? 'pointer' : 'not-allowed';
 }
 
 function clearCmpSelection() { clearSelection(); }
@@ -6280,7 +6264,7 @@ function _cmpVal(key, r) {
       return { html: pi.elevation_ft + ' ft', rank: Number(pi.elevation_ft) };
 
     case 'soil':
-      return { html: escHtml(pi.soil_drainage || '—') };
+      return { html: escHtml(_titleCase(pi.soil_drainage) || '—') };
 
     case 'septic':
       if (pi.septic_suitable === true)  return { html: 'Yes ✓', rank: 2 };
@@ -6293,7 +6277,7 @@ function _cmpVal(key, r) {
     case 'evac_risk': {
       const risk = (pi.evac_risk || '').toLowerCase();
       const rank = risk === 'low' ? 3 : risk === 'medium' ? 2 : risk === 'high' ? 1 : null;
-      return { html: escHtml(pi.evac_risk || '—'), rank };
+      return { html: escHtml(_titleCase(pi.evac_risk) || '—'), rank };
     }
 
     case 'powerline':
@@ -6320,7 +6304,7 @@ function _cmpVal(key, r) {
     }
 
     case 'owner':
-      return { html: escHtml(pi.owner || '—') };
+      return { html: escHtml(_titleCase(pi.owner) || '—') };
 
     case 'value':
       return { html: pi.just_value != null ? fmt$(pi.just_value) : '—' };
@@ -6468,18 +6452,6 @@ function _cmpPickParcel(address) {
     </div>
   </div>
 </div>
-<!-- ════════ COMPARE BAR ════════ -->
-<div id="cmpBar">
-  <div style="display:flex;align-items:center;gap:14px;min-width:0">
-    <span id="cmpBarLabel" style="font-size:13px;font-weight:600;white-space:nowrap"></span>
-    <span id="cmpBarMsg" style="font-size:12px;color:var(--amber)"></span>
-  </div>
-  <div style="display:flex;gap:10px;align-items:center;flex-shrink:0">
-    <button class="cmp-bar-btn" onclick="clearCmpSelection()">Clear</button>
-    <button class="cmp-bar-btn primary" id="cmpCompareBtn" onclick="openCmpModal()" disabled>Compare</button>
-  </div>
-</div>
-
 <!-- ════════ COMPARE MODAL ════════ -->
 <div id="cmpModal" onclick="if(event.target===this)closeCmpModal()">
   <div class="cmp-inner">
