@@ -10,7 +10,7 @@ from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from app.collectors.geocodio import geocode
+from app.collectors.geocodio import geocode, geocode_batch
 from app.collectors.flood import get_flood_zone
 from app.collectors.wetlands import get_wetlands
 from app.collectors.critical_habitat import get_critical_habitat
@@ -28,8 +28,11 @@ from app.core.cache import get_cached_result, save_cached_result
 
 router = APIRouter(prefix="/api")
 
-BATCH_SIZE   = 10
-WEEKLY_LIMIT = 1000
+BATCH_SIZE    = 20        # parcels processed in parallel per chunk
+_API_TIMEOUT  = 7.0       # per external API call — fast-fail slow sources
+_PARCEL_TIMEOUT = 15.0    # hard cap per individual parcel
+_API_SEM      = asyncio.Semaphore(120)  # max concurrent external HTTP calls
+WEEKLY_LIMIT  = 1000
 _SUPABASE_URL     = os.environ.get('SUPABASE_URL', '')
 _SUPABASE_KEY     = os.environ.get('SUPABASE_ANON_KEY', '')
 _SUPABASE_SVC_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', _SUPABASE_KEY)  # bypasses RLS
@@ -161,11 +164,12 @@ class BatchRequest(BaseModel):
     state: str = "FL"
 
 
-async def _safe(coro, default, timeout: float = 25.0):
-    try:
-        return await asyncio.wait_for(coro, timeout=timeout)
-    except Exception:
-        return default
+async def _safe(coro, default, timeout: float = _API_TIMEOUT):
+    async with _API_SEM:
+        try:
+            return await asyncio.wait_for(coro, timeout=timeout)
+        except Exception:
+            return default
 
 
 async def _process_parcel(parcel: ParcelInput) -> dict:
@@ -262,35 +266,113 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
     return out
 
 
+async def _process_parcel_pregeocoded(parcel: ParcelInput, geo: dict) -> dict:
+    """Like _process_parcel but skips geocoding — uses pre-fetched geo dict."""
+    address = parcel.address
+    cached = await get_cached_result(address)
+    if cached:
+        cached["cached"] = True
+        return cached
+
+    lat, lng = geo["lat"], geo["lng"]
+    (
+        flood, wetlands, habitat, epa, roads, parcel_data, waterways,
+        elevation, soil, evac, powerlines, easement
+    ) = await asyncio.gather(
+        _safe(get_flood_zone(lat, lng),             _FLOOD_DEFAULT),
+        _safe(get_wetlands(lat, lng),               _WETLANDS_DEFAULT),
+        _safe(get_critical_habitat(lat, lng),       _HABITAT_DEFAULT),
+        _safe(get_epa_superfund(lat, lng),          _EPA_DEFAULT),
+        _safe(get_road_type(lat, lng),              _ROADS_DEFAULT),
+        _safe(get_parcel_data(lat, lng),            _PARCEL_DEFAULT),
+        _safe(get_waterway_proximity(lat, lng),     _WATERWAYS_DEFAULT),
+        _safe(get_elevation(lat, lng),              _ELEVATION_DEFAULT),
+        _safe(get_soil_data(lat, lng),              _SOIL_DEFAULT),
+        _safe(get_evacuation_zone(lat, lng),        _EVAC_DEFAULT),
+        _safe(get_powerline_proximity(lat, lng),    _POWERLINES_DEFAULT),
+        _safe(get_conservation_easement(lat, lng),  _EASEMENT_DEFAULT),
+    )
+    result = score_parcel(
+        flood, wetlands, habitat, epa, roads, parcel_data, waterways,
+        elevation=elevation, soil=soil, evac=evac,
+        powerlines=powerlines, easement=easement,
+    )
+    out = {
+        "address": geo.get("formatted_address", address),
+        "verdict": result["verdict"],
+        "score": result["score"],
+        "auto_kill": result["auto_kill"],
+        "auto_kill_reason": result["auto_kill_reason"],
+        "flags": result["flags"],
+        "kill_flags": result.get("kill_flags", []),
+        "review_flags": result.get("review_flags", []),
+        "info_flags": result.get("info_flags", []),
+        "positives": result["positives"],
+        "parcel_info": {
+            "acreage": parcel_data.get("acreage"),
+            "owner": parcel_data.get("owner"),
+            "land_use_code": parcel_data.get("land_use_code"),
+            "last_sale_price": parcel_data.get("last_sale_price"),
+            "just_value": parcel_data.get("just_value"),
+            "land_value": parcel_data.get("land_value"),
+            "geometry": parcel_data.get("geometry", []),
+            "elevation_ft": elevation.get("elevation_ft"),
+            "soil_drainage": soil.get("soil_drainage"),
+            "soil_name": soil.get("soil_name"),
+            "septic_suitable": soil.get("septic_suitable"),
+            "evac_zone": evac.get("evac_zone"),
+            "evac_risk": evac.get("evac_risk"),
+            "evac_county": evac.get("evac_county"),
+            "powerline_nearby": powerlines.get("powerline_nearby"),
+            "powerline_distance": powerlines.get("powerline_distance"),
+            "easement_found": easement.get("easement_found"),
+            "easement_type": easement.get("easement_type"),
+        },
+        "_lat": lat,
+        "_lng": lng,
+        "sources": result["sources_checked"],
+        "error": None,
+        "cached": False,
+    }
+    asyncio.create_task(save_cached_result(address, out))
+    return out
+
+
 async def _process_parcel_safe(parcel: ParcelInput) -> dict:
     try:
-        return await asyncio.wait_for(_process_parcel(parcel), timeout=45.0)
+        return await asyncio.wait_for(_process_parcel(parcel), timeout=_PARCEL_TIMEOUT)
     except asyncio.TimeoutError:
-        return {
-            "address": parcel.address,
-            "verdict": "ERROR",
-            "score": None,
-            "auto_kill": False,
-            "auto_kill_reason": None,
-            "flags": [],
-            "positives": [],
-            "parcel_info": {},
-            "sources": [],
-            "error": "Processing timed out — external data sources were too slow. Please retry.",
-        }
+        return _timeout_result(parcel.address)
     except Exception as e:
-        return {
-            "address": parcel.address,
-            "verdict": "ERROR",
-            "score": None,
-            "auto_kill": False,
-            "auto_kill_reason": None,
-            "flags": [],
-            "positives": [],
-            "parcel_info": {},
-            "sources": [],
-            "error": str(e),
-        }
+        return _error_result(parcel.address, str(e))
+
+
+async def _process_parcel_pregeocoded_safe(parcel: ParcelInput, geo: dict) -> dict:
+    try:
+        return await asyncio.wait_for(_process_parcel_pregeocoded(parcel, geo), timeout=_PARCEL_TIMEOUT)
+    except asyncio.TimeoutError:
+        return _timeout_result(parcel.address)
+    except Exception as e:
+        return _error_result(parcel.address, str(e))
+
+
+def _timeout_result(address: str) -> dict:
+    return {
+        "address": address, "verdict": "ERROR", "score": None,
+        "auto_kill": False, "auto_kill_reason": None,
+        "flags": ["Timed out — retry this parcel"],
+        "positives": [], "parcel_info": {}, "sources": [],
+        "error": "Timed out — data sources were too slow. Retry.",
+    }
+
+
+def _error_result(address: str, msg: str) -> dict:
+    return {
+        "address": address, "verdict": "ERROR", "score": None,
+        "auto_kill": False, "auto_kill_reason": None,
+        "flags": [], "positives": [], "parcel_info": {}, "sources": [],
+        "error": msg,
+    }
 
 
 @router.post("/batch/stream")
@@ -318,16 +400,33 @@ async def batch_screen_stream(
 
     async def event_generator():
         parcels = request.parcels
-        total = len(parcels)
-        all_results = []
+        total   = len(parcels)
+        all_results: list = []
         completed = 0
 
         yield f'data: {json.dumps({"type":"start","total":total})}\n\n'
 
-        for i in range(0, total, BATCH_SIZE):
-            chunk = parcels[i:i + BATCH_SIZE]
+        # ── Step 1: batch-geocode all addresses in one API call ──────────────
+        addresses = [p.address for p in parcels]
+        geo_map   = await geocode_batch(addresses)  # {address -> {lat,lng,formatted}}
+
+        # Immediately emit ERROR for any that failed geocoding
+        geocoded_parcels = []
+        for p in parcels:
+            if p.address in geo_map:
+                geocoded_parcels.append((p, geo_map[p.address]))
+            else:
+                r = _error_result(p.address, "Geocoding failed — address not found in Florida")
+                all_results.append(r)
+                completed += 1
+                pct = int((completed / total) * 100)
+                yield f'data: {json.dumps({"type":"progress","completed":completed,"total":total,"percent":pct,"latest":r})}\n\n'
+
+        # ── Step 2: process in parallel chunks (no geocoding overhead) ────────
+        for i in range(0, len(geocoded_parcels), BATCH_SIZE):
+            chunk = geocoded_parcels[i:i + BATCH_SIZE]
             chunk_results = await asyncio.gather(
-                *[_process_parcel_safe(p) for p in chunk]
+                *[_process_parcel_pregeocoded_safe(p, geo) for p, geo in chunk]
             )
             for result in chunk_results:
                 all_results.append(result)
@@ -336,11 +435,11 @@ async def batch_screen_stream(
                 yield f'data: {json.dumps({"type":"progress","completed":completed,"total":total,"percent":pct,"latest":result})}\n\n'
 
         summary = {
-            "total":   len(all_results),
-            "kill":    sum(1 for r in all_results if r["verdict"] == "KILL"),
-            "review":  sum(1 for r in all_results if r["verdict"] == "REVIEW"),
-            "pursue":  sum(1 for r in all_results if r["verdict"] == "PURSUE"),
-            "error":   sum(1 for r in all_results if r["verdict"] == "ERROR"),
+            "total":  len(all_results),
+            "kill":   sum(1 for r in all_results if r["verdict"] == "KILL"),
+            "review": sum(1 for r in all_results if r["verdict"] == "REVIEW"),
+            "pursue": sum(1 for r in all_results if r["verdict"] == "PURSUE"),
+            "error":  sum(1 for r in all_results if r["verdict"] == "ERROR"),
         }
         yield f'data: {json.dumps({"type":"complete","summary":summary,"results":all_results})}\n\n'
 
