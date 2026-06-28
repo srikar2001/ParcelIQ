@@ -511,14 +511,28 @@ async def batch_screen(
 # ── QUEUE for large batches (Task 30)
 async def _process_batch_background(job_id: str, parcels: list) -> None:
     accumulated: list = []
-    await _job_update(job_id, "processing", 0)  # no results payload on start
+    await _job_update(job_id, "processing", 0)
     try:
-        for i in range(0, len(parcels), BATCH_SIZE):
-            chunk = parcels[i:i + BATCH_SIZE]
-            results = await asyncio.gather(*[_process_parcel_safe(p) for p in chunk])
+        # Batch-geocode all addresses in one API call (same as SSE path)
+        addresses = [p.address for p in parcels]
+        geo_map   = await geocode_batch(addresses)
+
+        # Parcels that failed geocoding get immediate ERROR results
+        geocoded_parcels = []
+        for p in parcels:
+            if p.address in geo_map:
+                geocoded_parcels.append((p, geo_map[p.address]))
+            else:
+                accumulated.append(_error_result(p.address, "Geocoding failed — address not found in Florida"))
+
+        # Process geocoded parcels in parallel chunks
+        for i in range(0, len(geocoded_parcels), BATCH_SIZE):
+            chunk = geocoded_parcels[i:i + BATCH_SIZE]
+            results = await asyncio.gather(*[_process_parcel_pregeocoded_safe(p, geo) for p, geo in chunk])
             accumulated.extend(results)
-            await _job_update(job_id, "processing", len(accumulated))  # progress only
-        await _job_update(job_id, "complete", len(accumulated), accumulated)  # full results on final
+            await _job_update(job_id, "processing", len(accumulated))
+
+        await _job_update(job_id, "complete", len(accumulated), accumulated)
     except Exception as e:
         print(f"[Jobs] Background error: {e}")
         await _job_update(job_id, "error", len(accumulated), accumulated)

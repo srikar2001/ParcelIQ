@@ -3813,6 +3813,42 @@ function hideUpgradeModal() {
   document.getElementById('upgradeModal')?.classList.remove('show');
 }
 
+function _generateBatchName(lines) {
+  // Try to extract city or county name from addresses
+  const FL_COUNTIES = ['alachua','baker','bay','bradford','brevard','broward','calhoun','charlotte',
+    'citrus','clay','collier','columbia','miami-dade','desoto','dixie','duval','escambia','flagler',
+    'franklin','gadsden','gilchrist','glades','gulf','hamilton','hardee','hendry','hernando',
+    'highlands','hillsborough','holmes','indian river','jackson','jefferson','lafayette','lake',
+    'lee','leon','levy','liberty','madison','manatee','marion','martin','monroe','nassau',
+    'okaloosa','okeechobee','orange','osceola','palm beach','pasco','pinellas','polk','putnam',
+    'st. johns','st. lucie','santa rosa','sarasota','seminole','sumter','suwannee','taylor',
+    'union','volusia','wakulla','walton','washington'];
+  const cities = {};
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    // Check for county name in address
+    for (const county of FL_COUNTIES) {
+      if (lower.includes(county)) {
+        const key = county.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        cities[key] = (cities[key] || 0) + 1;
+      }
+    }
+    // Also check city part (text before ", FL")
+    const flMatch = line.match(/,\s*([^,]+?)\s+FL\s+\d/i);
+    if (flMatch) {
+      const city = flMatch[1].trim();
+      if (city.length > 2 && city.length < 25) cities[city] = (cities[city] || 0) + 1;
+    }
+  }
+  const topPlace = Object.entries(cities).sort((a, b) => b[1] - a[1])[0];
+  const mo = new Date().toLocaleString('en-US', { month: 'short' });
+  const day = new Date().getDate();
+  if (topPlace && topPlace[1] >= Math.max(2, Math.floor(lines.length * 0.15))) {
+    return topPlace[0] + ' · ' + mo + ' ' + day;
+  }
+  return lines.length + ' Parcels · ' + mo + ' ' + day;
+}
+
 function showPricingComingSoon() {
   const existing = document.getElementById('pricingComingSoonModal');
   if (existing) { existing.style.display = 'flex'; return; }
@@ -3866,7 +3902,7 @@ async function runBatch() {
 
   // Read batch name before navigating away from dashboard
   const nameInput = (document.getElementById('batchNameInput')?.value || '').trim();
-  batchState.name = nameInput || 'Batch · ' + new Date().toLocaleDateString();
+  batchState.name = nameInput || _generateBatchName(lines);
 
   const incomplete = lines.filter(l => !isCompleteAddress(l));
   if (incomplete.length > 0) {
@@ -3939,24 +3975,26 @@ async function _executeBatch(lines, estimatedSet) {
   batchState._streaming = false;
   batchState.results    = [...outsideResults];
   batchState.filtered   = 'all';
-  let _streamTotal = flLines.length; // set from 'start' event; used for progress display
+  let _streamTotal = flLines.length;
 
-  // FIX 2+3: Navigate to processing screen immediately so user sees feedback during geocoding
-  goTo('processing');
-  const _setProc = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  _setProc('procCount', 'Geocoding ' + flLines.length + ' addresses…');
-  _setProc('batchStat', 'Batch geocoding in progress…');
-  _setProc('batchSub', 'This takes 1–3 seconds');
-  window._screenStart = Date.now();
+  // Navigate directly to results with a loading state — skip the processing ring (that's for queue mode)
+  renderBatchResults();
+  goTo('results');
+  batchState._streaming = true;
+  const _resBody = document.querySelector('#resTableWrap tbody');
+  if (_resBody) _resBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:48px;color:var(--t3);font-size:13px">' +
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:14px">' +
+    '<div style="width:22px;height:22px;border:2px solid var(--b);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite"></div>' +
+    'Geocoding ' + flLines.length + ' address' + (flLines.length !== 1 ? 'es' : '') + '…</div></td></tr>';
+  updateStreamProgress(0, flLines.length);
 
-  // FIX 2: 30-second timeout if zero results arrive — avoids infinite loading screen
+  // 45-second stall guard — if zero results after 45s, show an error row
   let _firstResultTimer = setTimeout(() => {
-    if (!batchState._streaming) {
-      _setProc('procCount', 'Taking longer than expected…');
-      _setProc('batchStat', 'Still geocoding or waiting on data sources');
-      _setProc('batchSub', 'Results will appear when ready');
+    if (batchState.results.length === outsideResults.length) {
+      if (_resBody) _resBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:48px;color:var(--red);font-size:13px">' +
+        'Screening is taking longer than expected. Check your connection or try a smaller batch.</td></tr>';
     }
-  }, 30000);
+  }, 45000);
 
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -4005,24 +4043,14 @@ async function _executeBatch(lines, estimatedSet) {
         // FIX 1: handle 'start' event to capture server-confirmed total
         if (ev.type === 'start') {
           _streamTotal = ev.total || _streamTotal;
-          _setProc('procCount', 'Geocoding ' + _streamTotal + ' addresses…');
 
         } else if (ev.type === 'progress' && ev.latest) {
           clearTimeout(_firstResultTimer);
-          // FIX 3: update processing screen status when first parcel comes in
-          if (!batchState._streaming) {
-            batchState._streaming = true;
-            _setProc('batchStat', 'Screening parcels…');
-            _setProc('batchSub', 'Results loading below');
-            renderBatchResults();
-            goTo('results');
-          }
           batchState.results.push({
             ...ev.latest,
             _estimated: _estimatedAddresses.has((ev.latest.address || '').toLowerCase()),
           });
           _refreshTable();
-          // FIX 1: use field names that match backend exactly (completed, total)
           updateStreamProgress(ev.completed, ev.total);
           updateStatCards();
 
@@ -4079,7 +4107,7 @@ async function runSidebarBatch() {
   if (!lines.length) { toast('No valid addresses found'); return; }
   if (!(await checkWeeklyLimit(lines.length))) return;
   const name = (document.getElementById('sbBatchName')?.value || '').trim();
-  batchState.name = name || 'Batch · ' + new Date().toLocaleDateString();
+  batchState.name = name || _generateBatchName(lines);
   const sbBtn = document.getElementById('sbRunBtn');
   if (sbBtn) { sbBtn.disabled = true; sbBtn.textContent = 'Screening…'; }
   const restoreSbBtn = () => { if (sbBtn) { sbBtn.disabled = false; sbBtn.textContent = 'Screen →'; } };
@@ -4382,11 +4410,12 @@ function clearAllFilters() {
 function clearFlagFilters() { clearAllFilters(); }
 
 function defaultSort(results) {
-  const verdictOrder = { KILL: 0, PURSUE: 1, ERROR: 2, OUTSIDE_COVERAGE: 3 };
+  const verdictOrder = { PURSUE: 0, KILL: 1, ERROR: 2, OUTSIDE_COVERAGE: 3 };
   return [...results].sort((a, b) => {
     const va = verdictOrder[a.verdict] ?? 5;
     const vb = verdictOrder[b.verdict] ?? 5;
     if (va !== vb) return va - vb;
+    // Within PURSUE: highest score first; within KILL: lowest score first
     if (a.verdict === 'PURSUE') return (b.score || 0) - (a.score || 0);
     return (a.score || 0) - (b.score || 0);
   });
@@ -6148,7 +6177,7 @@ async function runBatchFromModal() {
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
   if (!lines.length) { toast('No valid addresses found'); return; }
   const modalName = (document.getElementById('modalBatchName')?.value || '').trim();
-  batchState.name = modalName || 'Batch · ' + new Date().toLocaleDateString();
+  batchState.name = modalName || _generateBatchName(lines);
   batchState.filtered = 'all';
   batchState.results = [];
   batchState._streaming = false;
