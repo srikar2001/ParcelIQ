@@ -1706,10 +1706,10 @@ body.on-results .detail-panel{top:0}
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="8" width="2.5" height="5" rx=".5"/><rect x="5.75" y="5" width="2.5" height="8" rx=".5"/><rect x="10.5" y="2" width="2.5" height="11" rx=".5"/></svg>
         Analytics
       </div>
-      <!-- My Pick -->
-      <div class="rsb-grp-lbl">⭐ My Pick</div>
+      <!-- My Picks -->
+      <div class="rsb-grp-lbl">⭐ My Picks</div>
       <div id="sidebarMyPick">
-        <div class="rsb-pick-empty">No parcel picked yet</div>
+        <div class="rsb-pick-empty">No parcels picked yet</div>
       </div>
       <!-- Recents (always open) -->
       <div class="rsb-grp-lbl" id="rsbPrevHdr">Recents</div>
@@ -5033,13 +5033,6 @@ function toggleRowSelect(absIdx, event) {
   if (_selectedRows.has(absIdx)) {
     _selectedRows.delete(absIdx);
   } else {
-    if (_selectedRows.size >= _CMP_MAX) {
-      const tip = document.getElementById('cmpMaxMsg');
-      if (tip) { tip.style.display = 'block'; clearTimeout(tip._t); tip._t = setTimeout(() => { tip.style.display = 'none'; }, 2500); }
-      const tr = document.getElementById('trow-' + absIdx);
-      if (tr) { const cb = tr.querySelector('.row-cb'); if (cb) cb.checked = false; }
-      updateBulkBar(); updateCmpBar(); return;
-    }
     _selectedRows.add(absIdx);
   }
   updateBulkBar();
@@ -6341,6 +6334,10 @@ function openCmpModal() {
   const idxs    = [..._selectedRows].sort((a, b) => a - b);
   const parcels = idxs.map(i => _currentDisplayed[i]).filter(Boolean);
   if (parcels.length < 2) return;
+  if (parcels.length > _CMP_MAX) {
+    toast('Max 3 parcels to compare — uncheck some and try again');
+    return;
+  }
   const n    = parcels.length;
   const cols = '160px ' + Array(n).fill('minmax(180px,1fr)').join(' ');
 
@@ -6377,8 +6374,10 @@ function openCmpModal() {
   html += '<div class="cmp-row-label" style="background:var(--bg);border-top:1px solid var(--b)"></div>';
   parcels.forEach(r => {
     const safeAddr = r.address.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const isPicked = !!r._starred;
     html += '<div class="cmp-cell" style="background:var(--bg);justify-content:center;padding:14px 16px;border-top:1px solid var(--b)">'
-      + '<button class="cmp-pick-btn" onclick="_cmpPickParcel(\'' + safeAddr + '\')">⭐ Pick this one</button>'
+      + '<button class="cmp-pick-btn" onclick="_cmpPickParcel(\'' + safeAddr + '\')" style="' + (isPicked ? 'background:rgba(255,200,0,.25);border-color:rgba(212,168,0,.6)' : '') + '">'
+      + (isPicked ? '⭐ Picked' : '⭐ Pick this') + '</button>'
       + '</div>';
   });
 
@@ -6398,40 +6397,40 @@ function closeCmpModal() {
 
 function _cmpPickParcel(address) {
   closeCmpModal();
-  batchState.results.forEach(r => { r._starred = false; });
   const idx = batchState.results.findIndex(r => r.address === address);
-  if (idx !== -1) batchState.results[idx]._starred = true;
+  if (idx !== -1) batchState.results[idx]._starred = !batchState.results[idx]._starred;
+  const isNowPicked = idx !== -1 && batchState.results[idx]._starred;
   renderPage();
   _updateSidebarPick();
-  toast('⭐ Parcel picked');
+  toast(isNowPicked ? '⭐ Added to My Picks' : 'Removed from My Picks');
 }
 
 function _updateSidebarPick() {
   const wrap = document.getElementById('sidebarMyPick');
   if (!wrap) return;
-  const picked = batchState.results.find(r => r._starred);
-  if (!picked) {
-    wrap.innerHTML = '<div class="rsb-pick-empty">No parcel picked yet</div>';
+  const picks = batchState.results.filter(r => r._starred);
+  if (!picks.length) {
+    wrap.innerHTML = '<div class="rsb-pick-empty">No parcels picked yet</div>';
     return;
   }
-  const ev = effectiveVerdict(picked);
-  const vc = verdictClass(ev);
-  const { street } = splitAddress(picked.address || '');
-  const scoreStr = picked.auto_kill ? '⛔' : (picked.score != null ? picked.score : '—');
-  const scoreColor = picked.auto_kill ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : ev === 'KILL' ? 'var(--red)' : 'var(--amber)';
-  wrap.innerHTML = '<div class="rsb-pick-card" onclick="_sidebarPickJump()">'
-    + '<div class="rsb-pick-addr" title="' + escHtml(picked.address) + '">' + escHtml(street) + '</div>'
-    + '<div class="rsb-pick-meta">'
-    + '<span class="verdict-badge ' + vc + '" style="font-size:10px;padding:1px 7px">' + ev + '</span>'
-    + '<span style="font-size:12px;font-weight:700;color:' + scoreColor + '">' + scoreStr + '</span>'
-    + '</div>'
-    + '</div>';
+  wrap.innerHTML = picks.map(picked => {
+    const ev = effectiveVerdict(picked);
+    const vc = verdictClass(ev);
+    const { street } = splitAddress(picked.address || '');
+    const scoreStr = picked.auto_kill ? '⛔' : (picked.score != null ? picked.score : '—');
+    const scoreColor = picked.auto_kill ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : ev === 'KILL' ? 'var(--red)' : 'var(--amber)';
+    const safeAddr = picked.address.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return '<div class="rsb-pick-card" onclick="_sidebarPickJump(\'' + safeAddr + '\')">'
+      + '<div class="rsb-pick-addr" title="' + escHtml(picked.address) + '">' + escHtml(street) + '</div>'
+      + '<div class="rsb-pick-meta">'
+      + '<span class="verdict-badge ' + vc + '" style="font-size:10px;padding:1px 7px">' + ev + '</span>'
+      + '<span style="font-size:12px;font-weight:700;color:' + scoreColor + '">' + scoreStr + '</span>'
+      + '</div></div>';
+  }).join('');
 }
 
-function _sidebarPickJump() {
-  const picked = batchState.results.find(r => r._starred);
-  if (!picked) return;
-  const dispIdx = _currentDisplayed.findIndex(r => r.address === picked.address);
+function _sidebarPickJump(address) {
+  const dispIdx = _currentDisplayed.findIndex(r => r.address === address);
   if (dispIdx === -1) { toast('Parcel not in current view — clear filters to find it'); return; }
   const page = Math.ceil((dispIdx + 1) / _rowsPerPage);
   if (page !== _currentPage) { _currentPage = page; renderPage(); }
