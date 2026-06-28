@@ -598,6 +598,35 @@ body.on-results .detail-panel{top:0}
 .bulk-bar-btn.primary{background:var(--green);color:#000;border-color:var(--green)}
 .bulk-bar-btn.primary:hover{background:var(--gd)}
 
+/* ══ COMPARE BAR */
+#cmpBar{position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-top:1px solid var(--bh);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:197;transform:translateY(100%);transition:transform .22s cubic-bezier(.4,0,.2,1)}
+#cmpBar.show{transform:translateY(0)}
+.cmp-bar-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:5px 13px;border-radius:var(--rp);border:1px solid var(--bh);background:transparent;color:var(--t1);cursor:pointer;transition:all .15s}
+.cmp-bar-btn:hover:not(:disabled){background:var(--card)}
+.cmp-bar-btn.primary{background:var(--green);color:#000;border-color:var(--green)}
+.cmp-bar-btn.primary:hover:not(:disabled){opacity:.85}
+.cmp-bar-btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* ══ COMPARE MODAL */
+#cmpModal{display:none;position:fixed;inset:0;z-index:2100;overflow-y:auto;background:rgba(0,0,0,.88);backdrop-filter:blur(4px)}
+#cmpModal.show{display:block}
+.cmp-inner{max-width:960px;margin:0 auto;padding-bottom:48px;min-height:100%}
+.cmp-hdr{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;padding:16px 24px}
+.cmp-hdr-title{font-size:16px;font-weight:700;color:var(--t1)}
+.cmp-hdr-close{background:none;border:1px solid var(--b);border-radius:6px;padding:4px 12px;cursor:pointer;color:var(--t1);font-size:15px;font-weight:600;line-height:1.4}
+.cmp-hdr-close:hover{background:var(--bg)}
+.cmp-grid{display:grid;border-left:1px solid var(--b);border-top:1px solid var(--b);margin:0 0}
+.cmp-grid-hdr-label{background:var(--card);border-bottom:2px solid var(--b);border-right:1px solid var(--b);padding:13px 16px;font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;position:sticky;top:57px;z-index:10}
+.cmp-grid-hdr-cell{background:var(--card);border-bottom:2px solid var(--b);border-right:1px solid var(--b);padding:13px 16px;position:sticky;top:57px;z-index:10}
+.cmp-row-label{background:var(--card);border-bottom:1px solid var(--b);border-right:1px solid var(--b);padding:11px 16px;font-size:12px;color:var(--t2);font-weight:500;display:flex;align-items:center}
+.cmp-cell{border-bottom:1px solid var(--b);border-right:1px solid var(--b);padding:11px 16px;font-size:13px;font-weight:500;color:var(--t1);display:flex;align-items:center;background:var(--bg)}
+.cmp-cell.cmp-best{background:rgba(34,197,94,.12)!important;color:var(--green)}
+.cmp-cell.cmp-worst{background:rgba(239,68,68,.1)!important;color:var(--red)}
+.cmp-cell.cmp-score{font-size:24px;font-weight:800}
+.cmp-cell.cmp-autokill{font-size:13px;font-weight:700}
+.cmp-pick-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:8px 16px;border-radius:var(--rp);border:1px solid rgba(212,168,0,.4);background:rgba(255,200,0,.1);color:#d4a800;cursor:pointer;width:100%;transition:all .15s}
+.cmp-pick-btn:hover{background:rgba(255,200,0,.2)}
+
 /* ══ ROW CHECKBOX */
 .row-cb{width:15px;height:15px;border:1.5px solid var(--bh);border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--green);vertical-align:middle}
 .res-trow.selected{background:rgba(34,197,94,.05)}
@@ -2168,6 +2197,13 @@ function showScreen(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('active');
   document.body.classList.toggle('on-results', id === 'page-results');
+  if (id !== 'page-results') {
+    _selectedRows.clear();
+    document.getElementById('bulkBar')?.classList.remove('show');
+    document.getElementById('cmpBar')?.classList.remove('show');
+    const bulk = document.getElementById('bulkBar');
+    if (bulk) bulk.style.bottom = '';
+  }
 }
 
 // ── HASH ROUTER
@@ -4469,13 +4505,14 @@ function renderTable(results, offset) {
     const vc = verdictClass(ev);
     const pi = r.parcel_info || {};
     const { street, city } = splitAddress(r.address || '');
+    const starIcon = r._starred ? ' <span title="Picked" style="font-size:11px">⭐</span>' : '';
     const noteIcon = r._note ? ' <span title="Has note" style="opacity:.7;font-size:11px">📝</span>' : '';
     const rescreenBtn = (!isOutside && !isError)
       ? '<button class="rescreen-icon" onclick="rescreenRow(event,' + absIdx + ')" title="Re-screen with fresh data">↻</button>'
       : '';
     const addrHtml = '<div style="display:flex;align-items:flex-start;gap:8px">' +
       '<div style="flex:1">' +
-        '<div class="tbl-addr-street">' + escHtml(street) + noteIcon +
+        '<div class="tbl-addr-street">' + escHtml(street) + starIcon + noteIcon +
           (isEst ? ' <span class="tag-est" style="font-size:9px;padding:1px 5px">~est</span>' : '') + '</div>' +
         (city && !isOutside ? '<div class="tbl-addr-city">' + escHtml(city) + ', FL</div>' : '') +
       '</div>' +
@@ -4988,8 +5025,20 @@ async function rescreenAll() {
 // ── BULK SELECT (Task 18)
 function toggleRowSelect(absIdx, event) {
   if (event) event.stopPropagation();
-  if (_selectedRows.has(absIdx)) _selectedRows.delete(absIdx); else _selectedRows.add(absIdx);
+  if (_selectedRows.has(absIdx)) {
+    _selectedRows.delete(absIdx);
+  } else {
+    if (_selectedRows.size >= _CMP_MAX) {
+      const msg = document.getElementById('cmpBarMsg');
+      if (msg) { msg.textContent = 'Max 3 parcels — uncheck one to change selection'; setTimeout(() => { if (msg) msg.textContent = ''; }, 3000); }
+      const tr = document.getElementById('trow-' + absIdx);
+      if (tr) { const cb = tr.querySelector('.row-cb'); if (cb) cb.checked = false; }
+      updateBulkBar(); updateCmpBar(); return;
+    }
+    _selectedRows.add(absIdx);
+  }
   updateBulkBar();
+  updateCmpBar();
 }
 function toggleSelectAll() {
   const cb = document.getElementById('selAllCb');
@@ -4998,7 +5047,7 @@ function toggleSelectAll() {
   const idxs = _currentDisplayed.slice(start, end).map((_,i) => start + i);
   if (cb.checked) idxs.forEach(i => _selectedRows.add(i));
   else idxs.forEach(i => _selectedRows.delete(i));
-  renderPage(); updateBulkBar();
+  renderPage(); updateBulkBar(); updateCmpBar();
 }
 function updateBulkBar() {
   const bar = document.getElementById('bulkBar'), cnt = document.getElementById('bulkCount');
@@ -5007,7 +5056,7 @@ function updateBulkBar() {
   if (n > 0) { bar.classList.add('show'); if (cnt) cnt.textContent = n + ' parcel' + (n!==1?'s':'') + ' selected'; }
   else bar.classList.remove('show');
 }
-function clearSelection() { _selectedRows.clear(); updateBulkBar(); renderPage(); }
+function clearSelection() { _selectedRows.clear(); updateBulkBar(); updateCmpBar(); renderPage(); }
 function exportSelected() {
   const rows = [['Address','Verdict','Score','Auto Kill','Kill Reason','Flags','Positives','Acreage','Owner','Last Sale','Land Use','Elevation (ft)','Soil Drainage','Septic Suitable','Evac Zone','Evac Risk','Power Lines Nearby','Power Line Distance','Easement Found','Easement Type']];
   [..._selectedRows].sort((a,b)=>a-b).forEach(i => {
@@ -5167,7 +5216,7 @@ function initParcelMap(r) {
   Object.keys(_mapLayers).forEach(k => delete _mapLayers[k]);
   _satOn = false;
 
-  // Reset all toggle button states
+  // Reset toggle button states: only parcel on by default
   if (controls) {
     controls.querySelectorAll('.map-toggle').forEach(b => {
       b.classList.toggle('active', b.dataset.layer === 'parcel');
@@ -6142,6 +6191,223 @@ document.addEventListener('click', function(e) {
   if (mapModal && mapModal.contains(e.target)) return;
   closeDetailPanel();
 });
+
+// ════════════════════════════════════════════
+// COMPARE FEATURE
+// ════════════════════════════════════════════
+
+const _CMP_MAX = 3;
+
+const _CMP_ROWS = [
+  { key: 'score',     label: 'Score'          },
+  { key: 'decision',  label: 'Decision',  noColor: true },
+  { key: 'size',      label: 'Size'           },
+  { key: 'county',    label: 'County',    noColor: true },
+  { key: 'flood',     label: 'Flood Zone'     },
+  { key: 'elevation', label: 'Elevation'      },
+  { key: 'soil',      label: 'Soil Drainage', noColor: true },
+  { key: 'septic',    label: 'Septic Suitable' },
+  { key: 'evac_zone', label: 'Evac Zone',  noColor: true },
+  { key: 'evac_risk', label: 'Evac Risk'      },
+  { key: 'powerline', label: 'Power Lines',   noColor: true },
+  { key: 'road',      label: 'Road Access'    },
+  { key: 'wetlands',  label: 'Wetlands'       },
+  { key: 'owner',     label: 'Owner',      noColor: true },
+  { key: 'value',     label: 'Est. Value', noColor: true },
+];
+
+function updateCmpBar() {
+  const bar  = document.getElementById('cmpBar');
+  const lbl  = document.getElementById('cmpBarLabel');
+  const msg  = document.getElementById('cmpBarMsg');
+  const btn  = document.getElementById('cmpCompareBtn');
+  const bulk = document.getElementById('bulkBar');
+  if (!bar) return;
+  const n = _selectedRows.size;
+  if (n === 0) {
+    bar.classList.remove('show');
+    if (bulk) bulk.style.bottom = '';
+    return;
+  }
+  bar.classList.add('show');
+  if (bulk && bulk.classList.contains('show')) bulk.style.bottom = '66px';
+  else if (bulk) bulk.style.bottom = '';
+  if (lbl) lbl.textContent = n + ' parcel' + (n !== 1 ? 's' : '') + ' selected';
+  if (btn) btn.disabled = n < 2;
+}
+
+function clearCmpSelection() { clearSelection(); }
+
+function _cmpVal(key, r) {
+  const pi  = r.parcel_info || {};
+  const fl  = r.flags || [];
+  const pos = r.positives || [];
+  const all = [...fl, ...pos];
+
+  switch (key) {
+    case 'score':
+      if (r.auto_kill) return { html: '<span style="color:var(--red);font-weight:700;font-size:13px">AUTO-KILL</span>', rank: -999 };
+      if (r.score == null) return { html: '—', rank: null };
+      return { html: String(r.score), rank: r.score };
+
+    case 'decision': {
+      const ev = effectiveVerdict(r);
+      return { html: '<span class="verdict-badge ' + verdictClass(ev) + '">' + ev + '</span>' };
+    }
+
+    case 'size': {
+      if (pi.acreage == null) return { html: '—', rank: null };
+      const ac = parseFloat(pi.acreage);
+      const rank = (ac >= 0.5 && ac <= 5) ? 3 : (ac >= 0.25) ? 2 : (ac > 5) ? 1 : 0;
+      return { html: ac + ' ac', rank };
+    }
+
+    case 'county':
+      return { html: escHtml(extractCounty(r.address || '') || '—') };
+
+    case 'flood': {
+      if (pos.some(p => /zone x/i.test(p))) return { html: 'Zone X', rank: 4 };
+      const ff = fl.find(f => /flood zone|fema zone|zone [a-z]/i.test(f));
+      if (!ff) return { html: '—', rank: 2 };
+      const zm = ff.match(/zone\s+([A-Z]+)/i);
+      const z = zm ? zm[1].toUpperCase() : null;
+      const rank = z === 'X' ? 4 : z === 'A' ? 2 : ['AE','VE','V','AO','AH'].includes(z) ? 0 : 2;
+      return { html: z ? 'Zone ' + z : escHtml(ff), rank };
+    }
+
+    case 'elevation':
+      if (pi.elevation_ft == null) return { html: '—', rank: null };
+      return { html: pi.elevation_ft + ' ft', rank: Number(pi.elevation_ft) };
+
+    case 'soil':
+      return { html: escHtml(pi.soil_drainage || '—') };
+
+    case 'septic':
+      if (pi.septic_suitable === true)  return { html: 'Yes ✓', rank: 2 };
+      if (pi.septic_suitable === false) return { html: 'No ✗',  rank: 0 };
+      return { html: '—', rank: null };
+
+    case 'evac_zone':
+      return { html: escHtml(pi.evac_zone ? 'Zone ' + pi.evac_zone : 'None') };
+
+    case 'evac_risk': {
+      const risk = (pi.evac_risk || '').toLowerCase();
+      const rank = risk === 'low' ? 3 : risk === 'medium' ? 2 : risk === 'high' ? 1 : null;
+      return { html: escHtml(pi.evac_risk || '—'), rank };
+    }
+
+    case 'powerline':
+      if (pi.powerline_nearby === false)   return { html: 'None nearby' };
+      if (pi.powerline_distance != null)   return { html: escHtml(String(pi.powerline_distance)) };
+      return { html: '—' };
+
+    case 'road': {
+      const paved   = all.some(f => /paved road/i.test(f));
+      const dirt    = all.some(f => /dirt.*unpaved|unpaved.*road/i.test(f));
+      const unavail = all.some(f => /road data unavailable/i.test(f));
+      if (paved)   return { html: 'Paved ✓',  rank: 2 };
+      if (dirt)    return { html: 'Dirt ✗',   rank: 0 };
+      if (unavail) return { html: 'Unknown',  rank: 1 };
+      return { html: '—', rank: null };
+    }
+
+    case 'wetlands': {
+      const onParcel = all.some(f => /wetlands? on parcel/i.test(f));
+      const nearby   = all.some(f => /wetlands? nearby/i.test(f));
+      if (onParcel) return { html: 'ON PARCEL', rank: 0 };
+      if (nearby)   return { html: 'Nearby',    rank: 1 };
+      return { html: 'None ✓', rank: 3 };
+    }
+
+    case 'owner':
+      return { html: escHtml(pi.owner || '—') };
+
+    case 'value':
+      return { html: pi.just_value != null ? fmt$(pi.just_value) : '—' };
+
+    default:
+      return { html: '—', rank: null };
+  }
+}
+
+function _cmpColors(rowKey, vals, n) {
+  const rowDef = _CMP_ROWS.find(r => r.key === rowKey);
+  if (rowDef && rowDef.noColor) return vals.map(() => '');
+  const ranks = vals.map(v => v.rank);
+  const valid = ranks.filter(r => r != null);
+  if (!valid.length) return vals.map(() => '');
+  const maxR = Math.max(...valid), minR = Math.min(...valid);
+  if (maxR === minR) return vals.map(() => '');
+  return ranks.map(r => r == null ? '' : r === maxR ? 'cmp-best' : r === minR ? 'cmp-worst' : '');
+}
+
+function openCmpModal() {
+  const idxs    = [..._selectedRows].sort((a, b) => a - b);
+  const parcels = idxs.map(i => _currentDisplayed[i]).filter(Boolean);
+  if (parcels.length < 2) return;
+  const n    = parcels.length;
+  const cols = '160px ' + Array(n).fill('minmax(180px,1fr)').join(' ');
+
+  let html = '<div class="cmp-grid" style="grid-template-columns:' + cols + '">';
+
+  // ── Column header row
+  html += '<div class="cmp-grid-hdr-label">Parcel</div>';
+  parcels.forEach(r => {
+    const ev = effectiveVerdict(r);
+    const { street } = splitAddress(r.address || '');
+    html += '<div class="cmp-grid-hdr-cell">'
+      + '<div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--t1)">' + escHtml(street) + '</div>'
+      + '<span class="verdict-badge ' + verdictClass(ev) + '">' + ev + '</span>'
+      + '</div>';
+  });
+
+  // ── Data rows
+  _CMP_ROWS.forEach(row => {
+    const vals   = parcels.map(r => _cmpVal(row.key, r));
+    const colors = row.noColor ? vals.map(() => '') : _cmpColors(row.key, vals, n);
+    html += '<div class="cmp-row-label">' + escHtml(row.label) + '</div>';
+    vals.forEach((v, i) => {
+      const isScore     = row.key === 'score';
+      const isAutokill  = isScore && v.rank === -999;
+      let cls = 'cmp-cell';
+      if (isScore && !isAutokill) cls += ' cmp-score';
+      if (isAutokill) cls += ' cmp-autokill';
+      if (colors[i]) cls += ' ' + colors[i];
+      html += '<div class="' + cls + '">' + v.html + '</div>';
+    });
+  });
+
+  // ── Pick button row
+  html += '<div class="cmp-row-label" style="background:var(--bg);border-top:1px solid var(--b)"></div>';
+  parcels.forEach(r => {
+    const safeAddr = r.address.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html += '<div class="cmp-cell" style="background:var(--bg);justify-content:center;padding:14px 16px;border-top:1px solid var(--b)">'
+      + '<button class="cmp-pick-btn" onclick="_cmpPickParcel(\'' + safeAddr + '\')">⭐ Pick this one</button>'
+      + '</div>';
+  });
+
+  html += '</div>';
+
+  const wrap = document.getElementById('cmpGridWrap');
+  if (wrap) wrap.innerHTML = html;
+  document.getElementById('cmpModal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCmpModal() {
+  const m = document.getElementById('cmpModal');
+  if (m) m.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function _cmpPickParcel(address) {
+  closeCmpModal();
+  batchState.results.forEach(r => { r._starred = false; });
+  const idx = batchState.results.findIndex(r => r.address === address);
+  if (idx !== -1) batchState.results[idx]._starred = true;
+  renderPage();
+  toast('⭐ Parcel picked');
+}
 </script>
 
 <!-- ════════ EDIT BATCH MODAL ════════ -->
@@ -6202,6 +6468,29 @@ document.addEventListener('click', function(e) {
     </div>
   </div>
 </div>
+<!-- ════════ COMPARE BAR ════════ -->
+<div id="cmpBar">
+  <div style="display:flex;align-items:center;gap:14px;min-width:0">
+    <span id="cmpBarLabel" style="font-size:13px;font-weight:600;white-space:nowrap"></span>
+    <span id="cmpBarMsg" style="font-size:12px;color:var(--amber)"></span>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-shrink:0">
+    <button class="cmp-bar-btn" onclick="clearCmpSelection()">Clear</button>
+    <button class="cmp-bar-btn primary" id="cmpCompareBtn" onclick="openCmpModal()" disabled>Compare</button>
+  </div>
+</div>
+
+<!-- ════════ COMPARE MODAL ════════ -->
+<div id="cmpModal" onclick="if(event.target===this)closeCmpModal()">
+  <div class="cmp-inner">
+    <div class="cmp-hdr">
+      <span class="cmp-hdr-title">Compare Parcels</span>
+      <button class="cmp-hdr-close" onclick="closeCmpModal()">✕</button>
+    </div>
+    <div id="cmpGridWrap"></div>
+  </div>
+</div>
+
 <!-- ════════ UPLOAD MODAL ════════ -->
 <div id="uploadModal" onclick="if(event.target===this)closeUploadModal()">
   <div class="upmod-card">
