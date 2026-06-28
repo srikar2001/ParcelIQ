@@ -630,8 +630,8 @@ body.on-results .detail-panel{top:0}
 .res-trow:hover .row-cb,.row-cb:checked{opacity:1}
 #selAllCb{opacity:0;transition:opacity .12s}
 thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
-.row-star{background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;display:none;position:absolute;margin-top:1px}
-.res-trow:hover .row-star,.row-star-on{display:inline}
+.row-star{background:none;border:none;cursor:pointer;font-size:13px;padding:0 0 0 4px;line-height:1;opacity:0;transition:opacity .12s;vertical-align:middle;flex-shrink:0}
+.res-trow:hover .row-star,.row-star-on{opacity:1}
 .row-star-off{color:var(--t3)}
 .row-star-on{color:var(--amber)}
 .res-trow.selected{background:rgba(34,197,94,.05)}
@@ -4389,8 +4389,19 @@ function loadSbUsage() {
 }
 
 // ── RENDER RESULTS (FIX 4)
+function _savePicks() {
+  const picks = batchState.results.filter(r => r._starred).map(r => r.address);
+  localStorage.setItem('piq-picks', JSON.stringify(picks));
+}
+function _restorePicks() {
+  const saved = new Set(JSON.parse(localStorage.getItem('piq-picks') || '[]'));
+  if (!saved.size) return;
+  batchState.results.forEach(r => { if (saved.has(r.address)) r._starred = true; });
+}
+
 function renderBatchResults() {
   if (!Object.keys(_screeningRules).length) _screeningRules = _loadRules();
+  _restorePicks();
   const results  = batchState.results;
   const flOnly   = results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
   const outside  = results.filter(r => r.verdict === 'OUTSIDE_COVERAGE');
@@ -4545,14 +4556,16 @@ function renderTable(results, offset) {
     const vc = verdictClass(ev);
     const pi = r.parcel_info || {};
     const { street, city } = splitAddress(r.address || '');
-    const starIcon = r._starred ? ' <span title="Picked" style="font-size:11px">⭐</span>' : '';
     const noteIcon = r._note ? ' <span title="Has note" style="opacity:.7;font-size:11px">📝</span>' : '';
+    const starBtn = (!isOutside && !isError)
+      ? '<button class="row-star ' + (r._starred ? 'row-star-on' : 'row-star-off') + '" onclick="_toggleStar(' + absIdx + ',event)" title="' + (r._starred ? 'Remove from My Picks' : 'Add to My Picks') + '">' + (r._starred ? '⭐' : '☆') + '</button>'
+      : '';
     const rescreenBtn = (!isOutside && !isError)
       ? '<button class="rescreen-icon" onclick="rescreenRow(event,' + absIdx + ')" title="Re-screen with fresh data">↻</button>'
       : '';
-    const addrHtml = '<div style="display:flex;align-items:flex-start;gap:8px">' +
+    const addrHtml = '<div style="display:flex;align-items:center;gap:8px">' +
       '<div style="flex:1">' +
-        '<div class="tbl-addr-street">' + escHtml(street) + starIcon + noteIcon +
+        '<div class="tbl-addr-street">' + escHtml(street) + starBtn + noteIcon +
           (isEst ? ' <span class="tag-est" style="font-size:9px;padding:1px 5px">~est</span>' : '') + '</div>' +
         (city && !isOutside ? '<div class="tbl-addr-city">' + escHtml(city) + ', FL</div>' : '') +
       '</div>' +
@@ -4578,11 +4591,9 @@ function renderTable(results, offset) {
     const rescreenedLabel = r._rescreened_at
       ? '<div style="font-size:10px;color:var(--t3);margin-top:2px">↻ Re-screened ' + _fmtTs(r._rescreened_at) + '</div>'
       : '';
-    const starredClass = r._starred ? 'row-star-on' : 'row-star-off';
     return '<tr class="' + rowClass + '" id="trow-' + absIdx + '" onclick="openDetailPanel(' + absIdx + ',event)">' +
-      '<td onclick="event.stopPropagation()" style="padding:8px 6px 8px 12px;width:32px">' +
+      '<td onclick="event.stopPropagation()" style="padding:8px 12px;width:32px">' +
         '<input type="checkbox" class="row-cb"' + (isSelected ? ' checked' : '') + ' onchange="toggleRowSelect(' + absIdx + ',event)">' +
-        '<button class="row-star ' + starredClass + '" onclick="_toggleStar(' + absIdx + ',event)" title="' + (r._starred ? 'Remove from My Picks' : 'Add to My Picks') + '">' + (r._starred ? '⭐' : '☆') + '</button>' +
       '</td>' +
       '<td class="tbl-parcel">' + addrHtml + autoKillChip + rescreenedLabel + '</td>' +
       '<td class="tbl-county">' + escHtml(county) + '</td>' +
@@ -6444,6 +6455,7 @@ function _cmpPickParcel(address) {
   const idx = batchState.results.findIndex(r => r.address === address);
   if (idx !== -1) batchState.results[idx]._starred = !batchState.results[idx]._starred;
   const isNowPicked = idx !== -1 && batchState.results[idx]._starred;
+  _savePicks();
   renderPage();
   _updateSidebarPick();
   toast(isNowPicked ? '⭐ Added to My Picks' : 'Removed from My Picks');
@@ -6520,6 +6532,7 @@ function renderPicksList() {
 function _removePick(address) {
   const idx = batchState.results.findIndex(r => r.address === address);
   if (idx !== -1) batchState.results[idx]._starred = false;
+  _savePicks();
   renderPage();
   _updateSidebarPick();
   renderPicksList();
@@ -6533,6 +6546,7 @@ function _toggleStar(absIdx, event) {
   if (bIdx === -1) return;
   batchState.results[bIdx]._starred = !batchState.results[bIdx]._starred;
   const isNow = batchState.results[bIdx]._starred;
+  _savePicks();
   renderPage();
   _updateSidebarPick();
   // refresh detail panel star if open
