@@ -1730,7 +1730,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           </div>
           <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding-left:4px">
             <div class="rsb-time-val" id="sbTotalBatches">—</div>
-            <div class="rsb-time-sub">Batches run</div>
+            <div class="rsb-time-sub">Parcels screened</div>
           </div>
         </div>
         <div class="rsb-nav-item" onclick="goTo('settings')">
@@ -2350,7 +2350,7 @@ async function router() {
     const session = currentSession || await initAuth();
     if (!session) { goTo('login'); return; }
   }
-  if (hash === '#results' && !batchState.results.length) {
+  if (hash === '#results' && !batchState.results.length && !_batchInProgress) {
     const lastBatch = sessionStorage.getItem('piq-last-batch');
     if (lastBatch && currentSession) {
       showScreen('page-results');
@@ -3512,9 +3512,9 @@ async function _loadSidebarBatches() {
       const el = document.getElementById('sbTotalTimeSaved');
       if (el) el.textContent = _cached.val;
     }
-    if (_cached?.batches != null) {
+    if (_cached?.parcels != null) {
       const el = document.getElementById('sbTotalBatches');
-      if (el) el.textContent = _cached.batches;
+      if (el) el.textContent = _cached.parcels;
     }
     if (_cached?.val && Date.now() - (_cached.ts || 0) < 5 * 60 * 1000) return; // fresh — skip network
   } catch(e) {}
@@ -3526,15 +3526,14 @@ async function _loadSidebarBatches() {
           sb.from('batches').select('id', { count: 'exact', head: true }).eq('user_id', currentUser.id),
         ]);
         const parcelCount = parcelsRes.count ?? 0;
-        const batchCount  = batchesRes.count ?? 0;
         const allMins = parcelCount * 30;
         const allHrs  = Math.round(allMins / 6) / 10;
         const val = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
         const elT = document.getElementById('sbTotalTimeSaved');
         const elB = document.getElementById('sbTotalBatches');
         if (elT) elT.textContent = val;
-        if (elB) elB.textContent = batchCount;
-        try { localStorage.setItem(_TSK, JSON.stringify({ val, batches: batchCount, ts: Date.now() })); } catch(e) {}
+        if (elB) elB.textContent = parcelCount;
+        try { localStorage.setItem(_TSK, JSON.stringify({ val, parcels: parcelCount, ts: Date.now() })); } catch(e) {}
       } catch(e) {}
     })();
   }
@@ -3741,18 +3740,25 @@ async function saveBatchToSupabase(batchName, results) {
     try {
       sessionStorage.setItem('piq-res-' + batch.id, JSON.stringify({ name: batchName || '', rows: batchState.results, elapsed: batchState.elapsed || 0 }));
     } catch(e) {}
-    // BUG 2 fix: directly refresh "Batches run" count in DOM after insert — bypasses the
-    // race condition where the pre-save async block can re-set a stale cache after we clear it
+    // Direct DOM update after insert — bypasses race condition where pre-save async block
+    // re-writes stale cache after we cleared it. Queries parcel_results for exact count
+    // so both "Parcels screened" and "All-time saved" are always in sync.
     if (sb && currentUser) {
-      sb.from('batches').select('id', { count: 'exact', head: true })
+      sb.from('parcel_results').select('id', { count: 'exact', head: true })
         .eq('user_id', currentUser.id)
-        .then(({ count: bc }) => {
+        .then(({ count: pc }) => {
+          if (pc == null) return;
+          const allMins = pc * 30;
+          const allHrs  = Math.round(allMins / 6) / 10;
+          const val = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
           const elB = document.getElementById('sbTotalBatches');
-          if (elB && bc != null) elB.textContent = bc;
+          const elT = document.getElementById('sbTotalTimeSaved');
+          if (elB) elB.textContent = pc;
+          if (elT) elT.textContent = val;
           try {
             const _TSK = 'piq-ts-cache';
             const ex = JSON.parse(localStorage.getItem(_TSK) || 'null') || {};
-            localStorage.setItem(_TSK, JSON.stringify({ ...ex, batches: bc, ts: Date.now() }));
+            localStorage.setItem(_TSK, JSON.stringify({ ...ex, parcels: pc, val, ts: Date.now() }));
           } catch(e) {}
         }).catch(() => {});
     }
@@ -3829,17 +3835,19 @@ function hideUpgradeModal() {
 }
 
 function _generateBatchName(lines) {
-  const ADJ = ['Golden','Silver','Emerald','Azure','Coral','Sunrise','Sunset','Amber','Jade',
+  const ADJ  = ['Golden','Silver','Emerald','Azure','Coral','Sunrise','Sunset','Amber','Jade',
     'Ivory','Rustic','Verdant','Sapphire','Crimson','Tawny','Misty','Serene','Wild',
     'Sandy','Tidal','Coastal','Lush','Cedar','Cypress','Magnolia','Palm','Willow',
-    'Mossy','Dusky','Breezy','Sunlit','Shaded','Quiet','Broad','Deep'];
+    'Mossy','Dusky','Breezy','Sunlit','Shaded','Quiet','Broad','Deep',
+    'Scarlet','Indigo','Copper','Fern','Honey','Opal','Pewter','Sable','Slate','Dune'];
   const NOUN = ['Acres','Ridge','Pines','Cove','Bay','Shores','Springs','Grove','Hollow',
     'Bluff','Meadow','Landing','Hills','Preserve','Marsh','Bend','Vista','Crest',
     'Glen','Harbor','Trace','Gate','Run','Point','Reach','Pass','Knoll','Flats',
-    'Creek','Vale'];
-  const adj  = ADJ [Math.floor(Math.random() * ADJ.length)];
-  const noun = NOUN[Math.floor(Math.random() * NOUN.length)];
-  return adj + ' ' + noun;
+    'Creek','Vale','Pines','Shoals','Hammock','Savanna','Prairie','Thicket','Lagoon',
+    'Crossing','Inlet','Dunes'];
+  const ai = Math.floor(Math.random() * ADJ.length);
+  const ni = Math.floor(Math.random() * NOUN.length);
+  return ADJ[ai] + ' ' + NOUN[ni];
 }
 
 function showPricingComingSoon() {
@@ -3966,27 +3974,29 @@ async function _executeBatch(lines, estimatedSet) {
   }
 
   const t0 = Date.now();
-  batchState._streaming = false;
+  batchState._streaming = true;
   batchState.results    = [...outsideResults];
   batchState.filtered   = 'all';
   let _streamTotal = flLines.length;
+  let _navigatedToResults = false;
 
-  // Navigate directly to results with a loading state — skip the processing ring (that's for queue mode)
-  renderBatchResults();
-  goTo('results');
-  batchState._streaming = true;
-  const _resBody = document.querySelector('#resTableWrap tbody');
-  if (_resBody) _resBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:48px;color:var(--t3);font-size:13px">' +
-    '<div style="display:flex;flex-direction:column;align-items:center;gap:14px">' +
-    '<div style="width:22px;height:22px;border:2px solid var(--b);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite"></div>' +
-    'Geocoding ' + flLines.length + ' address' + (flLines.length !== 1 ? 'es' : '') + '…</div></td></tr>';
-  updateStreamProgress(0, flLines.length);
+  // Show processing screen while waiting for the first result — prevents the router
+  // from loading the previous batch when batchState.results is empty
+  goTo('processing');
+  const _procCountEl = document.getElementById('procCount');
+  if (_procCountEl) _procCountEl.textContent = 'Geocoding ' + flLines.length + ' address' + (flLines.length !== 1 ? 'es' : '') + '…';
+  const _procLabelEl = document.getElementById('batchProcLabel');
+  if (_procLabelEl) _procLabelEl.textContent = 'Screening ' + flLines.length + ' parcel' + (flLines.length !== 1 ? 's' : '') + '…';
 
-  // 45-second stall guard — if zero results after 45s, show an error row
+  // 45-second stall guard — if zero results after 45s, show error on processing screen
   let _firstResultTimer = setTimeout(() => {
     if (batchState.results.length === outsideResults.length) {
-      if (_resBody) _resBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:48px;color:var(--red);font-size:13px">' +
-        'Screening is taking longer than expected. Check your connection or try a smaller batch.</td></tr>';
+      const errEl    = document.getElementById('procError');
+      const errTitle = document.getElementById('procErrTitle');
+      const errSub   = document.getElementById('procErrSub');
+      if (errEl)    errEl.style.display  = 'block';
+      if (errTitle) errTitle.textContent = 'Screening is taking longer than expected';
+      if (errSub)   errSub.textContent   = 'Check your connection or try a smaller batch.';
     }
   }, 45000);
 
@@ -4021,7 +4031,8 @@ async function _executeBatch(lines, estimatedSet) {
             pursue: flResults.filter(r => r.verdict === 'PURSUE').length,
           };
           await saveBatchToSupabase(batchState.name, { summary, results: flResults });
-          renderBatchResults();
+          if (!_navigatedToResults) { _navigatedToResults = true; renderBatchResults(); goTo('results'); }
+          else { renderBatchResults(); }
           toast('Stream ended early — showing ' + flResults.length + ' of ' + flLines.length + ' results', 5000);
         }
         break;
@@ -4044,7 +4055,13 @@ async function _executeBatch(lines, estimatedSet) {
             ...ev.latest,
             _estimated: _estimatedAddresses.has((ev.latest.address || '').toLowerCase()),
           });
-          _refreshTable();
+          if (!_navigatedToResults) {
+            _navigatedToResults = true;
+            renderBatchResults();
+            goTo('results');
+          } else {
+            _refreshTable();
+          }
           updateStreamProgress(ev.completed, ev.total);
           updateStatCards();
 
@@ -4061,7 +4078,8 @@ async function _executeBatch(lines, estimatedSet) {
             pursue: flResults.filter(r => r.verdict === 'PURSUE').length,
           };
           await saveBatchToSupabase(batchState.name, { summary, results: flResults });
-          renderBatchResults();
+          if (!_navigatedToResults) { _navigatedToResults = true; renderBatchResults(); goTo('results'); }
+          else { renderBatchResults(); }
         }
       }
     }
