@@ -1737,7 +1737,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="2"/><path d="M7.5 1.5v1.2M7.5 12.3v1.2M1.5 7.5h1.2M12.3 7.5h1.2M3.4 3.4l.85.85M10.75 10.75l.85.85M3.4 11.6l.85-.85M10.75 4.25l.85-.85"/></svg>
           Settings
         </div>
-        <button onclick="window.location.hash='#pricing'" style="width:100%;padding:8px 12px;background:var(--green);color:#000;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.02em">⬆ Upgrade Plan</button>
+        <button onclick="showPricingComingSoon()" style="width:100%;padding:8px 12px;background:var(--green);color:#000;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.02em">⬆ Upgrade Plan</button>
         <div class="rsb-usage-row">
           <div class="rsb-usage-bar"><div class="rsb-usage-bar-fill" id="sbUsageFill" style="width:0%"></div></div>
           <div class="rsb-usage-txt"><span id="sbUsageCount">—</span> / 1,000 this week</div>
@@ -3718,7 +3718,7 @@ async function saveBatchToSupabase(batchName, results) {
   if (!currentUser) return null;
   try {
     const summary = results.summary || {};
-    const { data: batch } = await sb.from('batches').insert({
+    const insertPayload = {
       user_id:  currentUser.id,
       name:     batchName || 'Batch ' + new Date().toLocaleDateString(),
       state:    'FL',
@@ -3728,7 +3728,10 @@ async function saveBatchToSupabase(batchName, results) {
       pursues:  summary.pursue   || 0,
       status:   'complete',
       created_at: new Date().toISOString()
-    }).select().single();
+    };
+    const { data: batch, error: batchErr } = await sb.from('batches').insert(insertPayload).select().single();
+    // FIX 7: log insert errors so name-save failures are visible in the browser console
+    if (batchErr) { console.error('[saveBatch] Insert error:', batchErr.message, '| payload:', insertPayload); }
     if (!batch) return null;
     _currentBatchId = batch.id;
     try { sessionStorage.setItem('piq-last-batch', batch.id); } catch(e) {}
@@ -3810,6 +3813,23 @@ function hideUpgradeModal() {
   document.getElementById('upgradeModal')?.classList.remove('show');
 }
 
+function showPricingComingSoon() {
+  const existing = document.getElementById('pricingComingSoonModal');
+  if (existing) { existing.style.display = 'flex'; return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'pricingComingSoonModal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9999';
+  overlay.innerHTML =
+    '<div style="background:var(--card);border:1px solid var(--b);border-radius:12px;padding:32px 28px;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.4)">' +
+      '<div style="font-size:28px;margin-bottom:12px">🚧</div>' +
+      '<div style="font-size:18px;font-weight:800;margin-bottom:10px;color:var(--t1)">Paid plans coming soon</div>' +
+      '<div style="font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:20px">You\'re on free beta — enjoy unlimited screening while it lasts.<br><br>We\'ll email you when paid plans launch.</div>' +
+      '<button onclick="document.getElementById(\'pricingComingSoonModal\').style.display=\'none\'" style="background:var(--green);color:#000;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;width:100%">Got it</button>' +
+    '</div>';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.style.display = 'none'; });
+  document.body.appendChild(overlay);
+}
+
 // ── RUN BATCH — FIX 2: checks incomplete addresses first
 let _estimatedAddresses = new Set();
 let _lastBatchLines     = [];
@@ -3885,8 +3905,8 @@ async function _executeBatch(lines, estimatedSet) {
   const btn = document.getElementById('runBatchBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Screening…'; }
 
-  // Task 30: route large batches through queue endpoint
-  if (flLines.length > 50) {
+  // Task 30: route very large batches through queue endpoint (200+ parcels)
+  if (flLines.length > 200) {
     goTo('processing');
     const countEl2 = document.getElementById('procCount');
     if (countEl2) countEl2.textContent = 'Queuing ' + flLines.length + ' parcels…';
@@ -3919,6 +3939,24 @@ async function _executeBatch(lines, estimatedSet) {
   batchState._streaming = false;
   batchState.results    = [...outsideResults];
   batchState.filtered   = 'all';
+  let _streamTotal = flLines.length; // set from 'start' event; used for progress display
+
+  // FIX 2+3: Navigate to processing screen immediately so user sees feedback during geocoding
+  goTo('processing');
+  const _setProc = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  _setProc('procCount', 'Geocoding ' + flLines.length + ' addresses…');
+  _setProc('batchStat', 'Batch geocoding in progress…');
+  _setProc('batchSub', 'This takes 1–3 seconds');
+  window._screenStart = Date.now();
+
+  // FIX 2: 30-second timeout if zero results arrive — avoids infinite loading screen
+  let _firstResultTimer = setTimeout(() => {
+    if (!batchState._streaming) {
+      _setProc('procCount', 'Taking longer than expected…');
+      _setProc('batchStat', 'Still geocoding or waiting on data sources');
+      _setProc('batchSub', 'Results will appear when ready');
+    }
+  }, 30000);
 
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -3938,7 +3976,24 @@ async function _executeBatch(lines, estimatedSet) {
 
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      // FIX 2: if stream closes early, show whatever partial results we have
+      if (done) {
+        if (batchState._streaming && batchState.results.length > outsideResults.length) {
+          batchState._streaming = false;
+          batchState.elapsed = Math.round((Date.now() - t0) / 1000);
+          const flResults = batchState.results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
+          const summary = {
+            total: flResults.length,
+            kill: flResults.filter(r => r.verdict === 'KILL').length,
+            review: flResults.filter(r => r.verdict === 'REVIEW').length,
+            pursue: flResults.filter(r => r.verdict === 'PURSUE').length,
+          };
+          await saveBatchToSupabase(batchState.name, { summary, results: flResults });
+          renderBatchResults();
+          toast('Stream ended early — showing ' + flResults.length + ' of ' + flLines.length + ' results', 5000);
+        }
+        break;
+      }
       buf += decoder.decode(value, { stream: true });
       const lines2 = buf.split('\n');
       buf = lines2.pop();
@@ -3947,9 +4002,18 @@ async function _executeBatch(lines, estimatedSet) {
         let ev;
         try { ev = JSON.parse(line.slice(6)); } catch(e) { continue; }
 
-        if (ev.type === 'progress' && ev.latest) {
+        // FIX 1: handle 'start' event to capture server-confirmed total
+        if (ev.type === 'start') {
+          _streamTotal = ev.total || _streamTotal;
+          _setProc('procCount', 'Geocoding ' + _streamTotal + ' addresses…');
+
+        } else if (ev.type === 'progress' && ev.latest) {
+          clearTimeout(_firstResultTimer);
+          // FIX 3: update processing screen status when first parcel comes in
           if (!batchState._streaming) {
             batchState._streaming = true;
+            _setProc('batchStat', 'Screening parcels…');
+            _setProc('batchSub', 'Results loading below');
             renderBatchResults();
             goTo('results');
           }
@@ -3958,9 +4022,12 @@ async function _executeBatch(lines, estimatedSet) {
             _estimated: _estimatedAddresses.has((ev.latest.address || '').toLowerCase()),
           });
           _refreshTable();
+          // FIX 1: use field names that match backend exactly (completed, total)
           updateStreamProgress(ev.completed, ev.total);
           updateStatCards();
+
         } else if (ev.type === 'complete') {
+          clearTimeout(_firstResultTimer);
           batchState._streaming = false;
           batchState.elapsed    = Math.round((Date.now() - t0) / 1000);
           updateStreamProgress(ev.summary.total, ev.summary.total);
@@ -3977,19 +4044,28 @@ async function _executeBatch(lines, estimatedSet) {
       }
     }
   } catch(err) {
+    clearTimeout(_firstResultTimer);
     if (err.isLimitExceeded) {
       goTo('landing');
       setTimeout(() => showUpgradeModal(), 150);
     } else {
       const isNetwork = (err instanceof TypeError) || (err.message || '').toLowerCase().includes('failed to fetch') || (err.message || '').toLowerCase().includes('networkerror');
-      if (batchState._streaming) {
+      // FIX 2: if we have partial results, show them instead of going back to landing
+      if (batchState.results.length > outsideResults.length) {
+        batchState._streaming = false;
+        renderBatchResults();
+        if (!batchState._streaming) goTo('results');
+        toast(isNetwork ? 'Connection lost — showing partial results.' : 'Streaming interrupted — showing partial results.', 5000);
+      } else if (batchState._streaming) {
         toast(isNetwork ? 'Connection lost — partial results shown.' : 'Streaming interrupted.', 5000);
         batchState._streaming = false;
       } else {
+        goTo('landing');
         toast(isNetwork ? 'Cannot reach the screening service.' : 'Something went wrong. Please try again.', 5000);
       }
     }
   } finally {
+    clearTimeout(_firstResultTimer);
     batchState._streaming = false;
     const btn2 = document.getElementById('runBatchBtn');
     if (btn2) { btn2.disabled = false; btn2.textContent = 'Screen Parcels →'; }
@@ -4593,7 +4669,8 @@ function renderTable(results, offset) {
       }
     }
     const signalsHtml = buildSignals(r);
-    const scoreStr   = (isOutside || isError) ? '' : (r.score != null ? String(r.score) : '');
+    // FIX 6: auto_kill parcels always show 0 (not blank or actual reduced score)
+    const scoreStr   = (isOutside || isError) ? '' : r.auto_kill ? '0' : (r.score != null ? String(r.score) : '');
     const scoreColor = (isOutside || isError) ? '' : r.auto_kill ? 'var(--red)' : verdictColor(ev);
     const verdictLabel = isOutside ? 'Not FL' : isGeoFail ? 'Not found' : isTimeout ? 'Timeout' : ev;
     const autoKillChip = (r.auto_kill && !isOutside && !isError)
@@ -5057,40 +5134,54 @@ async function rescreenSelected() {
 
 // ── RE-SCREEN ALL
 async function rescreenAll() {
-  const total = batchState.results.length;
+  const rescreenable = batchState.results.filter(r => r && r.verdict !== 'OUTSIDE_COVERAGE');
+  const total = rescreenable.length;
   if (!total) return;
   if (!(await checkWeeklyLimit(total))) return;
   const btn = document.getElementById('rescreenAllBtn');
   if (btn && btn.dataset.running) return;
   if (btn) { btn.dataset.running = '1'; btn.textContent = '↻ 0/' + total; btn.disabled = true; }
+
+  // FIX 4: Send all parcels as one batch, not one-at-a-time
   let done = 0;
-  for (let idx = 0; idx < batchState.results.length; idx++) {
-    const r = batchState.results[idx];
-    if (!r || r.verdict === 'OUTSIDE_COVERAGE') { done++; continue; }
-    try {
-      const resp = await fetch(API + '/api/batch/stream', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parcels: [{ address: r.address }], state: 'FL' }),
-      });
-      const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buf = '';
-      while (true) {
-        const { done: d, value } = await reader.read(); if (d) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n'); buf = lines.pop();
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const ev = JSON.parse(line.slice(6));
-          if (ev.type === 'complete' && ev.results?.[0]) batchState.results[idx] = { ...ev.results[0], _rescreened: true, _rescreened_at: new Date().toISOString() };
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession?.access_token) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
+    const resp = await fetch(API + '/api/batch/stream', {
+      method: 'POST', headers,
+      body: JSON.stringify({ parcels: rescreenable.map(r => ({ address: r.address })), state: 'FL' }),
+    });
+    if (!resp.ok) throw new Error('Server error ' + resp.status);
+    const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buf = '';
+    while (true) {
+      const { done: d, value } = await reader.read(); if (d) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let ev; try { ev = JSON.parse(line.slice(6)); } catch(e) { continue; }
+        if (ev.type === 'progress' && ev.latest) {
+          done++;
+          const nr = ev.latest;
+          const bIdx = batchState.results.findIndex(x => x.address === nr.address);
+          if (bIdx !== -1) batchState.results[bIdx] = { ...nr, _rescreened: true, _rescreened_at: new Date().toISOString() };
+          if (btn) btn.textContent = '↻ ' + done + '/' + total;
+          _refreshTable();
+        } else if (ev.type === 'complete') {
+          // Save all rescreened results back to Supabase
+          for (const nr of (ev.results || [])) {
+            const bIdx = batchState.results.findIndex(x => x.address === nr.address);
+            if (bIdx !== -1) _saveRescreenToSupa(batchState.results[bIdx], batchState.results[bIdx]);
+          }
         }
       }
-      _saveRescreenToSupa(r, batchState.results[idx]);
-    } catch(e) {}
-    done++;
-    if (btn) btn.textContent = '↻ ' + done + '/' + total;
-    _refreshTable();
+    }
+  } catch(e) {
+    toast('Re-screen error: ' + e.message);
   }
   toast('All ' + total + ' parcels re-screened');
   if (btn) { delete btn.dataset.running; btn.disabled = false; btn.textContent = '↻ Re-run All'; }
+  renderBatchResults();
 }
 
 // ── BULK SELECT (Task 18)
@@ -5560,19 +5651,38 @@ async function screenParcelsQueue(parcels, batchName) {
   });
   if (!resp.ok) throw new Error('Queue error ' + resp.status);
   const { job_id, total } = await resp.json();
-  const countEl = document.getElementById('procCount');
-  if (countEl) countEl.textContent = 'Processing ' + total + ' parcels in background…';
+  const _setProc = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  _setProc('procCount', 'Processing ' + total + ' parcels…');
+  _setProc('batchStat', 'Working in background');
+  _setProc('batchSub', 'This may take a few minutes for large batches');
   return new Promise((resolve, reject) => {
+    let _stallCount = 0;
     const interval = setInterval(async () => {
       try {
         const sr = await fetch(API + '/api/batch/status/' + job_id);
+        // FIX 5: handle missing batch_jobs table (404) or other errors gracefully
+        if (sr.status === 404) {
+          clearInterval(interval);
+          reject(new Error('Background queue unavailable — batch_jobs table may not exist in Supabase. Create it to enable large batch mode.'));
+          return;
+        }
+        if (!sr.ok) {
+          _stallCount++;
+          if (_stallCount > 5) { clearInterval(interval); reject(new Error('Queue status check failed repeatedly')); }
+          return;
+        }
         const st = await sr.json();
-        const pct = total > 0 ? Math.round((st.progress / total) * 100) : 0;
-        updateProgress(st.progress, total, null);
+        // FIX 5: guard against undefined progress
+        const progress = typeof st.progress === 'number' ? st.progress : 0;
+        updateProgress(progress, total, null);
+        _setProc('procCount', 'Processed ' + progress + ' of ' + total + ' parcels…');
         if (st.status === 'complete') {
           clearInterval(interval);
-          resolve({ summary: {}, results: st.results });
-        } else if (st.status === 'error') { clearInterval(interval); reject(new Error(st.error || 'Queue failed')); }
+          resolve({ summary: {}, results: st.results || [] });
+        } else if (st.status === 'error') {
+          clearInterval(interval);
+          reject(new Error(st.error || 'Queue processing failed'));
+        }
       } catch(e) { clearInterval(interval); reject(e); }
     }, 3000);
   });

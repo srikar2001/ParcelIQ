@@ -122,15 +122,19 @@ async def _job_create(job_id: str, total: int) -> None:
         print(f"[Jobs] Create error: {e}")
 
 
-async def _job_update(job_id: str, status: str, progress: int, results: list) -> None:
+async def _job_update(job_id: str, status: str, progress: int, results: list | None = None) -> None:
+    """Update job progress. Only include full results payload on the final 'complete' call."""
     if not _SUPABASE_URL:
         return
     try:
+        payload: dict = {"status": status, "progress": progress}
+        if results is not None:  # only write results array on final update
+            payload["results"] = results
         async with httpx.AsyncClient(timeout=8.0) as client:
             await client.patch(
                 f"{_SUPABASE_URL}/rest/v1/{_JOBS_TABLE}",
                 params={"id": f"eq.{job_id}"},
-                json={"status": status, "progress": progress, "results": results},
+                json=payload,
                 headers={**_SB_HEADERS_SVC(), "Prefer": "return=minimal"},
             )
     except Exception as e:
@@ -404,35 +408,45 @@ async def batch_screen_stream(
         all_results: list = []
         completed = 0
 
-        yield f'data: {json.dumps({"type":"start","total":total})}\n\n'
+        try:
+            yield f'data: {json.dumps({"type":"start","total":total})}\n\n'
 
-        # ── Step 1: batch-geocode all addresses in one API call ──────────────
-        addresses = [p.address for p in parcels]
-        geo_map   = await geocode_batch(addresses)  # {address -> {lat,lng,formatted}}
+            # ── Step 1: batch-geocode all addresses in one API call ──────────────
+            addresses = [p.address for p in parcels]
+            geo_map   = await geocode_batch(addresses)  # {address -> {lat,lng,formatted}}
 
-        # Immediately emit ERROR for any that failed geocoding
-        geocoded_parcels = []
-        for p in parcels:
-            if p.address in geo_map:
-                geocoded_parcels.append((p, geo_map[p.address]))
-            else:
-                r = _error_result(p.address, "Geocoding failed — address not found in Florida")
-                all_results.append(r)
-                completed += 1
-                pct = int((completed / total) * 100)
-                yield f'data: {json.dumps({"type":"progress","completed":completed,"total":total,"percent":pct,"latest":r})}\n\n'
+            # Immediately emit ERROR for any that failed geocoding
+            geocoded_parcels = []
+            for p in parcels:
+                if p.address in geo_map:
+                    geocoded_parcels.append((p, geo_map[p.address]))
+                else:
+                    r = _error_result(p.address, "Geocoding failed — address not found in Florida")
+                    all_results.append(r)
+                    completed += 1
+                    pct = int((completed / total) * 100)
+                    yield f'data: {json.dumps({"type":"progress","completed":completed,"total":total,"percent":pct,"latest":r})}\n\n'
 
-        # ── Step 2: process in parallel chunks (no geocoding overhead) ────────
-        for i in range(0, len(geocoded_parcels), BATCH_SIZE):
-            chunk = geocoded_parcels[i:i + BATCH_SIZE]
-            chunk_results = await asyncio.gather(
-                *[_process_parcel_pregeocoded_safe(p, geo) for p, geo in chunk]
-            )
-            for result in chunk_results:
-                all_results.append(result)
-                completed += 1
-                pct = int((completed / total) * 100)
-                yield f'data: {json.dumps({"type":"progress","completed":completed,"total":total,"percent":pct,"latest":result})}\n\n'
+            # ── Step 2: process in parallel chunks (no geocoding overhead) ────────
+            for i in range(0, len(geocoded_parcels), BATCH_SIZE):
+                chunk = geocoded_parcels[i:i + BATCH_SIZE]
+                chunk_results = await asyncio.gather(
+                    *[_process_parcel_pregeocoded_safe(p, geo) for p, geo in chunk]
+                )
+                for result in chunk_results:
+                    all_results.append(result)
+                    completed += 1
+                    pct = int((completed / total) * 100)
+                    yield f'data: {json.dumps({"type":"progress","completed":completed,"total":total,"percent":pct,"latest":result})}\n\n'
+
+        except Exception as e:
+            print(f"[Stream] Unhandled error after {completed}/{total}: {e}")
+            # Emit remaining parcels as errors so frontend gets a complete event
+            processed_addrs = {r["address"] for r in all_results}
+            for p in parcels:
+                if p.address not in processed_addrs:
+                    r = _error_result(p.address, "Internal error — retry this parcel")
+                    all_results.append(r)
 
         summary = {
             "total":  len(all_results),
@@ -497,13 +511,17 @@ async def batch_screen(
 # ── QUEUE for large batches (Task 30)
 async def _process_batch_background(job_id: str, parcels: list) -> None:
     accumulated: list = []
-    await _job_update(job_id, "processing", 0, [])
-    for i in range(0, len(parcels), BATCH_SIZE):
-        chunk = parcels[i:i + BATCH_SIZE]
-        results = await asyncio.gather(*[_process_parcel_safe(p) for p in chunk])
-        accumulated.extend(results)
-        await _job_update(job_id, "processing", len(accumulated), accumulated)
-    await _job_update(job_id, "complete", len(accumulated), accumulated)
+    await _job_update(job_id, "processing", 0)  # no results payload on start
+    try:
+        for i in range(0, len(parcels), BATCH_SIZE):
+            chunk = parcels[i:i + BATCH_SIZE]
+            results = await asyncio.gather(*[_process_parcel_safe(p) for p in chunk])
+            accumulated.extend(results)
+            await _job_update(job_id, "processing", len(accumulated))  # progress only
+        await _job_update(job_id, "complete", len(accumulated), accumulated)  # full results on final
+    except Exception as e:
+        print(f"[Jobs] Background error: {e}")
+        await _job_update(job_id, "error", len(accumulated), accumulated)
 
 
 @router.post("/batch/queue")
