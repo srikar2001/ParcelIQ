@@ -1706,10 +1706,10 @@ body.on-results .detail-panel{top:0}
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="8" width="2.5" height="5" rx=".5"/><rect x="5.75" y="5" width="2.5" height="8" rx=".5"/><rect x="10.5" y="2" width="2.5" height="11" rx=".5"/></svg>
         Analytics
       </div>
-      <!-- My Picks -->
-      <div class="rsb-grp-lbl">⭐ My Picks</div>
-      <div id="sidebarMyPick">
-        <div class="rsb-pick-empty">No parcels picked yet</div>
+      <!-- My Picks nav -->
+      <div class="rsb-nav-item" onclick="showPicksPage()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="7,1 8.8,5.2 13.4,5.5 10,8.5 11.1,13 7,10.5 2.9,13 4,8.5 0.6,5.5 5.2,5.2"/></svg>
+        My Picks <span id="sidebarPickCount" style="display:none;background:var(--amber);color:#000;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:auto"></span>
       </div>
       <!-- Recents (always open) -->
       <div class="rsb-grp-lbl" id="rsbPrevHdr">Recents</div>
@@ -2124,6 +2124,20 @@ body.on-results .detail-panel{top:0}
   </div>
 </div>
 
+<!-- ════════ MY PICKS PAGE ════════ -->
+<div id="page-picks" class="screen">
+  <div style="max-width:760px;margin:0 auto;padding:80px 24px 60px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px">
+      <div>
+        <h1 style="font-size:22px;font-weight:700;margin:0 0 4px;color:var(--t1)">⭐ My Picks</h1>
+        <div style="font-size:13px;color:var(--t3)" id="picksSubtitle">Parcels you've picked from compare</div>
+      </div>
+      <button onclick="showScreen('page-results')" style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">← Back to Results</button>
+    </div>
+    <div id="picksListWrap"></div>
+  </div>
+</div>
+
 <!-- ════════ SHARE MODAL (Task 21) ════════ -->
 <div id="shareModal" class="share-overlay" onclick="if(event.target===this)hideShareModal()">
   <div class="share-modal">
@@ -2218,7 +2232,7 @@ const HASH_MAP = {
   '#forgot': 'page-forgot', '#reset-password': 'page-reset-password',
   '#dashboard': 'page-dashboard', '#processing': 'page-processing',
   '#results': 'page-results', '#pricing': 'page-pricing',
-  '#settings': 'page-settings',
+  '#settings': 'page-settings', '#picks': 'page-picks',
 };
 
 const batchState = { results: [], filtered: 'all', elapsed: 0, name: '', sortCol: null, sortDir: 'desc' };
@@ -6406,37 +6420,87 @@ function _cmpPickParcel(address) {
 }
 
 function _updateSidebarPick() {
-  const wrap = document.getElementById('sidebarMyPick');
+  const picks = batchState.results.filter(r => r._starred);
+  const badge = document.getElementById('sidebarPickCount');
+  if (badge) {
+    badge.textContent = picks.length;
+    badge.style.display = picks.length ? 'inline' : 'none';
+  }
+}
+
+function showPicksPage() {
+  showScreen('page-picks');
+  renderPicksList();
+}
+
+function renderPicksList() {
+  const wrap = document.getElementById('picksListWrap');
+  const sub  = document.getElementById('picksSubtitle');
   if (!wrap) return;
   const picks = batchState.results.filter(r => r._starred);
+  if (sub) sub.textContent = picks.length ? picks.length + ' parcel' + (picks.length > 1 ? 's' : '') + ' picked' : 'Parcels you\'ve picked from compare';
   if (!picks.length) {
-    wrap.innerHTML = '<div class="rsb-pick-empty">No parcels picked yet</div>';
+    wrap.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--t3)">'
+      + '<div style="font-size:32px;margin-bottom:12px">⭐</div>'
+      + '<div style="font-size:15px;font-weight:600;color:var(--t2);margin-bottom:6px">No picks yet</div>'
+      + '<div style="font-size:13px">Open Compare from the results table, then click ⭐ Pick this on any parcel.</div>'
+      + '</div>';
     return;
   }
-  wrap.innerHTML = picks.map(picked => {
-    const ev = effectiveVerdict(picked);
+  wrap.innerHTML = picks.map(r => {
+    const ev = effectiveVerdict(r);
     const vc = verdictClass(ev);
-    const { street } = splitAddress(picked.address || '');
-    const scoreStr = picked.auto_kill ? '⛔' : (picked.score != null ? picked.score : '—');
-    const scoreColor = picked.auto_kill ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : ev === 'KILL' ? 'var(--red)' : 'var(--amber)';
-    const safeAddr = picked.address.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    return '<div class="rsb-pick-card" onclick="_sidebarPickJump(\'' + safeAddr + '\')">'
-      + '<div class="rsb-pick-addr" title="' + escHtml(picked.address) + '">' + escHtml(street) + '</div>'
-      + '<div class="rsb-pick-meta">'
-      + '<span class="verdict-badge ' + vc + '" style="font-size:10px;padding:1px 7px">' + ev + '</span>'
-      + '<span style="font-size:12px;font-weight:700;color:' + scoreColor + '">' + scoreStr + '</span>'
-      + '</div></div>';
+    const { street, city } = splitAddress(r.address || '');
+    const scoreStr  = r.auto_kill ? '⛔ Auto-kill' : (r.score != null ? r.score : '—');
+    const scoreColor = r.auto_kill ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : ev === 'KILL' ? 'var(--red)' : 'var(--amber)';
+    const pi = r.parcel_info || {};
+    const acres = pi.acreage != null ? pi.acreage + ' ac' : '—';
+    const county = pi.county || city || '—';
+    const flood = pi.flood_zone || '—';
+    const safeAddr = r.address.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return '<div style="background:var(--card);border:1px solid var(--b);border-radius:var(--rp);padding:18px 20px;margin-bottom:12px">'
+      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">'
+      +   '<div style="min-width:0">'
+      +     '<div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(street) + '</div>'
+      +     '<div style="font-size:12px;color:var(--t3)">' + escHtml(r.address) + '</div>'
+      +   '</div>'
+      +   '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'
+      +     '<span class="verdict-badge ' + vc + '">' + ev + '</span>'
+      +     '<span style="font-size:16px;font-weight:700;color:' + scoreColor + '">' + scoreStr + '</span>'
+      +   '</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:20px;font-size:12px;color:var(--t3);margin-bottom:14px;flex-wrap:wrap">'
+      +   '<span>📍 ' + escHtml(county) + '</span>'
+      +   '<span>📐 ' + acres + '</span>'
+      +   '<span>🌊 Flood: ' + escHtml(flood) + '</span>'
+      + '</div>'
+      + '<div style="display:flex;gap:8px">'
+      +   '<button onclick="_picksJumpToResults(\'' + safeAddr + '\')" style="font-family:\'Inter\',sans-serif;font-size:12px;font-weight:600;padding:7px 14px;border-radius:var(--rs);border:1px solid var(--b);background:var(--card-h);color:var(--t1);cursor:pointer">View in Results →</button>'
+      +   '<button onclick="_removePick(\'' + safeAddr + '\')" style="font-family:\'Inter\',sans-serif;font-size:12px;font-weight:600;padding:7px 14px;border-radius:var(--rs);border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.08);color:#ef4444;cursor:pointer">Remove</button>'
+      + '</div>'
+      + '</div>';
   }).join('');
 }
 
-function _sidebarPickJump(address) {
+function _removePick(address) {
+  const idx = batchState.results.findIndex(r => r.address === address);
+  if (idx !== -1) batchState.results[idx]._starred = false;
+  renderPage();
+  _updateSidebarPick();
+  renderPicksList();
+}
+
+function _picksJumpToResults(address) {
+  showScreen('page-results');
   const dispIdx = _currentDisplayed.findIndex(r => r.address === address);
   if (dispIdx === -1) { toast('Parcel not in current view — clear filters to find it'); return; }
   const page = Math.ceil((dispIdx + 1) / _rowsPerPage);
   if (page !== _currentPage) { _currentPage = page; renderPage(); }
-  const tr = document.getElementById('trow-' + dispIdx);
-  if (tr) { tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); tr.classList.add('row-flash'); setTimeout(() => tr.classList.remove('row-flash'), 1200); }
-  openDetailPanel(dispIdx);
+  setTimeout(() => {
+    const tr = document.getElementById('trow-' + dispIdx);
+    if (tr) { tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); tr.classList.add('row-flash'); setTimeout(() => tr.classList.remove('row-flash'), 1200); }
+    openDetailPanel(dispIdx);
+  }, 80);
 }
 </script>
 
