@@ -1725,16 +1725,12 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="rsb-footer">
         <div style="display:flex;gap:4px;padding:4px 2px 6px;text-align:center">
           <div style="flex:1;display:flex;flex-direction:column;align-items:center;border-right:1px solid var(--b);padding-right:4px">
-            <div class="rsb-time-val" id="sbLastScreenTime" style="font-size:15px">—</div>
-            <div class="rsb-time-sub">Last batch</div>
-          </div>
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;border-right:1px solid var(--b);padding:0 4px">
-            <div class="rsb-time-val" id="sbTotalTimeSaved" style="font-size:15px">—</div>
+            <div class="rsb-time-val" id="sbTotalTimeSaved">—</div>
             <div class="rsb-time-sub">All-time saved</div>
           </div>
           <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding-left:4px">
-            <div class="rsb-time-val" id="sbTotalBatches" style="font-size:15px">—</div>
-            <div class="rsb-time-sub">Batches</div>
+            <div class="rsb-time-val" id="sbTotalBatches">—</div>
+            <div class="rsb-time-sub">Batches scanned</div>
           </div>
         </div>
         <div class="rsb-nav-item" onclick="goTo('settings')">
@@ -4433,7 +4429,6 @@ function renderBatchResults() {
   const hrs  = Math.round(mins / 6) / 10;
   const ts = hrs >= 1 ? '~' + hrs + 'h' : mins + 'm';
   setEl('timeSaved', ts);
-  setEl('sbLastScreenTime', _fmtElapsed(batchState.elapsed));
 
   // Non-FL banner
   const banner = document.getElementById('nonflBanner');
@@ -4481,6 +4476,7 @@ function renderBatchResults() {
   renderRulesPanel();
   loadSbUsage();
   _loadSidebarBatches();
+  _updateSidebarPick();
   _refreshTable();
 }
 
@@ -6476,12 +6472,14 @@ function _cmpPickParcel(address) {
 }
 
 function _updateSidebarPick() {
-  const picks = batchState.results.filter(r => r._starred);
   const badge = document.getElementById('sidebarPickCount');
-  if (badge) {
-    badge.textContent = picks.length;
-    badge.style.display = picks.length ? 'inline' : 'none';
-  }
+  if (!badge) return;
+  // If results are loaded use live count; otherwise fall back to localStorage
+  const count = batchState.results.length
+    ? batchState.results.filter(r => r._starred).length
+    : (JSON.parse(localStorage.getItem('piq-picks') || '[]')).length;
+  badge.textContent = count;
+  badge.style.display = count ? 'inline' : 'none';
 }
 
 function showPicksPage() {
