@@ -1783,7 +1783,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div class="stat-card"><div class="stat-num" id="statTotal">—</div><div class="stat-lbl">Total</div></div>
         <div class="stat-card"><div class="stat-num c-r" id="statKill">—</div><div class="stat-lbl">Kill</div></div>
         <div class="stat-card"><div class="stat-num c-g" id="statPursue">—</div><div class="stat-lbl">Pursue</div></div>
-        <div class="stat-card"><div class="stat-num c-g" id="timeSaved">—</div><div class="stat-lbl">Time Saved</div></div>
+        <div class="stat-card"><div class="stat-num c-g" id="timeSaved">—</div><div class="stat-lbl">Time Saved</div><div id="statElapsed" style="font-size:10px;color:var(--t3);margin-top:3px"></div></div>
       </div>
       <div class="res-filter-row">
         <div class="filter-pills">
@@ -4429,6 +4429,7 @@ function renderBatchResults() {
   const hrs  = Math.round(mins / 6) / 10;
   const ts = hrs >= 1 ? '~' + hrs + 'h' : mins + 'm';
   setEl('timeSaved', ts);
+  setEl('statElapsed', batchState.elapsed ? 'fetched in ' + _fmtElapsed(batchState.elapsed) : '');
 
   // Non-FL banner
   const banner = document.getElementById('nonflBanner');
