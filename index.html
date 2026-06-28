@@ -1783,7 +1783,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div class="stat-card"><div class="stat-num" id="statTotal">—</div><div class="stat-lbl">Total</div></div>
         <div class="stat-card"><div class="stat-num c-r" id="statKill">—</div><div class="stat-lbl">Kill</div></div>
         <div class="stat-card"><div class="stat-num c-g" id="statPursue">—</div><div class="stat-lbl">Pursue</div></div>
-        <div class="stat-card"><div class="stat-num c-g" id="timeSaved">—</div><div class="stat-lbl">Time Saved</div><div id="statElapsed" style="font-size:10px;color:var(--t3);margin-top:3px"></div></div>
+        <div class="stat-card"><div class="stat-num c-g" id="timeSaved">—</div><div class="stat-lbl">Time Saved</div><div id="statElapsed" style="font-size:10px;color:var(--t2);margin-top:4px;font-style:italic"></div></div>
       </div>
       <div class="res-filter-row">
         <div class="filter-pills">
@@ -3634,11 +3634,11 @@ async function loadBatchResults(batchId) {
   try {
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
-      const { name, rows } = JSON.parse(cached);
+      const { name, rows, elapsed } = JSON.parse(cached);
       batchState.results  = rows;
       batchState.name     = name || '';
       batchState.filtered = 'all';
-      batchState.elapsed  = 0;
+      batchState.elapsed  = elapsed || 0;
       currentBatchResults = rows;
       renderBatchResults();
       goTo('results');
@@ -3734,7 +3734,7 @@ async function saveBatchToSupabase(batchName, results) {
     try { sessionStorage.setItem('piq-last-batch', batch.id); } catch(e) {}
     // Write cache NOW — before insert — so same-session reload works even if Supabase insert fails
     try {
-      sessionStorage.setItem('piq-res-' + batch.id, JSON.stringify({ name: batchName || '', rows: batchState.results }));
+      sessionStorage.setItem('piq-res-' + batch.id, JSON.stringify({ name: batchName || '', rows: batchState.results, elapsed: batchState.elapsed || 0 }));
       sessionStorage.removeItem('piq-batches');
       localStorage.removeItem('piq-ts-cache'); // bust stat cache so batch count refreshes
     } catch(e) {}
