@@ -365,7 +365,7 @@ body.on-results .detail-panel{top:0}
 .res-meta-txt{font-size:13px;color:var(--t3)}
 .res-header-btns{display:flex;gap:8px;flex-shrink:0;margin-top:4px}
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
-.stat-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;text-align:center}
+.stat-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:14px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .stat-num{font-size:28px;font-weight:800;line-height:1;margin-bottom:4px}
 .stat-lbl{font-size:11px;color:var(--t2);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
 .stat-num.c-r{color:var(--red)}.stat-num.c-a{color:var(--amber)}.stat-num.c-g{color:var(--green)}
@@ -1730,7 +1730,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           </div>
           <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding-left:4px">
             <div class="rsb-time-val" id="sbTotalBatches">—</div>
-            <div class="rsb-time-sub">Batches scanned</div>
+            <div class="rsb-time-sub">Parcels screened</div>
           </div>
         </div>
         <div class="rsb-nav-item" onclick="goTo('settings')">
@@ -2581,9 +2581,8 @@ function _runPendingOrResults() {
   const pending = (sessionStorage.getItem('lp_pending') || '').trim();
   if (pending) {
     try { sessionStorage.removeItem('lp_pending'); } catch(e) {}
-    batchState.name = 'Batch · ' + new Date().toLocaleDateString();
     const lines = pending.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
-    if (lines.length) { _executeBatch(lines, new Set()); return; }
+    if (lines.length) { batchState.name = _generateBatchName(lines); _executeBatch(lines, new Set()); return; }
   }
   const lastBatch = sessionStorage.getItem('piq-last-batch');
   if (lastBatch) { goTo('results'); return; }
@@ -3513,9 +3512,9 @@ async function _loadSidebarBatches() {
       const el = document.getElementById('sbTotalTimeSaved');
       if (el) el.textContent = _cached.val;
     }
-    if (_cached?.batches != null) {
+    if (_cached?.parcels != null) {
       const el = document.getElementById('sbTotalBatches');
-      if (el) el.textContent = _cached.batches;
+      if (el) el.textContent = _cached.parcels.toLocaleString();
     }
     if (_cached?.val && Date.now() - (_cached.ts || 0) < 5 * 60 * 1000) return; // fresh — skip network
   } catch(e) {}
@@ -3534,8 +3533,8 @@ async function _loadSidebarBatches() {
         const elT = document.getElementById('sbTotalTimeSaved');
         const elB = document.getElementById('sbTotalBatches');
         if (elT) elT.textContent = val;
-        if (elB) elB.textContent = batchCount;
-        try { localStorage.setItem(_TSK, JSON.stringify({ val, batches: batchCount, ts: Date.now() })); } catch(e) {}
+        if (elB) elB.textContent = parcelCount.toLocaleString();
+        try { localStorage.setItem(_TSK, JSON.stringify({ val, parcels: parcelCount, ts: Date.now() })); } catch(e) {}
       } catch(e) {}
     })();
   }
@@ -3867,9 +3866,10 @@ function showPricingComingSoon() {
 }
 
 // ── RUN BATCH — FIX 2: checks incomplete addresses first
-let _estimatedAddresses = new Set();
-let _lastBatchLines     = [];
-let _lastBatchEstimated = new Set();
+let _estimatedAddresses  = new Set();
+let _lastBatchLines      = [];
+let _lastBatchEstimated  = new Set();
+let _batchInProgress     = false;
 
 async function runBatch() {
   const raw = (document.getElementById('batchInput').value || '').trim();
@@ -3914,6 +3914,8 @@ async function runBatch() {
 }
 
 async function _executeBatch(lines, estimatedSet) {
+  if (_batchInProgress) { toast('A batch is already running — please wait.', 4000); return; }
+  _batchInProgress    = true;
   _estimatedAddresses = estimatedSet || new Set();
   _lastBatchLines     = lines;
   _lastBatchEstimated = estimatedSet || new Set();
@@ -4095,6 +4097,7 @@ async function _executeBatch(lines, estimatedSet) {
   } finally {
     clearTimeout(_firstResultTimer);
     batchState._streaming = false;
+    _batchInProgress = false;
     const btn2 = document.getElementById('runBatchBtn');
     if (btn2) { btn2.disabled = false; btn2.textContent = 'Screen Parcels →'; }
   }
