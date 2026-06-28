@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.models.schema import BuildabilityScore, Insight, PropertyReport
 
-SFHA_ZONES = {"AE", "VE", "V", "AO", "AH", "A"}
+SFHA_ZONES = {"AE", "VE", "V", "AO", "AH"}
 AGRI_CODES = {"50", "51", "52", "53", "54", "55", "56", "57", "58", "59"}
 PUBLIC_CODES = {"86", "87", "88", "89", "99"}
 
@@ -123,7 +123,7 @@ def score_parcel(
         score -= 20
         flags.append(f"Parcel very small ({round(acreage, 3)} ac)")
 
-    if flood_zone == "A" and flood.get("sfha") is not True:
+    if flood_zone == "A":
         score -= 15
         flags.append("FEMA Zone A (undetermined flood risk)")
 

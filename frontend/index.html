@@ -2653,7 +2653,7 @@ async function loadSharedBatch(token) {
       return;
     }
     const data = await resp.json();
-    const results = data.results || [];
+    const results = _mapBatchRows(data.results || []);
     renderSharedResults(results, wrap);
   } catch(e) {
     document.getElementById('shared-content').innerHTML =
