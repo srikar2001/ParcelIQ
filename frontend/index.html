@@ -3740,28 +3740,6 @@ async function saveBatchToSupabase(batchName, results) {
     try {
       sessionStorage.setItem('piq-res-' + batch.id, JSON.stringify({ name: batchName || '', rows: batchState.results, elapsed: batchState.elapsed || 0 }));
     } catch(e) {}
-    // Direct DOM update after insert — bypasses race condition where pre-save async block
-    // re-writes stale cache after we cleared it. Queries parcel_results for exact count
-    // so both "Parcels screened" and "All-time saved" are always in sync.
-    if (sb && currentUser) {
-      sb.from('parcel_results').select('id', { count: 'exact', head: true })
-        .eq('user_id', currentUser.id)
-        .then(({ count: pc }) => {
-          if (pc == null) return;
-          const allMins = pc * 30;
-          const allHrs  = Math.round(allMins / 6) / 10;
-          const val = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
-          const elB = document.getElementById('sbTotalBatches');
-          const elT = document.getElementById('sbTotalTimeSaved');
-          if (elB) elB.textContent = pc;
-          if (elT) elT.textContent = val;
-          try {
-            const _TSK = 'piq-ts-cache';
-            const ex = JSON.parse(localStorage.getItem(_TSK) || 'null') || {};
-            localStorage.setItem(_TSK, JSON.stringify({ ...ex, parcels: pc, val, ts: Date.now() }));
-          } catch(e) {}
-        }).catch(() => {});
-    }
     const rows = (results.results || []).map(r => ({
       batch_id:          batch.id,
       user_id:           currentUser.id,
@@ -3815,6 +3793,28 @@ async function saveBatchToSupabase(batchName, results) {
     }
     // Invalidate cached usage count so next check refetches accurate value
     if (_weeklyUsed !== null) _weeklyUsed += rows.length;
+    // Update "Parcels screened" + "All-time saved" AFTER the parcel insert so the
+    // count includes the rows we just wrote. Fires as fire-and-forget so it doesn't
+    // block the caller; cache is written here so _loadSidebarBatches skips the network.
+    if (sb && currentUser) {
+      sb.from('parcel_results').select('id', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id)
+        .then(({ count: pc }) => {
+          if (pc == null) return;
+          const allMins = pc * 30;
+          const allHrs  = Math.round(allMins / 6) / 10;
+          const val = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
+          const elB = document.getElementById('sbTotalBatches');
+          const elT = document.getElementById('sbTotalTimeSaved');
+          if (elB) elB.textContent = pc;
+          if (elT) elT.textContent = val;
+          try {
+            const _TSK = 'piq-ts-cache';
+            const ex = JSON.parse(localStorage.getItem(_TSK) || 'null') || {};
+            localStorage.setItem(_TSK, JSON.stringify({ ...ex, parcels: pc, val, ts: Date.now() }));
+          } catch(e) {}
+        }).catch(() => {});
+    }
     return batch.id;
   } catch(e) { console.error('Save error:', e); return null; }
 }
