@@ -3521,11 +3521,9 @@ async function _loadSidebarBatches() {
   if (sb && currentUser) {
     (async () => {
       try {
-        const [parcelsRes, batchesRes] = await Promise.all([
-          sb.from('parcel_results').select('id', { count: 'exact', head: true }).eq('user_id', currentUser.id),
-          sb.from('batches').select('id', { count: 'exact', head: true }).eq('user_id', currentUser.id),
-        ]);
-        const parcelCount = parcelsRes.count ?? 0;
+        // Use batches.total (always reliable) — parcel_results inserts can fail silently
+        const { data: bt } = await sb.from('batches').select('total').eq('user_id', currentUser.id);
+        const parcelCount = bt?.reduce((s, b) => s + (b.total || 0), 0) || 0;
         const allMins = parcelCount * 30;
         const allHrs  = Math.round(allMins / 6) / 10;
         const val = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
@@ -3793,14 +3791,14 @@ async function saveBatchToSupabase(batchName, results) {
     }
     // Invalidate cached usage count so next check refetches accurate value
     if (_weeklyUsed !== null) _weeklyUsed += rows.length;
-    // Update "Parcels screened" + "All-time saved" AFTER the parcel insert so the
-    // count includes the rows we just wrote. Fires as fire-and-forget so it doesn't
-    // block the caller; cache is written here so _loadSidebarBatches skips the network.
+    // Update "Parcels screened" + "All-time saved" using batches.total (reliable source —
+    // parcel_results inserts can fail silently so COUNT on that table is not trustworthy).
+    // This batch is already committed above so its total is included in the sum.
     if (sb && currentUser) {
-      sb.from('parcel_results').select('id', { count: 'exact', head: true })
+      sb.from('batches').select('total')
         .eq('user_id', currentUser.id)
-        .then(({ count: pc }) => {
-          if (pc == null) return;
+        .then(({ data }) => {
+          const pc = data?.reduce((s, b) => s + (b.total || 0), 0) || 0;
           const allMins = pc * 30;
           const allHrs  = Math.round(allMins / 6) / 10;
           const val = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
