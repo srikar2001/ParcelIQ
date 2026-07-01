@@ -1264,10 +1264,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <span class="lp-ck-left"><span class="lp-ck-icon neut">○</span>&nbsp;Protected habitat (500 ft)</span>
           <span class="lp-ck-badge grey">No Overlap</span>
         </div>
-        <div class="lp-conf-bar">
-          <div class="lp-conf-lbl"><span>Confidence</span><span id="lpConfPct">0%</span></div>
-          <div class="lp-conf-track"><div class="lp-conf-fill" id="lpConfFill"></div></div>
-        </div>
+        <div class="lp-conf-bar" style="font-size:12px;color:var(--t3);text-align:center;padding-top:4px">Powered by 12 live government sources</div>
         <div class="lp-sample-cta">
           <button class="lp-sample-cta-btn" onclick="window.location.hash='#signup'">View full details →</button>
         </div>
@@ -1363,7 +1360,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       reader.onload = function(ev) {
         try {
           if (typeof XLSX === 'undefined') {
-            alert('File parsing unavailable — paste addresses instead.');
+            if (typeof toast === 'function') toast('File parsing unavailable — paste addresses instead.'); else alert('File parsing unavailable — paste addresses instead.');
             return;
           }
           var wb = XLSX.read(ev.target.result, { type: 'binary' });
@@ -1377,10 +1374,10 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
             if (typeof _isHeaderRow === 'function' && _isHeaderRow(text)) return;
             if (seen[lc]) return;
             seen[lc] = true;
-            valid.push(text);
+            valid.push(typeof _preProcessAddress === 'function' ? _preProcessAddress(text) : text);
           });
           if (!valid.length) {
-            alert('No addresses found in the file. Make sure addresses are in the first column.');
+            if (typeof toast === 'function') toast('No addresses found in the file. Make sure addresses are in the first column.'); else alert('No addresses found in the file. Make sure addresses are in the first column.');
             return;
           }
           try { sessionStorage.setItem('lp_pending', valid.join('\n')); } catch(e) {}
@@ -1399,42 +1396,22 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
               '</div>';
           }
         } catch(err) {
-          alert('Could not parse file: ' + err.message);
+          if (typeof toast === 'function') toast('Could not parse file: ' + err.message); else alert('Could not parse file: ' + err.message);
         }
       };
       reader.readAsBinaryString(f);
     };
 
-    // Confidence counter animation
-    var confDone = false;
-    function lpAnimConf() {
-      if (confDone) return; confDone = true;
-      var fill = document.getElementById('lpConfFill');
-      var pct  = document.getElementById('lpConfPct');
-      if (!fill || !pct) return;
-      var cur = 0, tgt = 92;
-      (function step() {
-        cur += Math.ceil((tgt - cur) / 8);
-        if (cur >= tgt) cur = tgt;
-        fill.style.width = cur + '%';
-        pct.textContent = cur + '%';
-        if (cur < tgt) requestAnimationFrame(step);
-      })();
-    }
-
-    // Intersection Observer for scroll reveals + confidence counter
+    // Intersection Observer for scroll reveals
     var io = new IntersectionObserver(function(entries) {
       entries.forEach(function(e) {
         if (!e.isIntersecting) return;
         e.target.classList.add('visible');
         if (e.target.classList.contains('lp-step')) e.target.classList.add('visible');
-        if (e.target.id === 'lpSampleCard') lpAnimConf();
       });
     }, { threshold: 0.15 });
 
     document.querySelectorAll('#page-landing .reveal').forEach(function(el) { io.observe(el); });
-    var sc = document.getElementById('lpSampleCard');
-    if (sc) io.observe(sc);
   })();
   </script>
 </div>
@@ -1666,7 +1643,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="rpct" id="batchPct">0%</div>
     </div>
     <div class="proc-title" id="procCount">Screening parcels</div>
-    <div class="proc-eta">This usually takes 5–15 seconds</div>
+    <div class="proc-eta" id="procEta"></div>
     <div class="proc-src" id="batchStat">Geocoding addresses…</div>
     <div class="proc-srcsub" id="batchSub">Connecting to data sources</div>
     <div class="proc-dots" id="procDots">
@@ -3088,6 +3065,12 @@ function _isHeaderRow(text) {
   return _HEADER_KW.some(k => l === k || l.startsWith(k + ' ') || l.startsWith(k + ','));
 }
 
+function _preProcessAddress(addr) {
+  const s = addr.trim();
+  if (/,\s*[A-Z]{2}(\s+\d{5})?\s*$/.test(s)) return s;
+  return s + ', FL';
+}
+
 function handleFileUpload(e) {
   const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
@@ -3978,6 +3961,11 @@ async function _executeBatch(lines, estimatedSet) {
   _currentPage          = 1;
   let _streamTotal = flLines.length;
   let _navigatedToResults = false;
+  let _resMetaTimer = null;
+  let _resMetaStart = null;
+  let _resMetaCompleted = 0;
+  const _estLow  = Math.max(5,  4 + Math.ceil(flLines.length / 20) * 3);
+  const _estHigh = Math.max(10, 6 + Math.ceil(flLines.length / 20) * 6);
 
   // Show processing screen while waiting for the first result — prevents the router
   // from loading the previous batch when batchState.results is empty
@@ -3986,6 +3974,8 @@ async function _executeBatch(lines, estimatedSet) {
   if (_procCountEl) _procCountEl.textContent = 'Geocoding ' + flLines.length + ' address' + (flLines.length !== 1 ? 'es' : '') + '…';
   const _procLabelEl = document.getElementById('batchProcLabel');
   if (_procLabelEl) _procLabelEl.textContent = 'Screening ' + flLines.length + ' parcel' + (flLines.length !== 1 ? 's' : '') + '…';
+  const _procEtaEl = document.getElementById('procEta');
+  if (_procEtaEl) _procEtaEl.textContent = '~' + _estLow + '–' + _estHigh + 's';
 
   // 45-second stall guard — if zero results after 45s, show error on processing screen
   let _firstResultTimer = setTimeout(() => {
@@ -4020,6 +4010,7 @@ async function _executeBatch(lines, estimatedSet) {
       // FIX 2: if stream closes early, show whatever partial results we have
       if (done) {
         if (batchState._streaming && batchState.results.length > outsideResults.length) {
+          clearInterval(_resMetaTimer); _resMetaTimer = null;
           batchState._streaming = false;
           batchState.elapsed = Math.round((Date.now() - t0) / 1000);
           const flResults = batchState.results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
@@ -4054,10 +4045,22 @@ async function _executeBatch(lines, estimatedSet) {
             ...ev.latest,
             _estimated: _estimatedAddresses.has((ev.latest.address || '').toLowerCase()),
           });
+          _resMetaCompleted = ev.completed || 0;
           if (!_navigatedToResults) {
             _navigatedToResults = true;
             renderBatchResults();
             goTo('results');
+            _resMetaStart = Date.now();
+            _resMetaTimer = setInterval(() => {
+              const elapsed = Math.round((Date.now() - _resMetaStart) / 1000);
+              const rate = _resMetaCompleted > 0 ? elapsed / _resMetaCompleted : 0;
+              const remaining = rate > 0
+                ? Math.max(0, Math.round(rate * (_streamTotal - _resMetaCompleted)))
+                : Math.max(0, _estHigh - elapsed);
+              const remStr = remaining > 0 ? '~' + remaining + 's remaining' : 'almost done…';
+              const metaEl = document.getElementById('resMeta');
+              if (metaEl) metaEl.textContent = 'Screening · ' + _resMetaCompleted + ' of ' + _streamTotal + ' · ' + remStr;
+            }, 2000);
           } else {
             _refreshTable();
           }
@@ -4066,6 +4069,7 @@ async function _executeBatch(lines, estimatedSet) {
 
         } else if (ev.type === 'complete') {
           clearTimeout(_firstResultTimer);
+          clearInterval(_resMetaTimer); _resMetaTimer = null;
           batchState._streaming = false;
           batchState.elapsed    = Math.round((Date.now() - t0) / 1000);
           updateStreamProgress(ev.summary.total, ev.summary.total);
@@ -4105,6 +4109,7 @@ async function _executeBatch(lines, estimatedSet) {
     }
   } finally {
     clearTimeout(_firstResultTimer);
+    clearInterval(_resMetaTimer); _resMetaTimer = null;
     batchState._streaming = false;
     _batchInProgress = false;
     const btn2 = document.getElementById('runBatchBtn');
@@ -5885,20 +5890,10 @@ function processUploadedFile(file) {
         if (!text || _isHeaderRow(text) || text.length < 10 || !/\d/.test(text)) { skipped++; continue; }
         const key = text.toLowerCase();
         if (seen.has(key)) { skipped++; continue; }
-        seen.add(key); valid.push(text);
+        seen.add(key); valid.push(_preProcessAddress(text));
       }
       document.getElementById('batchInput').value = valid.join('\n');
-      const confirmCard = document.getElementById('fileConfirmCard');
-      const dz = document.getElementById('dropZone');
-      if (confirmCard) {
-        confirmCard.innerHTML =
-          '<div class="file-confirm-name"><span>📄 ' + escHtml(file.name) + '</span><button class="file-confirm-remove" onclick="removeUploadedFile()">✕ Remove</button></div>' +
-          '<div class="file-confirm-meta">Found <strong>' + valid.length + '</strong> valid FL addresses' + (skipped > 0 ? ' · ' + skipped + ' skipped' : '') + '</div>';
-        confirmCard.style.display = '';
-      }
-      if (dz) dz.style.display = 'none';
-      updateAddrCount();
-      toast('Found ' + valid.length + ' valid addresses from ' + file.name, 4000);
+      runBatch();
     } catch(err) { if (errEl) { errEl.textContent = 'Could not parse file: ' + err.message; errEl.style.display = 'block'; } }
   };
   reader.readAsBinaryString(file);
@@ -6159,22 +6154,10 @@ function processModalFile(file) {
         if (!text || _isHeaderRow(text) || text.length < 10 || !/\d/.test(text)) { skipped++; continue; }
         const key = text.toLowerCase();
         if (seen.has(key)) { skipped++; continue; }
-        seen.add(key); valid.push(text);
+        seen.add(key); valid.push(_preProcessAddress(text));
       }
       document.getElementById('modalBatchInput').value = valid.join('\n');
-      const confirmCard = document.getElementById('modFileConfirmCard');
-      if (dz) dz.style.display = 'none';
-      if (confirmCard) {
-        confirmCard.innerHTML =
-          '<div class="file-confirm-name"><span>📄 ' + escHtml(file.name) + '</span>' +
-          '<button class="file-confirm-remove" onclick="removeModalFile()">✕ Remove</button></div>' +
-          '<div class="file-confirm-meta">Found <strong>' + valid.length + '</strong> addresses' +
-          (skipped > 0 ? ' · ' + skipped + ' skipped' : '') + '</div>';
-        confirmCard.style.display = '';
-      }
-      updateModalAddrCount();
-      toast('Found ' + valid.length + ' addresses from ' + file.name, 4000);
-      switchModalTab('paste');
+      runBatchFromModal();
     } catch(err) {
       if (iconWrap) iconWrap.innerHTML = '☁';
       if (title)    title.textContent  = 'Drop your CSV or Excel file here';
@@ -6741,6 +6724,65 @@ function _picksJumpToResults(address) {
     openDetailPanel(dispIdx);
   }, 80);
 }
+
+// ── Address autocomplete ──────────────────────────────────────────────────────
+function _attachAddressAutocomplete(inputEl) {
+  let _acTimer = null;
+  let _acDropdown = null;
+
+  function _acClose() {
+    if (_acDropdown) { _acDropdown.remove(); _acDropdown = null; }
+  }
+
+  function _acShow(suggestions) {
+    _acClose();
+    if (!suggestions.length) return;
+    const rect = inputEl.getBoundingClientRect();
+    const dd = document.createElement('div');
+    dd.style.cssText = 'position:fixed;z-index:999999;background:var(--card-h);border:1px solid var(--bh);border-radius:var(--rs);overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.5);';
+    dd.style.top  = (rect.bottom + 4) + 'px';
+    dd.style.left = rect.left + 'px';
+    dd.style.width = rect.width + 'px';
+    suggestions.forEach((s, i) => {
+      const item = document.createElement('div');
+      item.textContent = s;
+      item.style.cssText = 'padding:10px 14px;font-size:13px;color:var(--t1);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + (i < suggestions.length - 1 ? 'border-bottom:1px solid var(--b);' : '');
+      item.addEventListener('mouseenter', () => { item.style.background = 'var(--card)'; });
+      item.addEventListener('mouseleave', () => { item.style.background = ''; });
+      item.addEventListener('mousedown', e => {
+        e.preventDefault();
+        inputEl.value = s;
+        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        _acClose();
+      });
+      dd.appendChild(item);
+    });
+    document.body.appendChild(dd);
+    _acDropdown = dd;
+  }
+
+  inputEl.addEventListener('input', () => {
+    clearTimeout(_acTimer);
+    const val = inputEl.value;
+    if (val.includes('\n') || val.trim().length < 4) { _acClose(); return; }
+    _acTimer = setTimeout(() => {
+      fetch(API + '/api/autocomplete?q=' + encodeURIComponent(val.trim()))
+        .then(r => r.json())
+        .then(d => _acShow(d.suggestions || []))
+        .catch(() => {});
+    }, 350);
+  });
+
+  inputEl.addEventListener('blur', () => setTimeout(_acClose, 150));
+  window.addEventListener('scroll', _acClose, true);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  ['batchInput', 'modalBatchInput', 'singleParcelInput'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) _attachAddressAutocomplete(el);
+  });
+});
 </script>
 
 <!-- ════════ EDIT BATCH MODAL ════════ -->

@@ -600,6 +600,47 @@ async def search_parcel(q: str):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+_ARCGIS_CADASTRAL_URL = "https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/query"
+
+@router.get("/autocomplete")
+async def address_autocomplete(q: str = ""):
+    if len(q.strip()) < 4:
+        return {"suggestions": []}
+    try:
+        sanitized = _re.sub(r"[^a-zA-Z0-9 ,.\-/]", "", q.strip())
+        if not sanitized:
+            return {"suggestions": []}
+        like_val = sanitized.replace("%", r"\%").replace("_", r"\_")
+        where = f"UPPER(PHY_ADDR1) LIKE UPPER('%{like_val}%')"
+        params = {
+            "where": where,
+            "outFields": "PHY_ADDR1,PHY_CITY",
+            "returnGeometry": "false",
+            "resultRecordCount": 8,
+            "f": "json",
+        }
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(_ARCGIS_CADASTRAL_URL, params=params)
+            data = resp.json()
+        seen: set[str] = set()
+        suggestions: list[str] = []
+        for feat in data.get("features", []):
+            attrs = feat.get("attributes", {})
+            addr1 = (attrs.get("PHY_ADDR1") or "").strip()
+            city  = (attrs.get("PHY_CITY") or "").strip()
+            if not addr1:
+                continue
+            full = f"{addr1}, {city}, FL" if city else f"{addr1}, FL"
+            if full not in seen:
+                seen.add(full)
+                suggestions.append(full)
+                if len(suggestions) == 8:
+                    break
+        return {"suggestions": suggestions}
+    except Exception:
+        return {"suggestions": []}
+
+
 @router.get("/cache/test")
 async def test_cache():
     from app.core.cache import get_cached_result, save_cached_result
