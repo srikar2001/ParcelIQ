@@ -673,7 +673,7 @@ async def address_autocomplete(q: str = ""):
         return {"suggestions": []}
 
 
-@router.get("/suggest")
+@router.get("/geocodio-suggest")
 async def suggest_address(q: str = ""):
     if len(q) < 4:
         return {"suggestions": []}

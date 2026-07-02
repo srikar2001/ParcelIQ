@@ -6780,14 +6780,15 @@ function _attachAddressAutocomplete(inputEl) {
     dd.style.left = rect.left + 'px';
     dd.style.width = rect.width + 'px';
     suggestions.forEach((s, i) => {
+      const label = (typeof s === 'object' && s !== null) ? (s.address || '') : s;
       const item = document.createElement('div');
-      item.textContent = s;
+      item.textContent = label;
       item.style.cssText = 'padding:10px 14px;font-size:13px;color:var(--t1);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + (i < suggestions.length - 1 ? 'border-bottom:1px solid var(--b);' : '');
       item.addEventListener('mouseenter', () => { item.style.background = 'var(--card)'; });
       item.addEventListener('mouseleave', () => { item.style.background = ''; });
       item.addEventListener('mousedown', e => {
         e.preventDefault();
-        inputEl.value = s;
+        inputEl.value = label;
         inputEl.dispatchEvent(new Event('input', { bubbles: true }));
         _acClose();
       });
@@ -6800,11 +6801,15 @@ function _attachAddressAutocomplete(inputEl) {
   inputEl.addEventListener('input', () => {
     clearTimeout(_acTimer);
     const val = inputEl.value;
+    console.log('[autocomplete] input event, val=', val);
     if (val.includes('\n') || val.trim().length < 4) { _acClose(); return; }
     _acTimer = setTimeout(() => {
-      fetch(API + '/api/autocomplete?q=' + encodeURIComponent(val.trim()))
+      fetch(API + '/api/geocodio-suggest?q=' + encodeURIComponent(val.trim()))
         .then(r => r.json())
-        .then(d => _acShow(d.suggestions || []))
+        .then(d => {
+          console.log('[autocomplete] suggestions=', d.suggestions);
+          _acShow(d.suggestions || []);
+        })
         .catch(() => {});
     }, 350);
   });
