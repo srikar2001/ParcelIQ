@@ -201,6 +201,22 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
             "cached": False,
         }
 
+    formatted = geo.get("formatted_address", "")
+    if formatted and ", FL" not in formatted and "Florida" not in formatted:
+        return {
+            "address": address,
+            "verdict": "ERROR",
+            "score": None,
+            "auto_kill": False,
+            "auto_kill_reason": None,
+            "flags": [],
+            "positives": [],
+            "parcel_info": {},
+            "sources": [],
+            "error": "Address not found in Florida — verify and retry",
+            "cached": False,
+        }
+
     lat, lng = geo["lat"], geo["lng"]
 
     (
@@ -277,6 +293,22 @@ async def _process_parcel_pregeocoded(parcel: ParcelInput, geo: dict) -> dict:
     if cached:
         cached["cached"] = True
         return cached
+
+    formatted = geo.get("formatted_address", "")
+    if formatted and ", FL" not in formatted and "Florida" not in formatted:
+        return {
+            "address": address,
+            "verdict": "ERROR",
+            "score": None,
+            "auto_kill": False,
+            "auto_kill_reason": None,
+            "flags": [],
+            "positives": [],
+            "parcel_info": {},
+            "sources": [],
+            "error": "Address not found in Florida — verify and retry",
+            "cached": False,
+        }
 
     lat, lng = geo["lat"], geo["lng"]
     (
