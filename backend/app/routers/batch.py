@@ -673,33 +673,82 @@ async def address_autocomplete(q: str = ""):
         return {"suggestions": []}
 
 
+_STREET_SUFFIXES_AC = frozenset([
+    'ST', 'AVE', 'RD', 'DR', 'BLVD', 'LN', 'WAY', 'CT', 'PL', 'CIR',
+    'TRL', 'HWY', 'PKWY', 'CSWY', 'STREET', 'AVENUE', 'ROAD', 'DRIVE',
+    'BOULEVARD', 'LANE', 'COURT', 'PLACE', 'CIRCLE', 'TRAIL', 'HIGHWAY',
+    'PARKWAY', 'CAUSEWAY', 'TER', 'TERR', 'TRACE', 'TRCE', 'RUN',
+    'LOOP', 'PASS', 'PATH', 'PT', 'POINT',
+])
+
 @router.get("/geocodio-suggest")
 async def geocodio_suggest(q: str = ""):
-    if len(q) < 4:
-        return {"suggestions": [], "debug": "too short"}
+    if len(q.strip()) < 4:
+        return {"suggestions": []}
     try:
-        api_key = os.environ.get("GEOCODIO_API_KEY", "")
-        if not api_key:
-            return {"suggestions": [], "debug": "no api key"}
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            r = await client.get(
-                "https://api.geocod.io/v1.7/suggest",
-                params={
-                    "q": q,
-                    "api_key": api_key,
-                    "country": "US",
-                    "limit": 8,
-                }
-            )
-            raw = r.json()
-            status = r.status_code
-        return {
-            "suggestions": [],
-            "debug_status": status,
-            "debug_raw": raw
+        sanitized = _re.sub(r"[^a-zA-Z0-9 ,.\-/]", "", q.strip()).upper()
+        if not sanitized:
+            return {"suggestions": []}
+        # Split at last street suffix so trailing city name becomes a PHY_CITY filter
+        words = sanitized.split()
+        last_sfx = -1
+        city_q: str | None = None
+        street_q = sanitized.replace('%', r'\%').replace('_', r'\_')
+        for i, w in enumerate(words):
+            if w.rstrip('.') in _STREET_SUFFIXES_AC:
+                last_sfx = i
+        if last_sfx >= 0 and last_sfx + 1 < len(words):
+            street_q = ' '.join(words[:last_sfx + 1]).replace('%', r'\%').replace('_', r'\_')
+            city_q   = ' '.join(words[last_sfx + 1:]).replace('%', r'\%').replace('_', r'\_')
+            where = (f"UPPER(PHY_ADDR1) LIKE UPPER('%{street_q}%') "
+                     f"AND UPPER(PHY_CITY) LIKE UPPER('%{city_q}%')")
+        else:
+            where = f"UPPER(PHY_ADDR1) LIKE UPPER('%{street_q}%')"
+        params = {
+            "where": where,
+            "outFields": "PHY_ADDR1,PHY_CITY,PHY_ZIPCD",
+            "returnGeometry": "false",
+            "resultRecordCount": 8,
+            "f": "json",
         }
-    except Exception as e:
-        return {"suggestions": [], "debug_error": str(e)}
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(_ARCGIS_CADASTRAL_URL, params=params)
+            data = resp.json()
+            features = data.get("features", [])
+            # Fallback: if house number + specific match returns 0, strip house number and retry
+            if not features and last_sfx >= 0:
+                street_no_num = _re.sub(r'^\d+\s+', '', street_q).strip()
+                if street_no_num and street_no_num != street_q:
+                    if city_q:
+                        fb_where = (f"UPPER(PHY_ADDR1) LIKE UPPER('%{street_no_num}%') "
+                                    f"AND UPPER(PHY_CITY) LIKE UPPER('%{city_q}%')")
+                    else:
+                        fb_where = f"UPPER(PHY_ADDR1) LIKE UPPER('%{street_no_num}%')"
+                    params2 = dict(params)
+                    params2["where"] = fb_where
+                    resp2 = await client.get(_ARCGIS_CADASTRAL_URL, params=params2)
+                    features = resp2.json().get("features", [])
+        seen: set[str] = set()
+        suggestions: list[dict] = []
+        for feat in features:
+            attrs = feat.get("attributes", {})
+            addr1 = (attrs.get("PHY_ADDR1") or "").strip()
+            city  = (attrs.get("PHY_CITY")  or "").strip()
+            zipcd = str(attrs.get("PHY_ZIPCD") or "").strip()
+            if not addr1:
+                continue
+            if zipcd and zipcd not in ("None", "0", ""):
+                full = f"{addr1}, {city}, FL {zipcd}" if city else f"{addr1}, FL {zipcd}"
+            else:
+                full = f"{addr1}, {city}, FL" if city else f"{addr1}, FL"
+            if full not in seen:
+                seen.add(full)
+                suggestions.append({"address": full})
+                if len(suggestions) == 8:
+                    break
+        return {"suggestions": suggestions}
+    except Exception:
+        return {"suggestions": []}
 
 
 @router.get("/cache/test")
