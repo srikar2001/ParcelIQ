@@ -2587,7 +2587,7 @@ if (sb) {
         _clearUserData();
       }
       _lastSignedInUserId = incomingId || null;
-      await loadUserProfile();
+      try { await loadUserProfile(); } catch(e) { console.error('Profile error:', e); }
       updateNav();
       // Navigate to dashboard only for explicit logins or OAuth callback — not session restores on protected pages
       const h = window.location.hash;
@@ -3741,28 +3741,8 @@ async function saveBatchToSupabase(batchName, results) {
         const res = await sb.from('parcel_results').insert(rows).select('id, address');
         if (res.error) throw res.error;
         savedRows = res.data;
-      } catch(insertErr) {
-        console.warn('[save] Full insert failed, retrying with base columns:', insertErr.message);
-        // Fallback: retry with full field set (same as primary path)
-        const baseRows = rows.map(r => ({
-          batch_id:         r.batch_id,
-          user_id:          r.user_id,
-          address:          r.address,
-          score:            r.score,
-          verdict:          r.verdict,
-          flags:            r.flags            || [],
-          sources:          r.sources          || [],
-          positives:        r.positives        || [],
-          auto_kill:        r.auto_kill        || false,
-          auto_kill_reason: r.auto_kill_reason || null,
-          parcel_info:      typeof r.parcel_info === 'string' ? r.parcel_info : JSON.stringify(r.parcel_info || {}),
-          created_at:       r.created_at,
-        }));
-        try {
-          const res2 = await sb.from('parcel_results').insert(baseRows).select('id, address');
-          if (!res2.error) savedRows = res2.data;
-          else console.error('[save] Base insert also failed:', res2.error.message);
-        } catch(e2) { console.error('[save] Base insert threw:', e2); }
+      } catch(err) {
+        console.error('[parcel_results insert]', err);
       }
       // Store Supabase row IDs back into batchState so rescreen updates can use them
       if (savedRows) {
