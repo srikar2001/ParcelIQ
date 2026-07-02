@@ -674,13 +674,13 @@ async def address_autocomplete(q: str = ""):
 
 
 @router.get("/geocodio-suggest")
-async def suggest_address(q: str = ""):
+async def geocodio_suggest(q: str = ""):
     if len(q) < 4:
-        return {"suggestions": []}
+        return {"suggestions": [], "debug": "too short"}
     try:
         api_key = os.environ.get("GEOCODIO_API_KEY", "")
         if not api_key:
-            return {"suggestions": []}
+            return {"suggestions": [], "debug": "no api key"}
         async with httpx.AsyncClient(timeout=5.0) as client:
             r = await client.get(
                 "https://api.geocod.io/v1.7/suggest",
@@ -691,18 +691,15 @@ async def suggest_address(q: str = ""):
                     "limit": 8,
                 }
             )
-            data = r.json()
-        suggestions = []
-        for item in data.get("results", []):
-            formatted = item.get("formatted_address", "")
-            if not formatted:
-                continue
-            if ", FL" not in formatted and "Florida" not in formatted:
-                continue
-            suggestions.append({"address": formatted})
-        return {"suggestions": suggestions}
-    except Exception:
-        return {"suggestions": []}
+            raw = r.json()
+            status = r.status_code
+        return {
+            "suggestions": [],
+            "debug_status": status,
+            "debug_raw": raw
+        }
+    except Exception as e:
+        return {"suggestions": [], "debug_error": str(e)}
 
 
 @router.get("/cache/test")
