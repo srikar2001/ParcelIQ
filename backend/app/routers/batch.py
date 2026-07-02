@@ -673,6 +673,38 @@ async def address_autocomplete(q: str = ""):
         return {"suggestions": []}
 
 
+@router.get("/suggest")
+async def suggest_address(q: str = ""):
+    if len(q) < 4:
+        return {"suggestions": []}
+    try:
+        api_key = os.environ.get("GEOCODIO_API_KEY", "")
+        if not api_key:
+            return {"suggestions": []}
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(
+                "https://api.geocod.io/v1.7/suggest",
+                params={
+                    "q": q,
+                    "api_key": api_key,
+                    "country": "US",
+                    "limit": 8,
+                }
+            )
+            data = r.json()
+        suggestions = []
+        for item in data.get("results", []):
+            formatted = item.get("formatted_address", "")
+            if not formatted:
+                continue
+            if ", FL" not in formatted and "Florida" not in formatted:
+                continue
+            suggestions.append({"address": formatted})
+        return {"suggestions": suggestions}
+    except Exception:
+        return {"suggestions": []}
+
+
 @router.get("/cache/test")
 async def test_cache():
     from app.core.cache import get_cached_result, save_cached_result
