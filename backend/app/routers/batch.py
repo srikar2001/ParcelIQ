@@ -264,7 +264,13 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
             "last_sale_price": parcel_data.get("last_sale_price"),
             "last_sale_year": parcel_data.get("last_sale_year"),
             "just_value": parcel_data.get("just_value"),
+            "assessed_value": parcel_data.get("just_value"),
             "land_value": parcel_data.get("land_value"),
+            "sale_price_likely_market_value": (
+                True  if (parcel_data.get("last_sale_price") or 0) >= 1000
+                else False if 0 < (parcel_data.get("last_sale_price") or 0) < 1000
+                else None
+            ),
             "geometry": parcel_data.get("geometry", []),
             "elevation_ft": elevation.get("elevation_ft"),
             "soil_drainage": soil.get("soil_drainage"),
@@ -369,7 +375,13 @@ async def _process_parcel_pregeocoded(parcel: ParcelInput, geo: dict) -> dict:
             "last_sale_price": parcel_data.get("last_sale_price"),
             "last_sale_year": parcel_data.get("last_sale_year"),
             "just_value": parcel_data.get("just_value"),
+            "assessed_value": parcel_data.get("just_value"),
             "land_value": parcel_data.get("land_value"),
+            "sale_price_likely_market_value": (
+                True  if (parcel_data.get("last_sale_price") or 0) >= 1000
+                else False if 0 < (parcel_data.get("last_sale_price") or 0) < 1000
+                else None
+            ),
             "geometry": parcel_data.get("geometry", []),
             "elevation_ft": elevation.get("elevation_ft"),
             "soil_drainage": soil.get("soil_drainage"),
