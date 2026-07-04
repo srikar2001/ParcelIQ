@@ -30,11 +30,19 @@ async def get_epa_superfund(lat: float, lng: float) -> dict:
         if not features:
             return DEFAULT
 
+        seen: set[str] = set()
         sites = []
         for f in features:
-            name = f.get("attributes", {}).get("FAC_NAME")
-            if name and name not in sites:
-                sites.append(name)
+            attrs = f.get("attributes", {})
+            name = attrs.get("FAC_NAME") or ""
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            sites.append({
+                "name":   name,
+                "type":   attrs.get("SITE_TYPE") or "",
+                "status": attrs.get("STATUS_FLAG") or "",
+            })
 
         return {
             "contamination_found": True,
