@@ -48,10 +48,13 @@ async def get_flood_zone(lat: float, lng: float) -> dict:
             else:
                 sfha = str(sfha_raw).strip().upper() == "T"
 
+            bfe_raw = attrs.get("STATIC_BFE")
+            bfe = float(bfe_raw) if bfe_raw not in (None, -9999, -9999.0) else None
             return {
                 "zone": zone,
                 "zone_subtype": (attrs.get("ZONE_SUBTY") or "").strip(),
                 "sfha": sfha,
+                "base_flood_elevation_ft": bfe,
                 "source": "FEMA NFHL",
             }
         except Exception as e:
