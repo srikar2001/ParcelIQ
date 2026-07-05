@@ -426,7 +426,16 @@ body.on-results .detail-panel{top:0}
 .map-modal-title{font-size:13px;font-weight:700;color:var(--t1);margin-right:auto}
 .map-modal-close{background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer;line-height:1;padding:0 4px}
 .map-modal-close:hover{color:var(--t1)}
+.map-modal-body{display:flex;flex:1;min-height:0;overflow:hidden}
 #mapModalMap{flex:1;min-height:0}
+#mapModalSidebar{width:280px;background:var(--card);border-left:1px solid var(--b);padding:16px;overflow-y:auto;flex-shrink:0}
+.mms-divider{border:none;border-top:1px solid var(--b);margin:12px 0}
+.mms-stat-label{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+.mms-stat-val{font-size:13px;font-weight:700;color:var(--t1)}
+.mms-flag-row{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:12px;color:var(--t2)}
+.mms-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.mms-nav-btn{background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:12px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.mms-nav-btn:hover{color:var(--t1);border-color:var(--bh)}
 /* ── Detail panel positives ── */
 .dp-pos-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;border-bottom:1px solid rgba(42,45,58,.5)}
 .dp-pos-row:last-child{border-bottom:none}
@@ -1887,7 +1896,9 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <div id="mapModal">
   <div class="map-modal-inner">
     <div class="map-modal-header">
-      <div class="map-modal-title" id="mapModalTitle">Parcel Map</div>
+      <button class="mms-nav-btn" onclick="navModalParcel(-1)">← Prev</button>
+      <button class="mms-nav-btn" onclick="navModalParcel(1)">Next →</button>
+      <div class="map-modal-title" id="mapModalTitle" style="margin-left:8px">Parcel Map</div>
       <span id="mapModalVerdict" class="verdict-badge" style="display:none"></span>
       <button class="map-toggle active" data-mlayer="parcel" onclick="toggleModalLayer(this)">Parcel</button>
       <button class="map-toggle" data-mlayer="flood" onclick="toggleModalLayer(this)">Flood zones</button>
@@ -1895,7 +1906,10 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <button class="map-toggle" data-mlayer="satellite" onclick="toggleModalSatellite(this)">Satellite</button>
       <button class="map-modal-close" onclick="closeMapModal()">✕</button>
     </div>
-    <div id="mapModalMap"></div>
+    <div class="map-modal-body">
+      <div id="mapModalMap"></div>
+      <div id="mapModalSidebar"></div>
+    </div>
   </div>
 </div>
 
@@ -5593,6 +5607,71 @@ function toggleSatellite(btn) {
 let _modalMap = null; window._modalMap = null;
 const _modalLayers = {};
 
+function _populateMapModalSidebar(r) {
+  const sb = document.getElementById('mapModalSidebar');
+  if (!sb || !r) return;
+  const pi = r.parcel_info || {};
+  const ev = effectiveVerdict(r);
+  const score = r.score != null ? r.score : '';
+  const scoreColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
+
+  // Snapshot stats
+  const statPairs = [];
+  const ac = getAcreage(r);
+  if (ac != null) statPairs.push(['ACREAGE', ac + ' ac', null]);
+  const county = pi.county || extractCounty(r.address || '');
+  if (county) statPairs.push(['COUNTY', county, null]);
+  const ft = getFloodText(r);
+  if (ft && ft !== '—') {
+    const isSafe = /zone x/i.test(ft); const isDanger = /AE|VE|AO|AH/i.test(ft);
+    statPairs.push(['FLOOD ZONE', isSafe ? ft + ' ✓' : isDanger ? ft + ' ✗' : ft, isSafe ? 'var(--green)' : isDanger ? 'var(--red)' : null]);
+  }
+  if (pi.elevation_ft != null) statPairs.push(['ELEVATION', pi.elevation_ft + ' ft', null]);
+
+  const statsHtml = statPairs.map(([lbl, val, col]) =>
+    '<div style="margin-bottom:10px">' +
+    '<div class="mms-stat-label">' + escHtml(lbl) + '</div>' +
+    '<div class="mms-stat-val"' + (col ? ' style="color:' + col + '"' : '') + '>' + escHtml(String(val)) + '</div>' +
+    '</div>'
+  ).join('');
+
+  // Top flags
+  const allFlags = [...(r.kill_flags || []), ...(r.review_flags || [])].slice(0, 3);
+  const flagsHtml = allFlags.map(f => {
+    const isKill = (r.kill_flags || []).includes(f);
+    const dotCol = isKill ? 'var(--red)' : 'var(--amber)';
+    return '<div class="mms-flag-row"><div class="mms-dot" style="background:' + dotCol + '"></div>' + escHtml(translateFlag(f)) + '</div>';
+  }).join('');
+
+  // Top positives
+  const posHtml = (r.positives || []).slice(0, 3).map(p =>
+    '<div class="mms-flag-row"><div class="mms-dot" style="background:var(--green)"></div>' + escHtml(p) + '</div>'
+  ).join('');
+
+  sb.innerHTML =
+    '<div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:8px;line-height:1.3">' + escHtml(r.address || '') + '</div>' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
+      '<span class="verdict-badge ' + verdictClass(ev) + '">' + escHtml(ev) + '</span>' +
+      (score !== '' ? '<span style="font-size:18px;font-weight:800;color:' + scoreColor + '">' + score + '</span>' : '') +
+    '</div>' +
+    '<hr class="mms-divider">' +
+    statsHtml +
+    (flagsHtml || posHtml ? '<hr class="mms-divider">' : '') +
+    flagsHtml +
+    posHtml +
+    '<hr class="mms-divider">' +
+    '<button onclick="closeMapModal();openDetailPanel(_openParcelIdx,null)" style="width:100%;padding:8px;background:none;border:1px solid var(--b);border-radius:var(--rs);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:\'Inter\',sans-serif;transition:all .15s" onmouseover="this.style.color=\'var(--t1)\';this.style.borderColor=\'var(--bh)\'" onmouseout="this.style.color=\'var(--t2)\';this.style.borderColor=\'var(--b)\'">View full details ↓</button>';
+}
+
+function navModalParcel(dir) {
+  const next = _openParcelIdx + dir;
+  if (next < 0 || next >= _currentDisplayed.length) { toast(dir > 0 ? 'Last parcel reached' : 'First parcel reached'); return; }
+  const page = Math.floor(next / _rowsPerPage) + 1;
+  if (page !== _currentPage) { _currentPage = page; renderPage(); }
+  openDetailPanel(next, null);
+  expandMap();
+}
+
 function expandMap() {
   if (!_openParcel) return;
   const modal = document.getElementById('mapModal');
@@ -5607,6 +5686,7 @@ function expandMap() {
     verdictEl.className = 'verdict-badge ' + verdictClass(v);
     verdictEl.style.display = v ? 'inline-flex' : 'none';
   }
+  _populateMapModalSidebar(_openParcel);
   _modalSatOn = false;
   modal.style.display = 'block';
 
