@@ -1829,9 +1829,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   </div>
   <!-- 2. Snapshot stats bar -->
   <div id="dpSignals" style="display:flex;flex-wrap:wrap;align-items:center;padding:8px 16px 10px;border-bottom:1px solid var(--b)"></div>
-  <!-- 3. Verdict Summary -->
-  <div id="dpWhy" class="dp-why"></div>
-  <!-- 4. Map controls + map -->
+  <!-- 3. Map controls + map -->
   <div class="map-controls" id="mapControls" style="display:none">
     <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this)">Parcel</button>
     <button class="map-toggle" data-layer="flood" onclick="toggleMapLayer(this)">Flood zones</button>
@@ -1843,6 +1841,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <div id="dpMapPlaceholder" class="dp-map-placeholder" style="display:none;height:240px;margin:0">Loading map…</div>
     <div id="parcel-map" style="height:240px;border-radius:var(--rs);overflow:hidden;display:none;cursor:pointer" title="Click to expand map" onclick="expandMap()"></div>
   </div>
+  <!-- 4. Verdict Summary -->
+  <div id="dpWhy" class="dp-why"></div>
   <!-- 6. Parcel Details -->
   <div class="dp-section" id="dpInfoSection">
     <div class="dp-sec-title">Parcel Details</div>
