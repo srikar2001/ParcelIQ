@@ -571,9 +571,7 @@ body.on-results .detail-panel{top:0}
 .dp-grid-item{background:var(--bg);border-radius:var(--rs);padding:8px 10px}
 .dp-grid-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
 .dp-grid-val{font-size:13px;font-weight:600;color:var(--t1)}
-.dp-grid-section{grid-column:1/-1;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;padding-top:8px;border-top:1px solid var(--b);margin-top:4px}
-.dp-grid-section:first-child{border-top:none;padding-top:0;margin-top:0}
-.dp-grid-note{grid-column:1/-1;font-size:11px;color:var(--amber);background:rgba(245,158,11,.08);border-radius:var(--rs);padding:6px 10px}
+.dp-grid-sub{font-size:10px;color:var(--t3);font-weight:400;margin-top:2px;line-height:1.4}
 .dp-map-placeholder{height:280px;margin:0 12px 12px;background:rgba(13,15,18,.8);border:1px solid var(--b);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:12px;text-align:center;padding:16px;line-height:1.5}
 .map-controls{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;border-bottom:1px solid var(--b)}
 .map-toggle{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t3);cursor:pointer;transition:all .15s}
@@ -640,6 +638,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .res-trow.selected{background:rgba(34,197,94,.05)}
 .res-trow.selected td:first-child{border-left:2px solid var(--green)}
 .res-trow.panel-selected{border-left:3px solid var(--green)}
+.res-trow.row-active{border-left:3px solid var(--green);background:rgba(34,197,94,.06)!important}
+.res-trow.row-active td:first-child{padding-left:9px}
 
 /* ══ PAGINATION */
 .pagi-wrap{display:flex;align-items:center;justify-content:space-between;padding:12px 0 4px;flex-wrap:wrap;gap:8px}
@@ -1839,21 +1839,23 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <div id="dpMapPlaceholder" class="dp-map-placeholder" style="display:none;height:240px;margin:0">Loading map…</div>
     <div id="parcel-map" style="height:240px;border-radius:var(--rs);overflow:hidden;display:none;cursor:pointer" title="Click to expand map" onclick="expandMap()"></div>
   </div>
-  <!-- 3. Key parcel data -->
+  <!-- 3. Verdict Summary -->
+  <div id="dpWhy" class="dp-why"></div>
+  <!-- 4. Lot Snapshot -->
+  <div id="dpSnapshot" style="display:flex;gap:8px;padding:0 16px 14px;flex-wrap:wrap"></div>
+  <!-- 5. Parcel Details -->
   <div class="dp-section" id="dpInfoSection">
-    <div class="dp-sec-title">Parcel Info</div>
+    <div class="dp-sec-title">Parcel Details</div>
     <div class="dp-grid" id="dpInfo"></div>
   </div>
-  <!-- 4. Verdict explanation -->
-  <div id="dpWhy" class="dp-why" style="margin-top:0"></div>
-  <!-- 5. Risk flags -->
+  <!-- 6. Risk Flags -->
   <div class="dp-section" id="dpFlagsSection">
     <div class="dp-sec-title">Risk Flags</div>
     <div id="dpFlags"></div>
   </div>
-  <!-- 6. Positive signals -->
+  <!-- 7. What's Looking Good -->
   <div class="dp-section" id="dpPositivesSection" style="display:none">
-    <div class="dp-sec-title" style="color:var(--green)">Positive Signals</div>
+    <div class="dp-sec-title">What's Looking Good</div>
     <div id="dpPositives"></div>
   </div>
   <div class="dp-section">
@@ -2868,20 +2870,50 @@ function getDORDescription(code) {
 // FIX 3: Flag + source translation
 function translateFlag(f) {
   const exact = {
-    'Wetlands nearby (within ~100m)': 'Wetlands nearby',
-    'Road surface unverified (unpaved or unmapped)': 'Road unknown',
-    'Last sale price very low ($0)': 'No sale history',
-    'Just value and land value diverge >15%': 'Value gap',
-    'FEMA Zone X — minimal flood hazard': 'Zone X — clean',
-    'No road detected in OSM (possible rural gap or landlocked)': 'No road found',
-    'No parcel record found in FL cadastral': 'No county record',
-    'Vacant lot with no sale history': 'No sale history',
-    'Ideal parcel size': 'Good size',
-    'Recent market sale': 'Market sale',
-    'Vacant/unimproved lot': 'Vacant lot',
+    'Wetlands nearby (within ~100m)':               'Wetlands within 100m — not on parcel itself',
+    'Wetlands on parcel (USFWS NWI)':               'Wetlands confirmed on parcel — auto-kill',
+    'Road surface unverified (unpaved or unmapped)': 'Road access unverified — check satellite view',
+    'Road data unavailable — verify access':         'Road access unverified — check satellite view',
+    'Road type unconfirmed':                         'Road access unverified — check satellite view',
+    'Last sale price very low ($0)':                 'No recorded sale — normal for vacant land',
+    'Vacant lot with no sale history':               'No recorded sale — normal for vacant land',
+    'Just value and land value diverge >15%':        'Tax exemption likely — assessed value may jump at sale',
+    'FEMA Zone X — minimal flood hazard':            'Zone X — clean',
+    'FEMA Flood Zone AE':                            'In FEMA flood zone AE — high flood risk',
+    'FEMA Flood Zone VE':                            'In FEMA coastal flood zone — very high risk',
+    'No road detected in OSM (possible rural gap or landlocked)': 'No road found — check satellite view',
+    'No parcel record found in FL cadastral':        'County records unavailable for this parcel',
+    'County data unavailable':                       'County records unavailable for this parcel',
+    'Conservation easement on parcel':               'Conservation easement — land use restricted',
+    'Ideal parcel size':                             'Good buildable size',
+    'Recent market sale':                            'Recent market sale on record',
+    'Vacant/unimproved lot':                         'Confirmed vacant lot',
+    'Not in a hurricane evacuation zone':            'Outside hurricane evacuation zone',
+    'Zone X — clean':                                'No flood zone risk (FEMA Zone X)',
+    'No wetlands on parcel or nearby':               'No wetlands detected',
+    'Vacant lot':                                    'Confirmed vacant lot',
+    'Market sale':                                   'Recent market sale on record',
   };
   if (exact[f]) return exact[f];
-  if (f.startsWith('Critical habitat nearby:')) return f.replace('Critical habitat nearby:', 'Wildlife:');
+  if (/^Good elevation \(/i.test(f)) {
+    const m = f.match(/\(([0-9.]+)\s*ft\)/i);
+    return m ? 'Elevation ' + m[1] + ' ft — above flood risk' : f;
+  }
+  if (/^Well-drained soil \(/i.test(f)) return 'Well-drained soil — septic system feasible';
+  if (/^Ideal parcel size \(/i.test(f)) {
+    const m = f.match(/\(([0-9.]+)\s*ac\)/i);
+    return m ? m[1] + ' acres — good buildable size' : 'Good buildable size';
+  }
+  if (/^Power infrastructure/i.test(f)) {
+    const m = f.match(/Power infrastructure (.+)/i);
+    return m ? 'Power lines ' + m[1] + ' away' : 'Power infrastructure nearby';
+  }
+  if (/^Agricultural land use code/i.test(f)) return 'Agricultural use — rezoning required to build';
+  if (/^Critical habitat nearby:/i.test(f)) return f.replace('Critical habitat nearby:', 'Wildlife:');
+  if (/^Critical habitat:/i.test(f)) {
+    const species = f.replace(/^Critical habitat:\s*/i, '');
+    return 'Protected wildlife habitat: ' + species + ' — auto-kill';
+  }
   return f;
 }
 
@@ -4726,47 +4758,47 @@ function renderTable(results, offset) {
 let _openParcelIdx = -1;
 
 const KILL_EXPLANATIONS = {
-  'wetland':       'Wetlands are on this parcel. Federal law (Clean Water Act) blocks development — Army Corps permits are rarely granted for wetland fill.',
-  'flood zone ae': 'FEMA Flood Zone AE means mandatory flood insurance, restricted building permits, and lenders will not finance development.',
-  'flood zone ve': 'FEMA Flood Zone VE is a coastal high-hazard area. Building is severely restricted and insurance costs are prohibitive.',
-  'flood zone v':  'FEMA Flood Zone V — coastal high-hazard. Virtually unbuildable for residential development.',
-  'habitat':       'Critical habitat for a listed endangered species overlaps this parcel. The Endangered Species Act blocks development permits.',
-  'public':        'This parcel is owned by a government entity (county, state, or federal). It cannot be purchased by private buyers.',
-  'landlocked':    'No road access confirmed. Without a recorded legal easement, this parcel is landlocked and worthless.',
-  'easement':      'A conservation easement permanently restricts development on this parcel. You can own it but cannot build on it.',
+  'wetland':       'Auto-killed: wetlands confirmed on this parcel.',
+  'flood zone ae': 'Auto-killed: parcel is in FEMA flood zone AE — high flood risk.',
+  'flood zone ve': 'Auto-killed: parcel is in a FEMA coastal flood zone — effectively unbuildable.',
+  'flood zone v':  'Auto-killed: parcel is in a FEMA coastal flood zone — effectively unbuildable.',
+  'habitat':       'Auto-killed: protected wildlife habitat overlaps this parcel.',
+  'public':        'Auto-killed: parcel is government-owned — not available to private buyers.',
+  'landlocked':    'Auto-killed: no road access confirmed — parcel may be landlocked.',
+  'easement':      'Auto-killed: conservation easement permanently restricts development.',
 };
 
 function getKillExplanation(auto_kill_reason) {
-  if (!auto_kill_reason) return 'A fatal flaw was detected. This parcel cannot be developed.';
+  if (!auto_kill_reason) return 'Score too low to pursue — too many risk factors stacked against this lot.';
   const reason = auto_kill_reason.toLowerCase();
   for (const [key, explanation] of Object.entries(KILL_EXPLANATIONS)) {
     if (reason.includes(key)) return explanation;
   }
-  return auto_kill_reason + '. This makes the parcel unsuitable for development.';
+  const r0 = auto_kill_reason.charAt(0).toLowerCase() + auto_kill_reason.slice(1);
+  return 'Auto-killed: ' + r0;
 }
 
 function getPursueExplanation(result) {
   const positives = result.positives || [];
-  const MAP = {
-    'zone x':       'No flood risk (FEMA Zone X)',
-    'no wetlands':  'Clean wetlands check',
-    'paved road':   'Paved road access confirmed',
-    'market sale':  'Recent real market sale confirmed',
-    'ideal parcel': 'Good buildable lot size',
-    'vacant':       'Confirmed vacant land',
-    'well-drained': 'Good soil — septic feasible',
-    'high elevation': 'Safe elevation — flood resilient',
-    'power':        'Electric infrastructure nearby',
-  };
+  const MAP = [
+    [/zone x/i,          'No flood risk (FEMA Zone X)'],
+    [/no wetlands/i,      'No wetlands detected'],
+    [/well-?drained/i,    'Well-drained soil — septic feasible'],
+    [/evacuation zone/i,  'Outside hurricane evacuation zone'],
+    [/power/i,            'Power infrastructure nearby'],
+    [/vacant/i,           'Confirmed vacant lot'],
+    [/market sale/i,      'Recent market sale on record'],
+    [/elevation/i,        'Safe elevation above flood risk'],
+  ];
   const reasons = [];
   positives.forEach(p => {
-    const pl = p.toLowerCase();
-    for (const [key, label] of Object.entries(MAP)) {
-      if (pl.includes(key)) { reasons.push(label); break; }
+    for (const [pat, label] of MAP) {
+      if (pat.test(p) && !reasons.includes(label)) { reasons.push(label); break; }
     }
   });
-  if (reasons.length === 0) return 'No fatal flags detected. All automated checks passed.';
-  return 'Strong signals: ' + reasons.join(' · ');
+  if (reasons.length === 0) return 'Clean lot — passes all major screens.';
+  if (reasons.length === 1) return reasons[0] + '.';
+  return reasons.slice(0, 2).join(' and ') + '.';
 }
 
 function openDetailPanel(absIdx, event) {
@@ -4775,8 +4807,9 @@ function openDetailPanel(absIdx, event) {
   if (!r) return;
   _openParcel = r; _openParcelIdx = absIdx;
   document.querySelectorAll('.res-trow.panel-selected').forEach(el => el.classList.remove('panel-selected'));
+  document.querySelectorAll('.res-trow.row-active').forEach(el => el.classList.remove('row-active'));
   const row = document.getElementById('trow-' + absIdx);
-  if (row) row.classList.add('panel-selected');
+  if (row) { row.classList.add('panel-selected'); row.classList.add('row-active'); }
   const panel = document.getElementById('detailPanel');
   if (!panel) return;
   const pi = r.parcel_info || {};
@@ -4785,7 +4818,7 @@ function openDetailPanel(absIdx, event) {
   const setT = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   const setH = (id, v) => { const e = document.getElementById(id); if (e) e.innerHTML = v; };
   setT('dpStreet', r.address || '');
-  setT('dpApn', pi.apn ? 'APN: ' + pi.apn : '');
+  setT('dpApn', (pi.parcel_id || pi.apn) ? 'APN: ' + (pi.parcel_id || pi.apn) : '');
   const scoreEl = document.getElementById('dpScore');
   if (scoreEl) {
     scoreEl.textContent = r.score != null ? String(r.score) : '';
@@ -4799,38 +4832,46 @@ function openDetailPanel(absIdx, event) {
     dpStar.title = starred ? 'Remove from My Picks' : 'Add to My Picks';
     dpStar.style.color = starred ? 'var(--amber)' : 'var(--t3)';
   }
-  // Why box
+  // Verdict Summary box
   const whyEl = document.getElementById('dpWhy');
   if (whyEl) {
-    const whyCls = ev === 'KILL' ? 'dp-why-k' : 'dp-why-p';
+    const whyCls = ev === 'KILL' ? 'dp-why-k' : ev === 'PURSUE' ? 'dp-why-p' : 'dp-why-r';
     let whyText = '';
     if (ev === 'KILL') {
       whyText = escHtml(getKillExplanation(r.auto_kill_reason));
     } else if (ev === 'PURSUE') {
-      const explanation = getPursueExplanation(r);
-      const positives = (r.positives || []);
-      const checkmarks = positives.length > 0
-        ? '<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">' +
-          positives.map(p => '<div style="display:flex;align-items:center;gap:6px"><span style="color:var(--green);font-size:12px">✓</span><span style="font-size:12px">' + escHtml(translateFlag(p)) + '</span></div>').join('') +
-          '</div>'
-        : '';
-      whyText = escHtml(explanation) + checkmarks;
+      whyText = escHtml(getPursueExplanation(r));
     } else {
       whyText = escHtml(ev);
     }
     whyEl.className = 'dp-why ' + whyCls;
     whyEl.innerHTML = whyText;
-    // Append assessed/sale value to insights box
-    let _valStr = '';
-    if (pi.last_sale_price != null && pi.last_sale_price > 0) {
-      _valStr = 'Last sale: ' + fmt$(pi.last_sale_price) + (pi.last_sale_year ? ' (' + pi.last_sale_year + ')' : '');
-    } else if (pi.just_value != null && pi.just_value > 0) {
-      _valStr = 'Assessed: ' + fmt$(pi.just_value);
-    } else if (pi.land_value != null && pi.land_value > 0) {
-      _valStr = 'Land value: ' + fmt$(pi.land_value);
+  }
+  // Lot Snapshot bar
+  const snapEl = document.getElementById('dpSnapshot');
+  if (snapEl) {
+    const pills = [];
+    const snapAc = getAcreage(r);
+    if (snapAc != null) pills.push({ lbl: 'Acreage', val: snapAc + ' ac' });
+    const snapCounty = pi.county || extractCounty(r.address || '');
+    if (snapCounty) pills.push({ lbl: 'County', val: snapCounty + ' County' });
+    const floodText = getFloodText(r);
+    if (floodText && floodText !== '—') {
+      const isSFHA = /^Zone (AE|VE|V|A\b|AH|AO)/i.test(floodText);
+      pills.push({ lbl: 'Flood Zone', val: floodText + (isSFHA ? ' ✗' : ' ✓') });
     }
-    if (_valStr) {
-      whyEl.innerHTML += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.15);font-size:11px;opacity:.75">&#128176; ' + escHtml(_valStr) + '</div>';
+    if (pi.elevation_ft != null) pills.push({ lbl: 'Elevation', val: pi.elevation_ft + ' ft' });
+    if (pills.length > 0) {
+      snapEl.style.display = 'flex';
+      snapEl.innerHTML = pills.map(p =>
+        '<div class="dp-grid-item" style="flex:1;min-width:72px">' +
+          '<div class="dp-grid-lbl">' + escHtml(p.lbl) + '</div>' +
+          '<div class="dp-grid-val">' + escHtml(p.val) + '</div>' +
+        '</div>'
+      ).join('');
+    } else {
+      snapEl.style.display = 'none';
+      snapEl.innerHTML = '';
     }
   }
   // Risk flags (red/amber/grey only — no positives mixed in)
@@ -4840,104 +4881,103 @@ function openDetailPanel(absIdx, event) {
     const killF = r.kill_flags || (r.auto_kill ? r.flags : []) || [];
     const revF  = r.review_flags || [];
     const infoF = (r.info_flags || r.flags || []).filter(f => !killF.includes(f) && !revF.includes(f));
+    const _isInfoOnly = f => /road.*(unavailable|unverified|unconfirmed)/i.test(f) || /no (recorded )?sale/i.test(f) || /no sale history/i.test(f) || /last sale.*\$0/i.test(f) || /vacant lot with no sale/i.test(f);
     let h = '';
     killF.forEach(f => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-r"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span><span class="dp-flag-src">auto-kill</span></div>'; });
-    revF.forEach(f  => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-a"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>'; });
+    revF.forEach(f  => {
+      const dot = _isInfoOnly(f) ? 'dp-dot-m' : 'dp-dot-a';
+      h += '<div class="dp-flag-row"><div class="dp-dot ' + dot + '"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>';
+    });
     infoF.forEach(f => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-m"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>'; });
     dpFlags.innerHTML = h || '<div style="font-size:12px;color:var(--t3)">No risk flags.</div>';
     if (dpFlagsSec) dpFlagsSec.style.display = (h || killF.length || revF.length || infoF.length) ? '' : 'none';
   }
-  // Positive signals — separate section
+  // What's Looking Good — filter out items already in Snapshot (flood zone, elevation, acreage)
   const dpPos = document.getElementById('dpPositives');
   const dpPosSec = document.getElementById('dpPositivesSection');
   if (dpPos) {
-    const pos = r.positives || [];
+    const _snapPats = [/zone x/i, /elevation/i, /ideal parcel size/i, /good buildable size/i];
+    const pos = (r.positives || []).filter(p => !_snapPats.some(re => re.test(p)));
     const ph = pos.map(p => '<div class="dp-pos-row"><div class="dp-dot dp-dot-g"></div><span class="dp-flag-text">' + escHtml(translateFlag(p)) + '</span></div>').join('');
     dpPos.innerHTML = ph;
     if (dpPosSec) dpPosSec.style.display = pos.length > 0 ? '' : 'none';
   }
-  // Info grid
+  // Parcel Details grid
   const dpInfo = document.getElementById('dpInfo');
   if (dpInfo) {
-    const items = []; // ['label','value'] | ['__section__','title'] | ['__note__','text']
+    const _cell = (lbl, vHtml) => '<div class="dp-grid-item"><div class="dp-grid-lbl">' + escHtml(lbl) + '</div><div class="dp-grid-val">' + vHtml + '</div></div>';
+    let infoH = '';
 
-    // === Parcel Identity ===
-    const identityItems = [];
-    if (pi.county) identityItems.push(['County', pi.county]);
-    if (pi.parcel_id) identityItems.push(['Parcel ID', pi.parcel_id]);
-    const ac = getAcreage(r);
-    if (ac != null) identityItems.push(['Size', ac + ' ac']);
-    if (pi.building_count != null && pi.building_count > 0) identityItems.push(['Buildings', String(pi.building_count)]);
-    if (pi.owner && pi.owner !== 'N/A') identityItems.push(['Owner', pi.owner]);
-    if (pi.land_use_code) identityItems.push(['Type', getDORDescription(pi.land_use_code)]);
-    if (identityItems.length) { items.push(['__section__', 'Parcel Identity']); items.push(...identityItems); }
+    // Owner
+    if (pi.owner && pi.owner !== 'N/A') {
+      infoH += _cell('Owner', escHtml(pi.owner) + '<div class="dp-grid-sub">as of county tax roll</div>');
+    }
 
-    // === Value & Sale History ===
-    const valueItems = [];
+    // Land Use
+    if (pi.land_use_code) {
+      infoH += _cell('Land Use', escHtml(getDORDescription(pi.land_use_code)));
+    }
+
+    // APN
+    const apnVal = pi.parcel_id || pi.apn;
+    if (apnVal) {
+      infoH += _cell('APN', '<span style="font-family:monospace;font-size:11px;letter-spacing:.02em">' + escHtml(apnVal) + '</span>');
+    }
+
+    // Buildings
+    if (pi.building_count != null) {
+      infoH += _cell('Buildings', escHtml(pi.building_count === 0 ? 'None' : String(pi.building_count)));
+    }
+
+    // Assessed Value
     const assessedVal = pi.assessed_value != null ? pi.assessed_value : pi.just_value;
-    if (assessedVal != null && assessedVal > 0) valueItems.push(['Assessed Value (County)', fmt$(assessedVal)]);
-    if (pi.land_value != null && pi.land_value > 0) valueItems.push(['Land Value', fmt$(pi.land_value)]);
+    if (assessedVal != null && assessedVal > 0) {
+      infoH += _cell('Assessed Value', escHtml(fmt$(assessedVal)) + '<div class="dp-grid-sub">County tax estimate — not market value</div>');
+    }
+
+    // Last Sale
     if (pi.last_sale_price != null && pi.last_sale_price > 0) {
       const yr = pi.last_sale_year ? ' (' + pi.last_sale_year + ')' : '';
-      valueItems.push(['Last Sale', fmt$(pi.last_sale_price) + yr]);
+      let saleHtml = escHtml(fmt$(pi.last_sale_price) + yr);
       if (pi.sale_price_likely_market_value === false) {
-        valueItems.push(['__note__', 'Sale price under $1,000 — likely not a market transaction']);
+        saleHtml += '<div class="dp-grid-sub">Likely non-market (gift/transfer)</div>';
       }
-    }
-    if (valueItems.length) { items.push(['__section__', 'Value & Sale History']); items.push(...valueItems); }
-
-    // === Flood & Environment ===
-    const floodItems = [];
-    const floodFlag = (r.flags || []).find(f => /flood zone/i.test(f));
-    if (floodFlag) { const m = floodFlag.match(/flood zone\s*(\S+)/i); if (m) floodItems.push(['Flood Zone', 'Zone ' + m[1].toUpperCase()]); }
-    if (pi.flood_zone_subtype) floodItems.push(['Flood Subtype', pi.flood_zone_subtype]);
-    if (pi.base_flood_elevation_ft != null) floodItems.push(['Base Flood Elev.', pi.base_flood_elevation_ft + ' ft']);
-    if (pi.evac_zone) {
-      const riskLabel = pi.evac_risk ? ' (' + pi.evac_risk + ')' : '';
-      const countyLabel = pi.evac_county ? ' · ' + pi.evac_county + ' Co.' : '';
-      floodItems.push(['Evac Zone', 'Zone ' + pi.evac_zone + riskLabel + countyLabel]);
-    }
-    if (pi.evac_county_zone) floodItems.push(['Evac County Zone', pi.evac_county_zone]);
-    if (pi.elevation_ft != null) floodItems.push(['Elevation', pi.elevation_ft + ' ft']);
-    if (pi.soil_drainage) {
-      const septicLabel = pi.septic_suitable === true ? ' ✓' : pi.septic_suitable === false ? ' ✗' : '';
-      floodItems.push(['Soil', pi.soil_drainage + septicLabel]);
-    }
-    if (floodItems.length) { items.push(['__section__', 'Flood & Environment']); items.push(...floodItems); }
-
-    // === Site Details ===
-    const siteItems = [];
-    if (pi.wetland_type) {
-      siteItems.push(['Wetland', pi.wetland_code ? pi.wetland_type + ' (' + pi.wetland_code + ')' : pi.wetland_type]);
-    }
-    if (pi.habitat_species && pi.habitat_species.length > 0) siteItems.push(['Critical Habitat', pi.habitat_species.join(', ')]);
-    if (pi.contamination_sites && pi.contamination_sites.length > 0) {
-      pi.contamination_sites.forEach(s => {
-        const lbl = [s.type, s.status].filter(Boolean).join(' · ');
-        siteItems.push(['Contamination', s.name + (lbl ? ' — ' + lbl : '')]);
-      });
-    }
-    if (pi.road_type) {
-      siteItems.push(['Road', pi.road_surface ? pi.road_type + ' (' + pi.road_surface + ')' : pi.road_type]);
-    }
-    if (pi.waterway_type) {
-      siteItems.push(['Waterway', pi.waterway_distance != null ? pi.waterway_type + ' · ' + pi.waterway_distance + ' m away' : pi.waterway_type]);
-    }
-    const elecFlag = (r.flags || []).find(f => /electric|power\s*line/i.test(f));
-    if (elecFlag) siteItems.push(['Electric', elecFlag.split('.')[0].replace(/^[^:]+:\s*/, '')]);
-    if (siteItems.length) { items.push(['__section__', 'Site Details']); items.push(...siteItems); }
-
-    if (items.length === 0) {
-      dpInfo.innerHTML = '<div style="font-size:12px;color:var(--t3);grid-column:1/-1">No parcel data available.</div>';
+      infoH += _cell('Last Sale', saleHtml);
     } else {
-      dpInfo.innerHTML = items.map(([l, v]) => {
-        if (l === '__section__') return '<div class="dp-grid-section">' + escHtml(v) + '</div>';
-        if (l === '__note__')    return '<div class="dp-grid-note">'    + escHtml(v) + '</div>';
-        const vs = String(v).trim();
-        if (!vs || vs === 'null' || vs === 'undefined' || vs === 'N/A') return '';
-        return '<div class="dp-grid-item"><div class="dp-grid-lbl">' + escHtml(l) + '</div><div class="dp-grid-val">' + escHtml(vs) + '</div></div>';
-      }).join('');
+      infoH += _cell('Last Sale', 'No recorded sale');
     }
+
+    // Land Value
+    if (pi.land_value != null && pi.land_value > 0) {
+      infoH += _cell('Land Value', escHtml(fmt$(pi.land_value)));
+    }
+
+    // Soil
+    if (pi.soil_drainage) {
+      let soilTxt;
+      if (pi.septic_suitable === true) soilTxt = pi.soil_drainage + ' — septic feasible';
+      else if (pi.septic_suitable === false) soilTxt = pi.soil_drainage + ' — septic likely not feasible';
+      else soilTxt = pi.soil_drainage;
+      infoH += _cell('Soil', escHtml(soilTxt));
+    }
+
+    // Evac Zone
+    if (pi.evac_zone) {
+      const riskLbl = pi.evac_risk ? ' · ' + pi.evac_risk + ' risk' : '';
+      infoH += _cell('Evac Zone', escHtml('Zone ' + pi.evac_zone + riskLbl));
+    } else if (pi.county || pi.parcel_id) {
+      infoH += _cell('Evac Zone', 'Not in evacuation zone');
+    }
+
+    // Power
+    if (pi.powerline_nearby === true) {
+      const dist = pi.powerline_distance ? ' (' + pi.powerline_distance + ')' : '';
+      infoH += _cell('Power', 'Nearby' + escHtml(dist));
+    } else if (pi.powerline_nearby === false) {
+      infoH += _cell('Power', 'None detected');
+    }
+
+    dpInfo.innerHTML = infoH || '<div style="font-size:12px;color:var(--t3);grid-column:1/-1">No parcel data available.</div>';
   }
   // Sources
   setH('dpSources', 'Sources: ' + (r.sources || ['FEMA','Wetlands','Wildlife','EPA','Roads','County Records']).map(s => escHtml(translateSource(s))).join(' · '));
@@ -4972,6 +5012,7 @@ function closeDetailPanel() {
   if (_mc && _mc._leaflet_id) delete _mc._leaflet_id;
   _openParcel = null; _openParcelIdx = -1;
   document.querySelectorAll('.res-trow.panel-selected').forEach(el => el.classList.remove('panel-selected'));
+  document.querySelectorAll('.res-trow.row-active').forEach(el => el.classList.remove('row-active'));
 }
 
 function nextParcel() {
