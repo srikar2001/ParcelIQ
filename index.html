@@ -571,6 +571,9 @@ body.on-results .detail-panel{top:0}
 .dp-grid-item{background:var(--bg);border-radius:var(--rs);padding:8px 10px}
 .dp-grid-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
 .dp-grid-val{font-size:13px;font-weight:600;color:var(--t1)}
+.dp-grid-section{grid-column:1/-1;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;padding-top:8px;border-top:1px solid var(--b);margin-top:4px}
+.dp-grid-section:first-child{border-top:none;padding-top:0;margin-top:0}
+.dp-grid-note{grid-column:1/-1;font-size:11px;color:var(--amber);background:rgba(245,158,11,.08);border-radius:var(--rs);padding:6px 10px}
 .dp-map-placeholder{height:280px;margin:0 12px 12px;background:rgba(13,15,18,.8);border:1px solid var(--b);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:12px;text-align:center;padding:16px;line-height:1.5}
 .map-controls{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;border-bottom:1px solid var(--b)}
 .map-toggle{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t3);cursor:pointer;transition:all .15s}
@@ -4684,7 +4687,7 @@ function renderTable(results, offset) {
       '</div>' +
       rescreenBtn +
     '</div>';
-    const county = (!isOutside && !isError) ? extractCounty(r.address || '') : '';
+    const county = (!isOutside && !isError) ? ((r.parcel_info || {}).county || extractCounty(r.address || '')) : '';
     let sizeHtml = '';
     if (!isOutside && !isError) {
       const acreage = getAcreage(r);
@@ -4856,45 +4859,80 @@ function openDetailPanel(absIdx, event) {
   // Info grid
   const dpInfo = document.getElementById('dpInfo');
   if (dpInfo) {
-    const fields = [];
+    const items = []; // ['label','value'] | ['__section__','title'] | ['__note__','text']
+
+    // === Parcel Identity ===
+    const identityItems = [];
+    if (pi.county) identityItems.push(['County', pi.county]);
+    if (pi.parcel_id) identityItems.push(['Parcel ID', pi.parcel_id]);
     const ac = getAcreage(r);
-    if (ac != null) fields.push(['Size', ac + ' ac']);
-    const county = extractCounty(r.address || '');
-    if (county) fields.push(['County', county]);
-    if (pi.owner && pi.owner !== 'N/A') fields.push(['Owner', pi.owner]);
+    if (ac != null) identityItems.push(['Size', ac + ' ac']);
+    if (pi.building_count != null && pi.building_count > 0) identityItems.push(['Buildings', String(pi.building_count)]);
+    if (pi.owner && pi.owner !== 'N/A') identityItems.push(['Owner', pi.owner]);
+    if (pi.land_use_code) identityItems.push(['Type', getDORDescription(pi.land_use_code)]);
+    if (identityItems.length) { items.push(['__section__', 'Parcel Identity']); items.push(...identityItems); }
+
+    // === Value & Sale History ===
+    const valueItems = [];
+    const assessedVal = pi.assessed_value != null ? pi.assessed_value : pi.just_value;
+    if (assessedVal != null && assessedVal > 0) valueItems.push(['Assessed Value (County)', fmt$(assessedVal)]);
+    if (pi.land_value != null && pi.land_value > 0) valueItems.push(['Land Value', fmt$(pi.land_value)]);
     if (pi.last_sale_price != null && pi.last_sale_price > 0) {
       const yr = pi.last_sale_year ? ' (' + pi.last_sale_year + ')' : '';
-      fields.push(['Last Sale', fmt$(pi.last_sale_price) + yr]);
-    } else if (pi.just_value != null && pi.just_value > 0) {
-      fields.push(['Est. Value', fmt$(pi.just_value)]);
-    } else if (pi.land_value != null && pi.land_value > 0) {
-      fields.push(['Land Value', fmt$(pi.land_value)]);
-    } else {
-      fields.push(['Value', 'Re-scan to load']);
+      valueItems.push(['Last Sale', fmt$(pi.last_sale_price) + yr]);
+      if (pi.sale_price_likely_market_value === false) {
+        valueItems.push(['__note__', 'Sale price under $1,000 — likely not a market transaction']);
+      }
     }
-    if (pi.land_use_code) fields.push(['Type', getDORDescription(pi.land_use_code)]);
-    // Direct parcel_info fields (elevation, soil, evac from collectors)
-    if (pi.elevation_ft != null) fields.push(['Elevation', pi.elevation_ft + ' ft']);
-    if (pi.soil_drainage) {
-      const septicLabel = pi.septic_suitable === true ? ' ✓' : pi.septic_suitable === false ? ' ✗' : '';
-      fields.push(['Soil', pi.soil_drainage + septicLabel]);
-    }
+    if (valueItems.length) { items.push(['__section__', 'Value & Sale History']); items.push(...valueItems); }
+
+    // === Flood & Environment ===
+    const floodItems = [];
+    const floodFlag = (r.flags || []).find(f => /flood zone/i.test(f));
+    if (floodFlag) { const m = floodFlag.match(/flood zone\s*(\S+)/i); if (m) floodItems.push(['Flood Zone', 'Zone ' + m[1].toUpperCase()]); }
+    if (pi.flood_zone_subtype) floodItems.push(['Flood Subtype', pi.flood_zone_subtype]);
+    if (pi.base_flood_elevation_ft != null) floodItems.push(['Base Flood Elev.', pi.base_flood_elevation_ft + ' ft']);
     if (pi.evac_zone) {
       const riskLabel = pi.evac_risk ? ' (' + pi.evac_risk + ')' : '';
       const countyLabel = pi.evac_county ? ' · ' + pi.evac_county + ' Co.' : '';
-      fields.push(['Evac Zone', 'Zone ' + pi.evac_zone + riskLabel + countyLabel]);
+      floodItems.push(['Evac Zone', 'Zone ' + pi.evac_zone + riskLabel + countyLabel]);
     }
-    // Extract additional fields from flags + positives
-    const allSignals = [...(r.flags || []), ...(r.positives || [])];
-    const findFlag = pat => { const f = allSignals.find(f => pat.test(f)); return f || null; };
-    const floodFlag = findFlag(/flood zone/i);
-    if (floodFlag) { const m = floodFlag.match(/flood zone\s*(\S+)/i); if (m) fields.push(['Flood Zone', 'Zone ' + m[1].toUpperCase()]); }
-    const elecFlag = findFlag(/electric|power\s*line/i);
-    if (elecFlag) fields.push(['Electric', elecFlag.split('.')[0].replace(/^[^:]+:\s*/, '')]);
-    if (fields.length === 0) {
+    if (pi.evac_county_zone) floodItems.push(['Evac County Zone', pi.evac_county_zone]);
+    if (pi.elevation_ft != null) floodItems.push(['Elevation', pi.elevation_ft + ' ft']);
+    if (pi.soil_drainage) {
+      const septicLabel = pi.septic_suitable === true ? ' ✓' : pi.septic_suitable === false ? ' ✗' : '';
+      floodItems.push(['Soil', pi.soil_drainage + septicLabel]);
+    }
+    if (floodItems.length) { items.push(['__section__', 'Flood & Environment']); items.push(...floodItems); }
+
+    // === Site Details ===
+    const siteItems = [];
+    if (pi.wetland_type) {
+      siteItems.push(['Wetland', pi.wetland_code ? pi.wetland_type + ' (' + pi.wetland_code + ')' : pi.wetland_type]);
+    }
+    if (pi.habitat_species && pi.habitat_species.length > 0) siteItems.push(['Critical Habitat', pi.habitat_species.join(', ')]);
+    if (pi.contamination_sites && pi.contamination_sites.length > 0) {
+      pi.contamination_sites.forEach(s => {
+        const lbl = [s.type, s.status].filter(Boolean).join(' · ');
+        siteItems.push(['Contamination', s.name + (lbl ? ' — ' + lbl : '')]);
+      });
+    }
+    if (pi.road_type) {
+      siteItems.push(['Road', pi.road_surface ? pi.road_type + ' (' + pi.road_surface + ')' : pi.road_type]);
+    }
+    if (pi.waterway_type) {
+      siteItems.push(['Waterway', pi.waterway_distance != null ? pi.waterway_type + ' · ' + pi.waterway_distance + ' m away' : pi.waterway_type]);
+    }
+    const elecFlag = (r.flags || []).find(f => /electric|power\s*line/i.test(f));
+    if (elecFlag) siteItems.push(['Electric', elecFlag.split('.')[0].replace(/^[^:]+:\s*/, '')]);
+    if (siteItems.length) { items.push(['__section__', 'Site Details']); items.push(...siteItems); }
+
+    if (items.length === 0) {
       dpInfo.innerHTML = '<div style="font-size:12px;color:var(--t3);grid-column:1/-1">No parcel data available.</div>';
     } else {
-      dpInfo.innerHTML = fields.map(([l,v]) => {
+      dpInfo.innerHTML = items.map(([l, v]) => {
+        if (l === '__section__') return '<div class="dp-grid-section">' + escHtml(v) + '</div>';
+        if (l === '__note__')    return '<div class="dp-grid-note">'    + escHtml(v) + '</div>';
         const vs = String(v).trim();
         if (!vs || vs === 'null' || vs === 'undefined' || vs === 'N/A') return '';
         return '<div class="dp-grid-item"><div class="dp-grid-lbl">' + escHtml(l) + '</div><div class="dp-grid-val">' + escHtml(vs) + '</div></div>';
@@ -6468,7 +6506,7 @@ function _cmpVal(key, r) {
     }
 
     case 'county':
-      return { html: escHtml(extractCounty(r.address || '') || '—') };
+      return { html: escHtml((r.parcel_info || {}).county || extractCounty(r.address || '') || '—') };
 
     case 'flood': {
       if (pos.some(p => /zone x/i.test(p))) return { html: 'Zone X', rank: 4 };
