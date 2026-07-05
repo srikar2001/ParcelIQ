@@ -567,8 +567,8 @@ body.on-results .detail-panel{top:0}
 .dp-dot-r{background:var(--red)}.dp-dot-a{background:var(--amber)}.dp-dot-g{background:var(--green)}.dp-dot-m{background:var(--t3)}
 .dp-flag-text{flex:1;color:var(--t2)}
 .dp-flag-src{font-size:10px;color:var(--t3);white-space:nowrap}
-.dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.dp-grid-item{background:var(--bg);border-radius:var(--rs);padding:8px 10px}
+.dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.dp-grid-item{background:transparent;border-radius:0;border-bottom:1px solid var(--b);padding:6px 2px}
 .dp-grid-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
 .dp-grid-val{font-size:13px;font-weight:600;color:var(--t1)}
 .dp-grid-sub{font-size:10px;color:var(--t3);font-weight:400;margin-top:2px;line-height:1.4}
@@ -1842,7 +1842,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   <!-- 3. Verdict Summary -->
   <div id="dpWhy" class="dp-why"></div>
   <!-- 4. Lot Snapshot -->
-  <div id="dpSnapshot" style="display:flex;gap:8px;padding:0 16px 14px;flex-wrap:wrap"></div>
+  <div id="dpSnapshot" style="padding:10px 16px;display:none"></div>
   <!-- 5. Parcel Details -->
   <div class="dp-section" id="dpInfoSection">
     <div class="dp-sec-title">Parcel Details</div>
@@ -4862,12 +4862,11 @@ function openDetailPanel(absIdx, event) {
     }
     if (pi.elevation_ft != null) pills.push({ lbl: 'Elevation', val: pi.elevation_ft + ' ft' });
     if (pills.length > 0) {
-      snapEl.style.display = 'flex';
-      snapEl.innerHTML = pills.map(p =>
-        '<div class="dp-grid-item" style="flex:1;min-width:72px">' +
-          '<div class="dp-grid-lbl">' + escHtml(p.lbl) + '</div>' +
-          '<div class="dp-grid-val">' + escHtml(p.val) + '</div>' +
-        '</div>'
+      snapEl.style.display = 'block';
+      snapEl.innerHTML = pills.map((p, i) =>
+        (i > 0 ? '<span style="color:var(--b);margin:0 12px">|</span>' : '') +
+        '<span style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px">' + escHtml(p.lbl) + '</span>' +
+        '<span style="font-size:14px;font-weight:600;color:var(--t1);margin-left:4px">' + escHtml(p.val) + '</span>'
       ).join('');
     } else {
       snapEl.style.display = 'none';
