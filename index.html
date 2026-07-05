@@ -5807,15 +5807,13 @@ function closeMapModal() {
 }
 
 function viewFullDetailsFromModal() {
+  _suppressPanelClose = true;
   closeMapModal();
-  const idx = _openParcelIdx;
-  setTimeout(() => {
-    if (idx >= 0) {
-      openDetailPanel(idx, null);
-      const dp = document.getElementById('detailPanel');
-      if (dp) dp.scrollTop = 0;
-    }
-  }, 50);
+  if (_openParcelIdx >= 0) {
+    openDetailPanel(_openParcelIdx, null);
+    const dp = document.getElementById('detailPanel');
+    if (dp) dp.scrollTop = 0;
+  }
 }
 
 let _modalSatOn = false;
@@ -6686,7 +6684,9 @@ document.addEventListener('click', function(e) {
   if (e.target === modal) closeMapModal();
 });
 document.addEventListener('DOMContentLoaded', () => closeDetailPanel());
+let _suppressPanelClose = false;
 document.addEventListener('click', function(e) {
+  if (_suppressPanelClose) { _suppressPanelClose = false; return; }
   if (!_openParcel) return;
   const panel = document.getElementById('detailPanel');
   if (!panel) return;
