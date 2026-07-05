@@ -405,7 +405,7 @@ body.on-results .detail-panel{top:0}
 .map-controls{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--b)}
 .map-expand-btn{margin-left:auto;background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:11px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap}
 .map-expand-btn:hover{color:var(--t1);border-color:var(--bh)}
-#mapModal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.8);backdrop-filter:blur(4px)}
+#mapModal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55)}
 #uploadModal{display:none;position:fixed;inset:0;z-index:2001;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px}
 #uploadModal.show{display:flex}
 .upmod-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);width:100%;max-width:560px;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;animation:upmodIn .2s ease}
@@ -1898,8 +1898,13 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <div id="mapModal">
   <div class="map-modal-inner">
     <div class="map-modal-header">
-      <div class="map-modal-title" id="mapModalTitle">Parcel Map</div>
-      <span id="mapModalVerdict" class="verdict-badge" style="display:none"></span>
+      <div style="display:flex;flex-direction:column;gap:2px;margin-right:auto">
+        <div id="mapModalTitle" style="font-size:15px;font-weight:700;color:var(--t1)">Parcel Map</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span id="mapModalVerdict" class="verdict-badge" style="display:none"></span>
+          <span id="mapModalScore" style="font-size:15px;font-weight:800;display:none"></span>
+        </div>
+      </div>
       <button class="map-toggle active" data-mlayer="parcel" onclick="toggleModalLayer(this)">Parcel</button>
       <button class="map-toggle" data-mlayer="flood" onclick="toggleModalLayer(this)">Flood zones</button>
       <button class="map-toggle" data-mlayer="wetlands" onclick="toggleModalLayer(this)">Wetlands</button>
@@ -5691,15 +5696,20 @@ function _populateMapModalSidebar(r) {
     '<div class="mms-divider" style="margin-top:8px"></div>'
   ) : '';
 
+  const _apnVal = pi.parcel_id || pi.apn || '';
+  const apnBlock = _apnVal
+    ? '<div style="padding:12px 16px 10px">' +
+        '<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">APN</div>' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          '<span style="font-family:monospace;font-size:13px;font-weight:600;color:var(--t1)">' + escHtml(_apnVal) + '</span>' +
+          '<button data-apn="' + escHtml(_apnVal) + '" onclick="copyApn(this)" title="Copy APN" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:0 2px;line-height:1">⎘</button>' +
+        '</div>' +
+        (verdictReason ? '<div style="font-size:11px;color:var(--t3);margin-top:4px">' + escHtml(verdictReason) + '</div>' : '') +
+      '</div>'
+    : '';
+
   sb.innerHTML =
-    '<div style="padding:14px 16px 10px">' +
-      '<div style="font-size:16px;font-weight:700;color:var(--t1);line-height:1.3;margin-bottom:8px">' + escHtml(r.address || '') + '</div>' +
-      '<div style="display:flex;align-items:center;gap:8px">' +
-        '<span class="verdict-badge ' + verdictClass(ev) + '">' + escHtml(ev) + '</span>' +
-        (score !== '' ? '<span style="font-size:18px;font-weight:800;color:' + scoreColor + '">' + score + '</span>' : '') +
-      '</div>' +
-      (verdictReason ? '<div style="font-size:11px;color:var(--t3);margin-top:4px">' + escHtml(verdictReason) + '</div>' : '') +
-    '</div>' +
+    apnBlock +
     '<div class="mms-divider"></div>' +
     statsHtml +
     '<div class="mms-divider"></div>' +
@@ -5724,12 +5734,20 @@ function expandMap() {
   if (!modal || !mapDiv) return;
   const titleEl = document.getElementById('mapModalTitle');
   if (titleEl) titleEl.textContent = _openParcel.address || 'Parcel Map';
+  const v = effectiveVerdict(_openParcel);
   const verdictEl = document.getElementById('mapModalVerdict');
   if (verdictEl) {
-    const v = effectiveVerdict(_openParcel);
     verdictEl.textContent = v;
     verdictEl.className = 'verdict-badge ' + verdictClass(v);
     verdictEl.style.display = v ? 'inline-flex' : 'none';
+  }
+  const scoreEl = document.getElementById('mapModalScore');
+  if (scoreEl) {
+    const sc = _openParcel.score;
+    const scColor = v === 'KILL' ? 'var(--red)' : v === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
+    scoreEl.textContent = sc != null ? sc : '';
+    scoreEl.style.color = scColor;
+    scoreEl.style.display = sc != null ? 'inline' : 'none';
   }
   _populateMapModalSidebar(_openParcel);
   _modalSatOn = false;
