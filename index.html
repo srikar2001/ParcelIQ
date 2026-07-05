@@ -2325,14 +2325,42 @@ let _selectedRows   = new Set();
 let _openParcel     = null;
 let _weeklyUsed     = null; // cached weekly usage count
 const _WEEKLY_LIMIT = 1000;
+let _rescreenAborted = false;
+let _rescreenReader  = null;
+
+function getWeekStart() {
+  const now = new Date();
+  const day = now.getUTCDay();
+  const diff = (day === 0 ? 6 : day - 1);
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() - diff);
+  monday.setUTCHours(0, 0, 0, 0);
+  return monday.toISOString();
+}
+
+function _refreshAllUsage() {
+  _weeklyUsed = null;
+  loadSbUsage();
+  if (sb && currentUser) {
+    sb.from('batches').select('total').eq('user_id', currentUser.id)
+      .then(({ data }) => {
+        const pc = data?.reduce((s, b) => s + (b.total || 0), 0) || 0;
+        const allMins = pc * 30;
+        const allHrs  = Math.round(allMins / 6) / 10;
+        const elB = document.getElementById('sbTotalBatches');
+        const elT = document.getElementById('sbTotalTimeSaved');
+        if (elB) elB.textContent = pc;
+        if (elT) elT.textContent = '~' + (allHrs >= 1 ? allHrs + ' hrs' : allMins + ' min');
+      }).catch(() => {});
+  }
+}
 
 async function checkWeeklyLimit(count = 1) {
   if (!currentUser || !sb) return true; // not logged in, let backend handle
   if (_weeklyUsed === null) {
     try {
-      const weekAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString();
       const { data: wb } = await sb.from('batches').select('total')
-        .eq('user_id', currentUser.id).gte('created_at', weekAgo);
+        .eq('user_id', currentUser.id).gte('created_at', getWeekStart());
       _weeklyUsed = wb?.reduce((s, b) => s + (b.total || 0), 0) || 0;
     } catch(e) { return true; }
   }
@@ -3091,9 +3119,8 @@ async function loadDashboardData() {
   updateUIWithProfile();
   if (sb && currentUser) {
     try {
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data: wb } = await sb.from('batches').select('total')
-        .eq('user_id', currentUser.id).gte('created_at', weekAgo);
+        .eq('user_id', currentUser.id).gte('created_at', getWeekStart());
       const weeklyCount = wb?.reduce((s, b) => s + (b.total || 0), 0) || 0;
       _weeklyUsed = weeklyCount;
       const remaining = 1000 - weeklyCount;
@@ -3906,9 +3933,8 @@ async function runBatch() {
   // Usage limit check
   if (sb && currentUser) {
     try {
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data: wb } = await sb.from('batches').select('total')
-        .eq('user_id', currentUser.id).gte('created_at', weekAgo);
+        .eq('user_id', currentUser.id).gte('created_at', getWeekStart());
       const used = wb?.reduce((s, b) => s + (b.total || 0), 0) || 0;
       const remaining = 1000 - used;
       if (remaining <= 0) { showUpgradeModal(); return; }
@@ -4550,9 +4576,8 @@ function _refreshTable() {
 
 function loadSbUsage() {
   if (!sb || !currentUser) return;
-  const weekAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString();
   sb.from('batches').select('total')
-    .eq('user_id', currentUser.id).gte('created_at', weekAgo)
+    .eq('user_id', currentUser.id).gte('created_at', getWeekStart())
     .then(({ data }) => {
       const wc = data?.reduce((s, b) => s + (b.total || 0), 0) || 0;
       _weeklyUsed = wc;
@@ -4610,9 +4635,8 @@ function renderBatchResults() {
 
   // Weekly usage banner on results page
   if (sb && currentUser) {
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     sb.from('batches').select('total')
-      .eq('user_id', currentUser.id).gte('created_at', weekAgo)
+      .eq('user_id', currentUser.id).gte('created_at', getWeekStart())
       .then(({ data }) => {
         const remaining = 1000 - (data?.reduce((s, b) => s + (b.total || 0), 0) || 0);
         const rb = document.getElementById('resLimitBanner');
@@ -5253,6 +5277,9 @@ async function rescreenRow(event, idx) {
             if (prevNotes !== undefined) batchState.results[bIdx].notes = prevNotes;
           }
           _saveRescreenToSupa(original, nr);
+          if (sb && currentUser) {
+            sb.from('batches').insert({ user_id: currentUser.id, name: '[Re-screen]', total: 1, created_at: new Date().toISOString() }).then(() => _refreshAllUsage()).catch(() => {});
+          }
           _refreshTable();
           toast('Re-screened');
         }
@@ -5267,11 +5294,12 @@ async function rescreenSelected() {
   const indices = [..._selectedRows].sort((a, b) => a - b);
   if (!indices.length) return;
   if (!(await checkWeeklyLimit(indices.length))) return;
+  _rescreenAborted = false;
   const btn      = document.getElementById('rescreenSelBtn');
   const progWrap = document.getElementById('bulkProgress');
   const progBar  = document.getElementById('bulkProgressBar');
   const progLbl  = document.getElementById('bulkProgressLabel');
-  if (btn) { btn.disabled = true; }
+  if (btn) { btn.disabled = false; btn.textContent = '⏹ Stop'; btn.onclick = () => { _rescreenAborted = true; }; }
   if (progWrap) progWrap.style.display = 'flex';
   const total = indices.length;
   let done = 0;
@@ -5282,7 +5310,8 @@ async function rescreenSelected() {
   };
   setProgress();
   for (const idx of indices) {
-    const r = _currentDisplayed[idx];             // idx is position in _currentDisplayed
+    if (_rescreenAborted) break;
+    const r = _currentDisplayed[idx];
     if (!r) { done++; setProgress(); continue; }
     const bIdx = batchState.results.findIndex(res => res.address === r.address);
     try {
@@ -5307,8 +5336,12 @@ async function rescreenSelected() {
     setProgress();
     _refreshTable();
   }
+  if (done > 0 && sb && currentUser) {
+    await sb.from('batches').insert({ user_id: currentUser.id, name: '[Re-screen]', total: done, created_at: new Date().toISOString() }).catch(() => {});
+    _refreshAllUsage();
+  }
   toast(done + ' parcel' + (done !== 1 ? 's' : '') + ' re-screened');
-  if (btn) { btn.disabled = false; }
+  if (btn) { btn.disabled = false; btn.textContent = '↻ Re-screen'; btn.onclick = rescreenSelected; }
   if (progWrap) progWrap.style.display = 'none';
   if (progBar)  progBar.style.width = '0%';
 }
@@ -5319,11 +5352,16 @@ async function rescreenAll() {
   const total = rescreenable.length;
   if (!total) return;
   if (!(await checkWeeklyLimit(total))) return;
+  _rescreenAborted = false;
   const btn = document.getElementById('rescreenAllBtn');
   if (btn && btn.dataset.running) return;
-  if (btn) { btn.dataset.running = '1'; btn.textContent = '↻ 0/' + total; btn.disabled = true; }
+  if (btn) {
+    btn.dataset.running = '1';
+    btn.textContent = '⏹ Stop';
+    btn.disabled = false;
+    btn.onclick = () => { _rescreenAborted = true; if (_rescreenReader) { _rescreenReader.cancel(); _rescreenReader = null; } };
+  }
 
-  // FIX 4: Send all parcels as one batch, not one-at-a-time
   let done = 0;
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -5333,8 +5371,11 @@ async function rescreenAll() {
       body: JSON.stringify({ parcels: rescreenable.map(r => ({ address: r.address })), state: 'FL' }),
     });
     if (!resp.ok) throw new Error('Server error ' + resp.status);
-    const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buf = '';
+    const reader = resp.body.getReader();
+    _rescreenReader = reader;
+    const decoder = new TextDecoder(); let buf = '';
     while (true) {
+      if (_rescreenAborted) { reader.cancel(); break; }
       const { done: d, value } = await reader.read(); if (d) break;
       buf += decoder.decode(value, { stream: true });
       const lines = buf.split('\n'); buf = lines.pop();
@@ -5346,10 +5387,9 @@ async function rescreenAll() {
           const nr = ev.latest;
           const bIdx = batchState.results.findIndex(x => x.address === nr.address);
           if (bIdx !== -1) batchState.results[bIdx] = { ...nr, _rescreened: true, _rescreened_at: new Date().toISOString() };
-          if (btn) btn.textContent = '↻ ' + done + '/' + total;
+          if (btn) btn.textContent = '⏹ ' + done + '/' + total;
           _refreshTable();
         } else if (ev.type === 'complete') {
-          // Save all rescreened results back to Supabase
           for (const nr of (ev.results || [])) {
             const bIdx = batchState.results.findIndex(x => x.address === nr.address);
             if (bIdx !== -1) _saveRescreenToSupa(batchState.results[bIdx], batchState.results[bIdx]);
@@ -5358,10 +5398,15 @@ async function rescreenAll() {
       }
     }
   } catch(e) {
-    toast('Re-screen error: ' + e.message);
+    if (!_rescreenAborted) toast('Re-screen error: ' + e.message);
   }
-  toast('All ' + total + ' parcels re-screened');
-  if (btn) { delete btn.dataset.running; btn.disabled = false; btn.textContent = '↻ Re-run All'; }
+  _rescreenReader = null;
+  if (done > 0 && sb && currentUser) {
+    await sb.from('batches').insert({ user_id: currentUser.id, name: '[Re-screen]', total: done, created_at: new Date().toISOString() }).catch(() => {});
+    _refreshAllUsage();
+  }
+  toast(_rescreenAborted ? done + ' parcels re-screened (stopped)' : 'All ' + done + ' parcels re-screened');
+  if (btn) { delete btn.dataset.running; btn.disabled = false; btn.textContent = '↻ Re-run All'; btn.onclick = rescreenAll; }
   renderBatchResults();
 }
 
@@ -6318,7 +6363,7 @@ function loadSettingsPage() {
 async function _loadWeeklyUsage(el) {
   if (!el || !currentUser) return;
   try {
-    const since = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+    const since = getWeekStart();
     const r = await fetch(
       SUPA_URL + '/rest/v1/parcel_results?select=id&user_id=eq.' + currentUser.id + '&created_at=gte.' + since,
       { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + (currentSession?.access_token || SUPA_KEY), 'Prefer': 'count=exact', 'Range': '0-0' } }
