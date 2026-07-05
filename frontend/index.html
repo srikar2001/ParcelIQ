@@ -5521,11 +5521,11 @@ function initParcelMap(r) {
 
   const coords = extractPolygonCoords(geometry);
   if (coords && coords.length > 2) {
-    const poly = L.polygon(coords, { color: '#22C55E', weight: 3, fillColor: '#22C55E', fillOpacity: 0.12 }).addTo(_map);
+    const poly = L.polygon(coords, { color: '#38BDF8', weight: 3, fillColor: '#38BDF8', fillOpacity: 0.15 }).addTo(_map);
     _mapLayers['parcel'] = poly;
     try { _map.fitBounds(poly.getBounds(), { padding: [32, 32], maxZoom: 17 }); } catch(e) {}
   } else {
-    const marker = L.circleMarker([lat, lng], { radius: 14, color: '#22C55E', weight: 2, fillColor: '#22C55E', fillOpacity: 0.2 }).addTo(_map);
+    const marker = L.circleMarker([lat, lng], { radius: 14, color: '#38BDF8', weight: 2, fillColor: '#38BDF8', fillOpacity: 0.25 }).addTo(_map);
     _mapLayers['parcel'] = marker;
     _map.setView([lat, lng], 15);
   }
@@ -5592,11 +5592,11 @@ function expandMap() {
 
   const coords = extractPolygonCoords(geometry);
   if (coords && coords.length > 2) {
-    const poly = L.polygon(coords, { color: '#22C55E', weight: 3, fillColor: '#22C55E', fillOpacity: 0.12 }).addTo(_modalMap);
+    const poly = L.polygon(coords, { color: '#38BDF8', weight: 3, fillColor: '#38BDF8', fillOpacity: 0.15 }).addTo(_modalMap);
     _modalLayers['parcel'] = poly;
     try { _modalMap.fitBounds(poly.getBounds(), { padding: [60, 60], maxZoom: 17 }); } catch(e) {}
   } else {
-    const marker = L.circleMarker([lat, lng], { radius: 16, color: '#22C55E', weight: 2, fillColor: '#22C55E', fillOpacity: 0.2 }).addTo(_modalMap);
+    const marker = L.circleMarker([lat, lng], { radius: 16, color: '#38BDF8', weight: 2, fillColor: '#38BDF8', fillOpacity: 0.25 }).addTo(_modalMap);
     _modalLayers['parcel'] = marker;
     _modalMap.setView([lat, lng], 15);
   }
