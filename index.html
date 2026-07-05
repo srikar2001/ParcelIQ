@@ -1898,12 +1898,10 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <div id="mapModal">
   <div class="map-modal-inner">
     <div class="map-modal-header">
-      <div style="display:flex;flex-direction:column;gap:2px;margin-right:auto">
-        <div id="mapModalTitle" style="font-size:15px;font-weight:700;color:var(--t1)">Parcel Map</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span id="mapModalVerdict" class="verdict-badge" style="display:none"></span>
-          <span id="mapModalScore" style="font-size:15px;font-weight:800;display:none"></span>
-        </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-right:auto;min-width:0">
+        <div id="mapModalTitle" style="font-size:15px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px">Parcel Map</div>
+        <span id="mapModalVerdict" class="verdict-badge" style="display:none;flex-shrink:0"></span>
+        <span id="mapModalScore" style="font-size:15px;font-weight:800;display:none;flex-shrink:0"></span>
       </div>
       <button class="map-toggle active" data-mlayer="parcel" onclick="toggleModalLayer(this)">Parcel</button>
       <button class="map-toggle" data-mlayer="flood" onclick="toggleModalLayer(this)">Flood zones</button>
@@ -5806,11 +5804,14 @@ function closeMapModal() {
 
 function viewFullDetailsFromModal() {
   closeMapModal();
-  if (_openParcelIdx >= 0) {
-    openDetailPanel(_openParcelIdx, null);
-    const dp = document.getElementById('detailPanel');
-    if (dp) dp.scrollTop = 0;
-  }
+  const idx = _openParcelIdx;
+  setTimeout(() => {
+    if (idx >= 0) {
+      openDetailPanel(idx, null);
+      const dp = document.getElementById('detailPanel');
+      if (dp) dp.scrollTop = 0;
+    }
+  }, 50);
 }
 
 let _modalSatOn = false;
