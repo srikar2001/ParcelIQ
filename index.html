@@ -428,10 +428,10 @@ body.on-results .detail-panel{top:0}
 .map-modal-close:hover{color:var(--t1)}
 .map-modal-body{display:flex;flex:1;min-height:0;overflow:hidden}
 #mapModalMap{flex:1;min-height:0}
-#mapModalSidebar{width:280px;background:var(--card);border-left:1px solid var(--b);padding:16px;overflow-y:auto;flex-shrink:0}
-.mms-divider{border:none;border-top:1px solid var(--b);margin:12px 0}
-.mms-stat-label{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;font-weight:500}
-.mms-stat-val{font-size:13px;font-weight:700;color:var(--t1)}
+#mapModalSidebar{width:280px;background:var(--card);border-left:1px solid var(--b);padding:0 0 16px;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column}
+.mms-divider{border:none;border-top:1px solid var(--b);margin:0 16px}
+.mms-stat-label{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
+.mms-stat-val{font-size:14px;font-weight:700;color:var(--t1)}
 .mms-flag-row{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:12px;color:var(--t2)}
 .mms-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .mms-nav-btn{background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:12px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
@@ -5608,10 +5608,9 @@ let _modalMap = null; window._modalMap = null;
 const _modalLayers = {};
 
 function _shortSignal(text, dotColor) {
-  const s = text || '';
-  return '<div style="display:flex;align-items:center;gap:6px;padding:3px 0">' +
+  return '<div style="display:flex;align-items:center;gap:8px;padding:4px 16px">' +
     '<div style="width:6px;height:6px;border-radius:50%;flex-shrink:0;background:' + dotColor + '"></div>' +
-    '<span style="font-size:12px;color:var(--t1);font-weight:500">' + escHtml(s) + '</span>' +
+    '<span style="font-size:12px;color:var(--t1);font-weight:500">' + escHtml(text || '') + '</span>' +
     '</div>';
 }
 
@@ -5623,7 +5622,15 @@ function _populateMapModalSidebar(r) {
   const score = r.score != null ? r.score : '';
   const scoreColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
 
-  // Snapshot stats
+  // Verdict reason line
+  let verdictReason = '';
+  if (ev === 'KILL' && r.auto_kill_reason) {
+    verdictReason = 'Auto-killed: ' + r.auto_kill_reason;
+  } else if (ev === 'PURSUE') {
+    verdictReason = (score === 100 || score === '100') ? 'Passes all major screens' : 'Score: ' + score + ' — minor flags present';
+  }
+
+  // Snapshot stats — 2x2 grid
   const statPairs = [];
   const ac = getAcreage(r);
   if (ac != null) statPairs.push(['ACREAGE', ac + ' ac', null]);
@@ -5636,27 +5643,28 @@ function _populateMapModalSidebar(r) {
   }
   if (pi.elevation_ft != null) statPairs.push(['ELEVATION', pi.elevation_ft + ' ft', null]);
 
-  const statsHtml = statPairs.map(([lbl, val, col]) =>
-    '<div style="margin-bottom:10px">' +
-    '<div class="mms-stat-label">' + escHtml(lbl) + '</div>' +
-    '<div class="mms-stat-val"' + (col ? ' style="color:' + col + '"' : '') + '>' + escHtml(String(val)) + '</div>' +
-    '</div>'
-  ).join('');
+  const statsHtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 8px;padding:14px 16px">' +
+    statPairs.map(([lbl, val, col]) =>
+      '<div>' +
+      '<div class="mms-stat-label">' + escHtml(lbl) + '</div>' +
+      '<div class="mms-stat-val"' + (col ? ' style="color:' + col + '"' : '') + '>' + escHtml(String(val)) + '</div>' +
+      '</div>'
+    ).join('') +
+    '</div>';
 
   // Short signals: red → amber → green, max 5
   const signals = [];
   const _allText = [...(r.kill_flags || []), ...(r.review_flags || []), ...(r.flags || []), ...(r.positives || [])];
-  const _sig = (text, color, label) => signals.length < 5 && signals.push(_shortSignal(label, color));
+  const _hasText = pat => _allText.some(t => pat.test(t));
 
-  // Red
   if (r.auto_kill_reason) {
     const a = r.auto_kill_reason;
     if (/wetland/i.test(a) && signals.length < 5) signals.push(_shortSignal('Wetlands', '#ef4444'));
-    else if (/flood zone (AE|VE)/i.test(a) && signals.length < 5) signals.push(_shortSignal(/VE/i.test(a) ? 'Flood Zone VE' : 'Flood Zone AE', '#ef4444'));
+    else if (/VE/i.test(a) && signals.length < 5) signals.push(_shortSignal('Flood Zone VE', '#ef4444'));
+    else if (/AE/i.test(a) && signals.length < 5) signals.push(_shortSignal('Flood Zone AE', '#ef4444'));
     else if (/habitat/i.test(a) && signals.length < 5) signals.push(_shortSignal('Wildlife habitat', '#ef4444'));
     else if (/easement/i.test(a) && signals.length < 5) signals.push(_shortSignal('Easement', '#ef4444'));
   }
-  const _hasText = pat => _allText.some(t => pat.test(t));
   if (signals.length < 5 && _hasText(/wetland.*nearby|nearby.*wetland/i)) signals.push(_shortSignal('Wetlands nearby', '#f59e0b'));
   if (signals.length < 5 && _hasText(/road.*unavailable|road.*unverified/i)) signals.push(_shortSignal('Road unverified', '#f59e0b'));
   if (signals.length < 5 && _hasText(/poor.*drain/i)) signals.push(_shortSignal('Poor drainage', '#f59e0b'));
@@ -5669,18 +5677,27 @@ function _populateMapModalSidebar(r) {
   if (signals.length < 5 && _hasText(/vacant/i)) signals.push(_shortSignal('Vacant lot', '#22c55e'));
   if (signals.length < 5 && _hasText(/power infrastructure/i)) signals.push(_shortSignal('Power nearby', '#22c55e'));
 
-  const signalsHtml = signals.join('');
+  const signalsBlock = signals.length ? (
+    '<div class="mms-divider"></div>' +
+    '<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;padding:12px 16px 6px;font-weight:600">Signals</div>' +
+    signals.join('') +
+    '<div class="mms-divider" style="margin-top:8px"></div>'
+  ) : '';
 
   sb.innerHTML =
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">' +
-      '<span class="verdict-badge ' + verdictClass(ev) + '">' + escHtml(ev) + '</span>' +
-      (score !== '' ? '<span style="font-size:18px;font-weight:800;color:' + scoreColor + '">' + score + '</span>' : '') +
+    '<div style="padding:14px 16px 10px">' +
+      '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span class="verdict-badge ' + verdictClass(ev) + '">' + escHtml(ev) + '</span>' +
+        (score !== '' ? '<span style="font-size:18px;font-weight:800;color:' + scoreColor + '">' + score + '</span>' : '') +
+      '</div>' +
+      (verdictReason ? '<div style="font-size:11px;color:var(--t3);margin-top:4px">' + escHtml(verdictReason) + '</div>' : '') +
     '</div>' +
-    '<hr class="mms-divider">' +
+    '<div class="mms-divider"></div>' +
     statsHtml +
-    (signalsHtml ? '<hr class="mms-divider">' + signalsHtml : '') +
-    '<hr class="mms-divider">' +
-    '<button onclick="closeMapModal();const dp=document.getElementById(\'detailPanel\');if(dp)dp.scrollTop=0;" style="width:100%;padding:8px;background:none;border:1px solid var(--b);border-radius:var(--rs);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:\'Inter\',sans-serif;transition:all .15s" onmouseover="this.style.color=\'var(--t1)\';this.style.borderColor=\'var(--bh)\'" onmouseout="this.style.color=\'var(--t2)\';this.style.borderColor=\'var(--b)\'">View full details ↓</button>';
+    '<div class="mms-divider"></div>' +
+    signalsBlock +
+    '<div style="flex:1"></div>' +
+    '<button onclick="closeMapModal();const dp=document.getElementById(\'detailPanel\');if(dp)dp.scrollTop=0;" style="width:calc(100% - 32px);margin:12px 16px;padding:10px;background:var(--card-h);border:1px solid var(--b);border-radius:var(--rs);color:var(--t1);font-size:13px;font-weight:600;cursor:pointer;text-align:center;font-family:\'Inter\',sans-serif;transition:background .15s" onmouseover="this.style.background=\'var(--bh)\'" onmouseout="this.style.background=\'var(--card-h)\'">View full details ↓</button>';
 }
 
 function navModalParcel(dir) {
