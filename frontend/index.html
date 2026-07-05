@@ -1828,7 +1828,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     </div>
   </div>
   <!-- 2. Lot Snapshot — quick stats bar -->
-  <div id="dpSnapshot" style="display:none;padding:6px 16px 10px;flex-wrap:wrap;align-items:center;gap:4px 0;border-bottom:1px solid var(--b)"></div>
+  <div id="dpSnapshot" style="display:none;padding:10px 16px 14px;gap:0;border-bottom:1px solid var(--b)"></div>
   <!-- 3. Map controls + map -->
   <div class="map-controls" id="mapControls" style="display:none">
     <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this)">Parcel</button>
@@ -4850,25 +4850,25 @@ function openDetailPanel(absIdx, event) {
   // Lot Snapshot bar
   const snapEl = document.getElementById('dpSnapshot');
   if (snapEl) {
-    const pills = [];
+    const cols = [];
     const snapAc = getAcreage(r);
-    if (snapAc != null) pills.push({ lbl: 'Acreage', val: snapAc + ' ac' });
+    if (snapAc != null) cols.push({ lbl: 'Acreage', val: snapAc + ' ac', color: 'var(--t1)' });
     const snapCounty = pi.county || extractCounty(r.address || '');
-    if (snapCounty) pills.push({ lbl: 'County', val: snapCounty + ' County' });
+    if (snapCounty) cols.push({ lbl: 'County', val: snapCounty.replace(/ County$/i, ''), color: 'var(--t1)' });
     const floodText = getFloodText(r);
     if (floodText && floodText !== '—') {
       const isSFHA = /^Zone (AE|VE|V|A\b|AH|AO)/i.test(floodText);
-      pills.push({ lbl: 'Flood Zone', val: floodText + (isSFHA ? ' ✗' : ' ✓') });
+      cols.push({ lbl: 'Flood', val: floodText + (isSFHA ? ' ✗' : ' ✓'), color: isSFHA ? 'var(--red)' : 'var(--green)' });
     }
-    if (pi.elevation_ft != null) pills.push({ lbl: 'Elevation', val: pi.elevation_ft + ' ft' });
-    if (pills.length > 0) {
-      snapEl.style.display = 'flex';
-      snapEl.innerHTML = pills.map((p, i) =>
-        '<span style="white-space:nowrap;flex-shrink:0">' +
-          (i > 0 ? '<span style="color:var(--b);margin:0 10px">|</span>' : '') +
-          '<span style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px">' + escHtml(p.lbl) + '</span>' +
-          '<span style="font-size:14px;font-weight:600;color:var(--t1);margin-left:4px">' + escHtml(p.val) + '</span>' +
-        '</span>'
+    if (pi.elevation_ft != null) cols.push({ lbl: 'Elevation', val: pi.elevation_ft + ' ft', color: 'var(--t1)' });
+    if (cols.length > 0) {
+      snapEl.style.display = 'grid';
+      snapEl.style.gridTemplateColumns = 'repeat(' + cols.length + ',1fr)';
+      snapEl.innerHTML = cols.map(c =>
+        '<div style="text-align:center">' +
+          '<div style="font-size:15px;font-weight:700;color:' + c.color + '">' + escHtml(c.val) + '</div>' +
+          '<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">' + escHtml(c.lbl) + '</div>' +
+        '</div>'
       ).join('');
     } else {
       snapEl.style.display = 'none';
