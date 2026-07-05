@@ -684,8 +684,8 @@ async def address_autocomplete(q: str = ""):
         sanitized = _re.sub(r"[^a-zA-Z0-9 ,.\-/]", "", q.strip())
         if not sanitized:
             return {"suggestions": []}
-        like_val = sanitized.replace("%", r"\%").replace("_", r"\_")
-        where = f"UPPER(PHY_ADDR1) LIKE UPPER('%{like_val}%')"
+        like_val = sanitized.upper().replace("%", r"\%").replace("_", r"\_")
+        where = f"PHY_ADDR1 LIKE '%{like_val}%'"
         params = {
             "where": where,
             "outFields": "PHY_ADDR1,PHY_CITY",
@@ -742,10 +742,10 @@ async def geocodio_suggest(q: str = ""):
         if last_sfx >= 0 and last_sfx + 1 < len(words):
             street_q = ' '.join(words[:last_sfx + 1]).replace('%', r'\%').replace('_', r'\_')
             city_q   = ' '.join(words[last_sfx + 1:]).replace('%', r'\%').replace('_', r'\_')
-            where = (f"UPPER(PHY_ADDR1) LIKE UPPER('%{street_q}%') "
-                     f"AND UPPER(PHY_CITY) LIKE UPPER('%{city_q}%')")
+            where = (f"PHY_ADDR1 LIKE '%{street_q}%' "
+                     f"AND PHY_CITY LIKE '%{city_q}%'")
         else:
-            where = f"UPPER(PHY_ADDR1) LIKE UPPER('%{street_q}%')"
+            where = f"PHY_ADDR1 LIKE '%{street_q}%'"
         params = {
             "where": where,
             "outFields": "PHY_ADDR1,PHY_CITY,PHY_ZIPCD",
@@ -762,10 +762,10 @@ async def geocodio_suggest(q: str = ""):
                 street_no_num = _re.sub(r'^\d+\s+', '', street_q).strip()
                 if street_no_num and street_no_num != street_q:
                     if city_q:
-                        fb_where = (f"UPPER(PHY_ADDR1) LIKE UPPER('%{street_no_num}%') "
-                                    f"AND UPPER(PHY_CITY) LIKE UPPER('%{city_q}%')")
+                        fb_where = (f"PHY_ADDR1 LIKE '%{street_no_num}%' "
+                                    f"AND PHY_CITY LIKE '%{city_q}%'")
                     else:
-                        fb_where = f"UPPER(PHY_ADDR1) LIKE UPPER('%{street_no_num}%')"
+                        fb_where = f"PHY_ADDR1 LIKE '%{street_no_num}%'"
                     params2 = dict(params)
                     params2["where"] = fb_where
                     resp2 = await client.get(_ARCGIS_CADASTRAL_URL, params=params2)
