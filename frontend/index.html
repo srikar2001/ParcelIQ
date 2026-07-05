@@ -1827,8 +1827,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <button class="dp-close" onclick="closeDetailPanel()">✕</button>
     </div>
   </div>
-  <!-- Signal chips — before map, same position as old snapshot bar -->
-  <div id="dpSignals" style="display:none;flex-wrap:wrap;gap:6px;padding:10px 14px;border-bottom:1px solid var(--b)"></div>
+  <!-- Signal chips — before map, flat inline row -->
+  <div id="dpSignals" style="display:none;align-items:center;padding:9px 16px;border-bottom:1px solid var(--b);overflow-x:auto;white-space:nowrap;gap:0"></div>
   <!-- 3. Map controls + map -->
   <div class="map-controls" id="mapControls" style="display:none">
     <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this)">Parcel</button>
@@ -4899,15 +4899,18 @@ function openDetailPanel(absIdx, event) {
       if (_pos.some(p => pat.test(p))) chips.push({ cls: 'sig-pill-p', text: label });
     }
 
-    const _chipStyle = {
-      'sig-pill-k': 'color:var(--red);border-color:rgba(239,68,68,.45);background:transparent',
-      'sig-pill-a': 'color:var(--amber);border-color:rgba(245,158,11,.45);background:transparent',
-      'sig-pill-p': 'color:var(--green);border-color:rgba(34,197,94,.45);background:transparent',
+    const _chipColor = {
+      'sig-pill-k': 'var(--red)',
+      'sig-pill-a': 'var(--amber)',
+      'sig-pill-p': 'var(--green)',
     };
-    const _baseStyle = 'display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--rp);border:1px solid;white-space:nowrap;cursor:default';
     if (chips.length > 0) {
       sigEl.style.display = 'flex';
-      sigEl.innerHTML = chips.map(c => '<span style="' + _baseStyle + ';' + (_chipStyle[c.cls] || '') + '">' + escHtml(c.text) + '</span>').join('');
+      const divider = '<span style="color:var(--t3);margin:0 10px;font-size:12px;font-weight:400">|</span>';
+      sigEl.innerHTML = chips.map((c, i) =>
+        (i > 0 ? divider : '') +
+        '<span style="color:' + (_chipColor[c.cls] || 'var(--t2)') + ';font-size:12px;font-weight:600;white-space:nowrap">' + escHtml(c.text) + '</span>'
+      ).join('');
     } else {
       sigEl.style.display = 'none';
       sigEl.innerHTML = '';
