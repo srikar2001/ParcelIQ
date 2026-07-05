@@ -426,7 +426,7 @@ body.on-results .detail-panel{top:0}
 .map-modal-title{font-size:13px;font-weight:700;color:var(--t1);margin-right:auto}
 .map-modal-close{background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer;line-height:1;padding:0 4px}
 .map-modal-close:hover{color:var(--t1)}
-.map-modal-body{display:flex;flex:1;min-height:0;overflow:hidden;position:relative}
+.map-modal-body{display:flex;flex:1;min-height:0;overflow:hidden}
 #mapModalMap{flex:1;min-height:0}
 #mapModalSidebar{width:280px;background:var(--card);border-left:1px solid var(--b);padding:0 0 16px;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column}
 .mms-divider{border:none;border-top:1px solid var(--b);margin:0 16px}
@@ -1907,9 +1907,11 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <button class="map-modal-close" onclick="closeMapModal()">✕</button>
     </div>
     <div class="map-modal-body">
-      <button class="mms-nav-btn mms-nav-prev" onclick="navModalParcel(-1)">← Prev</button>
-      <button class="mms-nav-btn mms-nav-next" onclick="navModalParcel(1)">Next →</button>
-      <div id="mapModalMap"></div>
+      <div style="position:relative;flex:1;min-height:0;display:flex">
+        <button class="mms-nav-btn mms-nav-prev" onclick="navModalParcel(-1)">← Prev</button>
+        <button class="mms-nav-btn mms-nav-next" onclick="navModalParcel(1)">Next →</button>
+        <div id="mapModalMap" style="flex:1;min-height:0"></div>
+      </div>
       <div id="mapModalSidebar"></div>
     </div>
   </div>
@@ -5703,7 +5705,7 @@ function _populateMapModalSidebar(r) {
     '<div class="mms-divider"></div>' +
     signalsBlock +
     '<div style="flex:1"></div>' +
-    '<button onclick="closeMapModal();const dp=document.getElementById(\'detailPanel\');if(dp)dp.scrollTop=0;" style="width:calc(100% - 32px);margin:12px 16px;padding:10px;background:var(--card-h);border:1px solid var(--b);border-radius:var(--rs);color:var(--t1);font-size:13px;font-weight:600;cursor:pointer;text-align:center;font-family:\'Inter\',sans-serif;transition:background .15s" onmouseover="this.style.background=\'var(--bh)\'" onmouseout="this.style.background=\'var(--card-h)\'">View full details ↓</button>';
+    '<button onclick="closeMapModal();openDetailPanel(_openParcelIdx,null);const dp=document.getElementById(\'detailPanel\');if(dp)dp.scrollTop=0;" style="width:calc(100% - 32px);margin:12px 16px;padding:10px;background:var(--card-h);border:1px solid var(--b);border-radius:var(--rs);color:var(--t1);font-size:13px;font-weight:600;cursor:pointer;text-align:center;font-family:\'Inter\',sans-serif;transition:background .15s" onmouseover="this.style.background=\'var(--bh)\'" onmouseout="this.style.background=\'var(--card-h)\'">View full details ↓</button>';
 }
 
 function navModalParcel(dir) {
