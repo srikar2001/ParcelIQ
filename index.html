@@ -5607,6 +5607,14 @@ function toggleSatellite(btn) {
 let _modalMap = null; window._modalMap = null;
 const _modalLayers = {};
 
+function _shortSignal(text, dotColor) {
+  const s = text || '';
+  return '<div style="display:flex;align-items:center;gap:6px;padding:3px 0">' +
+    '<div style="width:6px;height:6px;border-radius:50%;flex-shrink:0;background:' + dotColor + '"></div>' +
+    '<span style="font-size:12px;color:var(--t1);font-weight:500">' + escHtml(s) + '</span>' +
+    '</div>';
+}
+
 function _populateMapModalSidebar(r) {
   const sb = document.getElementById('mapModalSidebar');
   if (!sb || !r) return;
@@ -5635,32 +5643,44 @@ function _populateMapModalSidebar(r) {
     '</div>'
   ).join('');
 
-  // Top flags
-  const allFlags = [...(r.kill_flags || []), ...(r.review_flags || [])].slice(0, 3);
-  const flagsHtml = allFlags.map(f => {
-    const isKill = (r.kill_flags || []).includes(f);
-    const dotCol = isKill ? 'var(--red)' : 'var(--amber)';
-    return '<div class="mms-flag-row"><div class="mms-dot" style="background:' + dotCol + '"></div>' + escHtml(translateFlag(f)) + '</div>';
-  }).join('');
+  // Short signals: red → amber → green, max 5
+  const signals = [];
+  const _allText = [...(r.kill_flags || []), ...(r.review_flags || []), ...(r.flags || []), ...(r.positives || [])];
+  const _sig = (text, color, label) => signals.length < 5 && signals.push(_shortSignal(label, color));
 
-  // Top positives
-  const posHtml = (r.positives || []).slice(0, 3).map(p =>
-    '<div class="mms-flag-row"><div class="mms-dot" style="background:var(--green)"></div>' + escHtml(p) + '</div>'
-  ).join('');
+  // Red
+  if (r.auto_kill_reason) {
+    const a = r.auto_kill_reason;
+    if (/wetland/i.test(a) && signals.length < 5) signals.push(_shortSignal('Wetlands', '#ef4444'));
+    else if (/flood zone (AE|VE)/i.test(a) && signals.length < 5) signals.push(_shortSignal(/VE/i.test(a) ? 'Flood Zone VE' : 'Flood Zone AE', '#ef4444'));
+    else if (/habitat/i.test(a) && signals.length < 5) signals.push(_shortSignal('Wildlife habitat', '#ef4444'));
+    else if (/easement/i.test(a) && signals.length < 5) signals.push(_shortSignal('Easement', '#ef4444'));
+  }
+  const _hasText = pat => _allText.some(t => pat.test(t));
+  if (signals.length < 5 && _hasText(/wetland.*nearby|nearby.*wetland/i)) signals.push(_shortSignal('Wetlands nearby', '#f59e0b'));
+  if (signals.length < 5 && _hasText(/road.*unavailable|road.*unverified/i)) signals.push(_shortSignal('Road unverified', '#f59e0b'));
+  if (signals.length < 5 && _hasText(/poor.*drain/i)) signals.push(_shortSignal('Poor drainage', '#f59e0b'));
+  if (signals.length < 5 && _hasText(/canal|waterway/i)) signals.push(_shortSignal('Canal nearby', '#f59e0b'));
+  if (signals.length < 5 && _hasText(/zone x/i)) signals.push(_shortSignal('Zone X', '#22c55e'));
+  if (signals.length < 5 && _hasText(/no wetlands/i)) signals.push(_shortSignal('No wetlands', '#22c55e'));
+  if (signals.length < 5 && _hasText(/not in.*evacuation|no evac/i)) signals.push(_shortSignal('No evac risk', '#22c55e'));
+  if (signals.length < 5 && _hasText(/good elevation/i)) signals.push(_shortSignal('Good elevation', '#22c55e'));
+  if (signals.length < 5 && _hasText(/well.drain/i)) signals.push(_shortSignal('Good drainage', '#22c55e'));
+  if (signals.length < 5 && _hasText(/vacant/i)) signals.push(_shortSignal('Vacant lot', '#22c55e'));
+  if (signals.length < 5 && _hasText(/power infrastructure/i)) signals.push(_shortSignal('Power nearby', '#22c55e'));
+
+  const signalsHtml = signals.join('');
 
   sb.innerHTML =
-    '<div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:8px;line-height:1.3">' + escHtml(r.address || '') + '</div>' +
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">' +
       '<span class="verdict-badge ' + verdictClass(ev) + '">' + escHtml(ev) + '</span>' +
       (score !== '' ? '<span style="font-size:18px;font-weight:800;color:' + scoreColor + '">' + score + '</span>' : '') +
     '</div>' +
     '<hr class="mms-divider">' +
     statsHtml +
-    (flagsHtml || posHtml ? '<hr class="mms-divider">' : '') +
-    flagsHtml +
-    posHtml +
+    (signalsHtml ? '<hr class="mms-divider">' + signalsHtml : '') +
     '<hr class="mms-divider">' +
-    '<button onclick="closeMapModal();openDetailPanel(_openParcelIdx,null)" style="width:100%;padding:8px;background:none;border:1px solid var(--b);border-radius:var(--rs);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:\'Inter\',sans-serif;transition:all .15s" onmouseover="this.style.color=\'var(--t1)\';this.style.borderColor=\'var(--bh)\'" onmouseout="this.style.color=\'var(--t2)\';this.style.borderColor=\'var(--b)\'">View full details ↓</button>';
+    '<button onclick="closeMapModal();const dp=document.getElementById(\'detailPanel\');if(dp)dp.scrollTop=0;" style="width:100%;padding:8px;background:none;border:1px solid var(--b);border-radius:var(--rs);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:\'Inter\',sans-serif;transition:all .15s" onmouseover="this.style.color=\'var(--t1)\';this.style.borderColor=\'var(--bh)\'" onmouseout="this.style.color=\'var(--t2)\';this.style.borderColor=\'var(--b)\'">View full details ↓</button>';
 }
 
 function navModalParcel(dir) {
