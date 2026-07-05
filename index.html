@@ -1827,8 +1827,6 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <button class="dp-close" onclick="closeDetailPanel()">✕</button>
     </div>
   </div>
-  <!-- 2. Lot Snapshot — quick stats bar -->
-  <div id="dpSnapshot" style="display:none;padding:10px 16px 14px;gap:0;border-bottom:1px solid var(--b)"></div>
   <!-- 3. Map controls + map -->
   <div class="map-controls" id="mapControls" style="display:none">
     <button class="map-toggle active" data-layer="parcel" onclick="toggleMapLayer(this)">Parcel</button>
@@ -1843,7 +1841,9 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   </div>
   <!-- 4. Verdict Summary -->
   <div id="dpWhy" class="dp-why"></div>
-  <!-- 5. Parcel Details -->
+  <!-- 5. Signal chips -->
+  <div id="dpSignals" style="display:none;flex-wrap:wrap;gap:6px;padding:12px 16px 4px;border-bottom:1px solid var(--b)"></div>
+  <!-- 6. Parcel Details -->
   <div class="dp-section" id="dpInfoSection">
     <div class="dp-sec-title">Parcel Details</div>
     <div class="dp-grid" id="dpInfo"></div>
@@ -4848,31 +4848,63 @@ function openDetailPanel(absIdx, event) {
     whyEl.innerHTML = whyText;
   }
   // Lot Snapshot bar
-  const snapEl = document.getElementById('dpSnapshot');
-  if (snapEl) {
-    const cols = [];
-    const snapAc = getAcreage(r);
-    if (snapAc != null) cols.push({ lbl: 'Acreage', val: snapAc + ' ac', color: 'var(--t1)' });
-    const snapCounty = pi.county || extractCounty(r.address || '');
-    if (snapCounty) cols.push({ lbl: 'County', val: snapCounty.replace(/ County$/i, ''), color: 'var(--t1)' });
-    const floodText = getFloodText(r);
-    if (floodText && floodText !== '—') {
-      const isSFHA = /^Zone (AE|VE|V|A\b|AH|AO)/i.test(floodText);
-      cols.push({ lbl: 'Flood', val: floodText + (isSFHA ? ' ✗' : ' ✓'), color: isSFHA ? 'var(--red)' : 'var(--green)' });
+  // Verdict signal chips
+  const sigEl = document.getElementById('dpSignals');
+  if (sigEl) {
+    const _flags = r.flags || [];
+    const _pos   = r.positives || [];
+    const chips  = [];
+
+    // Red chip — auto-kill reason (at most 1)
+    if (r.auto_kill_reason) {
+      const ar = r.auto_kill_reason.toLowerCase();
+      let kl = '✗ Killed';
+      if (/wetland/.test(ar))               kl = '✗ Wetlands';
+      else if (/flood zone ve/.test(ar))    kl = '✗ Flood Zone VE';
+      else if (/flood zone ae/.test(ar))    kl = '✗ Flood Zone AE';
+      else if (/habitat/.test(ar))          kl = '✗ Wildlife Habitat';
+      else if (/easement/.test(ar))         kl = '✗ Easement';
+      chips.push({ cls: 'sig-pill-k', text: kl });
     }
-    if (pi.elevation_ft != null) cols.push({ lbl: 'Elevation', val: pi.elevation_ft + ' ft', color: 'var(--t1)' });
-    if (cols.length > 0) {
-      snapEl.style.display = 'grid';
-      snapEl.style.gridTemplateColumns = 'repeat(' + cols.length + ',1fr)';
-      snapEl.innerHTML = cols.map(c =>
-        '<div style="text-align:center">' +
-          '<div style="font-size:15px;font-weight:700;color:' + c.color + '">' + escHtml(c.val) + '</div>' +
-          '<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">' + escHtml(c.lbl) + '</div>' +
-        '</div>'
-      ).join('');
+
+    // Amber chips — from flags, fill up to 3 combined with red
+    const AMBER = [
+      [/wetland.*nearby/i,                              '⚠ Wetlands nearby'],
+      [/road.*(unverified|unavailable|unconfirmed)/i,   '⚠ Road unverified'],
+      [/poor.*drain|very poorly/i,                      '⚠ Poor drainage'],
+      [/evacuation.*zone|evac.*zone\s+[ab]/i,           '⚠ Evac zone'],
+      [/canal|waterway/i,                               '⚠ Canal nearby'],
+      [/low elevation/i,                                '⚠ Low elevation'],
+      [/agricultural land use/i,                        '⚠ Ag zoning'],
+    ];
+    for (const [pat, label] of AMBER) {
+      if (chips.length >= 3) break;
+      if (_flags.some(f => pat.test(f))) chips.push({ cls: 'sig-pill-a', text: label });
+    }
+
+    // Green chips — from positives, fill remaining slots up to 5 total
+    const _ac = getAcreage(r);
+    const GREEN = [
+      [/zone x/i,                                '✓ Zone X'],
+      [/well.?drain|excessively drain/i,         '✓ Good drainage'],
+      [/no wetlands/i,                           '✓ No wetlands'],
+      [/not in.*hurricane|not in.*evacuation/i,  '✓ No evac risk'],
+      [/good elevation/i,                        '✓ Good elevation'],
+      [/ideal parcel size/i,                     _ac ? '✓ ' + _ac + ' ac' : '✓ Good size'],
+      [/power infrastructure/i,                  '✓ Power nearby'],
+      [/vacant/i,                                '✓ Vacant lot'],
+    ];
+    for (const [pat, label] of GREEN) {
+      if (chips.length >= 5) break;
+      if (_pos.some(p => pat.test(p))) chips.push({ cls: 'sig-pill-p', text: label });
+    }
+
+    if (chips.length > 0) {
+      sigEl.style.display = 'flex';
+      sigEl.innerHTML = chips.map(c => '<span class="sig-pill ' + c.cls + '">' + escHtml(c.text) + '</span>').join('');
     } else {
-      snapEl.style.display = 'none';
-      snapEl.innerHTML = '';
+      sigEl.style.display = 'none';
+      sigEl.innerHTML = '';
     }
   }
   // Risk flags (red/amber/grey only — no positives mixed in)
