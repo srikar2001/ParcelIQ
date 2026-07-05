@@ -555,21 +555,21 @@ body.on-results .detail-panel{top:0}
 .dp-score-num{font-size:28px;font-weight:900;line-height:1}
 .dp-close{background:none;border:none;color:var(--t3);font-size:18px;cursor:pointer;padding:0;flex-shrink:0;line-height:1;margin-top:2px}
 .dp-close:hover{color:var(--t1)}
-.dp-why{margin:14px 16px;border-radius:var(--rs);padding:12px 14px;font-size:13px;line-height:1.55}
-.dp-why-k{background:var(--rbg);border:1px solid rgba(239,68,68,.2)}
+.dp-why{margin:0 12px 10px;border-radius:var(--rs);padding:8px 12px;font-size:12px;line-height:1.55}
+.dp-why-k{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15)}
 .dp-why-r{background:var(--abg);border:1px solid rgba(245,158,11,.2)}
-.dp-why-p{background:var(--gbg);border:1px solid rgba(34,197,94,.2)}
+.dp-why-p{background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.15)}
 .dp-section{padding:0 16px 14px}
-.dp-sec-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
-.dp-flag-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(42,45,58,.5);font-size:12px}
+.dp-sec-title{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
+.dp-flag-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
 .dp-flag-row:last-child{border-bottom:none}
 .dp-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .dp-dot-r{background:var(--red)}.dp-dot-a{background:var(--amber)}.dp-dot-g{background:var(--green)}.dp-dot-m{background:var(--t3)}
 .dp-flag-text{flex:1;color:var(--t2)}
 .dp-flag-src{font-size:10px;color:var(--t3);white-space:nowrap}
 .dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.dp-grid-item{background:var(--card-h);border-radius:var(--rs);padding:8px 10px;border:1px solid var(--b)}
-.dp-grid-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.dp-grid-item{background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.06);border-radius:0;padding:10px 4px}
+.dp-grid-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
 .dp-grid-val{font-size:13px;font-weight:600;color:var(--t1)}
 .dp-grid-sub{font-size:10px;color:var(--t3);font-weight:400;margin-top:2px;line-height:1.4}
 .dp-map-placeholder{height:280px;margin:0 12px 12px;background:rgba(13,15,18,.8);border:1px solid var(--b);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:12px;text-align:center;padding:16px;line-height:1.5}
@@ -638,7 +638,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .res-trow.selected{background:rgba(34,197,94,.05)}
 .res-trow.selected td:first-child{border-left:2px solid var(--green)}
 .res-trow.panel-selected{border-left:3px solid var(--green)}
-.res-trow.row-active{border-left:3px solid var(--green);background:rgba(34,197,94,.06)!important}
+.res-trow.row-active{border-left:2px solid var(--green);background:rgba(34,197,94,.06)!important;transition:background .15s ease}
 .res-trow.row-active td:first-child{padding-left:9px}
 
 /* ══ PAGINATION */
@@ -4889,7 +4889,7 @@ function openDetailPanel(absIdx, event) {
       }
     }
 
-    // Green — fill remaining up to 5 total
+    // Green — fill remaining up to 4 total
     const greenRules = [
       [/zone x/i, 'Zone X clean'],
       [/well.drain|excessively drain/i, 'Good drainage'],
@@ -4900,19 +4900,20 @@ function openDetailPanel(absIdx, event) {
       [/vacant.*(lot|unimproved)/i, 'Vacant lot'],
     ];
     for (const [pat, lbl] of greenRules) {
-      if (stats.length >= 5) break;
+      if (stats.length >= 4) break;
       if ((r.positives || []).some(p => pat.test(p))) {
         stats.push({ label: '✓ ' + lbl, color: 'var(--green)' });
       }
     }
 
     dpSig.innerHTML = stats.map((s, i) => {
-      const pipe = i < stats.length - 1
-        ? '<span style="color:var(--b);margin:0 14px;font-weight:300">|</span>'
+      const dot = i < stats.length - 1
+        ? '<span style="color:var(--t3);margin:0 10px;font-weight:300">·</span>'
         : '';
-      return '<span style="white-space:nowrap;font-size:13px;font-weight:700;color:' + s.color + '">' + escHtml(s.label) + '</span>' + pipe;
+      return '<span style="white-space:nowrap;font-size:12px;font-weight:600;letter-spacing:.2px;color:' + s.color + '">' + escHtml(s.label) + '</span>' + dot;
     }).join('');
-    dpSig.style.display = stats.length ? 'flex' : 'none';
+    const borderColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
+    dpSig.style.cssText = 'display:' + (stats.length ? 'flex' : 'none') + ';flex-wrap:wrap;align-items:center;padding:10px 16px 10px 13px;border-bottom:none;background:rgba(255,255,255,.02);border-left:3px solid ' + borderColor;
   }
   // Risk flags (red/amber/grey only — no positives mixed in)
   const dpFlags = document.getElementById('dpFlags');
