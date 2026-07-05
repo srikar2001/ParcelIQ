@@ -5749,6 +5749,8 @@ function expandMap() {
   }
   _populateMapModalSidebar(_openParcel);
   _modalSatOn = false;
+  const _dpHide = document.getElementById('detailPanel');
+  if (_dpHide) _dpHide.style.visibility = 'hidden';
   modal.style.display = 'block';
 
   if (_modalMap) { try { _modalMap.remove(); } catch(e) {} }
@@ -5800,6 +5802,8 @@ function closeMapModal() {
   _modalMap = null; window._modalMap = null;
   const mapDiv = document.getElementById('mapModalMap');
   if (mapDiv && mapDiv._leaflet_id) delete mapDiv._leaflet_id;
+  const _dpShow = document.getElementById('detailPanel');
+  if (_dpShow) _dpShow.style.visibility = '';
 }
 
 function viewFullDetailsFromModal() {
