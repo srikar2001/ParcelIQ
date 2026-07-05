@@ -1828,7 +1828,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     </div>
   </div>
   <!-- 2. Snapshot stats bar -->
-  <div id="dpSignals" style="display:flex;flex-wrap:wrap;align-items:baseline;column-gap:0;row-gap:0;padding:8px 16px 10px;border-bottom:1px solid var(--b)"></div>
+  <div id="dpSignals" style="display:flex;flex-wrap:wrap;align-items:center;padding:8px 16px 10px;border-bottom:1px solid var(--b)"></div>
   <!-- 3. Verdict Summary -->
   <div id="dpWhy" class="dp-why"></div>
   <!-- 4. Map controls + map -->
@@ -4858,36 +4858,59 @@ function openDetailPanel(absIdx, event) {
   const dpSig = document.getElementById('dpSignals');
   if (dpSig) {
     const stats = [];
-    const ac = getAcreage(r);
-    if (ac != null) stats.push({ label: 'ACREAGE', value: ac + ' ac', color: null });
 
-    const county = (r.parcel_info && r.parcel_info.county) || extractCounty(r.address || '');
-    if (county) stats.push({ label: 'COUNTY', value: county, color: null });
-
-    const floodText = getFloodText(r);
-    if (floodText && floodText !== '—') {
-      const isSafe = /zone x/i.test(floodText);
-      const isDanger = /AE|VE|AO|AH/i.test(floodText);
-      stats.push({
-        label: 'FLOOD ZONE',
-        value: isSafe ? floodText + ' ✓' : isDanger ? floodText + ' ✗' : floodText,
-        color: isSafe ? 'var(--green)' : isDanger ? 'var(--red)' : null
-      });
+    // Red — auto-kill reason first
+    if (r.auto_kill && r.auto_kill_reason) {
+      const akr = r.auto_kill_reason;
+      const label =
+        /wetland/i.test(akr) ? 'Wetlands on parcel' :
+        /AE/i.test(akr) ? 'Flood Zone AE' :
+        /VE/i.test(akr) ? 'Flood Zone VE' :
+        /habitat/i.test(akr) ? 'Wildlife habitat' :
+        /easement/i.test(akr) ? 'Conservation easement' :
+        /public/i.test(akr) ? 'Public land' : akr;
+      stats.push({ label: '✗ ' + label, color: 'var(--red)' });
     }
 
-    if (r.parcel_info && r.parcel_info.elevation_ft != null) {
-      stats.push({ label: 'ELEVATION', value: r.parcel_info.elevation_ft + ' ft', color: null });
+    // Amber — from flags, up to 3
+    const amberRules = [
+      [/wetland.*nearby|nearby.*wetland/i, 'Wetlands nearby'],
+      [/road.*unavailable|road.*unverified|road.*unconfirmed/i, 'Road unverified'],
+      [/poor.*drain|very poorly/i, 'Poor drainage'],
+      [/evacuation zone [ab]/i, 'Evac zone'],
+      [/canal|waterway/i, 'Canal nearby'],
+      [/low elevation|very low elevation/i, 'Low elevation'],
+      [/agricultural land use/i, 'Ag zoning'],
+    ];
+    for (const [pat, lbl] of amberRules) {
+      if (stats.length >= 4) break;
+      if ((r.flags || []).some(f => pat.test(f))) {
+        stats.push({ label: '⚠ ' + lbl, color: 'var(--amber)' });
+      }
+    }
+
+    // Green — fill remaining up to 5 total
+    const greenRules = [
+      [/zone x/i, 'Zone X clean'],
+      [/well.drain|excessively drain/i, 'Good drainage'],
+      [/no wetlands/i, 'No wetlands'],
+      [/not in.*hurricane|not in.*evacuation/i, 'No evac risk'],
+      [/good elevation/i, 'Good elevation'],
+      [/power infrastructure/i, 'Power nearby'],
+      [/vacant.*(lot|unimproved)/i, 'Vacant lot'],
+    ];
+    for (const [pat, lbl] of greenRules) {
+      if (stats.length >= 5) break;
+      if ((r.positives || []).some(p => pat.test(p))) {
+        stats.push({ label: '✓ ' + lbl, color: 'var(--green)' });
+      }
     }
 
     dpSig.innerHTML = stats.map((s, i) => {
       const pipe = i < stats.length - 1
         ? '<span style="color:var(--b);margin:0 14px;font-weight:300">|</span>'
         : '';
-      const valColor = s.color ? 'color:' + s.color + ';' : 'color:var(--t1);';
-      return '<span style="white-space:nowrap">' +
-        '<span style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;font-weight:500">' + s.label + '&nbsp;</span>' +
-        '<span style="font-size:13px;font-weight:700;' + valColor + '">' + escHtml(String(s.value)) + '</span>' +
-        '</span>' + pipe;
+      return '<span style="white-space:nowrap;font-size:13px;font-weight:700;color:' + s.color + '">' + escHtml(s.label) + '</span>' + pipe;
     }).join('');
     dpSig.style.display = stats.length ? 'flex' : 'none';
   }
