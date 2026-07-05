@@ -426,7 +426,7 @@ body.on-results .detail-panel{top:0}
 .map-modal-title{font-size:13px;font-weight:700;color:var(--t1);margin-right:auto}
 .map-modal-close{background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer;line-height:1;padding:0 4px}
 .map-modal-close:hover{color:var(--t1)}
-.map-modal-body{display:flex;flex:1;min-height:0;overflow:hidden}
+.map-modal-body{display:flex;flex:1;min-height:0;overflow:hidden;position:relative}
 #mapModalMap{flex:1;min-height:0}
 #mapModalSidebar{width:280px;background:var(--card);border-left:1px solid var(--b);padding:0 0 16px;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column}
 .mms-divider{border:none;border-top:1px solid var(--b);margin:0 16px}
@@ -434,8 +434,10 @@ body.on-results .detail-panel{top:0}
 .mms-stat-val{font-size:14px;font-weight:700;color:var(--t1)}
 .mms-flag-row{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:12px;color:var(--t2)}
 .mms-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.mms-nav-btn{background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:12px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
-.mms-nav-btn:hover{color:var(--t1);border-color:var(--bh)}
+.mms-nav-btn{position:absolute;top:50%;transform:translateY(-50%);z-index:1000;background:rgba(13,15,18,.75);border:1px solid rgba(255,255,255,.15);border-radius:var(--rp);color:#fff;font-size:13px;font-weight:700;padding:8px 13px;cursor:pointer;font-family:'Inter',sans-serif;transition:background .15s;backdrop-filter:blur(4px)}
+.mms-nav-btn:hover{background:rgba(13,15,18,.95)}
+.mms-nav-prev{left:12px}
+.mms-nav-next{right:12px}
 /* ── Detail panel positives ── */
 .dp-pos-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;border-bottom:1px solid rgba(42,45,58,.5)}
 .dp-pos-row:last-child{border-bottom:none}
@@ -1896,9 +1898,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <div id="mapModal">
   <div class="map-modal-inner">
     <div class="map-modal-header">
-      <button class="mms-nav-btn" onclick="navModalParcel(-1)">← Prev</button>
-      <button class="mms-nav-btn" onclick="navModalParcel(1)">Next →</button>
-      <div class="map-modal-title" id="mapModalTitle" style="margin-left:8px">Parcel Map</div>
+      <div class="map-modal-title" id="mapModalTitle">Parcel Map</div>
       <span id="mapModalVerdict" class="verdict-badge" style="display:none"></span>
       <button class="map-toggle active" data-mlayer="parcel" onclick="toggleModalLayer(this)">Parcel</button>
       <button class="map-toggle" data-mlayer="flood" onclick="toggleModalLayer(this)">Flood zones</button>
@@ -1907,6 +1907,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <button class="map-modal-close" onclick="closeMapModal()">✕</button>
     </div>
     <div class="map-modal-body">
+      <button class="mms-nav-btn mms-nav-prev" onclick="navModalParcel(-1)">← Prev</button>
+      <button class="mms-nav-btn mms-nav-next" onclick="navModalParcel(1)">Next →</button>
       <div id="mapModalMap"></div>
       <div id="mapModalSidebar"></div>
     </div>
@@ -5622,10 +5624,11 @@ function _populateMapModalSidebar(r) {
   const score = r.score != null ? r.score : '';
   const scoreColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
 
-  // Verdict reason line
+  // Verdict reason — strip source attribution in parens
+  const _stripSource = s => (s || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
   let verdictReason = '';
   if (ev === 'KILL' && r.auto_kill_reason) {
-    verdictReason = 'Auto-killed: ' + r.auto_kill_reason;
+    verdictReason = 'Auto-killed: ' + _stripSource(r.auto_kill_reason);
   } else if (ev === 'PURSUE') {
     verdictReason = (score === 100 || score === '100') ? 'Passes all major screens' : 'Score: ' + score + ' — minor flags present';
   }
@@ -5642,6 +5645,8 @@ function _populateMapModalSidebar(r) {
     statPairs.push(['FLOOD ZONE', isSafe ? ft + ' ✓' : isDanger ? ft + ' ✗' : ft, isSafe ? 'var(--green)' : isDanger ? 'var(--red)' : null]);
   }
   if (pi.elevation_ft != null) statPairs.push(['ELEVATION', pi.elevation_ft + ' ft', null]);
+  if (pi.land_value != null) statPairs.push(['LAND VALUE', fmt$(pi.land_value), null]);
+  if (pi.owner) statPairs.push(['OWNER', pi.owner, null]);
 
   const statsHtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 8px;padding:14px 16px">' +
     statPairs.map(([lbl, val, col]) =>
@@ -5686,6 +5691,7 @@ function _populateMapModalSidebar(r) {
 
   sb.innerHTML =
     '<div style="padding:14px 16px 10px">' +
+      '<div style="font-size:16px;font-weight:700;color:var(--t1);line-height:1.3;margin-bottom:8px">' + escHtml(r.address || '') + '</div>' +
       '<div style="display:flex;align-items:center;gap:8px">' +
         '<span class="verdict-badge ' + verdictClass(ev) + '">' + escHtml(ev) + '</span>' +
         (score !== '' ? '<span style="font-size:18px;font-weight:800;color:' + scoreColor + '">' + score + '</span>' : '') +
