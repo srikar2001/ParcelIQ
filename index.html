@@ -4880,17 +4880,32 @@ function openDetailPanel(absIdx, event) {
   if (dpFlags) {
     const killF = r.kill_flags || (r.auto_kill ? r.flags : []) || [];
     const revF  = r.review_flags || [];
-    const infoF = (r.info_flags || r.flags || []).filter(f => !killF.includes(f) && !revF.includes(f));
-    const _isInfoOnly = f => /road.*(unavailable|unverified|unconfirmed)/i.test(f) || /no (recorded )?sale/i.test(f) || /no sale history/i.test(f) || /last sale.*\$0/i.test(f) || /vacant lot with no sale/i.test(f);
+    const _isInfoOnly = f => /road.*(unavailable|unverified|unconfirmed)/i.test(f) || /no.*(recorded )?sale|no sale history|vacant.*no sale/i.test(f) || /county data unavailable/i.test(f) || /last sale.*\$0/i.test(f);
+    const _isAutoKillFlag = f => {
+      if (!r.auto_kill_reason) return false;
+      return f === r.auto_kill_reason || f.includes(r.auto_kill_reason) || r.auto_kill_reason.includes(f);
+    };
+    // Promote info-only flags from killF/revF into infoF
+    const _killFScored  = killF.filter(f => !_isInfoOnly(f));
+    const _killFInfo    = killF.filter(f =>  _isInfoOnly(f));
+    const _revFScored   = revF.filter(f =>  !_isInfoOnly(f));
+    const _revFInfo     = revF.filter(f =>   _isInfoOnly(f));
+    const infoF = [
+      ...(r.info_flags || r.flags || []).filter(f => !killF.includes(f) && !revF.includes(f)),
+      ..._killFInfo,
+      ..._revFInfo,
+    ];
     let h = '';
-    killF.forEach(f => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-r"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span><span class="dp-flag-src">auto-kill</span></div>'; });
-    revF.forEach(f  => {
-      const dot = _isInfoOnly(f) ? 'dp-dot-m' : 'dp-dot-a';
-      h += '<div class="dp-flag-row"><div class="dp-dot ' + dot + '"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>';
+    _killFScored.forEach(f => {
+      const label = _isAutoKillFlag(f) ? '<span class="dp-flag-src">⛔</span>' : '';
+      h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-r"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span>' + label + '</div>';
+    });
+    _revFScored.forEach(f => {
+      h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-a"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>';
     });
     infoF.forEach(f => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-m"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>'; });
     dpFlags.innerHTML = h || '<div style="font-size:12px;color:var(--t3)">No risk flags.</div>';
-    if (dpFlagsSec) dpFlagsSec.style.display = (h || killF.length || revF.length || infoF.length) ? '' : 'none';
+    if (dpFlagsSec) dpFlagsSec.style.display = (h || killF.length || revF.length) ? '' : 'none';
   }
   // What's Looking Good — filter out items already in Snapshot (flood zone, elevation, acreage)
   const dpPos = document.getElementById('dpPositives');
