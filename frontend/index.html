@@ -2114,7 +2114,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div class="sett-field">
           <span class="sett-lbl">Batch complete</span>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-            <input type="checkbox" id="settNotifBatch" onchange="localStorage.setItem('piq-notif-batch',this.checked?'1':'')" style="width:16px;height:16px;accent-color:var(--green)">
+            <input type="checkbox" id="settNotifBatch" onchange="setBatchNotif(this)" style="width:16px;height:16px;accent-color:var(--green)">
             <span class="sett-val" style="color:var(--t1)">Show browser notification when a batch finishes</span>
           </label>
         </div>
@@ -4135,6 +4135,7 @@ async function _executeBatch(lines, estimatedSet) {
           if (_errCount > 0) {
             toast(_errCount + (_errCount === 1 ? ' address' : ' addresses') + ' could not be matched — see highlighted rows below', 6000);
           }
+          notifyBatchComplete(summary);
           toast('Stream ended early — showing ' + flResults.length + ' of ' + flLines.length + ' results', 5000);
         }
         break;
@@ -4199,6 +4200,7 @@ async function _executeBatch(lines, estimatedSet) {
           if (_errCount > 0) {
             toast(_errCount + (_errCount === 1 ? ' address' : ' addresses') + ' could not be matched — see highlighted rows below', 6000);
           }
+          notifyBatchComplete(summary);
         }
       }
     }
@@ -4456,7 +4458,7 @@ function effectiveVerdict(r) {
     const reason = r.auto_kill_reason.toLowerCase();
     const suppressed =
       (!_screeningRules.floodKill    && /flood zone/i.test(reason)) ||
-      (!_screeningRules.wetlandKill  && /wetland on parcel/i.test(reason)) ||
+      (!_screeningRules.wetlandKill  && /wetlands? on parcel/i.test(reason)) ||
       (!_screeningRules.wildlifeKill && /critical habitat/i.test(reason));
     if (!suppressed) return 'KILL';
   }
@@ -4544,6 +4546,15 @@ function clearAllFilters() {
 function clearFlagFilters() { clearAllFilters(); }
 
 function defaultSort(results) {
+  // Honor the "Default sort" preference from Settings
+  const pref = localStorage.getItem('piq-default-sort');
+  if (pref === 'score_desc' || pref === 'score_asc') {
+    return [...results].sort((a, b) => {
+      const sa = a.auto_kill ? 0 : (a.score ?? -1);
+      const sb = b.auto_kill ? 0 : (b.score ?? -1);
+      return pref === 'score_asc' ? sa - sb : sb - sa;
+    });
+  }
   const verdictOrder = { PURSUE: 0, KILL: 1, ERROR: 2, OUTSIDE_COVERAGE: 3 };
   return [...results].sort((a, b) => {
     const va = verdictOrder[a.verdict] ?? 5;
@@ -6737,12 +6748,17 @@ function exportCSV() {
       pi.land_use_code ? getDORDescription(pi.land_use_code) : '',
     ]);
   });
-  const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\n');
+  // Honor the "Export format" preference from Settings (CSV or TSV)
+  const isTsv = localStorage.getItem('piq-export-fmt') === 'tsv';
+  const sep   = isTsv ? '\t' : ',';
+  const ext   = isTsv ? '.tsv' : '.csv';
+  const mime  = isTsv ? 'text/tab-separated-values' : 'text/csv';
+  const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(sep)).join('\n');
   const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  const fname = batchState.name
-    ? batchState.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.csv'
-    : 'parceliq-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.href = 'data:' + mime + ';charset=utf-8,' + encodeURIComponent(csv);
+  const fname = (batchState.name
+    ? batchState.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    : 'parceliq-' + new Date().toISOString().slice(0,10)) + ext;
   a.download = fname;
   a.click();
 }
@@ -6856,6 +6872,26 @@ function downloadCSV() { exportCSV(); }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeDetailPanel(); hideExportModal(); closeMapModal(); closeUploadModal(); }
 });
+
+// Batch-complete browser notifications (Settings toggle)
+function setBatchNotif(cb) {
+  if (cb.checked && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    Notification.requestPermission().then(p => {
+      if (p !== 'granted') { cb.checked = false; localStorage.setItem('piq-notif-batch', ''); toast('Browser notifications blocked — allow them in your browser settings'); }
+    });
+  }
+  localStorage.setItem('piq-notif-batch', cb.checked ? '1' : '');
+}
+
+function notifyBatchComplete(summary) {
+  try {
+    if (!localStorage.getItem('piq-notif-batch')) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    if (!document.hidden) return; // only notify when the tab is in the background
+    const body = (summary?.pursue ?? 0) + ' pursue · ' + (summary?.kill ?? 0) + ' kill';
+    new Notification('ParcelIQ — batch complete', { body });
+  } catch(e) {}
+}
 
 function toggleMode() {
   const html = document.documentElement;
