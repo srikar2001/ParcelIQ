@@ -3494,6 +3494,7 @@ async function loadPastBatches() {
       .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false }).limit(20);
     if (!batches || batches.length === 0) { showEmptyBatchState(); sessionStorage.removeItem('piq-batches'); return; }
+    _recentBatchNames = batches.slice(0, 5).map(b => b.name || '');
     try { sessionStorage.setItem('piq-batches', JSON.stringify(batches)); } catch(e) {}
     renderPastBatches(batches);
   } catch(e) {
@@ -3747,6 +3748,7 @@ async function _loadSidebarBatches() {
       if (batches.length) { try { sessionStorage.setItem('piq-batches', JSON.stringify(batches)); } catch(e) {} }
     } catch(e) { batches = []; }
   }
+  if (batches && batches.length) _recentBatchNames = batches.slice(0, 5).map(b => b.name || '');
   _renderSidebarBatches(batches || []);
   // All-time saved + batch count: show cached values instantly, refresh if stale
   const _TSK = 'piq-ts-cache';
@@ -4056,19 +4058,25 @@ function hideUpgradeModal() {
   document.getElementById('upgradeModal')?.classList.remove('show');
 }
 
+// Evocative two-word default batch names ("Emerald Knoll", "Dusky Hammock").
+// User-typed names always win; collisions against recent batches regenerate.
+const _BN_ADJ = ['Emerald','Sunset','Copper','Serene','Dusky','Deep','Hidden','Golden',
+  'Silver','Quiet','Amber','Coastal','Whispering','Still','Mossy','Tawny'];
+const _BN_NOUN = ['Knoll','Flats','Marsh','Bend','Hammock','Savanna','Ridge','Hollow',
+  'Grove','Meadow','Cove','Point','Bluff','Glade','Basin','Run','Trace','Reach'];
+let _recentBatchNames = [];
+
 function _generateBatchName(lines) {
-  // Name the batch after where the parcels actually are: most common county
-  // (or city) among the first few addresses, e.g. "Polk County — 12 parcels"
-  const n = lines.length;
-  const tally = {};
-  for (const line of lines.slice(0, 8)) {
-    const county = extractCounty(line);
-    const key = county ? county + ' County' : (splitAddress(line).city || '');
-    if (key) tally[key] = (tally[key] || 0) + 1;
+  const recent = _recentBatchNames.slice(0, 5).map(n => (n || '').toLowerCase());
+  for (let tries = 0; tries < 10; tries++) {
+    const name = _BN_ADJ[Math.floor(Math.random() * _BN_ADJ.length)] + ' ' +
+                 _BN_NOUN[Math.floor(Math.random() * _BN_NOUN.length)];
+    if (!recent.includes(name.toLowerCase())) return name;
   }
-  const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
-  const label = top ? top[0] : 'Florida';
-  return label + ' — ' + n + (n === 1 ? ' parcel' : ' parcels');
+  // 10 collisions in a row — disambiguate with a number
+  return _BN_ADJ[Math.floor(Math.random() * _BN_ADJ.length)] + ' ' +
+         _BN_NOUN[Math.floor(Math.random() * _BN_NOUN.length)] + ' ' +
+         (Math.floor(Math.random() * 90) + 10);
 }
 
 function showPricingComingSoon() {
