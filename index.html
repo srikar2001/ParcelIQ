@@ -7182,8 +7182,8 @@ function _attachAddressAutocomplete(inputEl) {
       item.addEventListener('mousedown', e => {
         e.preventDefault();
         inputEl.value = label;
-        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
         _acClose();
+        if (inputEl.id === 'singleParcelInput' && typeof searchSingleParcel === 'function') searchSingleParcel();
       });
       dd.appendChild(item);
     });
@@ -7194,28 +7194,25 @@ function _attachAddressAutocomplete(inputEl) {
   inputEl.addEventListener('input', () => {
     clearTimeout(_acTimer);
     const val = inputEl.value;
-    console.log('[autocomplete] input event, val=', val);
-    if (val.includes('\n') || val.trim().length < 4) { _acClose(); return; }
+    if (val.includes('\n') || val.trim().length < 3) { _acClose(); return; }
     _acTimer = setTimeout(() => {
       fetch(API + '/api/geocodio-suggest?q=' + encodeURIComponent(val.trim()))
         .then(r => r.json())
-        .then(d => {
-          console.log('[autocomplete] suggestions=', d.suggestions);
-          _acShow(d.suggestions || []);
-        })
+        .then(d => { _acShow(d.suggestions || []); })
         .catch(() => {});
-    }, 350);
+    }, 300);
   });
 
   inputEl.addEventListener('blur', () => setTimeout(_acClose, 150));
+  inputEl.addEventListener('keydown', e => { if (e.key === 'Escape') _acClose(); });
   window.addEventListener('scroll', _acClose, true);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  ['batchInput', 'modalBatchInput', 'singleParcelInput'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) _attachAddressAutocomplete(el);
-  });
+  // Single-address input only — batch paste textareas take one address per
+  // line, where a dropdown fights with multi-line entry.
+  const el = document.getElementById('singleParcelInput');
+  if (el) _attachAddressAutocomplete(el);
 });
 </script>
 
