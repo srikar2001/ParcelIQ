@@ -1863,15 +1863,15 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <div class="dp-sec-title">Parcel Details</div>
     <div class="dp-grid" id="dpInfo"></div>
   </div>
-  <!-- 6. Risk Flags -->
-  <div class="dp-section" id="dpFlagsSection">
-    <div class="dp-sec-title">Risk Flags</div>
-    <div id="dpFlags"></div>
-  </div>
-  <!-- 7. What's Looking Good -->
+  <!-- 6. What's Looking Good — investors scan for what's clean first -->
   <div class="dp-section" id="dpPositivesSection" style="display:none">
     <div class="dp-sec-title">What's Looking Good</div>
     <div id="dpPositives"></div>
+  </div>
+  <!-- 7. Risk Flags -->
+  <div class="dp-section" id="dpFlagsSection">
+    <div class="dp-sec-title">Risk Flags</div>
+    <div id="dpFlags"></div>
   </div>
   <div class="dp-section">
     <div class="dp-sec-title">Notes</div>
@@ -1891,7 +1891,6 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <a style="font-size:12px;color:var(--green);cursor:pointer" onclick="showNoteEditor()">+ Add note</a>
     </div>
   </div>
-  <div class="dp-sources" id="dpSources"></div>
   <div class="dp-actions">
     <button class="dp-btn" id="dpBookmarkBtn" onclick="toast('Bookmarks coming soon')">Bookmark</button>
     <button class="dp-btn" onclick="nextParcel()">Next →</button>
@@ -3072,6 +3071,23 @@ function updateUIWithProfile() {
 }
 
 // FIX 3: DOR code descriptions
+// Every FL DOR use code -> one of 8 investor-facing categories.
+// Raw county descriptions ("Stores, One Story", "Feed Lots") never surface.
+function getLandUseCategory(code) {
+  const c = parseInt(code);
+  if (isNaN(c)) return 'Other';
+  if (c === 0 || c === 9 || c === 10 || c === 40 || c === 70) return 'Vacant Land';
+  if (c >= 1 && c <= 8)   return 'Residential';
+  if (c === 12)           return 'Mixed Use';
+  if (c >= 11 && c <= 39) return 'Commercial';
+  if (c >= 41 && c <= 49) return 'Industrial';
+  if (c >= 50 && c <= 69) return 'Agricultural';
+  if (c >= 71 && c <= 79) return 'Other';           // institutional
+  if (c >= 80 && c <= 89) return 'Government/Conservation';
+  if (c >= 90 && c <= 99) return 'Other';
+  return 'Other';
+}
+
 function getDORDescription(code) {
   const c = parseInt(code);
   const MAP = {
@@ -5081,37 +5097,60 @@ const KILL_EXPLANATIONS = {
   'easement':      'Auto-killed: conservation easement permanently restricts development.',
 };
 
-function getKillExplanation(auto_kill_reason) {
-  if (!auto_kill_reason) return 'Score too low to pursue — too many risk factors stacked against this lot.';
-  const reason = auto_kill_reason.toLowerCase();
-  for (const [key, explanation] of Object.entries(KILL_EXPLANATIONS)) {
-    if (reason.includes(key)) return explanation;
+// What each auto-kill MEANS for the investor, not just what happened
+const KILL_MEANINGS = {
+  'wetland':       'land is effectively unbuildable and hard to insure or finance',
+  'flood zone ae': 'development is heavily restricted and flood insurance is expensive',
+  'flood zone ve': 'coastal surge zone — effectively unbuildable',
+  'flood zone v':  'coastal surge zone — effectively unbuildable',
+  'habitat':       'federal species protections severely restrict or prohibit development',
+  'public':        'government-owned, not available to private buyers',
+  'easement':      'a recorded covenant permanently restricts development',
+};
+
+function _lc1(t) { t = String(t || ''); return t ? t.charAt(0).toLowerCase() + t.slice(1) : t; }
+function _stripParens(t) { return String(t || '').replace(/\s*\([^)]*\)/g, '').trim(); }
+
+function getKillExplanation(r) {
+  // Accept a result object; tolerate the old string call-shape
+  const result = (typeof r === 'object' && r !== null) ? r : { auto_kill_reason: r, flags: [] };
+  const akr = result.auto_kill_reason || '';
+  const flags = (result.flags || []).map(translateFlag);
+  if (!akr) {
+    const top = flags.filter(f => !/unavailable|unconfirmed|no recorded sale/i.test(f)).slice(0, 2);
+    if (top.length >= 2) return 'Score too low — ' + _lc1(_stripParens(top[0])) + ' plus ' + _lc1(_stripParens(top[1])) + '.';
+    if (top.length === 1) return 'Score too low — ' + _lc1(_stripParens(top[0])) + ' stacked with other risk factors.';
+    return 'Score too low to pursue — multiple risk factors on this lot.';
   }
-  const r0 = auto_kill_reason.charAt(0).toLowerCase() + auto_kill_reason.slice(1);
-  return 'Auto-killed: ' + r0;
+  const rl = akr.toLowerCase();
+  let meaning = '';
+  for (const [key, m] of Object.entries(KILL_MEANINGS)) {
+    if (rl.includes(key)) { meaning = m; break; }
+  }
+  let out = 'Auto-killed: ' + _lc1(_stripParens(translateFlag(akr)));
+  if (meaning) out += ' — ' + meaning;
+  out += '.';
+  // Add THIS parcel's most serious secondary flag so no two summaries read alike
+  const secondary = flags.find(f =>
+    !akr.includes(f) && !f.includes(_stripParens(translateFlag(akr))) &&
+    !/unavailable|unconfirmed|no recorded sale|non-market/i.test(f) &&
+    _stripParens(f).toLowerCase() !== _stripParens(translateFlag(akr)).toLowerCase());
+  if (secondary) out += ' Also flagged: ' + _lc1(_stripParens(secondary)) + '.';
+  return out;
 }
 
 function getPursueExplanation(result) {
-  const positives = result.positives || [];
-  const MAP = [
-    [/zone x/i,          'No flood risk (FEMA Zone X)'],
-    [/no wetlands/i,      'No wetlands detected'],
-    [/well-?drained/i,    'Well-drained soil — septic feasible'],
-    [/evacuation zone/i,  'Outside hurricane evacuation zone'],
-    [/power/i,            'Power infrastructure nearby'],
-    [/vacant/i,           'Confirmed vacant lot'],
-    [/market sale/i,      'Recent market sale on record'],
-    [/elevation/i,        'Safe elevation above flood risk'],
-  ];
-  const reasons = [];
-  positives.forEach(p => {
-    for (const [pat, label] of MAP) {
-      if (pat.test(p) && !reasons.includes(label)) { reasons.push(label); break; }
-    }
-  });
-  if (reasons.length === 0) return 'Clean lot — passes all major screens.';
-  if (reasons.length === 1) return reasons[0] + '.';
-  return reasons.slice(0, 2).join(' and ') + '.';
+  const positives = (result.positives || []).map(translateFlag);
+  const flags = (result.flags || []).map(translateFlag);
+  const top = positives.slice(0, 2).map(pv => _stripParens(pv));
+  let out;
+  if (result.score >= 100) out = 'Passes every major screen' + (top.length ? ' — ' + _lc1(top[0]) : '') + '.';
+  else if (top.length >= 2) out = top[0] + ' and ' + _lc1(top[1]) + ' — worth a closer look.';
+  else if (top.length === 1) out = top[0] + ' — worth a closer look.';
+  else out = 'No major risk factors detected — worth a closer look.';
+  const caveat = flags.find(f => !/no recorded sale|non-market/i.test(f));
+  if (caveat) out += ' Main caveat: ' + _lc1(_stripParens(caveat)) + '.';
+  return out;
 }
 
 function openDetailPanel(absIdx, event) {
@@ -5152,7 +5191,7 @@ function openDetailPanel(absIdx, event) {
     const whyCls = ev === 'KILL' ? 'dp-why-k' : ev === 'PURSUE' ? 'dp-why-p' : 'dp-why-r';
     let whyText = '';
     if (ev === 'KILL') {
-      whyText = escHtml(getKillExplanation(r.auto_kill_reason));
+      whyText = escHtml(getKillExplanation(r));
     } else if (ev === 'PURSUE') {
       whyText = escHtml(getPursueExplanation(r));
     } else if (ev === 'ERROR') {
@@ -5265,131 +5304,117 @@ function openDetailPanel(absIdx, event) {
     dpPos.innerHTML = ph;
     if (dpPosSec) dpPosSec.style.display = pos.length > 0 ? '' : 'none';
   }
-  // Parcel Details grid
+  // Parcel Details grid — decision-first rules: never show raw codes, never
+  // show empty "no record" rows, hide anything that wouldn't change pursue/kill
   const dpInfo = document.getElementById('dpInfo');
   if (dpInfo) {
     const _cell = (lbl, vHtml) => '<div class="dp-grid-item"><div class="dp-grid-lbl">' + escHtml(lbl) + '</div><div class="dp-grid-val">' + vHtml + '</div></div>';
     const _cap = s => { s = String(s || ''); return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s; };
+    const _normAddr = a => String(a || '').toUpperCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim();
     let infoH = '';
 
-    // Owner (+ mailing address for direct-mail outreach)
+    // Owner — mailing address only when it differs from the parcel address
+    // (a different mailing address is a skip-tracing signal; the same one is noise)
     if (pi.owner && pi.owner !== 'N/A') {
       let ownerHtml = escHtml(pi.owner) + '<div class="dp-grid-sub">as of county tax roll</div>';
-      if (pi.owner_mailing_address) {
+      const mail = _normAddr(pi.owner_mailing_address);
+      const situs = _normAddr(pi.county_address_on_file || r.address);
+      if (pi.owner_mailing_address && mail && situs && !mail.startsWith(situs.slice(0, 18))) {
         ownerHtml += '<div class="dp-grid-sub">Mails to: ' + escHtml(pi.owner_mailing_address) + '</div>';
       }
       infoH += _cell('Owner', ownerHtml);
     }
 
-    // Land Use
-    if (pi.land_use_code) {
-      infoH += _cell('Land Use', escHtml(getDORDescription(pi.land_use_code)));
-    }
+    // Land Use — always the simplified category, never a county description
+    const _luCat = pi.land_use_code != null ? getLandUseCategory(pi.land_use_code) : null;
+    if (_luCat) infoH += _cell('Land Use', escHtml(_luCat));
 
-    // APN
     const apnVal = pi.parcel_id || pi.apn;
     if (apnVal) {
       infoH += _cell('APN', '<span style="font-family:monospace;font-size:11px;letter-spacing:.02em">' + escHtml(apnVal) + '</span>');
     }
+    if (pi.county) infoH += _cell('County', escHtml(pi.county));
 
-    // County
-    if (pi.county) {
-      infoH += _cell('County', escHtml(pi.county));
-    }
-
-    // Acreage
     const _dpAc = getAcreage(r);
-    if (_dpAc != null) {
-      infoH += _cell('Acreage', escHtml(_dpAc + ' ac'));
+    if (_dpAc != null) infoH += _cell('Acreage', escHtml(_dpAc + ' ac'));
+
+    // Buildings — only relevant when something is actually on a residential/mixed lot
+    if (pi.building_count > 0 && (_luCat === 'Residential' || _luCat === 'Mixed Use')) {
+      infoH += _cell('Buildings', escHtml(String(pi.building_count)));
     }
 
-    // Buildings
-    if (pi.building_count != null) {
-      infoH += _cell('Buildings', escHtml(pi.building_count === 0 ? 'None' : String(pi.building_count)));
-    }
-
-    // Assessed Value
+    // Assessed Value is THE number; Land Value only when meaningfully different
+    // (>20% apart and >$1,000 — filters the $100 agricultural-exemption artifact)
     const assessedVal = pi.assessed_value != null ? pi.assessed_value : pi.just_value;
     if (assessedVal != null && assessedVal > 0) {
-      infoH += _cell('Assessed Value', escHtml(fmt$(assessedVal)) + '<div class="dp-grid-sub">County tax estimate — not market value</div>');
+      let valHtml = escHtml(fmt$(assessedVal)) + '<div class="dp-grid-sub">County tax estimate — not market value</div>';
+      const lv = pi.land_value;
+      if (lv != null && lv > 1000 && assessedVal > 0 && Math.abs(lv - assessedVal) / assessedVal > 0.2) {
+        valHtml += '<div class="dp-grid-sub">Land alone valued at ' + escHtml(fmt$(lv)) + '</div>';
+      }
+      infoH += _cell('Assessed Value', valHtml);
     }
 
-    // Last Sale
-    if (pi.last_sale_price != null && pi.last_sale_price > 0) {
-      const yr = pi.last_sale_year ? ' (' + pi.last_sale_year + ')' : '';
-      let saleHtml = escHtml(fmt$(pi.last_sale_price) + yr);
+    // Last Sale — only when a real sale exists; no "No recorded sale" clutter
+    if (pi.last_sale_price != null && pi.last_sale_price > 0 && pi.last_sale_year) {
+      let saleHtml = escHtml(fmt$(pi.last_sale_price) + ' (' + pi.last_sale_year + ')');
       if (pi.sale_price_likely_market_value === false) {
         saleHtml += '<div class="dp-grid-sub">Likely non-market (gift/transfer)</div>';
       }
       infoH += _cell('Last Sale', saleHtml);
-    } else {
-      infoH += _cell('Last Sale', 'No recorded sale');
     }
 
-    // Land Value
-    if (pi.land_value != null && pi.land_value > 0) {
-      infoH += _cell('Land Value', escHtml(fmt$(pi.land_value)));
+    // Soil — plain English verdict, never the raw USDA class alone
+    if (pi.septic_suitable === true) {
+      infoH += _cell('Soil', 'Well drained — septic likely feasible');
+    } else if (pi.septic_suitable === false) {
+      infoH += _cell('Soil', 'Poorly drained — septic likely not feasible');
+    } else if (pi.soil_drainage) {
+      infoH += _cell('Soil', escHtml(_cap(pi.soil_drainage) + ' — septic feasibility unclear'));
     }
 
-    // Soil
-    if (pi.soil_drainage) {
-      let soilTxt;
-      if (pi.septic_suitable === true) soilTxt = _cap(pi.soil_drainage) + ' — septic feasible';
-      else if (pi.septic_suitable === false) soilTxt = _cap(pi.soil_drainage) + ' — septic likely not feasible';
-      else soilTxt = _cap(pi.soil_drainage);
-      infoH += _cell('Soil', escHtml(soilTxt));
-    }
-
-    // Evac Zone
     if (pi.evac_zone) {
-      const riskLbl = pi.evac_risk ? ' · ' + pi.evac_risk + ' risk' : '';
+      const riskLbl = pi.evac_risk ? ' · ' + _cap(pi.evac_risk) + ' risk' : '';
       infoH += _cell('Evac Zone', escHtml('Zone ' + pi.evac_zone + riskLbl));
     } else if (pi.county || pi.parcel_id) {
       infoH += _cell('Evac Zone', 'Not in evacuation zone');
     }
 
-    // Elevation
-    if (pi.elevation_ft != null) {
-      infoH += _cell('Elevation', escHtml(pi.elevation_ft + ' ft'));
-    }
+    if (pi.elevation_ft != null) infoH += _cell('Elevation', escHtml(pi.elevation_ft + ' ft'));
 
-    // Flood subtype (plain English from FEMA, e.g. "Area of minimal flood hazard")
     if (pi.flood_zone_subtype) {
       let fs = _cap(pi.flood_zone_subtype);
-      if (pi.base_flood_elevation_ft != null) fs += ' · BFE ' + pi.base_flood_elevation_ft + ' ft';
+      if (pi.base_flood_elevation_ft != null) fs += ' · Base flood elevation ' + pi.base_flood_elevation_ft + ' ft';
       infoH += _cell('Flood Detail', escHtml(fs));
     }
 
-    // Wetland type
-    if (pi.wetland_type) {
-      infoH += _cell('Wetland Type', escHtml(_cap(pi.wetland_type)));
-    }
+    if (pi.wetland_type) infoH += _cell('Wetland Type', escHtml(_cap(pi.wetland_type)));
 
-    // Protected wildlife
     if (pi.habitat_species && pi.habitat_species.length) {
       infoH += _cell('Protected Wildlife', escHtml(pi.habitat_species.slice(0, 3).join(', ')));
     }
 
-    // Road
+    // Road — type, surface when known, name, distance, private caveat
     if (pi.road_type) {
       let roadTxt = _cap(pi.road_type);
-      if (pi.road_surface && pi.road_surface !== 'unknown') roadTxt += ' — ' + pi.road_surface;
+      if (pi.road_surface && pi.road_surface !== 'unknown' && pi.road_surface !== 'none' && pi.road_surface !== 'error') roadTxt += ' — ' + pi.road_surface;
       if (pi.road_name) roadTxt += ' (' + pi.road_name + ')';
-      infoH += _cell('Road', escHtml(roadTxt));
+      if (pi.road_distance_m != null) roadTxt += ' · ~' + pi.road_distance_m + 'm away';
+      let roadHtml = escHtml(roadTxt);
+      if (pi.road_private) roadHtml += '<div class="dp-grid-sub" style="color:var(--amber)">Private road — confirm legal access</div>';
+      infoH += _cell('Road', roadHtml);
     }
 
-    // Power
     if (pi.powerline_nearby === true) {
       const dist = pi.powerline_distance ? ' (' + pi.powerline_distance + ')' : '';
       infoH += _cell('Power', 'Nearby' + escHtml(dist));
     } else if (pi.powerline_nearby === false) {
-      infoH += _cell('Power', 'None detected');
+      infoH += _cell('Power', 'None detected within 1 mile');
     }
 
-    // Contamination
     if (pi.contamination_sites && pi.contamination_sites.length) {
       const names = pi.contamination_sites.slice(0, 2)
-        .map(s => (typeof s === 'object' && s !== null) ? (s.name || '') : String(s))
+        .map(x => (typeof x === 'object' && x !== null) ? (x.name || '') : String(x))
         .filter(Boolean);
       if (names.length) infoH += _cell('Contamination', escHtml(names.join('; ')));
     }
@@ -5397,7 +5422,6 @@ function openDetailPanel(absIdx, event) {
     dpInfo.innerHTML = infoH || '<div style="font-size:12px;color:var(--t3);grid-column:1/-1">No parcel data available.</div>';
   }
   // Sources
-  setH('dpSources', 'Sources: ' + (r.sources || ['FEMA','Wetlands','Wildlife','EPA','Roads','County Records']).map(s => escHtml(translateSource(s))).join(' · '));
   _loadNoteForPanel(r);
   // Show map placeholder while panel animates open, then init map
   const _ph = document.getElementById('dpMapPlaceholder');
