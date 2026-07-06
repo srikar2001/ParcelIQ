@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api")
 
 BATCH_SIZE    = 20        # parcels processed in parallel per chunk
 _API_TIMEOUT  = 16.0      # default per external API call (HTTP time only — queue wait excluded)
-_PARCEL_TIMEOUT = 120.0   # hard cap per individual parcel (includes per-host queue waits)
+_PARCEL_TIMEOUT = 240.0   # hard cap per individual parcel (includes per-host queue waits)
 WEEKLY_LIMIT  = 1000
 
 # ── Per-host concurrency limits. External services rate-limit per IP; a single
@@ -220,7 +220,7 @@ async def _collect_all(lat: float, lng: float) -> tuple:
         _safe(lambda: get_parcel_data(lat, lng), _PARCEL_DEFAULT, _SEM_FLDOR,
               timeout=16.0, retry_if=lambda r: not r.get("found"), name="parcel"),
         _safe(lambda: get_osm_bundle(lat, lng), _OSM_BUNDLE_ERROR, _SEM_OVERPASS,
-              timeout=45.0, retry_if=lambda r: r.get("_error") is True, name="osm"),
+              timeout=60.0, retry_if=lambda r: r.get("_error") is True, name="osm"),
         _safe(lambda: get_elevation(lat, lng), _ELEVATION_DEFAULT, _SEM_USGS,
               timeout=12.0, retry_if=lambda r: r.get("elevation_ft") is None, name="elevation"),
         _safe(lambda: get_soil_data(lat, lng), _SOIL_DEFAULT, _SEM_SOIL,
@@ -246,36 +246,8 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
         return cached
 
     geo = await geocode(address)
-    if geo is None:
-        return {
-            "address": address,
-            "verdict": "ERROR",
-            "score": None,
-            "auto_kill": False,
-            "auto_kill_reason": None,
-            "flags": [],
-            "positives": [],
-            "parcel_info": {},
-            "sources": [],
-            "error": "Geocoding failed — address not found",
-            "cached": False,
-        }
-
-    formatted = geo.get("formatted_address", "")
-    if formatted and ", FL" not in formatted and "Florida" not in formatted:
-        return {
-            "address": address,
-            "verdict": "ERROR",
-            "score": None,
-            "auto_kill": False,
-            "auto_kill_reason": None,
-            "flags": [],
-            "positives": [],
-            "parcel_info": {},
-            "sources": [],
-            "error": "Address not found in Florida — verify and retry",
-            "cached": False,
-        }
+    if geo.get("status") != "ok":
+        return _geocode_error_result(address, geo)
 
     lat, lng = geo["lat"], geo["lng"]
 
@@ -361,22 +333,6 @@ async def _process_parcel_pregeocoded(parcel: ParcelInput, geo: dict) -> dict:
     if cached:
         cached["cached"] = True
         return cached
-
-    formatted = geo.get("formatted_address", "")
-    if formatted and ", FL" not in formatted and "Florida" not in formatted:
-        return {
-            "address": address,
-            "verdict": "ERROR",
-            "score": None,
-            "auto_kill": False,
-            "auto_kill_reason": None,
-            "flags": [],
-            "positives": [],
-            "parcel_info": {},
-            "sources": [],
-            "error": "Address not found in Florida — verify and retry",
-            "cached": False,
-        }
 
     lat, lng = geo["lat"], geo["lng"]
     (
@@ -478,13 +434,35 @@ def _timeout_result(address: str) -> dict:
     }
 
 
-def _error_result(address: str, msg: str) -> dict:
+def _error_result(address: str, msg: str, suggestions: list | None = None) -> dict:
     return {
         "address": address, "verdict": "ERROR", "score": None,
         "auto_kill": False, "auto_kill_reason": None,
         "flags": [], "positives": [], "parcel_info": {}, "sources": [],
         "error": msg,
+        "suggestions": suggestions or [],
     }
+
+
+def _geocode_error_result(address: str, geo: dict) -> dict:
+    """Map a non-ok geocode status to a user-facing ERROR result."""
+    status = geo.get("status")
+    if status == "wrong_state":
+        return _error_result(
+            address,
+            f"This looks like a {geo.get('state', 'non-Florida')} address "
+            f"({geo.get('formatted_address', '')}). ParcelIQ covers Florida only.",
+        )
+    if status == "low_confidence":
+        suggestions = geo.get("suggestions") or []
+        if suggestions:
+            return _error_result(
+                address,
+                f"Address not found — did you mean {suggestions[0]}?",
+                suggestions=suggestions,
+            )
+        return _error_result(address, "Address not found.")
+    return _error_result(address, "Address not found — enter a full street address.")
 
 
 @router.post("/batch/stream")
@@ -526,10 +504,11 @@ async def batch_screen_stream(
             # Immediately emit ERROR for any that failed geocoding
             geocoded_parcels = []
             for p in parcels:
-                if p.address in geo_map:
-                    geocoded_parcels.append((p, geo_map[p.address]))
+                geo = geo_map.get(p.address) or {"status": "not_found"}
+                if geo.get("status") == "ok":
+                    geocoded_parcels.append((p, geo))
                 else:
-                    r = _error_result(p.address, "Geocoding failed — address not found in Florida")
+                    r = _geocode_error_result(p.address, geo)
                     all_results.append(r)
                     completed += 1
                     pct = int((completed / total) * 100)
@@ -628,10 +607,11 @@ async def _process_batch_background(job_id: str, parcels: list) -> None:
         # Parcels that failed geocoding get immediate ERROR results
         geocoded_parcels = []
         for p in parcels:
-            if p.address in geo_map:
-                geocoded_parcels.append((p, geo_map[p.address]))
+            geo = geo_map.get(p.address) or {"status": "not_found"}
+            if geo.get("status") == "ok":
+                geocoded_parcels.append((p, geo))
             else:
-                accumulated.append(_error_result(p.address, "Geocoding failed — address not found in Florida"))
+                accumulated.append(_geocode_error_result(p.address, geo))
 
         # Process geocoded parcels in parallel chunks
         for i in range(0, len(geocoded_parcels), BATCH_SIZE):
