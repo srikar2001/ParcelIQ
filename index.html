@@ -2729,11 +2729,15 @@ const _AUTH_PAGES = new Set(['', '#', '#login', '#signup', '#forgot']);
 
 // App startup — wait for the first onAuthStateChange event (reliable session source)
 async function initApp() {
-  // OAuth callback: access_token in hash — Supabase auto-processes it, then fires SIGNED_IN
+  // OAuth callback: access_token in hash — Supabase auto-processes it, then fires SIGNED_IN.
+  // Password-recovery links also carry access_token but must land on #reset-password
+  // (the PASSWORD_RECOVERY handler routes there) — don't rewrite those to #results.
   if (window.location.hash.includes('access_token=')) {
-    setTimeout(() => {
-      window.history.replaceState({}, document.title, window.location.pathname + '#results');
-    }, 500);
+    if (!window.location.hash.includes('type=recovery')) {
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname + '#results');
+      }, 500);
+    }
     return;
   }
   // Wait for Supabase to restore session (onAuthStateChange fires before getSession is reliable)
