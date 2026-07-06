@@ -1758,7 +1758,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <button id="sidebarOpenBtn" onclick="toggleResultsSidebar()" title="Show sidebar" style="display:none;background:none;border:1px solid var(--b);cursor:pointer;color:var(--t2);padding:5px 7px;border-radius:6px;align-items:center"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>
           <div>
             <div style="display:flex;align-items:center;gap:6px">
-              <div class="res-title" id="resTitleCount" style="cursor:text" title="Click to rename" onclick="inlineEditBatchTitle(this)">Results</div>
+              <div class="res-title" id="resTitleCount" style="cursor:text" title="Click to rename" onclick="inlineEditBatchTitle(this)">Dashboard</div>
               <button onclick="inlineEditBatchTitle(document.getElementById('resTitleCount'))" title="Rename batch" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:1px 4px;opacity:.3;transition:opacity .15s" id="batchTitleEditBtn">✎</button>
             </div>
             <div class="res-meta-txt" id="resMeta"></div>
@@ -2104,7 +2104,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   <div class="sett-layout">
     <aside class="sett-sidebar">
       <div class="dsb-nav" style="margin-top:12px">
-        <div class="dsb-nav-item" onclick="window.location.hash='#results'">← Results</div>
+        <div class="dsb-nav-item" onclick="window.location.hash='#dashboard'">← Dashboard</div>
         <div class="dsb-nav-item active" style="margin-top:8px">Account</div>
         <div class="dsb-nav-item" onclick="scrollSettSection('sett-sec-security')">Password</div>
         <div class="dsb-nav-item" onclick="scrollSettSection('sett-sec-preferences')">Preferences</div>
@@ -2256,7 +2256,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <h1 style="font-size:22px;font-weight:700;margin:0 0 4px;color:var(--t1)">⭐ My Picks</h1>
         <div style="font-size:13px;color:var(--t3)" id="picksSubtitle">Parcels you've picked from compare</div>
       </div>
-      <button onclick="history.back()" style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">← Back to Results</button>
+      <button onclick="history.back()" style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">← Back to Dashboard</button>
     </div>
     <div id="picksListWrap"></div>
   </div>
@@ -2366,7 +2366,7 @@ const HASH_MAP = {
   '': 'page-landing', '#landing': 'page-landing',
   '#login': 'page-login', '#signup': 'page-signup',
   '#forgot': 'page-forgot', '#reset-password': 'page-reset-password',
-  '#dashboard': 'page-dashboard', '#processing': 'page-processing',
+  '#dashboard': 'page-results', '#processing': 'page-processing',
   '#results': 'page-results', '#pricing': 'page-pricing',
   '#settings': 'page-settings', '#picks': 'page-picks',
   '#terms': 'page-terms', '#privacy': 'page-privacy',
@@ -2520,13 +2520,15 @@ async function checkWeeklyLimit(count = 1) {
 // FIX 6: router is async — calls initAuth() before allowing protected pages
 async function router() {
   closeDetailPanel();
+  // Legacy alias: the batch table is now the Dashboard
+  if (window.location.hash === '#results') { window.location.replace('#dashboard'); return; }
   const hash = window.location.hash || '#landing';
   // If already logged in and navigating to a pure auth page, skip straight to dashboard.
   // #landing is intentionally excluded — the logo should always reach the landing page.
   const _authOnlyPages = new Set(['#login', '#signup', '#forgot', '', '#']);
   if (_authOnlyPages.has(hash) && currentSession) {
     const lastBatch = sessionStorage.getItem('piq-last-batch');
-    if (lastBatch) { goTo('results'); return; }
+    if (lastBatch) { goTo('dashboard'); return; }
     goTo('landing'); return;
   }
   if (PROTECTED.has(hash)) {
@@ -2534,7 +2536,7 @@ async function router() {
     const session = currentSession || await initAuth();
     if (!session) { goTo('login'); return; }
   }
-  if (hash === '#results' && !batchState.results.length && !_batchInProgress) {
+  if (hash === '#dashboard' && !batchState.results.length && !_batchInProgress) {
     const lastBatch = sessionStorage.getItem('piq-last-batch');
     if (lastBatch && currentSession) {
       showScreen('page-results');
@@ -2555,10 +2557,9 @@ async function router() {
   // Forward-navigating back to it after the batch moved on used to strand the
   // user on a dead progress screen.
   if (hash === '#processing' && !_batchInProgress && !batchState._streaming) {
-    if (batchState.results.length || sessionStorage.getItem('piq-last-batch')) { goTo('results'); return; }
+    if (batchState.results.length || sessionStorage.getItem('piq-last-batch')) { goTo('dashboard'); return; }
     goTo('landing'); return;
   }
-  if (hash === '#dashboard') { loadDashboardData(); updateNav(); }
   if (hash === '#settings') { loadSettingsPage(); updateNav(); }
   if (hash === '#picks' && typeof renderPicksList === 'function') { renderPicksList(); }
   if (hash === '#landing' || hash === '' || hash === '#') {
@@ -2620,7 +2621,7 @@ function updateLpNav() {
     const name = (userProfile?.full_name || currentUser.email || '').split(/[\s@]/)[0] || 'Account';
     el.innerHTML =
       '<span style="font-size:13px;color:#F1F5F9;margin-right:4px">Hi, ' + name + '</span>' +
-      '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="window.location.hash=\'#results\'">My results</button>' +
+      '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="window.location.hash=\'#dashboard\'">My dashboard</button>' +
       '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="doSignout()">Sign out</button>';
   } else {
     el.innerHTML =
@@ -2780,7 +2781,7 @@ function _runPendingOrResults() {
     if (lines.length) { batchState.name = _generateBatchName(lines); _executeBatch(lines, new Set()); return; }
   }
   const lastBatch = sessionStorage.getItem('piq-last-batch');
-  if (lastBatch) { goTo('results'); return; }
+  if (lastBatch) { goTo('dashboard'); return; }
   goTo('landing');
 }
 
@@ -2840,7 +2841,7 @@ async function signInWithGoogle() {
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin + '/#results',
+      redirectTo: window.location.origin + '/#dashboard',
     },
   });
   if (error) toast('Google sign-in failed: ' + error.message);
@@ -2857,7 +2858,7 @@ async function initApp() {
   if (window.location.hash.includes('access_token=')) {
     if (!window.location.hash.includes('type=recovery')) {
       setTimeout(() => {
-        window.history.replaceState({}, document.title, window.location.pathname + '#results');
+        window.history.replaceState({}, document.title, window.location.pathname + '#dashboard');
       }, 500);
     }
     return;
@@ -3876,7 +3877,7 @@ async function loadBatchResults(batchId) {
       batchState.elapsed  = elapsed || 0;
       currentBatchResults = rows;
       renderBatchResults();
-      goTo('results');
+      goTo('dashboard');
       // Background refresh — update cache silently
       _refreshBatchFromServer(batchId).catch(() => {});
       return;
@@ -3902,7 +3903,7 @@ async function loadBatchResults(batchId) {
       batchState.results = [];
       batchState.name = batch?.name || '';
       renderBatchResults();
-      goTo('results');
+      goTo('dashboard');
       return;
     }
     const mapped = _mapBatchRows(results);
@@ -3913,7 +3914,7 @@ async function loadBatchResults(batchId) {
     batchState.elapsed  = 0;
     batchState.name     = batch?.name || '';
     renderBatchResults();
-    goTo('results');
+    goTo('dashboard');
   } catch(e) { console.error('Load results error:', e); toast('Could not load batch'); goTo('landing'); }
 }
 
@@ -3940,7 +3941,7 @@ async function _refreshBatchFromServer(batchId) {
     if (!results || results.length === 0) return;
     const mapped = _mapBatchRows(results);
     try { sessionStorage.setItem(cacheKey, JSON.stringify({ name: batch?.name || '', rows: mapped })); } catch(e) {}
-    if (_currentBatchId === batchId && window.location.hash === '#results') {
+    if (_currentBatchId === batchId && ['#results','#dashboard'].includes(window.location.hash)) {
       currentBatchResults = mapped;
       batchState.results  = mapped;
       batchState.name     = batch?.name || '';
@@ -4152,7 +4153,7 @@ async function _executeBatch(lines, estimatedSet) {
 
   if (!flLines.length) {
     batchState.results = outsideResults; batchState.filtered = 'all'; batchState.elapsed = 0;
-    renderBatchResults(); goTo('results'); return;
+    renderBatchResults(); goTo('dashboard'); return;
   }
 
   const btn = document.getElementById('runBatchBtn');
@@ -4172,7 +4173,7 @@ async function _executeBatch(lines, estimatedSet) {
     } catch(e) {
       if (e && e.isLimitExceeded) { goTo('landing'); setTimeout(() => showUpgradeModal(), 150); }
       else if (batchState.results.length > outsideResults.length) {
-        batchState._streaming = false; renderBatchResults(); goTo('results');
+        batchState._streaming = false; renderBatchResults(); goTo('dashboard');
         toast('Screening interrupted — showing partial results.', 5000);
       } else {
         toast('Batch error: ' + (e.message || e), 5000); goTo('landing');
@@ -4263,7 +4264,7 @@ async function _executeBatch(lines, estimatedSet) {
             pursue: flResults.filter(r => r.verdict === 'PURSUE').length,
           };
           await saveBatchToSupabase(batchState.name, { summary, results: flResults });
-          if (!_navigatedToResults) { _navigatedToResults = true; renderBatchResults(); goTo('results'); }
+          if (!_navigatedToResults) { _navigatedToResults = true; renderBatchResults(); goTo('dashboard'); }
           else { renderBatchResults(); }
           const _errCount = batchState.results.filter(r => r.verdict === 'ERROR').length;
           if (_errCount > 0) {
@@ -4299,7 +4300,7 @@ async function _executeBatch(lines, estimatedSet) {
             _navigatedToResults = true;
             _stopProcStatusRotation();
             renderBatchResults();
-            goTo('results');
+            goTo('dashboard');
             _resMetaStart = Date.now();
             _resMetaTimer = setInterval(() => {
               const elapsed = Math.round((Date.now() - _resMetaStart) / 1000);
@@ -4333,7 +4334,7 @@ async function _executeBatch(lines, estimatedSet) {
             pursue: flResults.filter(r => r.verdict === 'PURSUE').length,
           };
           await saveBatchToSupabase(batchState.name, { summary, results: flResults });
-          if (!_navigatedToResults) { _navigatedToResults = true; renderBatchResults(); goTo('results'); }
+          if (!_navigatedToResults) { _navigatedToResults = true; renderBatchResults(); goTo('dashboard'); }
           else { renderBatchResults(); }
           const _errCount = batchState.results.filter(r => r.verdict === 'ERROR').length;
           if (_errCount > 0) {
@@ -4354,7 +4355,7 @@ async function _executeBatch(lines, estimatedSet) {
       if (batchState.results.length > outsideResults.length) {
         batchState._streaming = false;
         renderBatchResults();
-        if (!batchState._streaming) goTo('results');
+        if (!batchState._streaming) goTo('dashboard');
         toast(isNetwork ? 'Connection lost — showing partial results.' : 'Streaming interrupted — showing partial results.', 5000);
       } else if (batchState._streaming) {
         toast(isNetwork ? 'Connection lost — partial results shown.' : 'Streaming interrupted.', 5000);
@@ -6402,7 +6403,7 @@ async function _runQueueBatch(flLines, outsideResults) {
         batchState.results.push({ ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase()) });
         seen++;
       }
-      if (!navigated) { navigated = true; _stopProcStatusRotation(); renderBatchResults(); goTo('results'); }
+      if (!navigated) { navigated = true; _stopProcStatusRotation(); renderBatchResults(); goTo('dashboard'); }
       else { _refreshTable(); }
       updateStatCards();
     }
@@ -6442,7 +6443,7 @@ async function _runQueueBatch(flLines, outsideResults) {
     pursue: flResults.filter(r => r.verdict === 'PURSUE').length,
   };
   await saveBatchToSupabase(batchState.name, { summary, results: flResults });
-  if (!navigated) { renderBatchResults(); goTo('results'); }
+  if (!navigated) { renderBatchResults(); goTo('dashboard'); }
   else { renderBatchResults(); }
   const errCount = flResults.filter(r => r.verdict === 'ERROR').length;
   if (errCount > 0) toast(errCount + (errCount === 1 ? ' address' : ' addresses') + ' could not be matched — see highlighted rows below', 6000);
@@ -6462,7 +6463,7 @@ async function searchSingleParcel() {
     const result = await resp.json();
     // Show result in a fresh results view
     batchState.results = [result]; batchState.name = 'Single parcel search'; batchState.filtered = 'all';
-    renderBatchResults(); goTo('results');
+    renderBatchResults(); goTo('dashboard');
   } catch(e) { toast('Search failed: ' + e.message); }
   finally { if (btn) { btn.disabled = false; btn.textContent = 'Search →'; } }
 }
