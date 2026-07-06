@@ -44,32 +44,45 @@ _SEM_SOIL     = asyncio.Semaphore(5)   # USDA soil data access
 _SEM_EVAC     = asyncio.Semaphore(5)   # FL FDEM evacuation zones
 _SEM_EASE     = asyncio.Semaphore(5)   # conservation easements
 _SUPABASE_URL     = os.environ.get('SUPABASE_URL', '')
-_SUPABASE_KEY     = os.environ.get('SUPABASE_ANON_KEY', '')
-_SUPABASE_SVC_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', _SUPABASE_KEY)  # bypasses RLS
+# Deployments have used several names for these keys — accept any of them
+_SUPABASE_KEY     = (os.environ.get('SUPABASE_ANON_KEY')
+                     or os.environ.get('SUPABASE_KEY', ''))
+_SUPABASE_SVC_KEY = (os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+                     or os.environ.get('SUPABASE_SERVICE_KEY')
+                     or _SUPABASE_KEY)  # bypasses RLS
 
 
 _VIP_LIMITS: dict[str, int] = {
     'srikarvudaru1@gmail.com': 10_000,
 }
 
+class _AuthUnavailable(Exception):
+    """Token could not be verified because the verification infrastructure is
+    missing/unreachable — distinct from the token actually being rejected."""
+
+
 async def _user_id_from_token(token: str) -> Optional[tuple[str, str]]:
-    """Returns (user_id, email) or None."""
-    if not token or not _SUPABASE_URL:
+    """Returns (user_id, email), None if Supabase rejected the token, or raises
+    _AuthUnavailable if verification itself couldn't run."""
+    if not token:
         return None
+    if not _SUPABASE_URL or not (_SUPABASE_KEY or _SUPABASE_SVC_KEY):
+        raise _AuthUnavailable("Supabase URL/key env vars not configured")
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             r = await client.get(
                 f'{_SUPABASE_URL}/auth/v1/user',
-                headers={'Authorization': f'Bearer {token}', 'apikey': _SUPABASE_KEY},
+                headers={'Authorization': f'Bearer {token}',
+                         'apikey': _SUPABASE_KEY or _SUPABASE_SVC_KEY},
             )
-        if r.status_code != 200:
-            return None
-        data = r.json()
-        uid = data.get('id')
-        email = data.get('email', '')
-        return (uid, email) if uid else None
-    except Exception:
+    except Exception as e:
+        raise _AuthUnavailable(str(e))
+    if r.status_code != 200:
         return None
+    data = r.json()
+    uid = data.get('id')
+    email = data.get('email', '')
+    return (uid, email) if uid else None
 
 
 def _limit_for(email: str) -> int:
@@ -420,9 +433,17 @@ def _geocode_error_result(address: str, geo: dict) -> dict:
 async def _check_batch_auth(authorization: Optional[str], parcel_count: int) -> Optional[JSONResponse]:
     """Require a valid Supabase token and enforce the weekly limit.
     Returns an error response to send, or None if the request may proceed.
-    Screening endpoints burn paid geocoding credits — they must not be open."""
+    Screening endpoints burn paid geocoding credits — they must not be open.
+
+    Fail-open ONLY when verification infrastructure itself is down/missing:
+    blocking every paying customer over a config drift is worse than briefly
+    tolerating anonymous calls (which the frontend never makes anyway)."""
     token = (authorization or '').removeprefix('Bearer ').strip()
-    id_email = await _user_id_from_token(token) if token else None
+    try:
+        id_email = await _user_id_from_token(token)
+    except _AuthUnavailable as e:
+        print(f"[Auth] WARNING: token verification unavailable ({e}) — allowing request")
+        return None
     if not id_email:
         return JSONResponse(status_code=401, content={'error': 'Sign in to screen parcels.'})
     user_id, email = id_email
