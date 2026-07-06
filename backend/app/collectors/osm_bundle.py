@@ -1,11 +1,10 @@
-"""Combined OpenStreetMap collector — roads, waterways, and powerlines in ONE
+"""Combined OpenStreetMap collector — waterways and powerlines in ONE
 Overpass query per parcel.
 
-Overpass allows ~2 concurrent requests per IP. The old design issued 3-4
-separate Overpass calls per parcel (roads, waterways, powerlines x2), so a
-20-parcel chunk fired ~60+ concurrent requests and got blanket 429s — road
-data failed on nearly every batch row. One union query per parcel keeps the
-shared Semaphore(2) viable at batch scale.
+Overpass allows ~2 concurrent requests per IP, so everything that still
+depends on it is bundled into a single query. Road access moved to the
+Census TIGERweb collector (roads_tiger.py) — it is the #1 kill signal and
+could not be left on a host this rate-limited.
 """
 import asyncio
 import time
@@ -52,42 +51,11 @@ async def _op_post_retry(query: str) -> dict:
         await asyncio.sleep(_BUSY_BACKOFF)
         return await _op_post(query)
 
-PAVED = {"paved", "asphalt", "concrete", "cobblestone"}
-DIRT  = {"unpaved", "dirt", "gravel", "ground", "grass", "sand", "compacted"}
 
-ROADS_ERROR      = {"road_found": False, "road_surface": "error", "road_type": None, "source": "OpenStreetMap"}
-ROADS_NONE       = {"road_found": False, "road_surface": "none",  "road_type": None, "source": "OpenStreetMap"}
 WATERWAYS_NONE   = {"waterway_nearby": False, "waterway_type": None, "distance_approx": None, "source": "OpenStreetMap"}
 POWERLINES_ERROR = {"powerline_nearby": None, "powerline_distance": None, "source": "OpenStreetMap"}
 
-BUNDLE_ERROR = {"_error": True, "roads": ROADS_ERROR, "waterways": WATERWAYS_NONE, "powerlines": POWERLINES_ERROR}
-
-
-def _parse_roads(elements: list) -> dict:
-    if not elements:
-        return ROADS_NONE
-    best = elements[0]
-    for el in elements:
-        hw = el.get("tags", {}).get("highway", "")
-        if hw in ("residential", "primary", "secondary", "tertiary", "unclassified"):
-            best = el
-            break
-    tags = best.get("tags", {})
-    surface = tags.get("surface", "").lower()
-    if surface in PAVED:
-        road_surface = "paved"
-    elif surface in DIRT:
-        road_surface = "dirt"
-    else:
-        road_surface = "unknown"
-    return {
-        "road_found": True,
-        "road_surface": road_surface,
-        "road_type": tags.get("highway"),
-        "road_name": tags.get("name"),
-        "road_access": tags.get("access"),
-        "source": "OpenStreetMap",
-    }
+BUNDLE_ERROR = {"_error": True, "waterways": WATERWAYS_NONE, "powerlines": POWERLINES_ERROR}
 
 
 def _parse_waterways(elements: list) -> dict:
@@ -109,7 +77,7 @@ def _parse_waterways(elements: list) -> dict:
 
 
 async def get_osm_bundle(lat: float, lng: float) -> dict:
-    """Returns {"_error": bool, "roads": {...}, "waterways": {...}, "powerlines": {...}}.
+    """Returns {"_error": bool, "waterways": {...}, "powerlines": {...}}.
 
     Caller is expected to hold the shared Overpass semaphore for the whole call
     (including the rare 1-mile powerline follow-up query).
@@ -117,7 +85,6 @@ async def get_osm_bundle(lat: float, lng: float) -> dict:
     try:
         query = f"""[out:json][timeout:12];
 (
-  way(around:100,{lat},{lng})[highway];
   way(around:200,{lat},{lng})[waterway];
   relation(around:200,{lat},{lng})[waterway];
   way(around:500,{lat},{lng})[power~"^(line|minor_line|cable)$"];
@@ -126,7 +93,6 @@ async def get_osm_bundle(lat: float, lng: float) -> dict:
 out tags;"""
         elements = (await _op_post_retry(query)).get("elements", [])
 
-        highways  = [el for el in elements if "highway"  in el.get("tags", {})]
         waterways = [el for el in elements if "waterway" in el.get("tags", {})]
         power     = [el for el in elements if "power"    in el.get("tags", {})]
 
@@ -151,7 +117,6 @@ out count;"""
 
         return {
             "_error": False,
-            "roads": _parse_roads(highways),
             "waterways": _parse_waterways(waterways),
             "powerlines": powerlines,
         }

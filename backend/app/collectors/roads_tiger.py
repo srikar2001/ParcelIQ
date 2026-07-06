@@ -1,0 +1,109 @@
+"""Road access via US Census TIGERweb (ArcGIS).
+
+Road access is the #1 kill signal land investors check — it must be reliable.
+Overpass (OSM) rate-limits to ~2 concurrent per IP and collapses under batch
+load, which is why road data used to fail on most batch rows. TIGERweb is a
+government ArcGIS service with no such limits (~0.3s/query), covers every
+public road in the US, and returns road class + name + geometry so we can
+report the actual distance from the parcel to the nearest road.
+"""
+import math
+
+import httpx
+
+_BASE = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer"
+_LAYERS = [8, 6, 2]          # local roads first, then secondary, then primary
+SEARCH_RADIUS_M = 150
+
+# MTFCC road classification -> (road_type, surface implication)
+_MTFCC = {
+    "S1100": ("primary",     "paved"),
+    "S1200": ("secondary",   "paved"),
+    "S1400": ("residential", "unknown"),   # local street — surface not recorded
+    "S1500": ("track",       "dirt"),      # 4WD vehicular trail
+    "S1630": ("ramp",        "paved"),
+    "S1640": ("service",     "unknown"),
+    "S1740": ("private",     "unknown"),   # private road / service drive
+    "S1750": ("driveway",    "unknown"),
+    "S1780": ("service",     "unknown"),   # parking lot road
+}
+# Walkways, stairs, trails, bike/bridle paths — not vehicle access
+_EXCLUDE = {"S1710", "S1720", "S1730", "S1820", "S1830"}
+_PRIVATE = {"S1740", "S1750"}
+
+ERROR = {"road_found": None, "road_surface": "error", "road_type": None,
+         "road_name": None, "road_distance_m": None, "road_private": None,
+         "source": "US Census TIGER"}
+NONE_FOUND = {"road_found": False, "road_surface": "none", "road_type": None,
+              "road_name": None, "road_distance_m": None, "road_private": None,
+              "source": "US Census TIGER"}
+
+
+def _dist_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    dlat = (lat2 - lat1) * 111_320.0
+    dlng = (lng2 - lng1) * 111_320.0 * math.cos(math.radians(lat1))
+    return math.hypot(dlat, dlng)
+
+
+def _min_distance(lat: float, lng: float, paths: list) -> float | None:
+    best = None
+    for path in paths or []:
+        for pt in path:
+            if len(pt) < 2:
+                continue
+            d = _dist_m(lat, lng, pt[1], pt[0])  # ArcGIS paths are [x=lng, y=lat]
+            if best is None or d < best:
+                best = d
+    return best
+
+
+async def get_road_access(lat: float, lng: float) -> dict:
+    dlat = SEARCH_RADIUS_M / 111_320.0
+    dlng = SEARCH_RADIUS_M / (111_320.0 * max(0.2, math.cos(math.radians(lat))))
+    envelope = f"{lng - dlng},{lat - dlat},{lng + dlng},{lat + dlat}"
+    params = {
+        "geometry": envelope,
+        "geometryType": "esriGeometryEnvelope",
+        "inSR": "4326",
+        "spatialRel": "esriSpatialRelIntersects",
+        "outFields": "NAME,MTFCC",
+        "returnGeometry": "true",
+        "outSR": "4326",
+        "f": "json",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            for layer in _LAYERS:
+                resp = await client.get(f"{_BASE}/{layer}/query", params=params)
+                resp.raise_for_status()
+                data = resp.json()
+                if "error" in data:
+                    raise RuntimeError(f"TIGERweb error: {data['error']}")
+                feats = [f for f in data.get("features", [])
+                         if (f.get("attributes", {}).get("MTFCC") or "") not in _EXCLUDE]
+                if not feats:
+                    continue
+
+                scored = []
+                for f in feats:
+                    attrs = f.get("attributes", {})
+                    mtfcc = attrs.get("MTFCC") or ""
+                    dist = _min_distance(lat, lng, (f.get("geometry") or {}).get("paths"))
+                    scored.append((mtfcc in _PRIVATE, dist if dist is not None else 1e9, mtfcc, attrs.get("NAME")))
+                # Prefer public roads over private drives, then nearest
+                scored.sort(key=lambda t: (t[0], t[1]))
+                is_private, dist, mtfcc, name = scored[0]
+                road_type, surface = _MTFCC.get(mtfcc, ("road", "unknown"))
+                return {
+                    "road_found": True,
+                    "road_type": road_type,
+                    "road_surface": surface,
+                    "road_name": (name or "").strip() or None,
+                    "road_distance_m": round(dist) if dist < 1e9 else None,
+                    "road_private": bool(is_private),
+                    "source": "US Census TIGER",
+                }
+        return dict(NONE_FOUND)
+    except Exception as e:
+        print(f"[RoadsTIGER] Error: {e}")
+        return dict(ERROR)

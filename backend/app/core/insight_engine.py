@@ -116,9 +116,22 @@ def score_parcel(
         score -= 25
         flags.append("EPA contamination record found")
 
-    if roads.get("road_surface") in ("error", "unavailable", "none"):
+    # ── Road access (Census TIGERweb) — the #1 kill signal investors check.
+    # "No road found" is a real finding now (reliable source), not a data gap.
+    _road_found = roads.get("road_found")
+    _road_dist  = roads.get("road_distance_m")
+    _road_name  = roads.get("road_name")
+    _dist_txt   = f" ~{_road_dist}m away" if _road_dist is not None else ""
+    _name_txt   = f" ({_road_name})" if _road_name else ""
+    if roads.get("road_surface") == "error" or _road_found is None:
         score -= 5
         flags.append("Road data unavailable — verify access")
+    elif _road_found is False:
+        score -= 15
+        flags.append("No road detected within 150m — possible landlocked parcel, verify legal access")
+    elif roads.get("road_private"):
+        score -= 6
+        flags.append(f"Nearest road is private{_name_txt}{_dist_txt} — confirm legal access or easement")
 
     if acreage is not None and acreage < 0.25:
         score -= 20
@@ -142,14 +155,17 @@ def score_parcel(
         score -= 8
         flags.append("Wetlands nearby (within ~100m)")
 
-    # FIX 4 — Updated flag text for unknown surface
-    if roads.get("road_surface") == "unknown":
-        score -= 8
-        flags.append("Road type unconfirmed")
-
-    if roads.get("road_surface") == "dirt":
-        score -= 8
-        flags.append("Dirt/unpaved road access")
+    # Road found with unknown surface: access is confirmed (the decision-driver);
+    # surface is a soft caveat, not an -8 penalty on every rural parcel
+    if _road_found is True and not roads.get("road_private"):
+        if roads.get("road_surface") == "unknown":
+            score -= 3
+            flags.append("Road surface unconfirmed — check satellite view")
+            score += 2
+            positives.append(f"Road access confirmed{_name_txt}{_dist_txt}")
+        elif roads.get("road_surface") == "dirt":
+            score -= 8
+            flags.append(f"Dirt/unpaved road access{_name_txt}{_dist_txt}")
 
     # FIX 5 — Reduce noise flag weights
     if building_count == 0 and last_sale_price is None:
@@ -232,9 +248,9 @@ def score_parcel(
         score += 5
         positives.append("No wetlands on parcel or nearby")
 
-    if roads.get("road_surface") == "paved":
+    if _road_found is True and roads.get("road_surface") == "paved" and not roads.get("road_private"):
         score += 3
-        positives.append("Paved road access")
+        positives.append(f"Paved road access{_name_txt}{_dist_txt}")
 
     if acreage is not None and 0.5 <= acreage <= 5:
         score += 3

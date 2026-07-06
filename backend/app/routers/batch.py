@@ -17,6 +17,7 @@ from app.collectors.critical_habitat import get_critical_habitat
 from app.collectors.epa import get_epa_superfund
 from app.collectors.parcel_fl import get_parcel_data
 from app.collectors.osm_bundle import get_osm_bundle, BUNDLE_ERROR as _OSM_BUNDLE_ERROR
+from app.collectors.roads_tiger import get_road_access
 from app.collectors.elevation import get_elevation
 from app.collectors.soil import get_soil_data
 from app.collectors.evacuation import get_evacuation_zone
@@ -34,7 +35,8 @@ WEEKLY_LIMIT  = 1000
 # ── Per-host concurrency limits. External services rate-limit per IP; a single
 # global semaphore let one 20-parcel chunk fire 60+ concurrent Overpass calls
 # (limit ~2) so road/waterway/power data failed on nearly every batch row.
-_SEM_OVERPASS = asyncio.Semaphore(2)   # overpass-api.de — roads + waterways + powerlines (bundled)
+_SEM_OVERPASS = asyncio.Semaphore(2)   # overpass-api.de — waterways + powerlines (bundled)
+_SEM_TIGER    = asyncio.Semaphore(8)   # Census TIGERweb — road access
 _SEM_FLDOR    = asyncio.Semaphore(8)   # FL DOR statewide cadastral
 _SEM_FEMA     = asyncio.Semaphore(5)   # FEMA NFHL
 _SEM_USFWS    = asyncio.Semaphore(5)   # USFWS wetlands + critical habitat
@@ -117,7 +119,7 @@ _FLOOD_DEFAULT     = {"zone": "UNKNOWN", "sfha": False, "source": "FEMA NFHL"}
 _WETLANDS_DEFAULT  = {"wetland_on_parcel": False, "wetland_nearby": False, "wetland_type": None, "wetland_code": None, "source": "USFWS NWI"}
 _HABITAT_DEFAULT   = {"habitat_found": False, "species": [], "source": "USFWS Critical Habitat"}
 _EPA_DEFAULT       = {"contamination_found": False, "sites": [], "source": "EPA ECHO Superfund"}
-_ROADS_DEFAULT     = {"road_found": False, "road_surface": "none", "road_type": None, "source": "OpenStreetMap"}
+_ROADS_DEFAULT     = {"road_found": None, "road_surface": "error", "road_type": None, "road_name": None, "road_distance_m": None, "road_private": None, "source": "US Census TIGER"}
 _PARCEL_DEFAULT    = {"found": False, "source": "FL DOR Cadastral", "geometry": []}
 _WATERWAYS_DEFAULT = {"waterway_nearby": False, "waterway_type": None, "source": "OpenStreetMap"}
 _ELEVATION_DEFAULT = {"elevation_ft": None, "source": "USGS National Elevation Dataset"}
@@ -223,7 +225,7 @@ async def _safe(factory, default, sem, timeout: float = _API_TIMEOUT, retry_if=N
 async def _collect_all(lat: float, lng: float) -> tuple:
     """Fan out all data collectors for one coordinate under per-host limits."""
     (
-        flood, wetlands, habitat, epa, parcel_data, osm,
+        flood, wetlands, habitat, epa, parcel_data, roads, osm,
         elevation, soil, evac, easement
     ) = await asyncio.gather(
         _safe(lambda: get_flood_zone(lat, lng), _FLOOD_DEFAULT, _SEM_FEMA,
@@ -236,6 +238,8 @@ async def _collect_all(lat: float, lng: float) -> tuple:
               timeout=16.0, name="epa"),
         _safe(lambda: get_parcel_data(lat, lng), _PARCEL_DEFAULT, _SEM_FLDOR,
               timeout=16.0, retry_if=lambda r: not r.get("found"), name="parcel"),
+        _safe(lambda: get_road_access(lat, lng), _ROADS_DEFAULT, _SEM_TIGER,
+              timeout=16.0, retry_if=lambda r: r.get("road_surface") == "error", name="roads"),
         _safe(lambda: get_osm_bundle(lat, lng), _OSM_BUNDLE_ERROR, _SEM_OVERPASS,
               timeout=60.0, retry_if=lambda r: r.get("_error") is True, name="osm"),
         _safe(lambda: get_elevation(lat, lng), _ELEVATION_DEFAULT, _SEM_USGS,
@@ -247,7 +251,6 @@ async def _collect_all(lat: float, lng: float) -> tuple:
         _safe(lambda: get_conservation_easement(lat, lng), _EASEMENT_DEFAULT, _SEM_EASE,
               timeout=16.0, name="easement"),
     )
-    roads      = osm.get("roads") or _ROADS_DEFAULT
     waterways  = osm.get("waterways") or _WATERWAYS_DEFAULT
     powerlines = osm.get("powerlines") or _POWERLINES_DEFAULT
     return flood, wetlands, habitat, epa, roads, parcel_data, waterways, elevation, soil, evac, powerlines, easement
@@ -358,7 +361,8 @@ async def _screen_coordinate(address: str, geo: dict, lat: float, lng: float) ->
             "road_type": roads.get("road_type"),
             "road_surface": roads.get("road_surface"),
             "road_name": roads.get("road_name"),
-            "road_access": roads.get("road_access"),
+            "road_distance_m": roads.get("road_distance_m"),
+            "road_private": roads.get("road_private"),
             "waterway_type": waterways.get("waterway_type"),
             "waterway_distance": waterways.get("distance_approx"),
         },
