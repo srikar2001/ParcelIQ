@@ -222,6 +222,22 @@ async def _safe(factory, default, sem, timeout: float = _API_TIMEOUT, retry_if=N
     return result if result is not None else default
 
 
+async def _osm_best_effort(lat: float, lng: float) -> dict:
+    """Waterways + powerlines are nice-to-have signals (-5 score weight max).
+    Overpass is the only rate-limited-to-2 host left; when it's congested a
+    parcel must NOT wait minutes for it — cap the queue wait and shed load."""
+    try:
+        await asyncio.wait_for(_SEM_OVERPASS.acquire(), timeout=90.0)
+    except asyncio.TimeoutError:
+        return dict(_OSM_BUNDLE_ERROR)
+    try:
+        return await asyncio.wait_for(get_osm_bundle(lat, lng), timeout=60.0)
+    except Exception:
+        return dict(_OSM_BUNDLE_ERROR)
+    finally:
+        _SEM_OVERPASS.release()
+
+
 async def _collect_all(lat: float, lng: float) -> tuple:
     """Fan out all data collectors for one coordinate under per-host limits."""
     (
@@ -240,8 +256,7 @@ async def _collect_all(lat: float, lng: float) -> tuple:
               timeout=16.0, retry_if=lambda r: not r.get("found"), name="parcel"),
         _safe(lambda: get_road_access(lat, lng), _ROADS_DEFAULT, _SEM_TIGER,
               timeout=16.0, retry_if=lambda r: r.get("road_surface") == "error", name="roads"),
-        _safe(lambda: get_osm_bundle(lat, lng), _OSM_BUNDLE_ERROR, _SEM_OVERPASS,
-              timeout=60.0, retry_if=lambda r: r.get("_error") is True, name="osm"),
+        _osm_best_effort(lat, lng),
         _safe(lambda: get_elevation(lat, lng), _ELEVATION_DEFAULT, _SEM_USGS,
               timeout=12.0, retry_if=lambda r: r.get("elevation_ft") is None, name="elevation"),
         _safe(lambda: get_soil_data(lat, lng), _SOIL_DEFAULT, _SEM_SOIL,
