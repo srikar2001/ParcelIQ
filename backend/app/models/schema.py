@@ -46,13 +46,7 @@ class SourceEvidence(BaseModel):
 
 
 class SuggestResult(BaseModel):
-    full_address: str
-    folio: Optional[str] = None
-    strap: Optional[str] = None
-    city: Optional[str] = None
-    zip: Optional[str] = None
-    lat: Optional[float] = None
-    lon: Optional[float] = None
+    formatted_address: str
 
 
 class SuggestResponse(BaseModel):

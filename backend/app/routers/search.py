@@ -24,14 +24,10 @@ async def search(q: str = Query(..., min_length=2, description="Address, folio, 
 async def suggest(q: str = Query(..., min_length=2, description="Partial address for type-ahead")):
     try:
         results = await suggest_addresses(q)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Suggest failed: {exc}") from exc
+    except Exception:
+        results = []  # type-ahead should degrade silently, never 502
 
     return SuggestResponse(
         query=q,
-        results=[
-            {"full_address": r.full_address, "folio": r.folio, "strap": r.strap,
-             "city": r.city, "zip": r.zip, "lat": r.lat, "lon": r.lon}
-            for r in results
-        ],
+        results=[{"formatted_address": addr} for addr in results],
     )

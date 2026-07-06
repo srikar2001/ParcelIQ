@@ -635,123 +635,27 @@ async def search_parcel(q: str):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-_ARCGIS_CADASTRAL_URL = "https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/query"
+# ── Address type-ahead — Esri World Geocoder via app.collectors.suggest.
+# (The old FL DOR cadastral LIKE queries timed out upstream on every request,
+# so autocomplete was silently dead in production.)
+from app.collectors.suggest import suggest_addresses as _suggest_addresses
+
 
 @router.get("/autocomplete")
 async def address_autocomplete(q: str = ""):
-    if len(q.strip()) < 4:
-        return {"suggestions": []}
     try:
-        sanitized = _re.sub(r"[^a-zA-Z0-9 ,.\-/]", "", q.strip())
-        if not sanitized:
-            return {"suggestions": []}
-        like_val = sanitized.upper().replace("%", r"\%").replace("_", r"\_")
-        where = f"PHY_ADDR1 LIKE '%{like_val}%'"
-        params = {
-            "where": where,
-            "outFields": "PHY_ADDR1,PHY_CITY",
-            "returnGeometry": "false",
-            "resultRecordCount": 8,
-            "f": "json",
-        }
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(_ARCGIS_CADASTRAL_URL, params=params)
-            data = resp.json()
-        seen: set[str] = set()
-        suggestions: list[str] = []
-        for feat in data.get("features", []):
-            attrs = feat.get("attributes", {})
-            addr1 = (attrs.get("PHY_ADDR1") or "").strip()
-            city  = (attrs.get("PHY_CITY") or "").strip()
-            if not addr1:
-                continue
-            full = f"{addr1}, {city}, FL" if city else f"{addr1}, FL"
-            if full not in seen:
-                seen.add(full)
-                suggestions.append(full)
-                if len(suggestions) == 8:
-                    break
-        return {"suggestions": suggestions}
+        return {"suggestions": await _suggest_addresses(q)}
     except Exception:
         return {"suggestions": []}
 
-
-_STREET_SUFFIXES_AC = frozenset([
-    'ST', 'AVE', 'RD', 'DR', 'BLVD', 'LN', 'WAY', 'CT', 'PL', 'CIR',
-    'TRL', 'HWY', 'PKWY', 'CSWY', 'STREET', 'AVENUE', 'ROAD', 'DRIVE',
-    'BOULEVARD', 'LANE', 'COURT', 'PLACE', 'CIRCLE', 'TRAIL', 'HIGHWAY',
-    'PARKWAY', 'CAUSEWAY', 'TER', 'TERR', 'TRACE', 'TRCE', 'RUN',
-    'LOOP', 'PASS', 'PATH', 'PT', 'POINT',
-])
 
 @router.get("/geocodio-suggest")
 async def geocodio_suggest(q: str = ""):
-    if len(q.strip()) < 4:
-        return {"suggestions": []}
     try:
-        sanitized = _re.sub(r"[^a-zA-Z0-9 ,.\-/]", "", q.strip()).upper()
-        if not sanitized:
-            return {"suggestions": []}
-        # Split at last street suffix so trailing city name becomes a PHY_CITY filter
-        words = sanitized.split()
-        last_sfx = -1
-        city_q: str | None = None
-        street_q = sanitized.replace('%', r'\%').replace('_', r'\_')
-        for i, w in enumerate(words):
-            if w.rstrip('.') in _STREET_SUFFIXES_AC:
-                last_sfx = i
-        if last_sfx >= 0 and last_sfx + 1 < len(words):
-            street_q = ' '.join(words[:last_sfx + 1]).replace('%', r'\%').replace('_', r'\_')
-            city_q   = ' '.join(words[last_sfx + 1:]).replace('%', r'\%').replace('_', r'\_')
-            where = (f"PHY_ADDR1 LIKE '%{street_q}%' "
-                     f"AND PHY_CITY LIKE '%{city_q}%'")
-        else:
-            where = f"PHY_ADDR1 LIKE '%{street_q}%'"
-        params = {
-            "where": where,
-            "outFields": "PHY_ADDR1,PHY_CITY,PHY_ZIPCD",
-            "returnGeometry": "false",
-            "resultRecordCount": 8,
-            "f": "json",
-        }
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(_ARCGIS_CADASTRAL_URL, params=params)
-            data = resp.json()
-            features = data.get("features", [])
-            # Fallback: if house number + specific match returns 0, strip house number and retry
-            if not features and last_sfx >= 0:
-                street_no_num = _re.sub(r'^\d+\s+', '', street_q).strip()
-                if street_no_num and street_no_num != street_q:
-                    if city_q:
-                        fb_where = (f"PHY_ADDR1 LIKE '%{street_no_num}%' "
-                                    f"AND PHY_CITY LIKE '%{city_q}%'")
-                    else:
-                        fb_where = f"PHY_ADDR1 LIKE '%{street_no_num}%'"
-                    params2 = dict(params)
-                    params2["where"] = fb_where
-                    resp2 = await client.get(_ARCGIS_CADASTRAL_URL, params=params2)
-                    features = resp2.json().get("features", [])
-        seen: set[str] = set()
-        suggestions: list[dict] = []
-        for feat in features:
-            attrs = feat.get("attributes", {})
-            addr1 = (attrs.get("PHY_ADDR1") or "").strip()
-            city  = (attrs.get("PHY_CITY")  or "").strip()
-            zipcd = str(attrs.get("PHY_ZIPCD") or "").strip()
-            if not addr1:
-                continue
-            if zipcd and zipcd not in ("None", "0", ""):
-                full = f"{addr1}, {city}, FL {zipcd}" if city else f"{addr1}, FL {zipcd}"
-            else:
-                full = f"{addr1}, {city}, FL" if city else f"{addr1}, FL"
-            if full not in seen:
-                seen.add(full)
-                suggestions.append({"address": full})
-                if len(suggestions) == 8:
-                    break
-        return {"suggestions": suggestions}
+        return {"suggestions": [{"address": a} for a in await _suggest_addresses(q)]}
     except Exception:
         return {"suggestions": []}
+
 
 
 @router.get("/cache/test")
