@@ -2263,50 +2263,83 @@ const batchState = { results: [], filtered: 'all', elapsed: 0, name: '', sortCol
 const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings']);
 
 const FLAG_DEFS = [
-  { key: 'wetlands',  label: 'Wetlands',      match: r =>
-      (r.flags||[]).some(f => f.toLowerCase().includes('wetland')) ||
-      (r.auto_kill_reason||'').toLowerCase().includes('wetland') },
-  { key: 'flood_ae',  label: 'Flood AE',      match: r =>
-      (r.flags||[]).some(f => /flood.*(ae|ve|v zone)/i.test(f)) ||
-      (r.auto_kill_reason||'').toLowerCase().includes('ae') ||
-      (r.auto_kill_reason||'').toLowerCase().includes('ve') },
-  { key: 'wildlife',  label: 'Wildlife',      match: r =>
-      (r.flags||[]).some(f => /habitat|wildlife/i.test(f)) ||
-      (r.auto_kill_reason||'').toLowerCase().includes('habitat') },
-  { key: 'no_road',   label: 'No Road',       match: r =>
-      (r.flags||[]).some(f => /road|access|landlocked/i.test(f)) },
-  { key: 'epa',       label: 'Contamination', match: r =>
+  { key: 'wetlands', label: 'Wetlands', match: r =>
+      (r.flags||[]).some(f => /wetland/i.test(f)) ||
+      /wetland/i.test(r.auto_kill_reason||'') },
+
+  { key: 'flood_ae', label: 'Flood Zone AE/VE', match: r =>
+      (r.flags||[]).some(f => /flood zone (ae|ve|ao|ah|v\b)/i.test(f)) ||
+      /flood zone (ae|ve|ao|ah)/i.test(r.auto_kill_reason||'') },
+
+  { key: 'wildlife', label: 'Wildlife Habitat', match: r =>
+      (r.flags||[]).some(f => /critical habitat|wildlife habitat/i.test(f)) ||
+      /habitat/i.test(r.auto_kill_reason||'') },
+
+  { key: 'epa', label: 'Contamination', match: r =>
       (r.flags||[]).some(f => /epa|contamina|superfund/i.test(f)) },
-  { key: 'small_lot', label: 'Small Lot',     match: r =>
-      (r.flags||[]).some(f => /small|0\.\d+ ac/i.test(f)) ||
-      (getAcreage(r) !== null && getAcreage(r) < 0.25) },
-  { key: 'low_elev',  label: 'Low Elevation', match: r =>
-      (r.flags||[]).some(f => /elevation.*ft/i.test(f)) },
-  { key: 'poor_soil', label: 'Poor Soil',     match: r =>
-      (r.flags||[]).some(f => /soil|septic.*denied|drainage/i.test(f)) },
-  { key: 'evac',      label: 'Evac Zone',     match: r =>
-      !!(r.parcel_info||{}).evac_zone || (r.flags||[]).some(f => /evacuation|evac.*zone/i.test(f)) },
-  { key: 'no_power',  label: 'No Power',      match: r =>
-      (r.flags||[]).some(f => /power.*line|electric.*mile/i.test(f)) },
-  { key: 'easement',  label: 'Easement',      match: r =>
-      (r.flags||[]).some(f => /easement|conservation.*restrict/i.test(f)) ||
-      (r.auto_kill_reason||'').toLowerCase().includes('easement') },
-  { key: 'canal',     label: 'Canal Nearby',  match: r =>
+
+  { key: 'easement', label: 'Conservation Easement', match: r =>
+      (r.flags||[]).some(f => /easement/i.test(f)) ||
+      /easement/i.test(r.auto_kill_reason||'') },
+
+  { key: 'no_road', label: 'No Road Access', match: r =>
+      (r.flags||[]).some(f => /no road detected|landlocked/i.test(f)) },
+
+  { key: 'road_unverified', label: 'Road Unverified', match: r =>
+      (r.flags||[]).some(f => /road.*unavailable|road.*unverified|road.*unconfirmed|road type unconfirmed/i.test(f)) },
+
+  { key: 'poor_soil', label: 'Poor Drainage', match: r =>
+      (r.flags||[]).some(f => /poorly drained|very poorly drained|septic.*not feasible/i.test(f)) ||
+      (r.parcel_info||{}).septic_suitable === false },
+
+  { key: 'low_elev', label: 'Low Elevation', match: r =>
+      (r.flags||[]).some(f => /low elevation|very low elevation/i.test(f)) },
+
+  { key: 'evac', label: 'Evac Zone A/B', match: r =>
+      (r.flags||[]).some(f => /evacuation zone [ab]\b/i.test(f)) ||
+      /^[ab]$/i.test((r.parcel_info||{}).evac_zone||'') },
+
+  { key: 'canal', label: 'Canal Nearby', match: r =>
       (r.flags||[]).some(f => /canal|waterway/i.test(f)) },
-  { key: 'zone_x',    label: 'Zone X ✓',     match: r =>
-      (r.positives||[]).some(p => /zone x/i.test(p)) },
-  { key: 'good_soil', label: 'Good Soil ✓',  match: r =>
-      (r.positives||[]).some(p => /well.*drain|septic.*feasible/i.test(p)) },
+
+  { key: 'small_lot', label: 'Small Lot (<0.25ac)', match: r => {
+      const ac = getAcreage(r);
+      return ac !== null && ac < 0.25;
+  }},
+
+  { key: 'no_power', label: 'No Power Detected', match: r =>
+      (r.flags||[]).some(f => /power.*line.*mile|no power|power.*not detected/i.test(f)) ||
+      ((r.parcel_info||{}).powerline_nearby === false) },
+
+  { key: 'zone_x', label: 'Zone X (safe)', match: r =>
+      (r.positives||[]).some(p => /zone x/i.test(p)) ||
+      (r.flags||[]).some(f => /zone x/i.test(f)) },
+
+  { key: 'good_soil', label: 'Good Drainage', match: r =>
+      (r.positives||[]).some(p => /well.*drain|excessively drain|septic.*feasible/i.test(p)) ||
+      (r.parcel_info||{}).septic_suitable === true },
+
+  { key: 'no_wetlands', label: 'No Wetlands', match: r =>
+      (r.positives||[]).some(p => /no wetlands/i.test(p)) },
+
+  { key: 'no_evac', label: 'No Evac Risk', match: r =>
+      (r.positives||[]).some(p => /not in.*evacuation|not in.*hurricane/i.test(p)) },
+
+  { key: 'good_elev', label: 'Good Elevation', match: r =>
+      (r.positives||[]).some(p => /good elevation/i.test(p)) },
+
+  { key: 'pursue_100', label: 'Perfect Score (100)', match: r =>
+      r.score === 100 && r.verdict === 'PURSUE' },
 ];
 const FLAG_FILTERS = FLAG_DEFS.map(d => ({ ...d, test: d.match }));
 
 const FILTER_GROUPS = [
-  { label: 'Kill Signals', color: '#ef4444',
+  { label: 'Auto-Kill Signals', color: '#ef4444',
     keys: ['wetlands','flood_ae','wildlife','epa','easement'] },
-  { label: 'Review Flags', color: '#f59e0b',
-    keys: ['no_road','small_lot','low_elev','poor_soil','evac','no_power','canal'] },
+  { label: 'Risk Flags', color: '#f59e0b',
+    keys: ['no_road','road_unverified','poor_soil','low_elev','evac','canal','small_lot','no_power'] },
   { label: 'Positive Signals', color: '#22c55e',
-    keys: ['zone_x','good_soil'] },
+    keys: ['zone_x','good_soil','no_wetlands','no_evac','good_elev','pursue_100'] },
 ];
 const RULES_DEF = [
   { key:'floodKill',     label:'Flood AE = Kill',                 def:true },
@@ -4457,11 +4490,12 @@ function buildFilterPanel() {
       const item = document.createElement('label');
       item.className = 'fp-item';
       const checked = _activeFilters.has(def.key);
-      item.innerHTML = '<input type="checkbox" data-flag="' + def.key + '"' + (checked ? ' checked' : '') + ' onchange="applyFilters()"><span>' + escHtml(def.label) + '</span><span class="fp-item-count">' + (count > 0 ? count : '') + '</span>';
-      if (count === 0 && !checked) item.style.opacity = '0.4';
+      const countStyle = count === 0 ? ' style="color:var(--t3)"' : '';
+      item.innerHTML = '<input type="checkbox" data-flag="' + def.key + '"' + (checked ? ' checked' : '') + ' onchange="applyFilters()"><span>' + escHtml(def.label) + '</span><span class="fp-item-count"' + countStyle + '>' + count + '</span>';
+      if (count === 0 && !checked) item.style.opacity = '0.5';
       grid.appendChild(item);
     });
-    groupEl.innerHTML = '<div class="fp-group-label" style="color:' + group.color + '">' + group.label + '</div>';
+    groupEl.innerHTML = '<div class="fp-group-label" style="color:' + group.color + ';border-left:3px solid ' + group.color + ';padding-left:8px;margin-bottom:8px">' + group.label + '</div>';
     groupEl.appendChild(grid);
     container.appendChild(groupEl);
   });
@@ -4564,10 +4598,17 @@ function _refreshTable() {
   }
   let filtered = verdict === 'all' ? sorted : sorted.filter(r => effectiveVerdict(r) === verdict);
   if (_activeFilters.size > 0) {
-    filtered = filtered.filter(r => [..._activeFilters].every(key => {
-      const f = FLAG_DEFS.find(f => f.key === key);
-      return f ? f.match(r) : true;
-    }));
+    const activeByGroup = FILTER_GROUPS.map(g => ({
+      keys: g.keys.filter(k => _activeFilters.has(k))
+    })).filter(g => g.keys.length > 0);
+    filtered = filtered.filter(r =>
+      activeByGroup.every(group =>
+        group.keys.some(key => {
+          const f = FLAG_DEFS.find(f => f.key === key);
+          return f ? f.match(r) : false;
+        })
+      )
+    );
   }
   _currentDisplayed = filtered;
   if (!batchState._streaming) _currentPage = 1;
@@ -5557,6 +5598,7 @@ function filterResults(verdict, btn) {
     if (chip) chip.classList.add('on');
   }
   batchState.filtered = verdict;
+  // _activeFilters intentionally NOT cleared — panel filters stay active alongside verdict chips
   updateSidebarActive(verdict);
   _refreshTable();
 }
