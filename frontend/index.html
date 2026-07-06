@@ -1607,7 +1607,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div id="limitBanner" class="limit-banner"></div>
         <button class="run-btn" id="runBatchBtn" onclick="runBatch()">Screen Parcels →</button>
         <div style="text-align:center;font-size:12px;color:var(--t3);margin-top:6px" id="screeningCountHint"></div>
-        <div class="src-hint">Each parcel checked against FEMA · NWI · USFWS · EPA · Roads · FL DOR</div>
+        <div class="src-hint">Each parcel checked against multiple federal and state government databases</div>
         </div><!-- /dashBatchForm -->
       </div>
       <!-- Confirmation panel — shown when incomplete addresses are detected -->
@@ -3180,13 +3180,14 @@ function getFloodText(r) {
 }
 
 function getAccessText(r) {
+  const pi = r.parcel_info || {};
+  if (pi.road_surface === 'paved') return 'Paved';
+  if (pi.road_surface === 'dirt')  return 'Dirt';
+  if (pi.road_private)             return 'Private';
+  if (pi.road_type)                return 'Yes';
   for (const f of (r.flags || [])) {
     const fl = f.toLowerCase();
     if (fl.includes('no road')) return 'None';
-    if (fl.includes('road surface') || fl.includes('unpaved') || fl.includes('road unknown')) return 'Unverified';
-  }
-  for (const p of (r.positives || [])) {
-    if (/road|access|paved/i.test(p)) return 'Paved';
   }
   return '—';
 }
@@ -5827,7 +5828,7 @@ function exportSelected() {
       r.address, effectiveVerdict(r), r.score!=null?r.score:'', r.auto_kill?'YES':'NO',
       r.auto_kill_reason||'', (r.flags||[]).map(translateFlag).join('; '), (r.positives||[]).map(translateFlag).join('; '),
       pi.acreage!=null?pi.acreage:'', pi.owner||'', pi.last_sale_price!=null?pi.last_sale_price:'',
-      pi.land_use_code?getDORDescription(pi.land_use_code):'',
+      pi.land_use_code?getLandUseCategory(pi.land_use_code):'',
       pi.elevation_ft!=null?pi.elevation_ft:'', pi.soil_drainage||'',
       pi.septic_suitable===true?'Yes':pi.septic_suitable===false?'No':'',
       pi.evac_zone||'', pi.evac_risk||'',
@@ -5884,7 +5885,7 @@ function buildExpandHtml(r, expId) {
     pi.acreage != null ? '🌍 ' + pi.acreage + ' ac' : '',
     pi.owner ? '👤 ' + escHtml(pi.owner) : '',
     pi.last_sale_price != null && pi.last_sale_price > 0 ? '💰 Last sale ' + fmt$(pi.last_sale_price) : '',
-    pi.land_use_code ? '🏢 ' + escHtml(getDORDescription(pi.land_use_code)) : '',
+    pi.land_use_code ? '🏢 ' + escHtml(getLandUseCategory(pi.land_use_code)) : '',
   ].filter(Boolean);
   const metaHtml = meta.length ? '<div class="rcard-meta">' + meta.map(m => '<span>' + m + '</span>').join('') + '</div>' : '';
   const srcHtml  = sources.length ? '<div class="sources-row">Sources: ' + sources.map(s => escHtml(s)).join(' · ') + '</div>' : '';
@@ -5998,7 +5999,7 @@ function initParcelMap(r) {
   window._parcelMap = _map;
 
   _mapLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap · FEMA · USFWS', maxZoom: 19
+    attribution: '© OpenStreetMap', maxZoom: 19
   }).addTo(_map);
 
   _mapLayers['_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -7020,7 +7021,7 @@ function exportCSV() {
       pi.owner || '',
       pi.owner_mailing_address || '',
       pi.acreage != null ? pi.acreage : '',
-      pi.land_use_code ? getDORDescription(pi.land_use_code) : '',
+      pi.land_use_code ? getLandUseCategory(pi.land_use_code) : '',
       pi.assessed_value != null ? pi.assessed_value : '',
       pi.land_value != null ? pi.land_value : '',
       pi.last_sale_price != null ? pi.last_sale_price : '',
@@ -7066,7 +7067,7 @@ function exportExcel() {
       'Owner': pi.owner || '',
       'Owner Mailing Address': pi.owner_mailing_address || '',
       'Acreage': pi.acreage ?? '',
-      'Land Use': pi.land_use_code ? getDORDescription(pi.land_use_code) : '',
+      'Land Use': pi.land_use_code ? getLandUseCategory(pi.land_use_code) : '',
       'Assessed Value': pi.assessed_value ?? '',
       'Land Value': pi.land_value ?? '',
       'Last Sale': pi.last_sale_price ?? '',
@@ -7149,7 +7150,7 @@ function exportPDF() {
     '<div class="stat s-total"><div class="stat-num">~' + Math.round(flOnly.length * 30 / 60 * 10) / 10 + 'h</div><div class="stat-lbl">Hours Saved</div></div>' +
   '</div>' +
   '<table><thead><tr><th>Address</th><th>Verdict</th><th>Score</th><th>Size</th><th>Flags / Issues</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-  '<div class="footer"><span>ParceliQ · Florida Parcel Screening · parcel-iq-nine.vercel.app</span><span>' + results.length + ' parcels · FEMA · NWI · USFWS · EPA · Roads · FL DOR</span></div>' +
+  '<div class="footer"><span>ParceliQ · Florida Parcel Screening · parcel-iq-nine.vercel.app</span><span>' + results.length + ' parcels screened</span></div>' +
   '</body></html>';
 
   const iframe = document.createElement('iframe');
