@@ -522,7 +522,9 @@ body.on-results .detail-panel{top:0}
 /* ══ OUTSIDE COVERAGE verdict badge */
 .vb-outside{background:rgba(100,116,139,.1);color:var(--t2);border:1px solid #2A2D3A}
 .res-trow.row-outside{opacity:.6}
-.res-trow.row-error{opacity:.7}
+.res-trow.row-error{opacity:.85;background:rgba(245,158,11,.04)}
+.err-sugg-chip{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);color:var(--amber);border-radius:var(--rp,12px);padding:3px 10px;font-size:11px;cursor:pointer;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.err-sugg-chip:hover{background:rgba(245,158,11,.16)}
 .proc-error{display:none;text-align:center;margin-top:16px}
 .proc-error.show{display:block}
 .proc-error-title{font-size:18px;font-weight:700;margin-bottom:8px;color:var(--t1)}
@@ -649,7 +651,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .res-trow.selected{background:rgba(34,197,94,.05)}
 .res-trow.selected td:first-child{border-left:2px solid var(--green)}
 .res-trow.panel-selected{border-left:3px solid var(--green)}
-.res-trow.row-active{border-left:3px solid var(--green);background:rgba(34,197,94,.06)!important}
+.res-trow.row-active{border-left:3px solid var(--green);background:rgba(34,197,94,.06)!important;transition:background .15s ease}
 .res-trow.row-active td:first-child{padding-left:9px}
 
 /* ══ PAGINATION */
@@ -4125,6 +4127,10 @@ async function _executeBatch(lines, estimatedSet) {
           await saveBatchToSupabase(batchState.name, { summary, results: flResults });
           if (!_navigatedToResults) { _navigatedToResults = true; renderBatchResults(); goTo('results'); }
           else { renderBatchResults(); }
+          const _errCount = batchState.results.filter(r => r.verdict === 'ERROR').length;
+          if (_errCount > 0) {
+            toast(_errCount + (_errCount === 1 ? ' address' : ' addresses') + ' could not be matched — see highlighted rows below', 6000);
+          }
           toast('Stream ended early — showing ' + flResults.length + ' of ' + flLines.length + ' results', 5000);
         }
         break;
@@ -4185,6 +4191,10 @@ async function _executeBatch(lines, estimatedSet) {
           await saveBatchToSupabase(batchState.name, { summary, results: flResults });
           if (!_navigatedToResults) { _navigatedToResults = true; renderBatchResults(); goTo('results'); }
           else { renderBatchResults(); }
+          const _errCount = batchState.results.filter(r => r.verdict === 'ERROR').length;
+          if (_errCount > 0) {
+            toast(_errCount + (_errCount === 1 ? ' address' : ' addresses') + ' could not be matched — see highlighted rows below', 6000);
+          }
         }
       }
     }
@@ -4822,7 +4832,16 @@ function renderTable(results, offset) {
         sizeHtml = '<span style="color:' + sizeColor + '">' + sizeText + '</span>';
       }
     }
-    const signalsHtml = buildSignals(r);
+    let signalsHtml = buildSignals(r);
+    if (isError) {
+      const errMsg = r.error || 'Could not screen this address';
+      let chips = '';
+      (r.suggestions || []).slice(0, 3).forEach(s => {
+        chips += '<button class="err-sugg-chip" data-sugg="' + escHtml(s) + '" data-orig="' + escHtml(r.address || '') + '" onclick="event.stopPropagation();rescreenParcel(this.dataset.sugg,this.dataset.orig)">' + escHtml(s) + '</button>';
+      });
+      signalsHtml = '<div style="font-size:12px;color:var(--amber)">' + escHtml(errMsg) + '</div>' +
+        (chips ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">' + chips + '</div>' : '');
+    }
     // FIX 6: auto_kill parcels always show 0 (not blank or actual reduced score)
     const scoreStr   = (isOutside || isError) ? '' : r.auto_kill ? '0' : (r.score != null ? String(r.score) : '');
     const scoreColor = (isOutside || isError) ? '' : r.auto_kill ? 'var(--red)' : verdictColor(ev);
@@ -4935,6 +4954,8 @@ function openDetailPanel(absIdx, event) {
       whyText = escHtml(getKillExplanation(r.auto_kill_reason));
     } else if (ev === 'PURSUE') {
       whyText = escHtml(getPursueExplanation(r));
+    } else if (ev === 'ERROR') {
+      whyText = escHtml(r.error || 'Could not screen this address.');
     } else {
       whyText = escHtml(ev);
     }
