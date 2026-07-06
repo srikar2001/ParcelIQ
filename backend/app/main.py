@@ -30,7 +30,7 @@ _FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 _HTML = _FRONTEND_DIR / "index.html"
 
 app = FastAPI(
-    title="ParcelIQ API",
+    title="ParceliQ API",
     description="Property due diligence platform — Florida statewide",
     version="2.0.0",
 )
@@ -59,7 +59,7 @@ async def serve_frontend():
     if _HTML.exists():
         return FileResponse(_HTML, media_type="text/html")
     return {
-        "name": "ParcelIQ API",
+        "name": "ParceliQ API",
         "version": "0.1.0",
         "endpoints": {
             "search": "/api/search?q=<address|folio|strap|pin>",

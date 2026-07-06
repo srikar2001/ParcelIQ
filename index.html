@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ParcelIQ — Batch Parcel Screening · Florida</title>
+<title>ParceliQ — Batch Parcel Screening · Florida</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1000,7 +1000,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 
 <!-- NAV -->
 <nav class="nav">
-  <div class="nav-logo" onclick="window.location.hash='#landing'">Parcel<span class="iq">IQ</span></div>
+  <div class="nav-logo" onclick="window.location.hash='#landing'">Parcel<span class="iq">iQ</span></div>
   <div class="nav-right" id="navRight">
     <span class="fl-pill">FL Beta</span>
     <button class="btn-o btn-sm hide-mob" onclick="window.location.hash='#login'">Log in</button>
@@ -1014,7 +1014,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   <!-- ── Landing Nav (overlays global nav via z-index) ── -->
   <nav class="lp-nav">
     <div style="display:flex;align-items:center;gap:32px">
-      <div class="lp-nav-logo" onclick="window.location.hash='#landing'">Parcel<span>IQ</span></div>
+      <div class="lp-nav-logo" onclick="window.location.hash='#landing'">Parcel<span>iQ</span></div>
       <div class="lp-nav-links">
         <a onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">How it works</a>
         <a onclick="window.location.hash='#pricing'">Pricing</a>
@@ -1041,7 +1041,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           Upload your leads.<br>
           <span class="lp-green">We'll Kill the bad ones.</span>
         </h1>
-        <p class="lp-sub hero-sub-anim">ParcelIQ analyzes every parcel against FEMA, wetlands, wildlife, EPA, roads, and county records — so your team can make faster, smarter offers.</p>
+        <p class="lp-sub hero-sub-anim">ParceliQ analyzes every parcel against FEMA, wetlands, wildlife, EPA, roads, and county records — so your team can make faster, smarter offers.</p>
         <div class="lp-ctas hero-ctas-anim">
           <button class="lp-btn-primary" style="font-size:16px;padding:14px 28px" onclick="startScreening()">Start screening free →</button>
           <button class="lp-btn-outline" style="font-size:16px;padding:14px 28px" onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">▶ See how it works</button>
@@ -1125,7 +1125,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <div class="lp-how-inner">
       <div class="lp-sec-center reveal">
         <div class="lp-sec-label">How it works</div>
-        <div class="lp-sec-title">How ParcelIQ works</div>
+        <div class="lp-sec-title">How ParceliQ works</div>
         <div class="lp-sec-sub">Four steps. Minutes, not hours.</div>
       </div>
       <div class="lp-steps" style="position:relative">
@@ -1142,7 +1142,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         </div>
         <div class="lp-step reveal" style="transition-delay:200ms">
           <div class="lp-step-icon-wrap"><span class="lp-step-num">3</span>◉</div>
-          <div class="lp-step-title">ParcelIQ scores risk</div>
+          <div class="lp-step-title">ParceliQ scores risk</div>
           <div class="lp-step-desc">Our engine evaluates each parcel and explains the reasoning.</div>
         </div>
         <div class="lp-step reveal" style="transition-delay:300ms">
@@ -1159,8 +1159,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <div class="lp-engine-inner">
       <!-- Left text -->
       <div class="reveal">
-        <div class="lp-sec-label" style="text-align:left">WHAT PARCELIQ EVALUATES</div>
-        <div class="lp-sec-title" style="text-align:left">What ParcelIQ<br>evaluates</div>
+        <div class="lp-sec-label" style="text-align:left">What ParceliQ evaluates</div>
+        <div class="lp-sec-title" style="text-align:left">What ParceliQ<br>evaluates</div>
         <p style="font-size:16px;color:var(--t2);line-height:1.7;margin:0 0 24px">Our decision engine pulls from FEMA, USFWS, EPA, OpenStreetMap, USDA, and FL DOR to uncover risk, access, and opportunity in seconds.</p>
         <a style="color:#22C55E;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none" onclick="window.location.hash='#signup'">Try it on your own parcels →</a>
       </div>
@@ -1169,7 +1169,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div class="lp-engine-diagram">
           <!-- Central glowing circle -->
           <div class="lp-engine-center">
-            <div class="lp-engine-name">ParcelIQ</div>
+            <div class="lp-engine-name">ParceliQ</div>
             <div class="lp-engine-sub">Decision Engine</div>
           </div>
           <!-- Source cards positioned around center (absolute) -->
@@ -1292,7 +1292,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   <section class="lp-cta-sec">
     <div class="lp-cta-card reveal">
       <div class="lp-cta-h">Stop guessing. <span class="lp-green">Start closing better deals.</span></div>
-      <div class="lp-cta-sub">Join land investors and acquisition teams using ParcelIQ to save time, reduce risk, and find the right lots.</div>
+      <div class="lp-cta-sub">Join land investors and acquisition teams using ParceliQ to save time, reduce risk, and find the right lots.</div>
       <div class="lp-cta-btns">
         <button class="lp-btn-primary" style="font-size:17px;padding:16px 40px" onclick="window.location.hash='#signup'">Start free →</button>
         <button class="lp-btn-outline" style="font-size:17px;padding:16px 36px" onclick="window.location.hash='#pricing'">View pricing</button>
@@ -1309,7 +1309,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   <footer class="lp-footer">
     <div class="lp-footer-grid">
       <div>
-        <div class="lp-footer-logo">Parcel<span>IQ</span></div>
+        <div class="lp-footer-logo">Parcel<span>iQ</span></div>
         <div class="lp-footer-tag">Live data. Smarter decisions.</div>
         <div class="lp-footer-note">Florida Beta — Live data for Florida. Updating continuously.</div>
       </div>
@@ -1330,7 +1330,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <a style="color:#374151;cursor:default">API (coming soon)</a>
       </div>
     </div>
-    <div class="lp-footer-bottom">© 2026 ParcelIQ. All rights reserved.</div>
+    <div class="lp-footer-bottom">© 2026 ParceliQ. All rights reserved.</div>
   </footer>
 
   <!-- Landing page JS — scoped to this page -->
@@ -1433,7 +1433,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <div id="page-login" class="screen">
   <div class="auth-wrap">
     <div class="auth-card">
-      <div class="auth-logo">Parcel<span class="iq">IQ</span></div>
+      <div class="auth-logo">Parcel<span class="iq">iQ</span></div>
       <div class="auth-title">Welcome back</div>
       <div class="auth-sub">Sign in to your account</div>
       <button class="btn-google" onclick="signInWithGoogle()">
@@ -1458,7 +1458,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <div id="page-signup" class="screen">
   <div class="auth-wrap">
     <div class="auth-card">
-      <div class="auth-logo">Parcel<span class="iq">IQ</span></div>
+      <div class="auth-logo">Parcel<span class="iq">iQ</span></div>
       <div class="auth-title">Create your account</div>
       <div class="auth-sub">Free during beta · No credit card required</div>
       <button class="btn-google" onclick="signInWithGoogle()">
@@ -1483,7 +1483,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <div id="page-forgot" class="screen">
   <div class="auth-wrap">
     <div class="auth-card">
-      <div class="auth-logo">Parcel<span class="iq">IQ</span></div>
+      <div class="auth-logo">Parcel<span class="iq">iQ</span></div>
       <div class="auth-title">Reset your password</div>
       <div class="auth-sub">Enter your email and we'll send a reset link</div>
       <div class="auth-err" id="forgotErr"></div>
@@ -1502,7 +1502,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <div id="page-reset-password" class="screen">
   <div class="auth-wrap">
     <div class="auth-card">
-      <div class="auth-logo">Parcel<span class="iq">IQ</span></div>
+      <div class="auth-logo">Parcel<span class="iq">iQ</span></div>
       <div class="auth-title">Set new password</div>
       <div class="auth-sub">Choose a strong password for your account</div>
       <div class="auth-err" id="resetErr"></div>
@@ -1645,7 +1645,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <!-- ════════ PROCESSING ════════ -->
 <div id="page-processing" class="screen">
   <div class="proc-wrap">
-    <div class="proc-logo">Parcel<span class="iq">IQ</span></div>
+    <div class="proc-logo">Parcel<span class="iq">iQ</span></div>
     <div class="proc-sublbl" id="batchProcLabel">Screening parcels…</div>
     <div class="ring">
       <svg width="96" height="96" viewBox="0 0 96 96">
@@ -1684,7 +1684,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <aside class="res-sidebar" id="resSidebar">
       <!-- Brand + toggle -->
       <div class="rsb-top">
-        <span class="rsb-brand" onclick="goTo('landing')" style="cursor:pointer" title="Go to home">Parcel<span style="color:var(--green)">IQ</span></span>
+        <span class="rsb-brand" onclick="goTo('landing')" style="cursor:pointer" title="Go to home">Parcel<span style="color:var(--green)">iQ</span></span>
         <div style="display:flex;align-items:center;gap:4px">
           <span class="fl-pill" style="font-size:10px;padding:2px 7px;letter-spacing:.4px">FL Beta</span>
           <button id="rsbModeToggle" class="rsb-toggle-btn" onclick="toggleMode()" title="Toggle theme" style="font-size:14px;padding:3px 5px;line-height:1"><span id="rsbModeIcon">☀️</span></button>
@@ -1816,7 +1816,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div id="resSummary" style="display:none"></div>
       <div class="res-footer">
         <span>Every flag cited · source verifiable</span>
-        <span>ParcelIQ · FL Beta</span>
+        <span>ParceliQ · FL Beta</span>
       </div>
     </main>
   </div>
@@ -1945,7 +1945,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   <div class="pricing-wrap">
     <h2 class="pricing-title">Simple, flat pricing.</h2>
     <p class="pricing-sub">No upsells. No per-parcel charges. No contracts.</p>
-    <p class="pricing-sub" style="color:var(--green);font-size:13px;margin-top:-8px">ParcelIQ is in free beta — every plan is free until paid plans launch.</p>
+    <p class="pricing-sub" style="color:var(--green);font-size:13px;margin-top:-8px">ParceliQ is in free beta — every plan is free until paid plans launch.</p>
     <div class="ptier-grid">
       <div class="ptier">
         <div class="ptier-name">Starter</div>
@@ -1990,14 +1990,14 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     </div>
     <div class="pricing-all">All plans include: Florida statewide · Kill / Pursue · CSV export · No contracts · Cancel anytime</div>
 
-    <!-- Manual research vs ParcelIQ -->
+    <!-- Manual research vs ParceliQ -->
     <div style="max-width:720px;margin:48px auto 0">
-      <div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:20px">Manual research vs ParcelIQ</div>
+      <div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:20px">Manual research vs ParceliQ</div>
       <div style="border:1px solid var(--b);border-radius:var(--rs);overflow:hidden">
         <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;font-size:13px">
           <div style="padding:12px 16px;color:var(--t3);border-bottom:1px solid var(--b);text-transform:uppercase;font-size:11px;letter-spacing:.6px">Per parcel</div>
           <div style="padding:12px 16px;color:var(--t3);border-bottom:1px solid var(--b);text-transform:uppercase;font-size:11px;letter-spacing:.6px">Doing it by hand</div>
-          <div style="padding:12px 16px;color:var(--green);border-bottom:1px solid var(--b);text-transform:uppercase;font-size:11px;letter-spacing:.6px;font-weight:700">ParcelIQ</div>
+          <div style="padding:12px 16px;color:var(--green);border-bottom:1px solid var(--b);text-transform:uppercase;font-size:11px;letter-spacing:.6px;font-weight:700">ParceliQ</div>
 
           <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">Flood zone lookup</div>
           <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t2)">FEMA map portal, ~5 min</div>
@@ -2579,7 +2579,7 @@ async function doSignup() {
     currentSession = data.session; currentUser = data.user;
     updateNav();
     loadUserProfile(); // fire-and-forget
-    toast('Welcome to ParcelIQ!');
+    toast('Welcome to ParceliQ!');
     _runPendingOrResults();
   } catch(e) {
     err.textContent = e.message || 'Signup failed.'; err.classList.add('show');
@@ -2815,7 +2815,7 @@ async function loadSharedBatch(token) {
     <div style='display:flex;justify-content:space-between;align-items:center;
       padding:0 0 20px;border-bottom:1px solid #2A2D3A;margin-bottom:24px'>
       <div style='font-size:20px;font-weight:800'>
-        Parcel<span style='color:#22C55E'>IQ</span>
+        Parcel<span style='color:#22C55E'>iQ</span>
       </div>
       <div style='display:flex;gap:10px;align-items:center'>
         <span style='font-size:13px;color:var(--t2)'>Shared results — View only</span>
@@ -2835,7 +2835,7 @@ async function loadSharedBatch(token) {
     if (!resp.ok) {
       document.getElementById('shared-content').innerHTML =
         '<h2 style="color:#F1F5F9">This share link has expired or does not exist.</h2>' +
-        '<p><a href="/" style="color:#22C55E">Return to ParcelIQ</a></p>';
+        '<p><a href="/" style="color:#22C55E">Return to ParceliQ</a></p>';
       return;
     }
     const data = await resp.json();
@@ -6857,7 +6857,7 @@ function exportExcel() {
   });
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'ParcelIQ Results');
+  XLSX.utils.book_append_sheet(wb, ws, 'ParceliQ Results');
   const fname = (batchState.name || 'parceliq').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.xlsx';
   XLSX.writeFile(wb, fname);
 }
@@ -6892,7 +6892,7 @@ function exportPDF() {
     '</tr>';
   }).join('');
 
-  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ParcelIQ — ' + escHtml(batchState.name || 'Results') + '</title>' +
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ParceliQ — ' + escHtml(batchState.name || 'Results') + '</title>' +
   '<style>' +
   '@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");' +
   '*{box-sizing:border-box;margin:0;padding:0}' +
@@ -6914,7 +6914,7 @@ function exportPDF() {
   '.footer{margin-top:20px;font-size:9px;color:#9CA3AF;display:flex;justify-content:space-between}' +
   '</style></head><body>' +
   '<div class="cover">' +
-    '<div class="logo">Parcel<span>IQ</span></div>' +
+    '<div class="logo">Parcel<span>iQ</span></div>' +
     '<div class="cover-right"><div class="batch-name">' + escHtml(batchState.name || 'Screening Results') + '</div><div class="batch-meta">Generated ' + new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}) + ' · Florida · Live Data</div></div>' +
   '</div>' +
   '<div class="stats-row">' +
@@ -6924,7 +6924,7 @@ function exportPDF() {
     '<div class="stat s-total"><div class="stat-num">~' + Math.round(flOnly.length * 30 / 60 * 10) / 10 + 'h</div><div class="stat-lbl">Hours Saved</div></div>' +
   '</div>' +
   '<table><thead><tr><th>Address</th><th>Verdict</th><th>Score</th><th>Size</th><th>Flags / Issues</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-  '<div class="footer"><span>ParcelIQ · Florida Parcel Screening · parcel-iq-nine.vercel.app</span><span>' + results.length + ' parcels · FEMA · NWI · USFWS · EPA · Roads · FL DOR</span></div>' +
+  '<div class="footer"><span>ParceliQ · Florida Parcel Screening · parcel-iq-nine.vercel.app</span><span>' + results.length + ' parcels · FEMA · NWI · USFWS · EPA · Roads · FL DOR</span></div>' +
   '</body></html>';
 
   const iframe = document.createElement('iframe');
@@ -6969,7 +6969,7 @@ function notifyBatchComplete(summary) {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     if (!document.hidden) return; // only notify when the tab is in the background
     const body = (summary?.pursue ?? 0) + ' pursue · ' + (summary?.kill ?? 0) + ' kill';
-    new Notification('ParcelIQ — batch complete', { body });
+    new Notification('ParceliQ — batch complete', { body });
   } catch(e) {}
 }
 

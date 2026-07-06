@@ -416,7 +416,7 @@ def _geocode_error_result(address: str, geo: dict) -> dict:
         return _error_result(
             address,
             f"This looks like a {geo.get('state', 'non-Florida')} address "
-            f"({geo.get('formatted_address', '')}). ParcelIQ covers Florida only.",
+            f"({geo.get('formatted_address', '')}). ParceliQ covers Florida only.",
         )
     if status == "low_confidence":
         suggestions = geo.get("suggestions") or []
