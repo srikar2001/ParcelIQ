@@ -148,3 +148,37 @@ Note: earlier-reported drops (county, `STATIC_BFE`, `ZONE_SUBTY`, `COUNTY_ZON`, 
 | 17 Proactive | Compare modal exists; ETA, auto-naming, richer export, nav warning, dashboard summaries not found. |
 
 **Priority order for the fix stages:** 1 (concurrency — scores are wrong today) → 2 (geocoding — wrong-parcel data) → 3 remainder (owner fields/labels) → 10/4 (autocomplete via a viable source) → 5/6/11 display gaps → 13 (remove or wire rule toggles) → the rest.
+
+---
+
+# OVERNIGHT FIX LOG (2026-07-06)
+
+All stages shipped, one commit each, validated against the live deployment after every push.
+
+| Commit | Stage | What changed |
+|---|---|---|
+| 3ff1200 | 0 | This audit |
+| a94bc8d + 8cae5e4 | 1 | Per-host semaphores (Overpass 2 / DOR 8 / FEMA 5 / USFWS 5 / USGS 10), one bundled Overpass query per parcel, retry w/ backoff, Overpass slot-cooldown spacing. **Live result: road data 1/10 → 9/9, powerlines 0/10 → 8/9, parcel/soil/elevation 10/10.** Batches are slower (~2 min/10 parcels) but data-complete. |
+| 219f21a | 2 | Geocoding accuracy engine: accuracy ≥0.85 + accepted type + state=FL; statuses ok/wrong_state/low_confidence/not_found; did-you-mean suggestions. Live-verified: town-centroid matches no longer score; NC addresses named as NC. |
+| d985f8a | 3 | Owner mailing address, true assessed value (AV_NSD), taxable value, prior sale, year built, county address on file; owner "&" truncation cleaned. |
+| 3d70ae7 | 4 | Suggest endpoints rebuilt on Esri World Geocoder (statewide, <1s). DOR LIKE approach proven infeasible. Autocomplete was 100% dead in production before this. |
+| f959eaa | 10 | Autocomplete on single-search only; click-to-search; ESC closes. |
+| 3c5cfd2 | 5 | Detail panel: County/Acreage/Elevation/Flood detail/Wetland/Wildlife/Road/Contamination rows + owner mailing line; strings capitalized. |
+| 67f9038 | 7 | Backend weekly limit now resets Monday UTC (was rolling 7 days, contradicting the UI). |
+| 304e2a2 | 8+11 | ERROR rows show the real error + clickable did-you-mean chips; completion toast counts unmatched addresses; row-active transition. |
+| 81fb5a7 | 12 | Password-recovery links no longer race the OAuth #results rewrite. |
+| 47ab778 | 13 | Settings: default sort, TSV export, and batch notifications actually work now; wetland kill-rule toggle regex fixed. |
+| ffab523 | 14 | Landing truthfulness: fictional "Trusted by" companies replaced with real data sources; fake "Added to waitlist!" buttons now route to signup; dead footer links removed; © 2026. |
+| d64e45e | 17 | Location-based batch names ("Polk County — 12 parcels"), full-data CSV/Excel exports (APN, owner mailing, assessed value, flood/soil/evac/power/road), leave-warning mid-stream, pricing comparison table. |
+| 789c823 + fcaac78 | 15 | Batch endpoints require sign-in (were open to anonymous credit-burning). Uncovered + fixed: Railway env names Supabase keys differently, so token verification had **silently never worked in production** — now tolerant of both names, fails open only if verification infra is down. Stale parceliq_v5.html removed from prod. |
+
+Verified live at end of run: anonymous batch → 401; authenticated batch → streams with road/parcel/soil/elevation data; suggest endpoints return statewide FL addresses; landing/pricing pages render the new copy.
+
+Stage 6 (filter panel), Stage 9 (map modal), Stage 16 (validation script), and Stage 17's compare/ETA/dashboard-summary items were already implemented before this run — verified, not rebuilt.
+
+**Left for the founder:**
+- A QA account was created for live testing: parceliq.qa.tester@gmail.com — delete it in Supabase Auth when convenient.
+- Terms of Service / Privacy Policy pages are marked "coming soon" — needed before charging customers.
+- Stripe/billing is not integrated; pricing CTAs route to free-beta signup.
+- Batches are now slower but complete; if speed matters more later, a paid Overpass mirror or self-hosted instance removes the ~1 query/sec ceiling.
+- Geocodio doesn't know some new-construction streets (they'll return "Address not found" with suggestions); a county address-point fallback is the eventual fix.
