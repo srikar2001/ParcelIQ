@@ -15,13 +15,11 @@ from app.collectors.flood import get_flood_zone
 from app.collectors.wetlands import get_wetlands
 from app.collectors.critical_habitat import get_critical_habitat
 from app.collectors.epa import get_epa_superfund
-from app.collectors.roads_osm import get_road_type
 from app.collectors.parcel_fl import get_parcel_data
-from app.collectors.waterways import get_waterway_proximity
+from app.collectors.osm_bundle import get_osm_bundle, BUNDLE_ERROR as _OSM_BUNDLE_ERROR
 from app.collectors.elevation import get_elevation
 from app.collectors.soil import get_soil_data
 from app.collectors.evacuation import get_evacuation_zone
-from app.collectors.powerlines import get_powerline_proximity
 from app.collectors.easement import get_conservation_easement
 from app.core.insight_engine import score_parcel
 from app.core.cache import get_cached_result, save_cached_result
@@ -29,10 +27,22 @@ from app.core.cache import get_cached_result, save_cached_result
 router = APIRouter(prefix="/api")
 
 BATCH_SIZE    = 20        # parcels processed in parallel per chunk
-_API_TIMEOUT  = 7.0       # per external API call — fast-fail slow sources
-_PARCEL_TIMEOUT = 15.0    # hard cap per individual parcel
-_API_SEM      = asyncio.Semaphore(120)  # max concurrent external HTTP calls
+_API_TIMEOUT  = 16.0      # default per external API call (HTTP time only — queue wait excluded)
+_PARCEL_TIMEOUT = 120.0   # hard cap per individual parcel (includes per-host queue waits)
 WEEKLY_LIMIT  = 1000
+
+# ── Per-host concurrency limits. External services rate-limit per IP; a single
+# global semaphore let one 20-parcel chunk fire 60+ concurrent Overpass calls
+# (limit ~2) so road/waterway/power data failed on nearly every batch row.
+_SEM_OVERPASS = asyncio.Semaphore(2)   # overpass-api.de — roads + waterways + powerlines (bundled)
+_SEM_FLDOR    = asyncio.Semaphore(8)   # FL DOR statewide cadastral
+_SEM_FEMA     = asyncio.Semaphore(5)   # FEMA NFHL
+_SEM_USFWS    = asyncio.Semaphore(5)   # USFWS wetlands + critical habitat
+_SEM_USGS     = asyncio.Semaphore(10)  # USGS elevation
+_SEM_EPA      = asyncio.Semaphore(5)
+_SEM_SOIL     = asyncio.Semaphore(5)   # USDA soil data access
+_SEM_EVAC     = asyncio.Semaphore(5)   # FL FDEM evacuation zones
+_SEM_EASE     = asyncio.Semaphore(5)   # conservation easements
 _SUPABASE_URL     = os.environ.get('SUPABASE_URL', '')
 _SUPABASE_KEY     = os.environ.get('SUPABASE_ANON_KEY', '')
 _SUPABASE_SVC_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', _SUPABASE_KEY)  # bypasses RLS
@@ -168,12 +178,62 @@ class BatchRequest(BaseModel):
     state: str = "FL"
 
 
-async def _safe(coro, default, timeout: float = _API_TIMEOUT):
-    async with _API_SEM:
+async def _safe(factory, default, sem, timeout: float = _API_TIMEOUT, retry_if=None, name: str = ""):
+    """Run a collector under its host's semaphore with one retry (2s backoff).
+
+    `factory` is a zero-arg callable returning a fresh coroutine (needed for the
+    retry). The semaphore is acquired OUTSIDE the timeout so time spent queued
+    behind the per-host limit doesn't count against the collector's budget.
+    `retry_if(result)` marks soft failures (collectors catch their own
+    exceptions and return error-shaped defaults) as retryable.
+    """
+    result = None
+    for attempt in range(2):
         try:
-            return await asyncio.wait_for(coro, timeout=timeout)
+            async with sem:
+                result = await asyncio.wait_for(factory(), timeout=timeout)
         except Exception:
-            return default
+            result = None
+        failed = result is None or (retry_if is not None and retry_if(result))
+        if not failed:
+            return result
+        if attempt == 0:
+            print(f"[Retry] {name or 'collector'} failed — retrying in 2s")
+            await asyncio.sleep(2.0)
+    return result if result is not None else default
+
+
+async def _collect_all(lat: float, lng: float) -> tuple:
+    """Fan out all data collectors for one coordinate under per-host limits."""
+    (
+        flood, wetlands, habitat, epa, parcel_data, osm,
+        elevation, soil, evac, easement
+    ) = await asyncio.gather(
+        _safe(lambda: get_flood_zone(lat, lng), _FLOOD_DEFAULT, _SEM_FEMA,
+              timeout=25.0, retry_if=lambda r: r.get("zone") == "ERROR", name="flood"),
+        _safe(lambda: get_wetlands(lat, lng), _WETLANDS_DEFAULT, _SEM_USFWS,
+              timeout=16.0, retry_if=lambda r: r.get("error") is True, name="wetlands"),
+        _safe(lambda: get_critical_habitat(lat, lng), _HABITAT_DEFAULT, _SEM_USFWS,
+              timeout=16.0, retry_if=lambda r: r.get("data_available") is False, name="habitat"),
+        _safe(lambda: get_epa_superfund(lat, lng), _EPA_DEFAULT, _SEM_EPA,
+              timeout=16.0, name="epa"),
+        _safe(lambda: get_parcel_data(lat, lng), _PARCEL_DEFAULT, _SEM_FLDOR,
+              timeout=16.0, retry_if=lambda r: not r.get("found"), name="parcel"),
+        _safe(lambda: get_osm_bundle(lat, lng), _OSM_BUNDLE_ERROR, _SEM_OVERPASS,
+              timeout=45.0, retry_if=lambda r: r.get("_error") is True, name="osm"),
+        _safe(lambda: get_elevation(lat, lng), _ELEVATION_DEFAULT, _SEM_USGS,
+              timeout=12.0, retry_if=lambda r: r.get("elevation_ft") is None, name="elevation"),
+        _safe(lambda: get_soil_data(lat, lng), _SOIL_DEFAULT, _SEM_SOIL,
+              timeout=16.0, retry_if=lambda r: r.get("soil_drainage") is None, name="soil"),
+        _safe(lambda: get_evacuation_zone(lat, lng), _EVAC_DEFAULT, _SEM_EVAC,
+              timeout=16.0, name="evac"),
+        _safe(lambda: get_conservation_easement(lat, lng), _EASEMENT_DEFAULT, _SEM_EASE,
+              timeout=16.0, name="easement"),
+    )
+    roads      = osm.get("roads") or _ROADS_DEFAULT
+    waterways  = osm.get("waterways") or _WATERWAYS_DEFAULT
+    powerlines = osm.get("powerlines") or _POWERLINES_DEFAULT
+    return flood, wetlands, habitat, epa, roads, parcel_data, waterways, elevation, soil, evac, powerlines, easement
 
 
 async def _process_parcel(parcel: ParcelInput) -> dict:
@@ -222,20 +282,7 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
     (
         flood, wetlands, habitat, epa, roads, parcel_data, waterways,
         elevation, soil, evac, powerlines, easement
-    ) = await asyncio.gather(
-        _safe(get_flood_zone(lat, lng), _FLOOD_DEFAULT),
-        _safe(get_wetlands(lat, lng), _WETLANDS_DEFAULT),
-        _safe(get_critical_habitat(lat, lng), _HABITAT_DEFAULT),
-        _safe(get_epa_superfund(lat, lng), _EPA_DEFAULT),
-        _safe(get_road_type(lat, lng), _ROADS_DEFAULT),
-        _safe(get_parcel_data(lat, lng), _PARCEL_DEFAULT),
-        _safe(get_waterway_proximity(lat, lng), _WATERWAYS_DEFAULT),
-        _safe(get_elevation(lat, lng), _ELEVATION_DEFAULT),
-        _safe(get_soil_data(lat, lng), _SOIL_DEFAULT),
-        _safe(get_evacuation_zone(lat, lng), _EVAC_DEFAULT),
-        _safe(get_powerline_proximity(lat, lng), _POWERLINES_DEFAULT),
-        _safe(get_conservation_easement(lat, lng), _EASEMENT_DEFAULT),
-    )
+    ) = await _collect_all(lat, lng)
 
     result = score_parcel(
         flood, wetlands, habitat, epa, roads, parcel_data, waterways,
@@ -335,20 +382,7 @@ async def _process_parcel_pregeocoded(parcel: ParcelInput, geo: dict) -> dict:
     (
         flood, wetlands, habitat, epa, roads, parcel_data, waterways,
         elevation, soil, evac, powerlines, easement
-    ) = await asyncio.gather(
-        _safe(get_flood_zone(lat, lng),             _FLOOD_DEFAULT),
-        _safe(get_wetlands(lat, lng),               _WETLANDS_DEFAULT),
-        _safe(get_critical_habitat(lat, lng),       _HABITAT_DEFAULT),
-        _safe(get_epa_superfund(lat, lng),          _EPA_DEFAULT),
-        _safe(get_road_type(lat, lng),              _ROADS_DEFAULT),
-        _safe(get_parcel_data(lat, lng),            _PARCEL_DEFAULT),
-        _safe(get_waterway_proximity(lat, lng),     _WATERWAYS_DEFAULT),
-        _safe(get_elevation(lat, lng),              _ELEVATION_DEFAULT),
-        _safe(get_soil_data(lat, lng),              _SOIL_DEFAULT),
-        _safe(get_evacuation_zone(lat, lng),        _EVAC_DEFAULT),
-        _safe(get_powerline_proximity(lat, lng),    _POWERLINES_DEFAULT),
-        _safe(get_conservation_easement(lat, lng),  _EASEMENT_DEFAULT),
-    )
+    ) = await _collect_all(lat, lng)
     result = score_parcel(
         flood, wetlands, habitat, epa, roads, parcel_data, waterways,
         elevation=elevation, soil=soil, evac=evac,
