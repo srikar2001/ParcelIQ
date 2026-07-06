@@ -7,10 +7,50 @@ separate Overpass calls per parcel (roads, waterways, powerlines x2), so a
 data failed on nearly every batch row. One union query per parcel keeps the
 shared Semaphore(2) viable at batch scale.
 """
+import asyncio
+import time
+
 import httpx
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 HEADERS = {"User-Agent": "ParcelIQ/1.0", "Accept": "*/*"}
+
+# Overpass gives 2 slots per IP, and each slot has a cooldown after every
+# query — firing back-to-back even at 2 concurrent yields 429/504. Space
+# request STARTS globally, and back off hard when the server says busy.
+_MIN_GAP = 0.7          # seconds between request starts (global)
+_BUSY_BACKOFF = 6.0     # seconds to wait after a 429/504 before retrying
+_gap_lock = asyncio.Lock()
+_last_start = 0.0
+
+
+class _OverpassBusy(Exception):
+    pass
+
+
+async def _op_post(query: str) -> dict:
+    """POST one Overpass query with global start-spacing. Raises _OverpassBusy
+    on 429/504 so callers can back off and retry."""
+    global _last_start
+    async with _gap_lock:
+        wait = _MIN_GAP - (time.monotonic() - _last_start)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        _last_start = time.monotonic()
+    async with httpx.AsyncClient(timeout=20.0, headers=HEADERS) as client:
+        resp = await client.post(OVERPASS_URL, data={"data": query})
+        if resp.status_code in (429, 504):
+            raise _OverpassBusy(f"HTTP {resp.status_code}")
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def _op_post_retry(query: str) -> dict:
+    try:
+        return await _op_post(query)
+    except _OverpassBusy:
+        await asyncio.sleep(_BUSY_BACKOFF)
+        return await _op_post(query)
 
 PAVED = {"paved", "asphalt", "concrete", "cobblestone"}
 DIRT  = {"unpaved", "dirt", "gravel", "ground", "grass", "sand", "compacted"}
@@ -84,10 +124,7 @@ async def get_osm_bundle(lat: float, lng: float) -> dict:
   node(around:500,{lat},{lng})[power~"^(tower|pole)$"];
 );
 out tags;"""
-        async with httpx.AsyncClient(timeout=20.0, headers=HEADERS) as client:
-            resp = await client.post(OVERPASS_URL, data={"data": query})
-            resp.raise_for_status()
-            elements = resp.json().get("elements", [])
+        elements = (await _op_post_retry(query)).get("elements", [])
 
         highways  = [el for el in elements if "highway"  in el.get("tags", {})]
         waterways = [el for el in elements if "waterway" in el.get("tags", {})]
@@ -101,10 +138,7 @@ out tags;"""
 (way(around:1600,{lat},{lng})[power~"^(line|minor_line)$"];);
 out count;"""
             try:
-                async with httpx.AsyncClient(timeout=20.0, headers=HEADERS) as client:
-                    r2 = await client.post(OVERPASS_URL, data={"data": q1600})
-                    r2.raise_for_status()
-                    data2 = r2.json()
+                data2 = await _op_post_retry(q1600)
                 count_el = next((e for e in data2.get("elements", []) if e.get("type") == "count"), None)
                 total = int(count_el.get("tags", {}).get("total", 0)) if count_el else 0
                 if total > 0:
