@@ -1989,6 +1989,39 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       </div>
     </div>
     <div class="pricing-all">All plans include: Florida statewide · Kill / Pursue · CSV export · No contracts · Cancel anytime</div>
+
+    <!-- Manual research vs ParcelIQ -->
+    <div style="max-width:720px;margin:48px auto 0">
+      <div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:20px">Manual research vs ParcelIQ</div>
+      <div style="border:1px solid var(--b);border-radius:var(--rs);overflow:hidden">
+        <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;font-size:13px">
+          <div style="padding:12px 16px;color:var(--t3);border-bottom:1px solid var(--b);text-transform:uppercase;font-size:11px;letter-spacing:.6px">Per parcel</div>
+          <div style="padding:12px 16px;color:var(--t3);border-bottom:1px solid var(--b);text-transform:uppercase;font-size:11px;letter-spacing:.6px">Doing it by hand</div>
+          <div style="padding:12px 16px;color:var(--green);border-bottom:1px solid var(--b);text-transform:uppercase;font-size:11px;letter-spacing:.6px;font-weight:700">ParcelIQ</div>
+
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">Flood zone lookup</div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t2)">FEMA map portal, ~5 min</div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">Automatic</div>
+
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">Wetlands + wildlife check</div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t2)">Two federal map viewers, ~10 min</div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">Automatic</div>
+
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">County records + owner</div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t2)">Appraiser site per county, ~10 min</div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">Automatic</div>
+
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">Road access, soil, elevation</div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t2)">Satellite + soil survey, ~15 min</div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">Automatic</div>
+
+          <div style="padding:12px 16px;color:var(--t1);font-weight:700">Total</div>
+          <div style="padding:12px 16px;color:var(--amber);font-weight:700">30–60 minutes</div>
+          <div style="padding:12px 16px;color:var(--green);font-weight:700">Seconds per parcel</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--t3);text-align:center;margin-top:12px">A 100-lead list is a week of evenings by hand — or one screening run.</div>
+    </div>
   </div>
 </div>
 
@@ -3923,19 +3956,18 @@ function hideUpgradeModal() {
 }
 
 function _generateBatchName(lines) {
-  const ADJ  = ['Golden','Silver','Emerald','Azure','Coral','Sunrise','Sunset','Amber','Jade',
-    'Ivory','Rustic','Verdant','Sapphire','Crimson','Tawny','Misty','Serene','Wild',
-    'Sandy','Tidal','Coastal','Lush','Cedar','Cypress','Magnolia','Palm','Willow',
-    'Mossy','Dusky','Breezy','Sunlit','Shaded','Quiet','Broad','Deep',
-    'Scarlet','Indigo','Copper','Fern','Honey','Opal','Pewter','Sable','Slate','Dune'];
-  const NOUN = ['Acres','Ridge','Pines','Cove','Bay','Shores','Springs','Grove','Hollow',
-    'Bluff','Meadow','Landing','Hills','Preserve','Marsh','Bend','Vista','Crest',
-    'Glen','Harbor','Trace','Gate','Run','Point','Reach','Pass','Knoll','Flats',
-    'Creek','Vale','Pines','Shoals','Hammock','Savanna','Prairie','Thicket','Lagoon',
-    'Crossing','Inlet','Dunes'];
-  const ai = Math.floor(Math.random() * ADJ.length);
-  const ni = Math.floor(Math.random() * NOUN.length);
-  return ADJ[ai] + ' ' + NOUN[ni];
+  // Name the batch after where the parcels actually are: most common county
+  // (or city) among the first few addresses, e.g. "Polk County — 12 parcels"
+  const n = lines.length;
+  const tally = {};
+  for (const line of lines.slice(0, 8)) {
+    const county = extractCounty(line);
+    const key = county ? county + ' County' : (splitAddress(line).city || '');
+    if (key) tally[key] = (tally[key] || 0) + 1;
+  }
+  const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+  const label = top ? top[0] : 'Florida';
+  return label + ' — ' + n + (n === 1 ? ' parcel' : ' parcels');
 }
 
 function showPricingComingSoon() {
@@ -6730,7 +6762,10 @@ function hideExportModal() {
 }
 
 function exportCSV() {
-  const rows = [['Address','Verdict','Score','Auto Kill','Kill Reason','Flags','Positives','Acreage','Owner','Last Sale','Land Use']];
+  const rows = [['Address','Verdict','Score','Auto Kill','Kill Reason','Flags','Positives',
+    'APN','County','Owner','Owner Mailing Address','Acreage','Land Use',
+    'Assessed Value','Land Value','Last Sale','Sale Year',
+    'Flood Zone','Elevation (ft)','Soil Drainage','Septic Feasible','Evac Zone','Power Nearby','Road']];
   batchState.results.forEach(r => {
     const pi = r.parcel_info || {};
     rows.push([
@@ -6740,10 +6775,23 @@ function exportCSV() {
       r.auto_kill_reason || '',
       (r.flags||[]).map(translateFlag).join('; '),
       (r.positives||[]).map(translateFlag).join('; '),
-      pi.acreage != null ? pi.acreage : '',
+      pi.parcel_id || '',
+      pi.county || '',
       pi.owner || '',
-      pi.last_sale_price != null ? pi.last_sale_price : '',
+      pi.owner_mailing_address || '',
+      pi.acreage != null ? pi.acreage : '',
       pi.land_use_code ? getDORDescription(pi.land_use_code) : '',
+      pi.assessed_value != null ? pi.assessed_value : '',
+      pi.land_value != null ? pi.land_value : '',
+      pi.last_sale_price != null ? pi.last_sale_price : '',
+      pi.last_sale_year || '',
+      getFloodText(r),
+      pi.elevation_ft != null ? pi.elevation_ft : '',
+      pi.soil_drainage || '',
+      pi.septic_suitable === true ? 'YES' : pi.septic_suitable === false ? 'NO' : '',
+      pi.evac_zone || 'None',
+      pi.powerline_nearby === true ? 'YES' : pi.powerline_nearby === false ? 'NO' : '',
+      pi.road_type || '',
     ]);
   });
   // Honor the "Export format" preference from Settings (CSV or TSV)
@@ -6771,12 +6819,25 @@ function exportExcel() {
       'Score': r.score ?? '',
       'Auto Kill': r.auto_kill ? 'YES' : 'NO',
       'Kill Reason': r.auto_kill_reason || '',
-      'Flags': (r.flags||[]).join('; '),
-      'Positives': (r.positives||[]).join('; '),
-      'Acreage': pi.acreage ?? '',
+      'Flags': (r.flags||[]).map(translateFlag).join('; '),
+      'Positives': (r.positives||[]).map(translateFlag).join('; '),
+      'APN': pi.parcel_id || '',
+      'County': pi.county || '',
       'Owner': pi.owner || '',
-      'Last Sale': pi.last_sale_price ?? '',
+      'Owner Mailing Address': pi.owner_mailing_address || '',
+      'Acreage': pi.acreage ?? '',
       'Land Use': pi.land_use_code ? getDORDescription(pi.land_use_code) : '',
+      'Assessed Value': pi.assessed_value ?? '',
+      'Land Value': pi.land_value ?? '',
+      'Last Sale': pi.last_sale_price ?? '',
+      'Sale Year': pi.last_sale_year || '',
+      'Flood Zone': getFloodText(r),
+      'Elevation (ft)': pi.elevation_ft ?? '',
+      'Soil Drainage': pi.soil_drainage || '',
+      'Septic Feasible': pi.septic_suitable === true ? 'YES' : pi.septic_suitable === false ? 'NO' : '',
+      'Evac Zone': pi.evac_zone || 'None',
+      'Power Nearby': pi.powerline_nearby === true ? 'YES' : pi.powerline_nearby === false ? 'NO' : '',
+      'Road': pi.road_type || '',
     };
   });
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -6869,6 +6930,12 @@ function downloadCSV() { exportCSV(); }
 // FIX 3 — Close panel on Escape
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeDetailPanel(); hideExportModal(); closeMapModal(); closeUploadModal(); }
+});
+
+// Warn before closing/refreshing the tab while a screening stream is running —
+// leaving kills the stream and loses unsaved progress
+window.addEventListener('beforeunload', e => {
+  if (batchState._streaming) { e.preventDefault(); e.returnValue = ''; }
 });
 
 // Batch-complete browser notifications (Settings toggle)
