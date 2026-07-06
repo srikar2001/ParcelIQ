@@ -4993,10 +4993,10 @@ function openDetailPanel(absIdx, event) {
     }
 
     dpSig.innerHTML = stats.map((s, i) => {
-      const pipe = i < stats.length - 1
-        ? '<span style="color:var(--b);margin:0 14px;font-weight:300">|</span>'
+      const sep = i < stats.length - 1
+        ? '<span style="color:var(--t3);margin:0 10px">·</span>'
         : '';
-      return '<span style="white-space:nowrap;font-size:13px;font-weight:700;color:' + s.color + '">' + escHtml(s.label) + '</span>' + pipe;
+      return '<span style="white-space:nowrap;font-size:13px;font-weight:700;color:' + s.color + '">' + escHtml(s.label) + '</span>' + sep;
     }).join('');
     dpSig.style.display = stats.length ? 'flex' : 'none';
   }
@@ -5047,11 +5047,16 @@ function openDetailPanel(absIdx, event) {
   const dpInfo = document.getElementById('dpInfo');
   if (dpInfo) {
     const _cell = (lbl, vHtml) => '<div class="dp-grid-item"><div class="dp-grid-lbl">' + escHtml(lbl) + '</div><div class="dp-grid-val">' + vHtml + '</div></div>';
+    const _cap = s => { s = String(s || ''); return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s; };
     let infoH = '';
 
-    // Owner
+    // Owner (+ mailing address for direct-mail outreach)
     if (pi.owner && pi.owner !== 'N/A') {
-      infoH += _cell('Owner', escHtml(pi.owner) + '<div class="dp-grid-sub">as of county tax roll</div>');
+      let ownerHtml = escHtml(pi.owner) + '<div class="dp-grid-sub">as of county tax roll</div>';
+      if (pi.owner_mailing_address) {
+        ownerHtml += '<div class="dp-grid-sub">Mails to: ' + escHtml(pi.owner_mailing_address) + '</div>';
+      }
+      infoH += _cell('Owner', ownerHtml);
     }
 
     // Land Use
@@ -5063,6 +5068,17 @@ function openDetailPanel(absIdx, event) {
     const apnVal = pi.parcel_id || pi.apn;
     if (apnVal) {
       infoH += _cell('APN', '<span style="font-family:monospace;font-size:11px;letter-spacing:.02em">' + escHtml(apnVal) + '</span>');
+    }
+
+    // County
+    if (pi.county) {
+      infoH += _cell('County', escHtml(pi.county));
+    }
+
+    // Acreage
+    const _dpAc = getAcreage(r);
+    if (_dpAc != null) {
+      infoH += _cell('Acreage', escHtml(_dpAc + ' ac'));
     }
 
     // Buildings
@@ -5096,9 +5112,9 @@ function openDetailPanel(absIdx, event) {
     // Soil
     if (pi.soil_drainage) {
       let soilTxt;
-      if (pi.septic_suitable === true) soilTxt = pi.soil_drainage + ' — septic feasible';
-      else if (pi.septic_suitable === false) soilTxt = pi.soil_drainage + ' — septic likely not feasible';
-      else soilTxt = pi.soil_drainage;
+      if (pi.septic_suitable === true) soilTxt = _cap(pi.soil_drainage) + ' — septic feasible';
+      else if (pi.septic_suitable === false) soilTxt = _cap(pi.soil_drainage) + ' — septic likely not feasible';
+      else soilTxt = _cap(pi.soil_drainage);
       infoH += _cell('Soil', escHtml(soilTxt));
     }
 
@@ -5110,12 +5126,50 @@ function openDetailPanel(absIdx, event) {
       infoH += _cell('Evac Zone', 'Not in evacuation zone');
     }
 
+    // Elevation
+    if (pi.elevation_ft != null) {
+      infoH += _cell('Elevation', escHtml(pi.elevation_ft + ' ft'));
+    }
+
+    // Flood subtype (plain English from FEMA, e.g. "Area of minimal flood hazard")
+    if (pi.flood_zone_subtype) {
+      let fs = _cap(pi.flood_zone_subtype);
+      if (pi.base_flood_elevation_ft != null) fs += ' · BFE ' + pi.base_flood_elevation_ft + ' ft';
+      infoH += _cell('Flood Detail', escHtml(fs));
+    }
+
+    // Wetland type
+    if (pi.wetland_type) {
+      infoH += _cell('Wetland Type', escHtml(_cap(pi.wetland_type)));
+    }
+
+    // Protected wildlife
+    if (pi.habitat_species && pi.habitat_species.length) {
+      infoH += _cell('Protected Wildlife', escHtml(pi.habitat_species.slice(0, 3).join(', ')));
+    }
+
+    // Road
+    if (pi.road_type) {
+      let roadTxt = _cap(pi.road_type);
+      if (pi.road_surface && pi.road_surface !== 'unknown') roadTxt += ' — ' + pi.road_surface;
+      if (pi.road_name) roadTxt += ' (' + pi.road_name + ')';
+      infoH += _cell('Road', escHtml(roadTxt));
+    }
+
     // Power
     if (pi.powerline_nearby === true) {
       const dist = pi.powerline_distance ? ' (' + pi.powerline_distance + ')' : '';
       infoH += _cell('Power', 'Nearby' + escHtml(dist));
     } else if (pi.powerline_nearby === false) {
       infoH += _cell('Power', 'None detected');
+    }
+
+    // Contamination
+    if (pi.contamination_sites && pi.contamination_sites.length) {
+      const names = pi.contamination_sites.slice(0, 2)
+        .map(s => (typeof s === 'object' && s !== null) ? (s.name || '') : String(s))
+        .filter(Boolean);
+      if (names.length) infoH += _cell('Contamination', escHtml(names.join('; ')));
     }
 
     dpInfo.innerHTML = infoH || '<div style="font-size:12px;color:var(--t3);grid-column:1/-1">No parcel data available.</div>';
