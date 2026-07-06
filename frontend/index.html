@@ -2973,7 +2973,7 @@ function renderSharedResults(results, container) {
        f.toLowerCase().includes('review') || f.toLowerCase().includes('canal') || f.toLowerCase().includes('road') ? '#F59E0B' : '#64748B') +
       '" title="' + esc(f) + '"></span>'
     ).join('');
-    const score = r.auto_kill ? '⛔' : (r.score != null ? r.score : '');
+    const score = r.score != null ? r.score : '';
     return `<tr style="border-bottom:1px solid #1E2130;cursor:default">
       <td style="padding:10px 12px"><div style="font-weight:500;font-size:13px">${esc(street)}</div><div style="font-size:11px;color:var(--t2)">${esc(city)}</div></td>
       <td style="padding:10px 12px;font-size:12px;color:var(--t2)">${esc(county)}</td>
@@ -4737,8 +4737,8 @@ function defaultSort(results) {
   const pref = localStorage.getItem('piq-default-sort');
   if (pref === 'score_desc' || pref === 'score_asc') {
     return [...results].sort((a, b) => {
-      const sa = a.auto_kill ? 0 : (a.score ?? -1);
-      const sb = b.auto_kill ? 0 : (b.score ?? -1);
+      const sa = a.score ?? -1;
+      const sb = b.score ?? -1;
       return pref === 'score_asc' ? sa - sb : sb - sa;
     });
   }
@@ -4787,8 +4787,8 @@ function _refreshTable() {
     sorted = defaultSort(batchState.results);
   } else if (batchState.sortCol === 'score') {
     sorted = [...batchState.results].sort((a, b) => {
-      const sa = a.auto_kill ? 0 : (a.score ?? 101);
-      const sb = b.auto_kill ? 0 : (b.score ?? 101);
+      const sa = a.score ?? 101;
+      const sb = b.score ?? 101;
       return batchState.sortDir === 'asc' ? sa - sb : sb - sa;
     });
   } else if (batchState.sortCol === 'decision') {
@@ -5044,8 +5044,7 @@ function renderTable(results, offset) {
       signalsHtml = '<div style="font-size:12px;color:var(--amber)">' + escHtml(errMsg) + '</div>' +
         (chips ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">' + chips + '</div>' : '');
     }
-    // FIX 6: auto_kill parcels always show 0 (not blank or actual reduced score)
-    const scoreStr   = (isOutside || isError) ? '' : r.auto_kill ? '0' : (r.score != null ? String(r.score) : '');
+    const scoreStr   = (isOutside || isError) ? '' : (r.score != null ? String(r.score) : '');
     const scoreColor = (isOutside || isError) ? '' : r.auto_kill ? 'var(--red)' : verdictColor(ev);
     const verdictLabel = isOutside ? 'Not FL' : isGeoFail ? 'Not found' : isTimeout ? 'Timeout' : ev;
     const autoKillChip = (r.auto_kill && !isOutside && !isError)
@@ -7466,7 +7465,7 @@ function renderPicksList() {
   wrap.innerHTML = picks.map(r => {
     const ev = effectiveVerdict(r);
     const { street, city } = splitAddress(r.address || '');
-    const scoreStr   = r.auto_kill ? '⛔' : (r.score != null ? String(r.score) : '—');
+    const scoreStr   = r.score != null ? String(r.score) : '—';
     const stripeColor = r.auto_kill ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : ev === 'KILL' ? 'var(--red)' : 'var(--amber)';
     const scoreColor  = stripeColor;
     const verdictTxt  = r.auto_kill ? 'AUTO-KILL' : ev;
