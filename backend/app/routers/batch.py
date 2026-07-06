@@ -79,7 +79,11 @@ async def _weekly_usage(user_id: str) -> int:
     if not user_id or not _SUPABASE_URL:
         return 0
     try:
-        since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        # Monday 00:00 UTC of the current week — matches the frontend counter
+        # and the "resets every Monday" copy (was a rolling 7-day window)
+        now = datetime.now(timezone.utc)
+        monday = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        since = monday.isoformat()
         async with httpx.AsyncClient(timeout=5.0) as client:
             r = await client.get(
                 f'{_SUPABASE_URL}/rest/v1/parcel_results',
