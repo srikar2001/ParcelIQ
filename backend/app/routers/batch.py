@@ -379,9 +379,9 @@ async def _process_parcel_safe(parcel: ParcelInput) -> dict:
         return _error_result(parcel.address, str(e))
 
 
-async def _process_parcel_pregeocoded_safe(parcel: ParcelInput, geo: dict) -> dict:
+async def _process_parcel_pregeocoded_safe(parcel: ParcelInput, geo: dict, timeout: float = _PARCEL_TIMEOUT) -> dict:
     try:
-        return await asyncio.wait_for(_process_parcel_pregeocoded(parcel, geo), timeout=_PARCEL_TIMEOUT)
+        return await asyncio.wait_for(_process_parcel_pregeocoded(parcel, geo), timeout=timeout)
     except asyncio.TimeoutError:
         return _timeout_result(parcel.address)
     except Exception as e:
@@ -598,13 +598,16 @@ async def _process_batch_background(job_id: str, parcels: list) -> None:
         if accumulated:
             await _flush(force=True)
 
-        # Process in parallel chunks, appending each parcel as it completes
-        for i in range(0, len(geocoded_parcels), BATCH_SIZE):
-            chunk = geocoded_parcels[i:i + BATCH_SIZE]
-            tasks = [asyncio.create_task(_process_parcel_pregeocoded_safe(p, geo)) for p, geo in chunk]
-            for fut in asyncio.as_completed(tasks):
-                accumulated.append(await fut)
-                await _flush()
+        # Launch every parcel at once — the per-host semaphores are the real
+        # concurrency governors, and sequential chunks left the rate-limited
+        # hosts idle at each chunk boundary (convoy effect). The generous
+        # timeout covers time spent queued behind the per-host limits.
+        queue_timeout = max(_PARCEL_TIMEOUT, 30.0 * len(geocoded_parcels))
+        tasks = [asyncio.create_task(_process_parcel_pregeocoded_safe(p, geo, timeout=queue_timeout))
+                 for p, geo in geocoded_parcels]
+        for fut in asyncio.as_completed(tasks):
+            accumulated.append(await fut)
+            await _flush()
 
         await _job_update(job_id, "complete", len(accumulated), accumulated)
     except Exception as e:
