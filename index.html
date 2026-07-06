@@ -2551,23 +2551,34 @@ async function router() {
     }
     goTo('landing'); return;
   }
+  // #processing is only meaningful while a batch is actually running.
+  // Forward-navigating back to it after the batch moved on used to strand the
+  // user on a dead progress screen.
+  if (hash === '#processing' && !_batchInProgress && !batchState._streaming) {
+    if (batchState.results.length || sessionStorage.getItem('piq-last-batch')) { goTo('results'); return; }
+    goTo('landing'); return;
+  }
   if (hash === '#dashboard') { loadDashboardData(); updateNav(); }
   if (hash === '#settings') { loadSettingsPage(); updateNav(); }
+  if (hash === '#picks' && typeof renderPicksList === 'function') { renderPicksList(); }
   if (hash === '#landing' || hash === '' || hash === '#') {
-    // Reset analyze button in case user navigated away while it was loading
+    // Landing always loads fresh: reset analyze button, stale paste box
+    // contents, and scroll position from a previous visit
     const ab = document.querySelector('.lp-analyze-btn');
     if (ab) { ab.disabled = false; ab.innerHTML = 'Start screening →'; }
+    const pa = document.getElementById('lpPasteArea');
+    if (pa && !_batchInProgress) pa.value = '';
+    window.scrollTo(0, 0);
     updateLpNav();
   }
   showScreen(HASH_MAP[hash] || 'page-landing');
 }
 
 window.addEventListener('hashchange', router);
-window.addEventListener('popstate', () => {
-  if (window.location.hash !== '#picks') {
-    showScreen(HASH_MAP[window.location.hash] || 'page-results');
-  }
-});
+// NOTE: there was a second popstate handler here that raced the router on
+// back/forward and defaulted unknown hashes to page-results with no data —
+// that's what broke back-then-forward navigation. hashchange alone covers
+// every hash transition, including history buttons.
 
 async function _loadMostRecentBatch() {
   if (!sb || !currentUser) { goTo('landing'); return; }
