@@ -564,10 +564,24 @@ async def batch_screen(
     return {"summary": summary, "results": all_results}
 
 
-# ── QUEUE for large batches (Task 30)
+# ── QUEUE for large batches. The frontend polls /batch/status every ~2.5s, so
+# results must be written progressively — per parcel, throttled — not only at
+# the end. (The old per-chunk/no-results updates meant a 100-parcel batch
+# showed nothing for its entire runtime.)
 async def _process_batch_background(job_id: str, parcels: list) -> None:
+    import time as _time
     accumulated: list = []
-    await _job_update(job_id, "processing", 0)
+    last_flush = 0.0
+
+    async def _flush(force: bool = False) -> None:
+        nonlocal last_flush
+        now = _time.monotonic()
+        if not force and now - last_flush < 2.0:
+            return
+        last_flush = now
+        await _job_update(job_id, "processing", len(accumulated), accumulated)
+
+    await _job_update(job_id, "processing", 0, [])
     try:
         # Batch-geocode all addresses in one API call (same as SSE path)
         addresses = [p.address for p in parcels]
@@ -581,13 +595,16 @@ async def _process_batch_background(job_id: str, parcels: list) -> None:
                 geocoded_parcels.append((p, geo))
             else:
                 accumulated.append(_geocode_error_result(p.address, geo))
+        if accumulated:
+            await _flush(force=True)
 
-        # Process geocoded parcels in parallel chunks
+        # Process in parallel chunks, appending each parcel as it completes
         for i in range(0, len(geocoded_parcels), BATCH_SIZE):
             chunk = geocoded_parcels[i:i + BATCH_SIZE]
-            results = await asyncio.gather(*[_process_parcel_pregeocoded_safe(p, geo) for p, geo in chunk])
-            accumulated.extend(results)
-            await _job_update(job_id, "processing", len(accumulated))
+            tasks = [asyncio.create_task(_process_parcel_pregeocoded_safe(p, geo)) for p, geo in chunk]
+            for fut in asyncio.as_completed(tasks):
+                accumulated.append(await fut)
+                await _flush()
 
         await _job_update(job_id, "complete", len(accumulated), accumulated)
     except Exception as e:
@@ -610,15 +627,20 @@ async def batch_queue(
 
 
 @router.get("/batch/status/{job_id}")
-async def batch_status(job_id: str):
+async def batch_status(job_id: str, since: int = 0):
+    """Poll a background batch. Returns partial results as they complete;
+    pass ?since=N (count already received) to get only the new ones."""
     job = await _job_read(job_id)
     if not job:
         return JSONResponse(status_code=404, content={"error": "Job not found"})
+    results = job.get("results") or []
+    since = max(0, int(since))
     return {
         "status": job["status"],
         "progress": job["progress"],
         "total": job["total"],
-        "results": job["results"] if job["status"] == "complete" else [],
+        "results": results[since:],
+        "offset": since,
     }
 
 

@@ -2282,7 +2282,12 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 
 <script>
 // ── CONFIG
-const API = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+// Talk to the backend DIRECTLY. Routing /api/* through the Vercel rewrite
+// proxy silently killed long-lived SSE streams on big batches (Vercel's proxy
+// has a response duration limit) — results never reached the browser.
+const API = window.location.hostname === 'localhost'
+  ? 'http://localhost:8000'
+  : 'https://parceliq-production-fd20.up.railway.app';
 const SUPA_URL = 'https://gsibkklidfvfckageqcj.supabase.co';
 const SUPA_KEY = 'sb_publishable_srvVsdVSFmJ_OXG4ztGHvQ_lkNbxxen';
 
@@ -4142,33 +4147,30 @@ async function _executeBatch(lines, estimatedSet) {
   const btn = document.getElementById('runBatchBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Screening…'; }
 
-  // Task 30: route very large batches through queue endpoint (200+ parcels)
-  if (flLines.length > 200) {
-    goTo('processing');
-    const countEl2 = document.getElementById('procCount');
-    if (countEl2) countEl2.textContent = 'Queuing ' + flLines.length + ' parcels…';
-    try {
-      const t0q = Date.now();
-      const data = await screenParcelsQueue(flLines, batchState.name);
-      batchState.elapsed  = Math.round((Date.now() - t0q) / 1000);
-      const apiResults = (data.results || []).map(r => ({
-        ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase())
-      }));
-      batchState.results  = [...outsideResults, ...apiResults];
-      batchState.filtered = 'all';
-      const summary = {
-        total: apiResults.length, kill: apiResults.filter(r=>r.verdict==='KILL').length,
-        review: apiResults.filter(r=>r.verdict==='REVIEW').length, pursue: apiResults.filter(r=>r.verdict==='PURSUE').length,
-      };
-      await saveBatchToSupabase(batchState.name, { summary, results: apiResults });
-      renderBatchResults(); goTo('results');
-    } catch(e) { toast('Batch error: ' + e.message); goTo('landing'); }
-    finally { if (btn) { btn.disabled = false; btn.textContent = 'Screen Parcels →'; } }
+  if (!(await checkWeeklyLimit(flLines.length))) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Screen Parcels →'; }
     return;
   }
 
-  if (!(await checkWeeklyLimit(flLines.length))) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Screen Parcels →'; }
+  // Large batches: background queue + short-lived polling. One long-held SSE
+  // connection for a multi-minute batch is fragile (proxies, sleep, wifi) —
+  // polling survives all of that and renders progressively either way.
+  if (flLines.length > 25) {
+    try {
+      await _runQueueBatch(flLines, outsideResults);
+    } catch(e) {
+      if (e && e.isLimitExceeded) { goTo('landing'); setTimeout(() => showUpgradeModal(), 150); }
+      else if (batchState.results.length > outsideResults.length) {
+        batchState._streaming = false; renderBatchResults(); goTo('results');
+        toast('Screening interrupted — showing partial results.', 5000);
+      } else {
+        toast('Batch error: ' + (e.message || e), 5000); goTo('landing');
+      }
+    } finally {
+      batchState._streaming = false;
+      _batchInProgress = false;
+      if (btn) { btn.disabled = false; btn.textContent = 'Screen Parcels →'; }
+    }
     return;
   }
 
@@ -6288,51 +6290,98 @@ async function submitBatchEdit() {
   }
 }
 
-// ── LARGE BATCH QUEUE (Task 30)
-async function screenParcelsQueue(parcels, batchName) {
-  const _qHdrs = { 'Content-Type': 'application/json' };
-  if (currentSession?.access_token) _qHdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
-  const resp = await fetch(API + '/api/batch/queue', {
-    method: 'POST', headers: _qHdrs,
-    body: JSON.stringify({ parcels: parcels.map(a => ({ address: a })), state: 'FL' }),
-  });
-  if (!resp.ok) throw new Error('Queue error ' + resp.status);
-  const { job_id, total } = await resp.json();
+// ── LARGE BATCH: background queue + short-lived polling. No long-held
+// connection anywhere; results render progressively as parcels complete.
+async function _runQueueBatch(flLines, outsideResults) {
+  const t0 = Date.now();
+  batchState._streaming = true;
+  batchState.results    = [...outsideResults];
+  batchState.filtered   = 'all';
+  _currentPage          = 1;
+
+  goTo('processing');
   const _setProc = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  _setProc('procCount', 'Processing ' + total + ' parcels…');
-  _setProc('batchStat', 'Working in background');
-  _setProc('batchSub', 'This may take a few minutes for large batches');
-  return new Promise((resolve, reject) => {
-    let _stallCount = 0;
-    const interval = setInterval(async () => {
-      try {
-        const sr = await fetch(API + '/api/batch/status/' + job_id);
-        // FIX 5: handle missing batch_jobs table (404) or other errors gracefully
-        if (sr.status === 404) {
-          clearInterval(interval);
-          reject(new Error('Background queue unavailable — batch_jobs table may not exist in Supabase. Create it to enable large batch mode.'));
-          return;
-        }
-        if (!sr.ok) {
-          _stallCount++;
-          if (_stallCount > 5) { clearInterval(interval); reject(new Error('Queue status check failed repeatedly')); }
-          return;
-        }
-        const st = await sr.json();
-        // FIX 5: guard against undefined progress
-        const progress = typeof st.progress === 'number' ? st.progress : 0;
-        updateProgress(progress, total, null);
-        _setProc('procCount', 'Processed ' + progress + ' of ' + total + ' parcels…');
-        if (st.status === 'complete') {
-          clearInterval(interval);
-          resolve({ summary: {}, results: st.results || [] });
-        } else if (st.status === 'error') {
-          clearInterval(interval);
-          reject(new Error(st.error || 'Queue processing failed'));
-        }
-      } catch(e) { clearInterval(interval); reject(e); }
-    }, 3000);
+  _setProc('procCount', 'Geocoding ' + flLines.length + ' addresses…');
+  _setProc('batchProcLabel', 'Screening ' + flLines.length + ' parcels…');
+
+  const hdrs = { 'Content-Type': 'application/json' };
+  if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
+  const startResp = await fetch(API + '/api/batch/queue', {
+    method: 'POST', headers: hdrs,
+    body: JSON.stringify({ parcels: flLines.map(a => ({ address: a })), state: 'FL' }),
   });
+  if (startResp.status === 429) throw Object.assign(new Error('limit_exceeded'), { isLimitExceeded: true });
+  if (startResp.status === 401) throw new Error('Sign in to screen parcels');
+  if (!startResp.ok) throw new Error('Could not start batch (server error ' + startResp.status + ')');
+  const { job_id, total } = await startResp.json();
+
+  let seen = 0, navigated = false, failedPolls = 0, lastNewAt = Date.now();
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  while (true) {
+    await sleep(2500);
+    let st;
+    try {
+      const sr = await fetch(API + '/api/batch/status/' + job_id + '?since=' + seen);
+      if (sr.status === 404) throw new Error('Batch job disappeared — try again');
+      if (!sr.ok) { failedPolls++; if (failedPolls > 8) throw new Error('Lost contact with the screening service'); continue; }
+      st = await sr.json();
+      failedPolls = 0;
+    } catch(e) {
+      if (e.message && /disappeared|Lost contact/.test(e.message)) throw e;
+      failedPolls++;
+      if (failedPolls > 8) throw new Error('Lost contact with the screening service');
+      continue;
+    }
+
+    const fresh = st.results || [];
+    if (fresh.length) {
+      lastNewAt = Date.now();
+      for (const r of fresh) {
+        batchState.results.push({ ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase()) });
+        seen++;
+      }
+      if (!navigated) { navigated = true; renderBatchResults(); goTo('results'); }
+      else { _refreshTable(); }
+      updateStreamProgress(seen, total);
+      updateStatCards();
+      // Live throughput-based ETA
+      const elapsed = (Date.now() - t0) / 1000;
+      const rate = seen > 0 ? elapsed / seen : 0;
+      const remaining = rate > 0 ? Math.max(0, Math.round(rate * (total - seen))) : 0;
+      const metaEl = document.getElementById('resMeta');
+      if (metaEl) metaEl.textContent = 'Screening · ' + seen + ' of ' + total + ' · ' +
+        (remaining > 0 ? (remaining >= 90 ? '~' + Math.ceil(remaining / 60) + ' min remaining' : '~' + remaining + 's remaining') : 'almost done…');
+    }
+    if (!navigated) {
+      _setProc('procCount', seen > 0 ? seen + ' of ' + total + ' screened…' : 'Geocoding ' + total + ' addresses…');
+      updateProgress(seen, total, null);
+    }
+
+    if (st.status === 'complete') break;
+    if (st.status === 'error') {
+      if (seen > 0) break; // show what we have
+      throw new Error('Screening failed on the server — try again');
+    }
+  }
+
+  // Finalize — same shape as the SSE path
+  batchState._streaming = false;
+  batchState.elapsed = Math.round((Date.now() - t0) / 1000);
+  updateStreamProgress(seen, seen);
+  const flResults = batchState.results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
+  const summary = {
+    total:  flResults.length,
+    kill:   flResults.filter(r => r.verdict === 'KILL').length,
+    review: flResults.filter(r => r.verdict === 'REVIEW').length,
+    pursue: flResults.filter(r => r.verdict === 'PURSUE').length,
+  };
+  await saveBatchToSupabase(batchState.name, { summary, results: flResults });
+  if (!navigated) { renderBatchResults(); goTo('results'); }
+  else { renderBatchResults(); }
+  const errCount = flResults.filter(r => r.verdict === 'ERROR').length;
+  if (errCount > 0) toast(errCount + (errCount === 1 ? ' address' : ' addresses') + ' could not be matched — see highlighted rows below', 6000);
+  notifyBatchComplete(summary);
 }
 
 // ── SINGLE PARCEL SEARCH UI (Task 27)
