@@ -250,77 +250,7 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
         return _geocode_error_result(address, geo)
 
     lat, lng = geo["lat"], geo["lng"]
-
-    (
-        flood, wetlands, habitat, epa, roads, parcel_data, waterways,
-        elevation, soil, evac, powerlines, easement
-    ) = await _collect_all(lat, lng)
-
-    result = score_parcel(
-        flood, wetlands, habitat, epa, roads, parcel_data, waterways,
-        elevation=elevation, soil=soil, evac=evac,
-        powerlines=powerlines, easement=easement,
-    )
-
-    out = {
-        "address": geo.get("formatted_address", address),
-        "verdict": result["verdict"],
-        "score": result["score"],
-        "auto_kill": result["auto_kill"],
-        "auto_kill_reason": result["auto_kill_reason"],
-        "flags": result["flags"],
-        "kill_flags": result.get("kill_flags", []),
-        "review_flags": result.get("review_flags", []),
-        "info_flags": result.get("info_flags", []),
-        "positives": result["positives"],
-        "parcel_info": {
-            "county": parcel_data.get("county"),
-            "parcel_id": parcel_data.get("parcel_id"),
-            "acreage": parcel_data.get("acreage"),
-            "building_count": parcel_data.get("building_count"),
-            "owner": parcel_data.get("owner"),
-            "land_use_code": parcel_data.get("land_use_code"),
-            "last_sale_price": parcel_data.get("last_sale_price"),
-            "last_sale_year": parcel_data.get("last_sale_year"),
-            "just_value": parcel_data.get("just_value"),
-            "assessed_value": parcel_data.get("just_value"),
-            "land_value": parcel_data.get("land_value"),
-            "sale_price_likely_market_value": (
-                True  if (parcel_data.get("last_sale_price") or 0) >= 1000
-                else False if 0 < (parcel_data.get("last_sale_price") or 0) < 1000
-                else None
-            ),
-            "geometry": parcel_data.get("geometry", []),
-            "elevation_ft": elevation.get("elevation_ft"),
-            "soil_drainage": soil.get("soil_drainage"),
-            "soil_name": soil.get("soil_name"),
-            "septic_suitable": soil.get("septic_suitable"),
-            "evac_zone": evac.get("evac_zone"),
-            "evac_risk": evac.get("evac_risk"),
-            "evac_county": evac.get("evac_county"),
-            "evac_county_zone": evac.get("evac_county_zone"),
-            "flood_zone_subtype": flood.get("zone_subtype"),
-            "base_flood_elevation_ft": flood.get("base_flood_elevation_ft"),
-            "powerline_nearby": powerlines.get("powerline_nearby"),
-            "powerline_distance": powerlines.get("powerline_distance"),
-            "easement_found": easement.get("easement_found"),
-            "easement_type": easement.get("easement_type"),
-            "wetland_type": wetlands.get("wetland_type"),
-            "wetland_code": wetlands.get("wetland_code"),
-            "habitat_species": habitat.get("species", []),
-            "contamination_sites": epa.get("sites", []),
-            "road_type": roads.get("road_type"),
-            "road_surface": roads.get("road_surface"),
-            "waterway_type": waterways.get("waterway_type"),
-            "waterway_distance": waterways.get("distance_approx"),
-        },
-        "_lat": lat,
-        "_lng": lng,
-        "sources": result["sources_checked"],
-        "error": None,
-        "cached": False,
-    }
-
+    out = await _screen_coordinate(address, geo, lat, lng)
     # Save to cache (fire and forget)
     asyncio.create_task(save_cached_result(address, out))
     return out
@@ -335,16 +265,25 @@ async def _process_parcel_pregeocoded(parcel: ParcelInput, geo: dict) -> dict:
         return cached
 
     lat, lng = geo["lat"], geo["lng"]
+    out = await _screen_coordinate(address, geo, lat, lng)
+    asyncio.create_task(save_cached_result(address, out))
+    return out
+
+
+async def _screen_coordinate(address: str, geo: dict, lat: float, lng: float) -> dict:
+    """Collect all data sources for a coordinate, score it, and build the result."""
     (
         flood, wetlands, habitat, epa, roads, parcel_data, waterways,
         elevation, soil, evac, powerlines, easement
     ) = await _collect_all(lat, lng)
+
     result = score_parcel(
         flood, wetlands, habitat, epa, roads, parcel_data, waterways,
         elevation=elevation, soil=soil, evac=evac,
         powerlines=powerlines, easement=easement,
     )
-    out = {
+
+    return {
         "address": geo.get("formatted_address", address),
         "verdict": result["verdict"],
         "score": result["score"],
@@ -361,12 +300,20 @@ async def _process_parcel_pregeocoded(parcel: ParcelInput, geo: dict) -> dict:
             "acreage": parcel_data.get("acreage"),
             "building_count": parcel_data.get("building_count"),
             "owner": parcel_data.get("owner"),
+            "owner_mailing_address": parcel_data.get("owner_mailing_address"),
+            "county_address_on_file": parcel_data.get("county_address_on_file"),
             "land_use_code": parcel_data.get("land_use_code"),
             "last_sale_price": parcel_data.get("last_sale_price"),
             "last_sale_year": parcel_data.get("last_sale_year"),
+            "prior_sale_price": parcel_data.get("prior_sale_price"),
+            "prior_sale_year": parcel_data.get("prior_sale_year"),
             "just_value": parcel_data.get("just_value"),
-            "assessed_value": parcel_data.get("just_value"),
+            # True assessed value (AV_NSD) when the county reports one; JV as fallback
+            "assessed_value": parcel_data.get("assessed_value_nsd") or parcel_data.get("just_value"),
+            "taxable_value": parcel_data.get("taxable_value_nsd"),
             "land_value": parcel_data.get("land_value"),
+            "year_built": parcel_data.get("year_built"),
+            "living_area_sqft": parcel_data.get("living_area_sqft"),
             "sale_price_likely_market_value": (
                 True  if (parcel_data.get("last_sale_price") or 0) >= 1000
                 else False if 0 < (parcel_data.get("last_sale_price") or 0) < 1000
@@ -393,6 +340,8 @@ async def _process_parcel_pregeocoded(parcel: ParcelInput, geo: dict) -> dict:
             "contamination_sites": epa.get("sites", []),
             "road_type": roads.get("road_type"),
             "road_surface": roads.get("road_surface"),
+            "road_name": roads.get("road_name"),
+            "road_access": roads.get("road_access"),
             "waterway_type": waterways.get("waterway_type"),
             "waterway_distance": waterways.get("distance_approx"),
         },
@@ -402,8 +351,6 @@ async def _process_parcel_pregeocoded(parcel: ParcelInput, geo: dict) -> dict:
         "error": None,
         "cached": False,
     }
-    asyncio.create_task(save_cached_result(address, out))
-    return out
 
 
 async def _process_parcel_safe(parcel: ParcelInput) -> dict:

@@ -60,7 +60,9 @@ async def get_parcel_data(lat: float, lng: float) -> dict:
             "geometryType": "esriGeometryPoint",
             "inSR": "4326",
             "spatialRel": "esriSpatialRelIntersects",
-            "outFields": "CO_NO,PARCEL_ID,OWN_NAME,PHY_ADDR1,PHY_CITY,DOR_UC,JV,LND_VAL,NO_BULDNG,SALE_PRC1,SALE_YR1,LND_SQFOOT",
+            "outFields": ("CO_NO,PARCEL_ID,OWN_NAME,OWN_ADDR1,OWN_ADDR2,OWN_CITY,OWN_STATE,OWN_ZIPCD,"
+                          "PHY_ADDR1,PHY_CITY,PHY_ZIPCD,DOR_UC,JV,AV_NSD,TV_NSD,LND_VAL,NO_BULDNG,"
+                          "SALE_PRC1,SALE_YR1,SALE_PRC2,SALE_YR2,ACT_YR_BLT,TOT_LVG_AR,LND_SQFOOT"),
             "returnGeometry": "true",
             "f": "json",
         }
@@ -90,18 +92,39 @@ async def get_parcel_data(lat: float, lng: float) -> dict:
         co_no = attrs.get("CO_NO")
         county = _CO_NO_TO_COUNTY.get(int(co_no)) if co_no is not None else None
 
+        # DOR truncates multi-owner names, leaving a dangling "SMITH JOHN &" —
+        # the layer has no OWN_NAME2 field (schema verified), so clean it up
+        owner = (attrs.get("OWN_NAME") or "").strip()
+        if owner.endswith("&"):
+            owner = owner.rstrip("& ").strip() + " (co-owned)"
+
+        def _addr_line(*parts):
+            vals = [str(p).strip() for p in parts if p not in (None, "", 0) and str(p).strip()]
+            return ", ".join(vals) if vals else None
+
         return {
             "found": True,
             "county": county,
             "parcel_id": attrs.get("PARCEL_ID"),
-            "owner": attrs.get("OWN_NAME"),
+            "owner": owner or None,
+            "owner_mailing_address": _addr_line(
+                attrs.get("OWN_ADDR1"), attrs.get("OWN_ADDR2"), attrs.get("OWN_CITY"),
+                attrs.get("OWN_STATE"), attrs.get("OWN_ZIPCD")),
+            "county_address_on_file": _addr_line(
+                attrs.get("PHY_ADDR1"), attrs.get("PHY_CITY"), attrs.get("PHY_ZIPCD")),
             "acreage": acreage,
             "land_use_code": str(attrs.get("DOR_UC")) if attrs.get("DOR_UC") is not None else None,
             "just_value": attrs.get("JV"),
+            "assessed_value_nsd": attrs.get("AV_NSD"),
+            "taxable_value_nsd": attrs.get("TV_NSD"),
             "land_value": attrs.get("LND_VAL"),
             "building_count": attrs.get("NO_BULDNG") or 0,
+            "year_built": attrs.get("ACT_YR_BLT") or None,
+            "living_area_sqft": attrs.get("TOT_LVG_AR") or None,
             "last_sale_price": attrs.get("SALE_PRC1"),
             "last_sale_year": attrs.get("SALE_YR1"),
+            "prior_sale_price": attrs.get("SALE_PRC2"),
+            "prior_sale_year": attrs.get("SALE_YR2"),
             "geometry": geometry_rings,
             "source": "FL DOR Cadastral",
         }
