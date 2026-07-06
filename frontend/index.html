@@ -4167,6 +4167,7 @@ async function _executeBatch(lines, estimatedSet) {
         toast('Batch error: ' + (e.message || e), 5000); goTo('landing');
       }
     } finally {
+      _stopProcStatusRotation();
       batchState._streaming = false;
       _batchInProgress = false;
       if (btn) { btn.disabled = false; btn.textContent = 'Screen Parcels →'; }
@@ -4184,6 +4185,7 @@ async function _executeBatch(lines, estimatedSet) {
   let _resMetaTimer = null;
   let _resMetaStart = null;
   let _resMetaCompleted = 0;
+  let _lastResultAt = Date.now();
   const _estLow  = Math.max(5,  4 + Math.ceil(flLines.length / 20) * 3);
   const _estHigh = Math.max(10, 6 + Math.ceil(flLines.length / 20) * 6);
 
@@ -4196,10 +4198,19 @@ async function _executeBatch(lines, estimatedSet) {
   if (_procLabelEl) _procLabelEl.textContent = 'Screening ' + flLines.length + ' parcel' + (flLines.length !== 1 ? 's' : '') + '…';
   const _procEtaEl = document.getElementById('procEta');
   if (_procEtaEl) _procEtaEl.textContent = '~' + _estLow + '–' + _estHigh + 's';
+  _startProcStatusRotation();
 
-  // 45-second stall guard — if zero results after 45s, show error on processing screen
+  // Gentle reassurance at 25s with no results (rural parcels queue behind
+  // rate-limited sources); a real error state only after 90s of nothing.
+  let _reassureTimer = setTimeout(() => {
+    if (batchState.results.length === outsideResults.length) {
+      const sub = document.getElementById('procEta');
+      if (sub) sub.textContent = 'Taking a bit longer than usual — still working…';
+    }
+  }, 25000);
   let _firstResultTimer = setTimeout(() => {
     if (batchState.results.length === outsideResults.length) {
+      _stopProcStatusRotation();
       const errEl    = document.getElementById('procError');
       const errTitle = document.getElementById('procErrTitle');
       const errSub   = document.getElementById('procErrSub');
@@ -4207,7 +4218,7 @@ async function _executeBatch(lines, estimatedSet) {
       if (errTitle) errTitle.textContent = 'Screening is taking longer than expected';
       if (errSub)   errSub.textContent   = 'Check your connection or try a smaller batch.';
     }
-  }, 45000);
+  }, 90000);
 
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -4266,13 +4277,16 @@ async function _executeBatch(lines, estimatedSet) {
 
         } else if (ev.type === 'progress' && ev.latest) {
           clearTimeout(_firstResultTimer);
+          clearTimeout(_reassureTimer);
           batchState.results.push({
             ...ev.latest,
             _estimated: _estimatedAddresses.has((ev.latest.address || '').toLowerCase()),
           });
           _resMetaCompleted = ev.completed || 0;
+          _lastResultAt = Date.now();
           if (!_navigatedToResults) {
             _navigatedToResults = true;
+            _stopProcStatusRotation();
             renderBatchResults();
             goTo('results');
             _resMetaStart = Date.now();
@@ -4282,9 +4296,11 @@ async function _executeBatch(lines, estimatedSet) {
               const remaining = rate > 0
                 ? Math.max(0, Math.round(rate * (_streamTotal - _resMetaCompleted)))
                 : Math.max(0, _estHigh - elapsed);
-              const remStr = remaining > 0 ? '~' + remaining + 's remaining' : 'almost done…';
+              const remStr = remaining >= 90 ? '~' + Math.ceil(remaining / 60) + ' min remaining'
+                : remaining > 0 ? '~' + remaining + 's remaining' : 'almost done…';
+              const stalled = Date.now() - _lastResultAt > 20000 ? ' · taking a bit longer than usual, still working…' : '';
               const metaEl = document.getElementById('resMeta');
-              if (metaEl) metaEl.textContent = 'Screening · ' + _resMetaCompleted + ' of ' + _streamTotal + ' · ' + remStr;
+              if (metaEl) metaEl.textContent = 'Screening · ' + _resMetaCompleted + ' of ' + _streamTotal + ' · ' + remStr + stalled;
             }, 2000);
           } else {
             _refreshTable();
@@ -4339,6 +4355,8 @@ async function _executeBatch(lines, estimatedSet) {
     }
   } finally {
     clearTimeout(_firstResultTimer);
+    clearTimeout(_reassureTimer);
+    _stopProcStatusRotation();
     clearInterval(_resMetaTimer); _resMetaTimer = null;
     batchState._streaming = false;
     _batchInProgress = false;
@@ -4430,6 +4448,37 @@ async function addSingleParcel() {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '+ Add'; }
   }
+}
+
+// ── Processing screen: rotating status text tied to pipeline phases.
+// Collectors run in parallel per parcel, so this cycles through the real
+// stages of the pipeline on a timer rather than pretending to trace one call.
+const _PROC_PHASES = [
+  ['Geocoding addresses…',            'Pinpointing each parcel'],
+  ['Checking flood zones…',           'Federal flood hazard maps'],
+  ['Checking wetlands and wildlife…', 'Protected land screening'],
+  ['Checking road access…',           'The #1 kill signal — worth the wait'],
+  ['Pulling county records…',         'Owner, acreage, values, sales'],
+  ['Checking soil and elevation…',    'Septic feasibility and drainage'],
+  ['Calculating verdicts…',           'Scoring every risk factor'],
+];
+let _procRotTimer = null;
+function _startProcStatusRotation() {
+  _stopProcStatusRotation();
+  let i = 0;
+  const stat = document.getElementById('batchStat');
+  const sub  = document.getElementById('batchSub');
+  const tick = () => {
+    const [a, b] = _PROC_PHASES[i % _PROC_PHASES.length];
+    if (stat) stat.textContent = a;
+    if (sub)  sub.textContent  = b;
+    i++;
+  };
+  tick();
+  _procRotTimer = setInterval(tick, 2500);
+}
+function _stopProcStatusRotation() {
+  if (_procRotTimer) { clearInterval(_procRotTimer); _procRotTimer = null; }
 }
 
 function updateStreamProgress(completed, total) {
@@ -6303,6 +6352,7 @@ async function _runQueueBatch(flLines, outsideResults) {
   const _setProc = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   _setProc('procCount', 'Geocoding ' + flLines.length + ' addresses…');
   _setProc('batchProcLabel', 'Screening ' + flLines.length + ' parcels…');
+  _startProcStatusRotation();
 
   const hdrs = { 'Content-Type': 'application/json' };
   if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
@@ -6341,20 +6391,24 @@ async function _runQueueBatch(flLines, outsideResults) {
         batchState.results.push({ ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase()) });
         seen++;
       }
-      if (!navigated) { navigated = true; renderBatchResults(); goTo('results'); }
+      if (!navigated) { navigated = true; _stopProcStatusRotation(); renderBatchResults(); goTo('results'); }
       else { _refreshTable(); }
-      updateStreamProgress(seen, total);
       updateStatCards();
-      // Live throughput-based ETA
-      const elapsed = (Date.now() - t0) / 1000;
-      const rate = seen > 0 ? elapsed / seen : 0;
-      const remaining = rate > 0 ? Math.max(0, Math.round(rate * (total - seen))) : 0;
-      const metaEl = document.getElementById('resMeta');
-      if (metaEl) metaEl.textContent = 'Screening · ' + seen + ' of ' + total + ' · ' +
-        (remaining > 0 ? (remaining >= 90 ? '~' + Math.ceil(remaining / 60) + ' min remaining' : '~' + remaining + 's remaining') : 'almost done…');
     }
-    if (!navigated) {
-      _setProc('procCount', seen > 0 ? seen + ' of ' + total + ' screened…' : 'Geocoding ' + total + ' addresses…');
+    // Progress + throughput ETA recalculated on EVERY poll, stall note after 20s quiet
+    const elapsed = (Date.now() - t0) / 1000;
+    const rate = seen > 0 ? elapsed / seen : 0;
+    const remaining = rate > 0 ? Math.max(0, Math.round(rate * (total - seen))) : 0;
+    const remStr = remaining >= 90 ? '~' + Math.ceil(remaining / 60) + ' min remaining'
+      : remaining > 0 ? '~' + remaining + 's remaining' : (seen >= total ? 'finishing up…' : 'estimating…');
+    const stalled = Date.now() - lastNewAt > 20000 ? ' · taking a bit longer than usual, still working…' : '';
+    if (navigated) {
+      updateStreamProgress(seen, total);
+      const metaEl = document.getElementById('resMeta');
+      if (metaEl) metaEl.textContent = 'Screening · ' + seen + ' of ' + total + ' · ' + remStr + stalled;
+    } else {
+      _setProc('procCount', seen > 0 ? seen + ' of ' + total + ' screened' : 'Geocoding ' + total + ' addresses…');
+      _setProc('procEta', (seen > 0 ? remStr : '') + stalled);
       updateProgress(seen, total, null);
     }
 
