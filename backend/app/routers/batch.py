@@ -376,10 +376,11 @@ async def _process_parcel_pregeocoded_safe(parcel: ParcelInput, geo: dict) -> di
 
 
 def _timeout_result(address: str) -> dict:
+    # note: flags stays empty — a system timeout is not a parcel risk flag
     return {
         "address": address, "verdict": "ERROR", "score": None,
         "auto_kill": False, "auto_kill_reason": None,
-        "flags": ["Timed out — retry this parcel"],
+        "flags": [],
         "positives": [], "parcel_info": {}, "sources": [],
         "error": "Timed out — data sources were too slow. Retry.",
     }
@@ -416,28 +417,38 @@ def _geocode_error_result(address: str, geo: dict) -> dict:
     return _error_result(address, "Address not found — enter a full street address.")
 
 
+async def _check_batch_auth(authorization: Optional[str], parcel_count: int) -> Optional[JSONResponse]:
+    """Require a valid Supabase token and enforce the weekly limit.
+    Returns an error response to send, or None if the request may proceed.
+    Screening endpoints burn paid geocoding credits — they must not be open."""
+    token = (authorization or '').removeprefix('Bearer ').strip()
+    id_email = await _user_id_from_token(token) if token else None
+    if not id_email:
+        return JSONResponse(status_code=401, content={'error': 'Sign in to screen parcels.'})
+    user_id, email = id_email
+    limit = _limit_for(email)
+    used  = await _weekly_usage(user_id)
+    if used + parcel_count > limit:
+        return JSONResponse(
+            status_code=429,
+            content={
+                'limit_exceeded': True,
+                'used': used,
+                'limit': limit,
+                'message': 'Weekly screening limit reached',
+            },
+        )
+    return None
+
+
 @router.post("/batch/stream")
 async def batch_screen_stream(
     request: BatchRequest,
     authorization: Optional[str] = Header(None),
 ):
-    if authorization:
-        token    = authorization.removeprefix('Bearer ').strip()
-        id_email = await _user_id_from_token(token)
-        if id_email:
-            user_id, email = id_email
-            limit = _limit_for(email)
-            used  = await _weekly_usage(user_id)
-            if used + len(request.parcels) > limit:
-                return JSONResponse(
-                    status_code=429,
-                    content={
-                        'limit_exceeded': True,
-                        'used': used,
-                        'limit': limit,
-                        'message': 'Weekly screening limit reached',
-                    },
-                )
+    denied = await _check_batch_auth(authorization, len(request.parcels))
+    if denied is not None:
+        return denied
 
     async def event_generator():
         parcels = request.parcels
@@ -507,23 +518,9 @@ async def batch_screen(
     request: BatchRequest,
     authorization: Optional[str] = Header(None),
 ):
-    if authorization:
-        token    = authorization.removeprefix('Bearer ').strip()
-        id_email = await _user_id_from_token(token)
-        if id_email:
-            user_id, email = id_email
-            limit = _limit_for(email)
-            used  = await _weekly_usage(user_id)
-            if used + len(request.parcels) > limit:
-                return JSONResponse(
-                    status_code=429,
-                    content={
-                        'limit_exceeded': True,
-                        'used': used,
-                        'limit': limit,
-                        'message': 'Weekly screening limit reached',
-                    },
-                )
+    denied = await _check_batch_auth(authorization, len(request.parcels))
+    if denied is not None:
+        return denied
 
     all_results = []
     parcels = request.parcels
@@ -578,7 +575,13 @@ async def _process_batch_background(job_id: str, parcels: list) -> None:
 
 
 @router.post("/batch/queue")
-async def batch_queue(request: BatchRequest):
+async def batch_queue(
+    request: BatchRequest,
+    authorization: Optional[str] = Header(None),
+):
+    denied = await _check_batch_auth(authorization, len(request.parcels))
+    if denied is not None:
+        return denied
     job_id = str(uuid4())
     await _job_create(job_id, len(request.parcels))
     asyncio.create_task(_process_batch_background(job_id, request.parcels))

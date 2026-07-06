@@ -3044,7 +3044,12 @@ function translateFlag(f) {
 }
 
 function translateSource(s) {
-  const MAP = { 'FEMA NFHL':'FEMA','USFWS NWI':'Wetlands','USFWS Critical Habitat':'Wildlife','EPA ECHO Superfund':'EPA','OpenStreetMap':'Roads','FL DOR Cadastral':'County Records' };
+  const MAP = {
+    'FEMA NFHL':'FEMA','USFWS NWI':'Wetlands','USFWS Critical Habitat':'Wildlife',
+    'EPA ECHO Superfund':'EPA','OpenStreetMap':'Roads','FL DOR Cadastral':'County Records',
+    'USGS National Elevation Dataset':'Elevation','USDA Web Soil Survey':'Soil',
+    'FL Division of Emergency Management':'Evac Zones','USDA NRCS':'Easements','USDA NRCS / FNAI':'Easements',
+  };
   return MAP[s] || s;
 }
 
@@ -4454,8 +4459,10 @@ async function rescreenParcel(newAddress, originalAddress) {
   if (!(await checkWeeklyLimit(1))) return;
   try {
     toast('Rescreening…', 2000);
+    const _rpHdrs = { 'Content-Type': 'application/json' };
+    if (currentSession?.access_token) _rpHdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
     const resp = await fetch(API + '/api/batch', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: _rpHdrs,
       body: JSON.stringify({ parcels: [{ address: newAddress }], state: 'FL' }),
     });
     if (!resp.ok) throw new Error('Server error ' + resp.status);
@@ -5413,9 +5420,11 @@ async function rescreenRow(event, idx) {
   const bIdx = batchState.results.findIndex(r => r.address === original.address);
   btn.classList.add('spinning');
   try {
+    const _rowHdrs = { 'Content-Type': 'application/json' };
+    if (currentSession?.access_token) _rowHdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
     const resp = await fetch(API + '/api/batch/stream', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: _rowHdrs,
       body: JSON.stringify({ parcels: [{ address: original.address }], state: 'FL' }),
     });
     const reader = resp.body.getReader();
@@ -5483,9 +5492,11 @@ async function rescreenSelected() {
       const bIdx = batchState.results.findIndex(res => res.address === r.address);
       try {
         _selAbort = new AbortController();
+        const _selHdrs = { 'Content-Type': 'application/json' };
+        if (currentSession?.access_token) _selHdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
         const resp = await fetch(API + '/api/batch/stream', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: _selHdrs,
           signal: _selAbort.signal,
           body: JSON.stringify({ parcels: [{ address: r.address }], state: 'FL' }),
         });
@@ -6138,9 +6149,11 @@ async function submitBatchEdit() {
     try { sessionStorage.removeItem('piq-res-' + _editBatchId); } catch(e) {}
 
     // Stream new results from API
+    const _ebHdrs = { 'Content-Type': 'application/json' };
+    if (currentSession?.access_token) _ebHdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
     const resp = await fetch(API + '/api/batch/stream', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: _ebHdrs,
       body: JSON.stringify({ parcels: addrs.map(a => ({ address: a })), state: 'FL' }),
     });
     if (!resp.ok) throw new Error('API error ' + resp.status);
@@ -6202,8 +6215,10 @@ async function submitBatchEdit() {
 
 // ── LARGE BATCH QUEUE (Task 30)
 async function screenParcelsQueue(parcels, batchName) {
+  const _qHdrs = { 'Content-Type': 'application/json' };
+  if (currentSession?.access_token) _qHdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
   const resp = await fetch(API + '/api/batch/queue', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: _qHdrs,
     body: JSON.stringify({ parcels: parcels.map(a => ({ address: a })), state: 'FL' }),
   });
   if (!resp.ok) throw new Error('Queue error ' + resp.status);
@@ -7446,7 +7461,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="upgrade-modal-body">
       You have screened 1,000 parcels this week.<br>
       Your limit resets every Monday.<br><br>
-      Upgrade to Pro for 2,000 parcels/week or Unlimited for no limits.
+      Upgrade to Pro or Unlimited for higher limits.
     </div>
     <div class="upgrade-modal-btns">
       <button class="btn-p btn-sm" onclick="hideUpgradeModal();goTo('pricing')">View pricing</button>
