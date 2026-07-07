@@ -4648,6 +4648,7 @@ async function addSingleParcel() {
     currentBatchResults = batchState.results;
     if (inp) { inp.value = ''; inp.style.height = 'auto'; }
     toast('Added ' + newResults.length + ' parcel' + (newResults.length > 1 ? 's' : ''));
+    if (newResults.length === 1) setTimeout(() => _openResultByAddress(newResults[0].address || ''), 100);
     if (sb && currentUser && _currentBatchId) {
       try {
         await sb.from('parcel_results').insert(newResults.map(r => ({
@@ -4705,6 +4706,20 @@ function _startProcStatusRotation() {
 }
 function _stopProcStatusRotation() {
   if (_procRotTimer) { clearInterval(_procRotTimer); _procRotTimer = null; }
+}
+
+// After a single-address search or add, open the parcel immediately.
+// One result means one obvious next step; don't make the user click the row.
+function _openResultByAddress(addr) {
+  setTimeout(() => {
+    const idx = _currentDisplayed.findIndex(r => (r.address || '') === addr);
+    if (idx === -1) return;
+    const page = Math.floor(idx / _rowsPerPage) + 1;
+    if (page !== _currentPage) { _currentPage = page; renderPage(); }
+    openDetailPanel(idx, null);
+    const tr = document.getElementById('trow-' + idx);
+    if (tr) tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 250);
 }
 
 function updateStreamProgress(completed, total) {
@@ -6687,6 +6702,7 @@ async function searchSingleParcel() {
     // Show result in a fresh results view
     batchState.results = [result]; batchState.name = 'Single parcel search'; batchState.filtered = 'all';
     renderBatchResults(); goTo('dashboard');
+    _openResultByAddress(result.address || '');
   } catch(e) { toast('Search failed: ' + e.message); }
   finally { if (btn) { btn.disabled = false; btn.textContent = 'Search →'; } }
 }
