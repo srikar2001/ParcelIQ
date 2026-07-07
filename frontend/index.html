@@ -583,47 +583,49 @@ body.on-results .detail-panel{top:0}
 .dp-expand-handle{position:fixed;top:50%;transform:translateY(-50%);width:22px;height:104px;background:var(--card-h);border:1px solid var(--bh);border-radius:10px 0 0 10px;align-items:center;justify-content:center;cursor:grab;color:var(--t2);font-size:15px;font-weight:700;z-index:101;transition:color .15s,background .15s;box-shadow:-2px 0 10px rgba(0,0,0,.25);touch-action:none;user-select:none}
 .dp-expand-handle:hover{color:var(--green);background:var(--card);border-color:var(--green)}
 .dp-expand-handle:active{cursor:grabbing}
-#storyView{display:none;position:fixed;inset:0;z-index:12000;background:var(--bg);overflow-y:auto}
-#storyView.open{display:block}
-.sv-wrap{max-width:960px;margin:0 auto;padding:0 32px 80px}
-.sv-header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--b);padding:16px 0;display:flex;align-items:center;gap:14px;margin-bottom:36px}
+#storyView{display:none;position:fixed;inset:0;z-index:12000;background:var(--bg)}
+#storyView.open{display:flex;flex-direction:column}
+.sv-wrap{display:flex;flex-direction:column;height:100vh;min-height:0}
+.sv-header{flex-shrink:0;background:var(--bg);border-bottom:1px solid var(--b);padding:12px 24px;display:flex;align-items:center;gap:14px}
 .sv-back{background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:13px;font-weight:600;padding:7px 14px;cursor:pointer;white-space:nowrap}
 .sv-back:hover{color:var(--t1);border-color:var(--bh)}
-.sv-addr{font-size:19px;font-weight:800;color:var(--t1);letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-addr{font-size:17px;font-weight:800;color:var(--t1);letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sv-apn{font-family:monospace;font-size:11px;color:var(--t3);margin-top:1px}
 .sv-navbtns{margin-left:auto;display:flex;gap:6px}
-.sv-verdict-block{border:1px solid var(--b);border-radius:14px;padding:36px 40px;margin-bottom:36px;background:var(--card)}
-.sv-verdict-row{display:flex;align-items:baseline;gap:22px;flex-wrap:wrap;margin-bottom:18px}
-.sv-verdict-word{font-size:40px;font-weight:900;letter-spacing:-.02em;line-height:1}
-.sv-score{font-size:15px;color:var(--t2)}.sv-score b{font-size:22px;color:var(--t1)}
-.sv-conf{font-size:13px;color:var(--t3)}
+.sv-body{display:grid;grid-template-columns:60% 40%;gap:0;flex:1;min-height:0}
+.sv-col-left{overflow-y:auto;padding:18px 24px;border-right:1px solid var(--b);min-height:0}
+.sv-col-right{overflow-y:auto;padding:18px 24px;min-height:0}
+@media(max-width:900px){.sv-body{grid-template-columns:1fr;overflow-y:auto}.sv-col-left,.sv-col-right{overflow-y:visible;border-right:none}}
+.sv-verdict-block{border:1px solid var(--b);border-radius:14px;padding:20px 22px;margin-bottom:16px;background:var(--card)}
+.sv-verdict-row{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+.sv-verdict-word{font-size:26px;font-weight:900;letter-spacing:-.02em;line-height:1}
+.sv-score{font-size:14px;color:var(--t2)}.sv-score b{font-size:18px;color:var(--t1)}
+.sv-conf{font-size:12px;color:var(--t3)}
 .sv-conf-warn{font-size:12px;color:var(--amber);margin-top:6px}
-.sv-reason{font-size:15.5px;line-height:1.75;color:var(--t1);max-width:70ch;margin:0 0 20px}
-.sv-next{display:flex;gap:12px;align-items:flex-start;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);border-radius:10px;padding:14px 18px;max-width:70ch}
+.sv-reason{font-size:14px;line-height:1.6;color:var(--t1);margin:0 0 14px}
+.sv-next{display:flex;gap:10px;align-items:flex-start;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);border-radius:10px;padding:12px 16px}
 .sv-next-lbl{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--green);white-space:nowrap;padding-top:3px}
-.sv-next-txt{font-size:14px;color:var(--t1);line-height:1.6}
-.sv-sec-title{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin:0 0 16px}
-.sv-map-wrap{height:420px;border-radius:14px;overflow:hidden;border:1px solid var(--b);margin-bottom:8px;position:relative}
-.sv-map-controls{display:flex;gap:6px;margin-bottom:44px;padding-top:10px}
-.sv-cats{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:44px}
-@media(max-width:760px){.sv-cats{grid-template-columns:1fr}.sv-wrap{padding:0 16px 60px}}
-.sv-cat{border:1px solid var(--b);border-radius:12px;padding:18px 20px;background:var(--card)}
-.sv-cat-head{display:flex;align-items:center;gap:9px;margin-bottom:8px}
-.sv-cat-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
-.sv-cat-name{font-size:13px;font-weight:700;color:var(--t1);letter-spacing:.01em}
-.sv-cat-status{margin-left:auto;font-size:10px;font-weight:800;letter-spacing:.8px}
-.sv-cat-txt{font-size:13px;line-height:1.65;color:var(--t2)}
-.sv-facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px 22px;margin-bottom:44px}
+.sv-next-txt{font-size:13px;color:var(--t1);line-height:1.55}
+.sv-sec-title{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin:0 0 10px}
+.sv-map-wrap{height:220px;border-radius:14px;overflow:hidden;border:1px solid var(--b);margin-bottom:8px;position:relative}
+.sv-map-controls{display:flex;gap:6px;margin-bottom:16px}
+.sv-cats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){.sv-cats{grid-template-columns:1fr}}
+.sv-cat{border:1px solid var(--b);border-radius:10px;padding:10px 12px;background:var(--card)}
+.sv-cat-head{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.sv-cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sv-cat-name{font-size:12px;font-weight:700;color:var(--t1);letter-spacing:.01em}
+.sv-cat-status{margin-left:auto;font-size:9px;font-weight:800;letter-spacing:.6px}
+.sv-cat-txt{font-size:12px;line-height:1.5;color:var(--t2)}
+.sv-facts{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin-bottom:20px}
 .sv-fact-lbl{font-size:10px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--t3);margin-bottom:3px}
-.sv-fact-val{font-size:14px;font-weight:600;color:var(--t1);line-height:1.45}
+.sv-fact-val{font-size:13px;font-weight:600;color:var(--t1);line-height:1.4}
 .sv-fact-sub{font-size:11px;color:var(--t3);margin-top:2px}
-.sv-soon{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:760px){.sv-soon{grid-template-columns:1fr}}
-.sv-soon-card{position:relative;border:1px solid var(--b);border-radius:12px;padding:22px;background:var(--card);overflow:hidden}
-.sv-soon-blur{filter:blur(3px);opacity:.5;pointer-events:none}
-.sv-soon-badge{position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;letter-spacing:.6px;background:var(--card-h);border:1px solid var(--bh);color:var(--t2);border-radius:99px;padding:4px 10px}
-.sv-soon-title{font-size:15px;font-weight:700;color:var(--t1);margin-bottom:6px}
-.sv-soon-desc{font-size:13px;color:var(--t2);line-height:1.6}
+.sv-soon{display:flex;flex-direction:column;gap:10px}
+.sv-soon-card{position:relative;border:1px solid var(--b);border-radius:12px;padding:14px 16px;background:var(--card)}
+.sv-soon-badge{font-size:10px;font-weight:700;letter-spacing:.6px;background:var(--card-h);border:1px solid var(--bh);color:var(--t2);border-radius:99px;padding:3px 9px;display:inline-block;margin-bottom:8px}
+.sv-soon-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:4px}
+.sv-soon-desc{font-size:12.5px;color:var(--t2);line-height:1.55}
 .dp-sec-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
 .dp-flag-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(42,45,58,.5);font-size:12px}
 .dp-flag-row:last-child{border-bottom:none}
@@ -8151,7 +8153,6 @@ function renderStoryView(r) {
   const ev = effectiveVerdict(r);
   const vColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
   const conf = pi.confidence_pct;
-  const confOk = pi.sources_ok, confTotal = pi.sources_total || 12;
   const cats = _svCategoryVerdicts(r);
 
   const catsHtml = cats.map(c => {
@@ -8186,46 +8187,56 @@ function renderStoryView(r) {
           (apn ? '<div class="sv-apn">APN ' + escHtml(apn) + '</div>' : '') +
         '</div>' +
         '<span class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
-        (r.score != null ? '<span style="font-size:18px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '') +
+        (r.score != null ? '<span style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '') +
+        (conf != null ? '<span class="sv-conf" style="flex-shrink:0">Confidence: ' + conf + '%</span>' : '') +
         '<div class="sv-navbtns">' +
           '<button class="sv-back" onclick="storyNav(-1)">← Prev</button>' +
           '<button class="sv-back" onclick="storyNav(1)">Next →</button>' +
         '</div>' +
       '</div>' +
 
-      '<div class="sv-verdict-block">' +
-        '<div class="sv-verdict-row">' +
-          '<span class="sv-verdict-word" style="color:' + vColor + '">' + escHtml(ev) + '</span>' +
-          (r.score != null ? '<span class="sv-score">Score <b>' + r.score + '</b> / 100</span>' : '') +
-          (conf != null ? '<span class="sv-conf">Confidence: ' + conf + '%' + (confOk != null ? ', based on ' + confOk + ' of ' + confTotal + ' data checks completed' : '') + '</span>' : '') +
+      '<div class="sv-body">' +
+        '<div class="sv-col-left">' +
+          '<div class="sv-sec-title">Parcel Map</div>' +
+          '<div class="sv-map-wrap"><div id="svMap" style="position:absolute;inset:0"></div></div>' +
+          '<div class="sv-map-controls">' +
+            '<button class="map-toggle active" data-svlayer="parcel" onclick="svToggleLayer(this)">Parcel</button>' +
+            '<button class="map-toggle" data-svlayer="flood" onclick="svToggleLayer(this)">Flood zones</button>' +
+            '<button class="map-toggle" data-svlayer="wetlands" onclick="svToggleLayer(this)">Wetlands</button>' +
+            '<button class="map-toggle" data-svlayer="satellite" onclick="svToggleSat(this)">Satellite</button>' +
+          '</div>' +
+
+          '<div class="sv-sec-title">What Each Check Found</div>' +
+          '<div class="sv-cats">' + catsHtml + '</div>' +
         '</div>' +
-        (conf != null && conf < 70 ? '<div class="sv-conf-warn">Some data sources were unavailable. Verify manually before proceeding.</div>' : '') +
-        '<p class="sv-reason">' + escHtml(_svMainReason(r)) + '</p>' +
-        '<div class="sv-next"><span class="sv-next-lbl">Next step</span><span class="sv-next-txt">' + escHtml(_svNextStep(r)) + '</span></div>' +
-      '</div>' +
 
-      '<div class="sv-sec-title">Parcel Map</div>' +
-      '<div class="sv-map-wrap"><div id="svMap" style="position:absolute;inset:0"></div></div>' +
-      '<div class="sv-map-controls">' +
-        '<button class="map-toggle active" data-svlayer="parcel" onclick="svToggleLayer(this)">Parcel</button>' +
-        '<button class="map-toggle" data-svlayer="flood" onclick="svToggleLayer(this)">Flood zones</button>' +
-        '<button class="map-toggle" data-svlayer="wetlands" onclick="svToggleLayer(this)">Wetlands</button>' +
-        '<button class="map-toggle" data-svlayer="satellite" onclick="svToggleSat(this)">Satellite</button>' +
-      '</div>' +
+        '<div class="sv-col-right">' +
+          '<div class="sv-verdict-block">' +
+            '<div class="sv-verdict-row">' +
+              '<span class="sv-verdict-word" style="color:' + vColor + '">' + escHtml(ev) + '</span>' +
+              (r.score != null ? '<span class="sv-score">Score <b>' + r.score + '</b> / 100</span>' : '') +
+            '</div>' +
+            (conf != null && conf < 70 ? '<div class="sv-conf-warn">Some data sources were unavailable. Verify manually before proceeding.</div>' : '') +
+            '<p class="sv-reason">' + escHtml(_svMainReason(r)) + '</p>' +
+            '<div class="sv-next"><span class="sv-next-lbl">Next step</span><span class="sv-next-txt">' + escHtml(_svNextStep(r)) + '</span></div>' +
+          '</div>' +
 
-      '<div class="sv-sec-title">What Each Check Found</div>' +
-      '<div class="sv-cats">' + catsHtml + '</div>' +
+          (facts.length ? '<div class="sv-sec-title">Parcel Facts</div><div class="sv-facts">' + facts.join('') + '</div>' : '') +
 
-      (facts.length ? '<div class="sv-sec-title">Parcel Facts</div><div class="sv-facts">' + facts.join('') + '</div>' : '') +
-
-      '<div class="sv-sec-title">What’s Next on ParceliQ</div>' +
-      '<div class="sv-soon">' +
-        '<div class="sv-soon-card"><span class="sv-soon-badge">🔒 Coming Soon</span>' +
-          '<div class="sv-soon-blur"><div class="sv-soon-title">Nearby Comps</div>' +
-          '<div class="sv-soon-desc">Compare recent sales of similar vacant lots within a few miles, so you know what this parcel is really worth before you offer.</div></div></div>' +
-        '<div class="sv-soon-card"><span class="sv-soon-badge">🔒 Coming Soon</span>' +
-          '<div class="sv-soon-blur"><div class="sv-soon-title">Skip Tracing</div>' +
-          '<div class="sv-soon-desc">Find the owner’s phone and email in one click and go straight from screen to outreach.</div></div></div>' +
+          '<div class="sv-sec-title">What’s Next on ParceliQ</div>' +
+          '<div class="sv-soon">' +
+            '<div class="sv-soon-card">' +
+              '<span class="sv-soon-badge">🔒 Coming Soon</span>' +
+              '<div class="sv-soon-title">Nearby Comps</div>' +
+              '<div class="sv-soon-desc">Compare recent sales of similar vacant lots within a few miles, so you know what this parcel is really worth before you offer.</div>' +
+            '</div>' +
+            '<div class="sv-soon-card">' +
+              '<span class="sv-soon-badge">🔒 Coming Soon</span>' +
+              '<div class="sv-soon-title">Skip Tracing</div>' +
+              '<div class="sv-soon-desc">Find the owner’s phone and email in one click and go straight from screen to outreach.</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
     '</div>';
 
@@ -8283,7 +8294,7 @@ function openStoryView() {
       'Re-screen it (↻ on the row) and try again.</div></div>';
   }
   sv.classList.add('open');
-  sv.scrollTop = 0;
+  document.querySelectorAll('#storyView .sv-col-left,#storyView .sv-col-right').forEach(c => c.scrollTop = 0);
   document.body.style.overflow = 'hidden';
 }
 
@@ -8304,7 +8315,7 @@ function storyNav(dir) {
   const sv = document.getElementById('storyView');
   if (sv && sv.classList.contains('open') && _openParcel) {
     renderStoryView(_openParcel);
-    sv.scrollTop = 0;
+    document.querySelectorAll('#storyView .sv-col-left,#storyView .sv-col-right').forEach(c => c.scrollTop = 0);
   }
 }
 
