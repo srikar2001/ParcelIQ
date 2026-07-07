@@ -1747,7 +1747,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           Upload
         </div>
       <!-- Analytics -->
-      <div class="rsb-nav-item" onclick="">
+      <div class="rsb-nav-item" onclick="goTo('analytics')">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="8" width="2.5" height="5" rx=".5"/><rect x="5.75" y="5" width="2.5" height="8" rx=".5"/><rect x="10.5" y="2" width="2.5" height="11" rx=".5"/></svg>
         Analytics
       </div>
@@ -2065,6 +2065,49 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         </div>
       </div>
       <div style="font-size:12px;color:var(--t3);text-align:center;margin-top:12px">A 100-lead list is a week of evenings by hand — or one screening run.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ANALYTICS PAGE ════════ -->
+<div id="page-analytics" class="screen">
+  <div style="max-width:1080px;margin:0 auto;padding:84px 28px 64px">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px">
+      <button class="sv-back" onclick="goTo('dashboard')">← Dashboard</button>
+      <div style="font-size:24px;font-weight:800;letter-spacing:-.02em">Analytics</div>
+    </div>
+    <div style="font-size:13px;color:var(--t3);margin-bottom:28px">Everything you've screened on ParceliQ, in one place.</div>
+
+    <div id="anEmpty" style="display:none;border:1px dashed var(--b);border-radius:14px;padding:60px 24px;text-align:center">
+      <div style="font-size:16px;font-weight:700;color:var(--t1);margin-bottom:8px">Screen your first batch to see analytics</div>
+      <div style="font-size:13px;color:var(--t3);margin-bottom:20px">Kill/pursue ratios, what's killing your deals, and time saved will show up here.</div>
+      <button class="btn-p" onclick="openUploadModal()">Upload leads →</button>
+    </div>
+
+    <div id="anContent" style="display:none">
+      <div class="stats-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px">
+        <div class="stat-card"><div class="stat-num" id="anTotal">—</div><div class="stat-lbl">Parcels screened</div></div>
+        <div class="stat-card"><div class="stat-num c-r" id="anKills">—</div><div class="stat-lbl">Killed</div></div>
+        <div class="stat-card"><div class="stat-num c-g" id="anPursues">—</div><div class="stat-lbl">Pursue</div></div>
+        <div class="stat-card"><div class="stat-num c-g" id="anTimeSaved">—</div><div class="stat-lbl">Time saved</div><div style="font-size:10px;color:var(--t3);margin-top:4px">at ~30 min manual research per parcel</div></div>
+        <div class="stat-card"><div class="stat-num" id="anToday">—</div><div class="stat-lbl">Screened today</div><div style="font-size:10px;color:var(--t3);margin-top:4px" id="anTodayLimit"></div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:14px;margin-bottom:28px" id="anPanels">
+        <div style="border:1px solid var(--b);border-radius:12px;padding:20px;background:var(--card)">
+          <div class="sv-sec-title" style="margin-bottom:14px">Kill vs Pursue</div>
+          <div id="anRatioBar" style="height:14px;border-radius:99px;overflow:hidden;display:flex;background:var(--b);margin-bottom:10px"></div>
+          <div id="anRatioLegend" style="font-size:12px;color:var(--t2)"></div>
+        </div>
+        <div style="border:1px solid var(--b);border-radius:12px;padding:20px;background:var(--card)">
+          <div class="sv-sec-title" style="margin-bottom:4px">What's killing your deals</div>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:14px">Where your lead sources have problems — use this to refine sourcing.</div>
+          <div id="anKillReasons"></div>
+        </div>
+      </div>
+
+      <div class="sv-sec-title">All batches</div>
+      <div id="anBatches" style="border:1px solid var(--b);border-radius:12px;overflow:hidden"></div>
     </div>
   </div>
 </div>
@@ -2413,10 +2456,11 @@ const HASH_MAP = {
   '#results': 'page-results', '#pricing': 'page-pricing',
   '#settings': 'page-settings', '#picks': 'page-picks',
   '#terms': 'page-terms', '#privacy': 'page-privacy',
+  '#analytics': 'page-analytics',
 };
 
 const batchState = { results: [], filtered: 'all', elapsed: 0, name: '', sortCol: null, sortDir: 'desc' };
-const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings']);
+const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings', '#analytics']);
 
 const FLAG_DEFS = [
   { key: 'wetlands', label: 'Wetlands', match: r =>
@@ -2604,6 +2648,7 @@ async function router() {
     goTo('landing'); return;
   }
   if (hash === '#settings') { loadSettingsPage(); updateNav(); }
+  if (hash === '#analytics') { loadAnalyticsPage(); updateNav(); }
   if (hash === '#picks' && typeof renderPicksList === 'function') { renderPicksList(); }
   if (hash === '#landing' || hash === '' || hash === '#') {
     // Landing always loads fresh: reset analyze button, stale paste box
@@ -7616,6 +7661,127 @@ function _picksJumpToResults(address) {
   }, 80);
 }
 
+
+
+// ══════════ ANALYTICS PAGE (Stage 16) ══════════
+function _anDayStartISO() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0)).toISOString();
+}
+
+const _AN_KILL_CATS = [
+  ['Wetlands',              /wetland/i],
+  ['Flood zone',            /flood/i],
+  ['Wildlife habitat',      /habitat|wildlife/i],
+  ['Conservation easement', /easement/i],
+  ['Road access',           /no road|landlocked|road/i],
+  ['Public land',           /public/i],
+];
+
+async function loadAnalyticsPage() {
+  const empty = document.getElementById('anEmpty');
+  const content = document.getElementById('anContent');
+  if (!empty || !content) return;
+  if (!sb || !currentUser) { empty.style.display = 'block'; content.style.display = 'none'; return; }
+
+  let batches = [];
+  try {
+    const { data } = await sb.from('batches').select('id,name,total,kills,pursues,created_at')
+      .eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(200);
+    batches = data || [];
+  } catch(e) { batches = []; }
+
+  if (!batches.length) { empty.style.display = 'block'; content.style.display = 'none'; return; }
+  empty.style.display = 'none'; content.style.display = 'block';
+
+  const totalParcels = batches.reduce((s, b) => s + (b.total || 0), 0);
+  const totalKills   = batches.reduce((s, b) => s + (b.kills || 0), 0);
+  const totalPursues = batches.reduce((s, b) => s + (b.pursues || 0), 0);
+  const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setEl('anTotal', totalParcels.toLocaleString());
+  setEl('anKills', totalKills.toLocaleString());
+  setEl('anPursues', totalPursues.toLocaleString());
+  const mins = totalParcels * 30, hrs = Math.round(mins / 6) / 10;
+  setEl('anTimeSaved', hrs >= 1 ? '~' + hrs.toLocaleString() + ' hrs' : mins + ' min');
+
+  // Today's usage vs limit
+  try {
+    const { data: tb } = await sb.from('batches').select('total')
+      .eq('user_id', currentUser.id).gte('created_at', _anDayStartISO());
+    const todayUsed = tb?.reduce((s, b) => s + (b.total || 0), 0) || 0;
+    setEl('anToday', todayUsed.toLocaleString());
+    setEl('anTodayLimit', 'of ' + _WEEKLY_LIMIT.toLocaleString() + ' daily limit');
+  } catch(e) { setEl('anToday', '—'); }
+
+  // Kill vs Pursue ratio bar
+  const ratioBar = document.getElementById('anRatioBar');
+  const decided = totalKills + totalPursues;
+  if (ratioBar && decided > 0) {
+    const kp = Math.round(totalKills / decided * 100);
+    ratioBar.innerHTML =
+      '<div style="width:' + kp + '%;background:var(--red)"></div>' +
+      '<div style="flex:1;background:var(--green)"></div>';
+    const lg = document.getElementById('anRatioLegend');
+    if (lg) lg.innerHTML =
+      '<span style="color:var(--red);font-weight:700">' + kp + '% killed</span> · ' +
+      '<span style="color:var(--green);font-weight:700">' + (100 - kp) + '% pursue</span>' +
+      '<div style="color:var(--t3);font-size:11px;margin-top:6px">' + totalKills.toLocaleString() + ' bad deals caught before you spent time on them.</div>';
+  }
+
+  // Most common kill reasons — from parcel_results (last 1000 kills)
+  const reasonsEl = document.getElementById('anKillReasons');
+  if (reasonsEl) {
+    reasonsEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">Loading…</div>';
+    try {
+      const { data: kills } = await sb.from('parcel_results')
+        .select('auto_kill_reason,flags')
+        .eq('user_id', currentUser.id).eq('verdict', 'KILL')
+        .order('created_at', { ascending: false }).limit(1000);
+      const counts = {};
+      (kills || []).forEach(k => {
+        const text = (k.auto_kill_reason || '') + ' ' + JSON.stringify(k.flags || []);
+        let matched = false;
+        for (const [name, pat] of _AN_KILL_CATS) {
+          if (pat.test(k.auto_kill_reason || '')) { counts[name] = (counts[name] || 0) + 1; matched = true; break; }
+        }
+        if (!matched) {
+          if (/no road|landlocked/i.test(text)) { counts['Road access'] = (counts['Road access'] || 0) + 1; }
+          else { counts['Stacked risk factors'] = (counts['Stacked risk factors'] || 0) + 1; }
+        }
+      });
+      const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      if (!entries.length) { reasonsEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">No killed parcels yet — nothing bad in your lead sources so far.</div>'; }
+      else {
+        const max = entries[0][1];
+        reasonsEl.innerHTML = entries.map(([name, n]) =>
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+            '<div style="width:130px;font-size:12px;color:var(--t1);flex-shrink:0">' + escHtml(name) + '</div>' +
+            '<div style="flex:1;height:8px;background:var(--b);border-radius:99px;overflow:hidden">' +
+              '<div style="width:' + Math.max(4, Math.round(n / max * 100)) + '%;height:100%;background:var(--red);border-radius:99px"></div></div>' +
+            '<div style="width:36px;text-align:right;font-size:12px;font-weight:700;color:var(--t2)">' + n + '</div>' +
+          '</div>').join('');
+      }
+    } catch(e) {
+      reasonsEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">Could not load kill reasons — try again.</div>';
+    }
+  }
+
+  // Batches list
+  const list = document.getElementById('anBatches');
+  if (list) {
+    list.innerHTML = batches.map(b => {
+      const d = new Date(b.created_at);
+      const ds = d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+      return '<div onclick="loadBatchResults(\'' + b.id + '\')" style="display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--b);cursor:pointer" onmouseenter="this.style.background=\'var(--card-h)\'" onmouseleave="this.style.background=\'\'">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(b.name || 'Batch') + '</div>' +
+        '<div style="font-size:11px;color:var(--t3)">' + ds + ' · ' + (b.total || 0) + ' parcels</div></div>' +
+        '<span style="font-size:12px;color:var(--red);font-weight:700">■ ' + (b.kills || 0) + '</span>' +
+        '<span style="font-size:12px;color:var(--green);font-weight:700">■ ' + (b.pursues || 0) + '</span>' +
+        '<span style="color:var(--t3)">›</span>' +
+      '</div>';
+    }).join('');
+  }
+}
 
 // ══════════ FULL-SCREEN PARCEL STORY VIEW (Stage 13) ══════════
 let _svMap = null;
