@@ -1071,7 +1071,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="lp-nav-links">
         <a onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">How it works</a>
         <a onclick="window.location.hash='#pricing'" style="display:none">Pricing</a><!-- PRICING_HIDDEN, re-enable for launch -->
-        <a onclick="window.location.hash='#landing'">About</a>
+        <a onclick="document.getElementById('lp-about').scrollIntoView({behavior:'smooth'})">About</a>
       </div>
     </div>
     <div class="lp-nav-actions" id="lpNavActions">
@@ -1337,6 +1337,21 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div class="lp-sample-cta">
           <button class="lp-sample-cta-btn" onclick="window.location.hash='#signup'">View full details →</button>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECTION: ABOUT ── -->
+  <section class="lp-how" id="lp-about" style="padding-top:40px">
+    <div class="lp-how-inner" style="max-width:760px">
+      <div class="lp-sec-center reveal">
+        <div class="lp-sec-label">About</div>
+        <div class="lp-sec-title">Why ParceliQ exists</div>
+      </div>
+      <div class="reveal" style="font-size:15.5px;color:var(--t2);line-height:1.8;margin-top:18px">
+        <p style="margin:0 0 16px">ParceliQ is a screening tool for Florida vacant land, built for investors who work through hundreds of leads at a time. Before this, checking one parcel meant a flood map here, a wetland viewer there, the county appraiser site, and a satellite view for road access. Thirty minutes or more per parcel, every parcel.</p>
+        <p style="margin:0 0 16px">ParceliQ runs all of those checks at once and gives you a straight answer: pursue it or kill it, with the reasons spelled out. The bad lots die in seconds. Your time goes to the deals that deserve it.</p>
+        <p style="margin:0">It covers all 67 Florida counties, uses live government records, and shows its work on every verdict. No black box.</p>
       </div>
     </div>
   </section>
