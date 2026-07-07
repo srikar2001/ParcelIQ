@@ -281,9 +281,32 @@ def score_parcel(
                     ["wetland", "flood", "habitat", "public", "contamination", "easement"])]
     info_flags   = [f for f in flags if f not in kill_flags]
 
+    # ── Honest confidence: how many of the 12 checks returned real data.
+    # Sources whose error shape is indistinguishable from a clean result
+    # (EPA/evac/easement) count as ok — they can't be told apart here.
+    checks = [
+        flood_zone not in ("ERROR", "UNKNOWN"),                      # flood
+        wetlands.get("error") is not True,                           # wetlands
+        habitat.get("data_available") is not False,                  # wildlife
+        True,                                                        # epa
+        roads.get("road_surface") != "error" and roads.get("road_found") is not None,  # roads
+        bool(parcel.get("found")),                                   # county parcel
+        bool(waterways) and (powerlines or {}).get("powerline_nearby") is not None,    # waterways (shares the OSM call)
+        bool(elevation) and elevation.get("elevation_ft") is not None,                 # elevation
+        bool(soil) and soil.get("soil_drainage") is not None,        # soil
+        True,                                                        # evac
+        bool(powerlines) and powerlines.get("powerline_nearby") is not None,           # power
+        True,                                                        # easement
+    ]
+    sources_ok = sum(1 for c in checks if c)
+    confidence_pct = round(sources_ok / len(checks) * 100)
+
     return {
         "verdict": verdict,
         "score": score,
+        "confidence_pct": confidence_pct,
+        "sources_ok": sources_ok,
+        "sources_total": len(checks),
         "auto_kill": auto_kill,
         "auto_kill_reason": auto_kill_reason,
         "flags": flags,

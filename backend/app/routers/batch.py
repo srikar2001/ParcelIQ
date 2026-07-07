@@ -330,6 +330,9 @@ async def _screen_coordinate(address: str, geo: dict, lat: float, lng: float) ->
         "info_flags": result.get("info_flags", []),
         "positives": result["positives"],
         "parcel_info": {
+            "confidence_pct": result.get("confidence_pct"),
+            "sources_ok": result.get("sources_ok"),
+            "sources_total": result.get("sources_total"),
             "county": parcel_data.get("county"),
             "parcel_id": parcel_data.get("parcel_id"),
             "acreage": parcel_data.get("acreage"),

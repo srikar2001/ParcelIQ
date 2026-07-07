@@ -576,6 +576,50 @@ body.on-results .detail-panel{top:0}
 .dp-why-r{background:var(--abg);border:1px solid rgba(245,158,11,.2)}
 .dp-why-p{background:var(--gbg);border:1px solid rgba(34,197,94,.2)}
 .dp-section{padding:0 16px 14px}
+/* ── Full-screen parcel story view ── */
+.dp-expand-handle{position:fixed;top:50%;transform:translateY(-50%);width:16px;height:72px;background:var(--card-h);border:1px solid var(--b);border-radius:8px 0 0 8px;align-items:center;justify-content:center;cursor:pointer;color:var(--t3);font-size:14px;z-index:101;transition:color .15s,background .15s}
+.dp-expand-handle:hover{color:var(--green);background:var(--card)}
+#storyView{display:none;position:fixed;inset:0;z-index:3000;background:var(--bg);overflow-y:auto}
+#storyView.open{display:block}
+.sv-wrap{max-width:960px;margin:0 auto;padding:0 32px 80px}
+.sv-header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--b);padding:16px 0;display:flex;align-items:center;gap:14px;margin-bottom:36px}
+.sv-back{background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:13px;font-weight:600;padding:7px 14px;cursor:pointer;white-space:nowrap}
+.sv-back:hover{color:var(--t1);border-color:var(--bh)}
+.sv-addr{font-size:19px;font-weight:800;color:var(--t1);letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-apn{font-family:monospace;font-size:11px;color:var(--t3);margin-top:1px}
+.sv-navbtns{margin-left:auto;display:flex;gap:6px}
+.sv-verdict-block{border:1px solid var(--b);border-radius:14px;padding:36px 40px;margin-bottom:36px;background:var(--card)}
+.sv-verdict-row{display:flex;align-items:baseline;gap:22px;flex-wrap:wrap;margin-bottom:18px}
+.sv-verdict-word{font-size:40px;font-weight:900;letter-spacing:-.02em;line-height:1}
+.sv-score{font-size:15px;color:var(--t2)}.sv-score b{font-size:22px;color:var(--t1)}
+.sv-conf{font-size:13px;color:var(--t3)}
+.sv-conf-warn{font-size:12px;color:var(--amber);margin-top:6px}
+.sv-reason{font-size:15.5px;line-height:1.75;color:var(--t1);max-width:70ch;margin:0 0 20px}
+.sv-next{display:flex;gap:12px;align-items:flex-start;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);border-radius:10px;padding:14px 18px;max-width:70ch}
+.sv-next-lbl{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--green);white-space:nowrap;padding-top:3px}
+.sv-next-txt{font-size:14px;color:var(--t1);line-height:1.6}
+.sv-sec-title{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin:0 0 16px}
+.sv-map-wrap{height:420px;border-radius:14px;overflow:hidden;border:1px solid var(--b);margin-bottom:8px;position:relative}
+.sv-map-controls{display:flex;gap:6px;margin-bottom:44px;padding-top:10px}
+.sv-cats{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:44px}
+@media(max-width:760px){.sv-cats{grid-template-columns:1fr}.sv-wrap{padding:0 16px 60px}}
+.sv-cat{border:1px solid var(--b);border-radius:12px;padding:18px 20px;background:var(--card)}
+.sv-cat-head{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.sv-cat-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.sv-cat-name{font-size:13px;font-weight:700;color:var(--t1);letter-spacing:.01em}
+.sv-cat-status{margin-left:auto;font-size:10px;font-weight:800;letter-spacing:.8px}
+.sv-cat-txt{font-size:13px;line-height:1.65;color:var(--t2)}
+.sv-facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px 22px;margin-bottom:44px}
+.sv-fact-lbl{font-size:10px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--t3);margin-bottom:3px}
+.sv-fact-val{font-size:14px;font-weight:600;color:var(--t1);line-height:1.45}
+.sv-fact-sub{font-size:11px;color:var(--t3);margin-top:2px}
+.sv-soon{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.sv-soon{grid-template-columns:1fr}}
+.sv-soon-card{position:relative;border:1px solid var(--b);border-radius:12px;padding:22px;background:var(--card);overflow:hidden}
+.sv-soon-blur{filter:blur(3px);opacity:.5;pointer-events:none}
+.sv-soon-badge{position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;letter-spacing:.6px;background:var(--card-h);border:1px solid var(--bh);color:var(--t2);border-radius:99px;padding:4px 10px}
+.sv-soon-title{font-size:15px;font-weight:700;color:var(--t1);margin-bottom:6px}
+.sv-soon-desc{font-size:13px;color:var(--t2);line-height:1.6}
 .dp-sec-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
 .dp-flag-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(42,45,58,.5);font-size:12px}
 .dp-flag-row:last-child{border-bottom:none}
@@ -5433,12 +5477,16 @@ function openDetailPanel(absIdx, event) {
   if (_expBtn) _expBtn.style.display = 'none';
   panel.style.display = '';
   panel.classList.add('open');
+  setTimeout(_positionExpandHandle, 350);
   setTimeout(() => initParcelMap(r), 350);
   setTimeout(() => { if (window._parcelMap) window._parcelMap.invalidateSize(); }, 700);
 }
 
 function closeDetailPanel() {
   closeMapModal();
+  if (typeof closeStoryView === 'function') closeStoryView();
+  const _h = document.getElementById('dpExpandHandle');
+  if (_h) _h.style.display = 'none';
   const panel = document.getElementById('detailPanel');
   if (!panel) return;
   panel.style.display = 'none';
@@ -7575,6 +7623,358 @@ function _picksJumpToResults(address) {
   }, 80);
 }
 
+
+// ══════════ FULL-SCREEN PARCEL STORY VIEW (Stage 13) ══════════
+let _svMap = null;
+const _svLayers = {};
+
+function _svCap(t) { t = String(t || ''); return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
+
+// Position the panel-edge handle against the open detail panel
+function _positionExpandHandle() {
+  const h = document.getElementById('dpExpandHandle');
+  const panel = document.getElementById('detailPanel');
+  if (!h || !panel) return;
+  if (!panel.classList.contains('open') || panel.style.display === 'none') { h.style.display = 'none'; return; }
+  const rect = panel.getBoundingClientRect();
+  h.style.left = (rect.left - 16) + 'px';
+  h.style.display = 'flex';
+}
+window.addEventListener('resize', _positionExpandHandle);
+
+// ── Narrative builders — every sentence comes from THIS parcel's data
+function _svCategoryVerdicts(r) {
+  const pi = r.parcel_info || {};
+  const flags = r.flags || [];
+  const has = pat => flags.some(f => pat.test(f));
+  const cats = [];
+  const push = (name, status, txt) => cats.push({ name, status, txt });
+
+  // FLOOD RISK
+  const fz = getFloodText(r);
+  if (/zone x/i.test(fz)) {
+    push('Flood Risk', 'CLEAR', 'FEMA Zone X — minimal flood hazard. This parcel is outside any special flood hazard area, so flood insurance is not federally required.');
+  } else if (/AE|AO|AH|\bA\b/i.test(fz) && has(/fema flood zone a/i)) {
+    push('Flood Risk', 'RISK', 'FEMA Flood ' + fz + ' — high flood risk. Development is heavily restricted and flood insurance will be expensive. This is an auto-kill signal.');
+  } else if (/VE|\bV\b/i.test(fz)) {
+    push('Flood Risk', 'RISK', 'FEMA coastal ' + fz + ' — storm surge zone. Effectively unbuildable for most purposes. Auto-kill.');
+  } else if (has(/zone a \(undetermined/i)) {
+    push('Flood Risk', 'CAUTION', 'FEMA Zone A — flood-prone area with no detailed study. Base flood elevations are undetermined; expect insurance and permitting friction.');
+  } else if (has(/flood zone data unavailable/i)) {
+    push('Flood Risk', 'DATA UNAVAILABLE', 'Flood zone data could not be fetched — check the FEMA flood map for this address before proceeding.');
+  } else if (fz && fz !== '—') {
+    push('Flood Risk', 'CAUTION', 'FEMA ' + fz + ' — review flood status for this zone before proceeding.');
+  }
+
+  // WETLANDS
+  if (pi.wetland_type || has(/wetlands confirmed|wetlands on parcel/i)) {
+    push('Wetlands', 'RISK', _svCap(pi.wetland_type ? pi.wetland_type.toLowerCase() : 'wetlands') + ' confirmed on this parcel by federal wetland mapping. Filling or building on wetlands requires permits that are rarely granted for private development. Auto-kill.');
+  } else if (has(/wetlands within|wetland.*nearby/i)) {
+    push('Wetlands', 'CAUTION', 'Wetlands detected within about 100m of this parcel but not on it. Buffer restrictions may apply depending on the county — check setback rules before designing a build.');
+  } else if (has(/wetland data unavailable/i)) {
+    push('Wetlands', 'DATA UNAVAILABLE', 'Federal wetland data could not be fetched — verify on the national wetlands map before proceeding.');
+  } else {
+    push('Wetlands', 'CLEAR', 'No wetlands detected on or within 100m of this parcel by federal wetland mapping. Safe to proceed on this factor.');
+  }
+
+  // ROAD ACCESS — the #1 kill signal; richest treatment
+  const rdDist = pi.road_distance_m != null ? '~' + pi.road_distance_m + 'm from the parcel' : 'nearby';
+  const rdName = pi.road_name ? ' (' + pi.road_name + ')' : '';
+  if (pi.road_type && pi.road_private) {
+    push('Road Access', 'CAUTION', 'The nearest road' + rdName + ' is private, ' + rdDist + '. Access exists physically but may not be legal frontage — verify a recorded easement or deeded access before offering.');
+  } else if (pi.road_surface === 'paved') {
+    push('Road Access', 'CLEAR', 'Paved road access confirmed ' + rdDist + rdName + '. Legal access appears available.');
+  } else if (pi.road_surface === 'dirt') {
+    push('Road Access', 'CAUTION', 'Unpaved road or track detected ' + rdDist + rdName + '. Access exists but may be seasonal or unmaintained — check condition on satellite and confirm county maintenance.');
+  } else if (pi.road_type) {
+    push('Road Access', 'CLEAR', _svCap(pi.road_type) + ' road detected ' + rdDist + rdName + '. Surface type is unconfirmed — a quick satellite check will settle it.');
+  } else if (has(/no road detected|landlocked/i)) {
+    push('Road Access', 'RISK', 'No road detected within 150m of this parcel. It may be landlocked — a critical issue for financing, permitting, and resale. Verify legal access before anything else.');
+  } else {
+    push('Road Access', 'DATA UNAVAILABLE', 'Road data could not be fetched for this parcel. Strongly recommend verifying access on satellite view and county records before proceeding.');
+  }
+
+  // WILDLIFE & HABITAT
+  if (pi.habitat_species && pi.habitat_species.length) {
+    push('Wildlife & Habitat', 'RISK', 'Designated critical habitat for ' + pi.habitat_species.slice(0, 2).join(' and ') + ' overlaps this area. Endangered Species Act protections severely restrict or prohibit development. Auto-kill.');
+  } else if (has(/wildlife.*unavailable/i)) {
+    push('Wildlife & Habitat', 'DATA UNAVAILABLE', 'Wildlife habitat data could not be fetched — verify against the federal critical habitat mapper.');
+  } else {
+    push('Wildlife & Habitat', 'CLEAR', 'No designated critical habitat detected. No federal species protections apply to this parcel.');
+  }
+
+  // SOIL & SEPTIC
+  if (pi.septic_suitable === true) {
+    push('Soil & Septic', 'CLEAR', 'Well-drained soil' + (pi.soil_name ? ' (' + pi.soil_name + ')' : '') + ' — septic installation is likely feasible without specialized engineering.');
+  } else if (pi.septic_suitable === false) {
+    push('Soil & Septic', 'RISK', 'Poorly drained soil — septic systems are typically not feasible here. That eliminates most residential builds unless public sewer is reachable nearby.');
+  } else if (pi.soil_drainage) {
+    push('Soil & Septic', 'CAUTION', _svCap(pi.soil_drainage) + ' soil — septic may be feasible with engineered system design. Get an engineer’s read before purchase.');
+  }
+
+  // ELEVATION
+  if (pi.elevation_ft != null) {
+    if (pi.elevation_ft < 2)       push('Elevation & Drainage', 'RISK', 'Elevation ' + pi.elevation_ft + ' ft — very low. High storm surge and drainage risk even outside designated flood zones.');
+    else if (pi.elevation_ft < 5)  push('Elevation & Drainage', 'CAUTION', 'Elevation ' + pi.elevation_ft + ' ft — low enough to warrant reviewing flood insurance costs even in Zone X.');
+    else push('Elevation & Drainage', 'CLEAR', 'Elevation ' + pi.elevation_ft + ' ft — comfortably above typical storm surge and flood thresholds for this region.');
+  }
+
+  // HURRICANE EVACUATION
+  if (pi.evac_zone) {
+    if (/^[AB]$/i.test(pi.evac_zone)) push('Hurricane Evacuation', 'RISK', 'Evacuation Zone ' + pi.evac_zone + ' — high-priority evacuation area, elevated risk in any significant hurricane. This affects financing and the future buyer pool.');
+    else push('Hurricane Evacuation', 'CAUTION', 'Evacuation Zone ' + pi.evac_zone + ' — lower-priority evacuation zone with some risk in major storms.');
+  } else {
+    push('Hurricane Evacuation', 'CLEAR', 'Outside all hurricane evacuation zones. No mandatory evacuation exposure for this area.');
+  }
+
+  // CONTAMINATION
+  if (pi.contamination_sites && pi.contamination_sites.length) {
+    const names = pi.contamination_sites.slice(0, 2).map(x => (typeof x === 'object' && x) ? x.name : String(x)).filter(Boolean).join('; ');
+    push('Contamination', 'RISK', 'EPA contamination records found near this parcel' + (names ? ': ' + names : '') + '. A Phase I environmental assessment is recommended before purchase.');
+  } else {
+    push('Contamination', 'CLEAR', 'No EPA contamination records or Superfund sites found nearby.');
+  }
+
+  // POWER
+  if (pi.powerline_nearby === true) {
+    push('Power & Utilities', 'CLEAR', 'Power infrastructure detected ' + (pi.powerline_distance ? pi.powerline_distance + ' away' : 'nearby') + ' — connection is likely feasible.');
+  } else if (pi.powerline_nearby === false) {
+    push('Power & Utilities', 'CAUTION', 'No power lines detected within a mile. Budget for off-grid systems or a costly utility extension.');
+  }
+
+  // EASEMENT
+  if (pi.easement_found) {
+    push('Conservation Easement', 'RISK', 'Conservation easement detected' + (pi.easement_type ? ' (' + pi.easement_type + ')' : '') + '. Land use is permanently restricted by covenant — development, subdivision, and most commercial uses are prohibited. Auto-kill.');
+  } else {
+    push('Conservation Easement', 'CLEAR', 'No conservation easements detected on this parcel.');
+  }
+  return cats;
+}
+
+function _svMainReason(r) {
+  const pi = r.parcel_info || {};
+  const cats = _svCategoryVerdicts(r);
+  const risks = cats.filter(c => c.status === 'RISK');
+  const cautions = cats.filter(c => c.status === 'CAUTION');
+  const unavailable = cats.filter(c => c.status === 'DATA UNAVAILABLE');
+  const ev = effectiveVerdict(r);
+  if (ev === 'KILL') {
+    let out = '';
+    if (risks.length) {
+      out = risks[0].name + ' is the primary concern on this parcel. ' + risks[0].txt.replace(/ Auto-kill\.$/, '');
+      if (risks.length > 1) out += ' ' + risks[1].name + ' is a secondary issue: ' + risks[1].txt.replace(/ Auto-kill\.$/, '').charAt(0).toLowerCase() + risks[1].txt.replace(/ Auto-kill\.$/, '').slice(1);
+      out += risks.length > 1 ? ' These factors combined make this parcel very difficult to develop or finance.' : ' On its own this makes the parcel very difficult to develop or finance.';
+    } else {
+      out = 'No single fatal flaw, but stacked risk factors dragged the score below the pursue threshold: ' +
+        (r.flags || []).slice(0, 3).map(f => translateFlag(f)).map(f => f.charAt(0).toLowerCase() + f.slice(1)).join('; ') + '.';
+    }
+    return out;
+  }
+  // PURSUE
+  let parts = ['No major risk factors detected.'];
+  const fz = getFloodText(r);
+  if (/zone x/i.test(fz)) parts.push('Flood zone is clear (FEMA Zone X).');
+  if (pi.septic_suitable === true) parts.push('Soil drains well, making septic feasible.');
+  if (pi.road_type) {
+    parts.push('Road access is confirmed' + (pi.road_surface && pi.road_surface !== 'unknown' ? ' (' + pi.road_surface + ')' : '') + (pi.road_distance_m != null ? ' about ' + pi.road_distance_m + 'm away' : '') + '.');
+  }
+  if (pi.elevation_ft != null && pi.elevation_ft >= 5) parts.push('Elevation is ' + pi.elevation_ft + ' ft, above typical flood-risk thresholds.');
+  const openQ = unavailable.length ? unavailable[0].name.toLowerCase() + ' data was unavailable and should be verified manually'
+    : cautions.length ? cautions[0].txt.charAt(0).toLowerCase() + cautions[0].txt.slice(1).replace(/\.$/, '') : null;
+  if (openQ) parts.push('The main open question is ' + (openQ.endsWith('.') ? openQ : openQ + '.'));
+  return parts.join(' ');
+}
+
+function _svNextStep(r) {
+  const pi = r.parcel_info || {};
+  const cats = _svCategoryVerdicts(r);
+  const risks = cats.filter(c => c.status === 'RISK').map(c => c.name);
+  const ev = effectiveVerdict(r);
+  if (ev === 'KILL') {
+    if (risks.includes('Wetlands')) return 'If this lead matters to you, order a professional wetland delineation before spending anything else — otherwise kill it and move to the next lead.';
+    if (risks.includes('Road Access')) return 'Pull the deed and title to check for recorded access easements — without legal access this parcel is not financeable.';
+    if (risks.includes('Conservation Easement')) return 'Pull the deed and confirm the recorded conservation restrictions — they almost always survive a sale.';
+    if (risks.includes('Wildlife & Habitat')) return 'Confirm the critical habitat boundary on the federal mapper — if it truly overlaps, pass on this parcel.';
+    if (risks.includes('Flood Risk')) return 'Get a flood insurance quote if you still want this lot — the premium usually settles the decision.';
+    if (risks.includes('Contamination')) return 'Order a Phase I environmental assessment before any offer — contamination liability transfers with title.';
+    return 'Kill it and move on — the stacked risk factors here rarely pencil out.';
+  }
+  const cautions = cats.filter(c => c.status === 'CAUTION');
+  const unavailable = cats.filter(c => c.status === 'DATA UNAVAILABLE');
+  if (unavailable.some(c => c.name === 'Road Access')) return 'Run a satellite check on road access — data was unavailable. Otherwise this parcel looks clean.';
+  if (cautions.some(c => c.name === 'Road Access')) return 'Verify road access quality on satellite view' + (pi.road_private ? ' and confirm the private-road easement in the deed' : '') + ' — everything else checks out.';
+  if (cautions.some(c => c.name === 'Soil & Septic')) return 'Get a septic engineer’s opinion on the soil before offering — the rest of the screen is clean.';
+  if (cautions.some(c => c.name === 'Wetlands')) return 'Confirm the wetland buffer setback with the county — the wetlands are near but not on the parcel.';
+  if (cautions.length) return 'Double-check the ' + cautions[0].name.toLowerCase() + ' caveat, then this parcel is ready for an offer analysis.';
+  return 'This parcel appears clean across all checks. Request a survey and title search, and start your offer analysis.';
+}
+
+const _SV_STATUS = {
+  'CLEAR':            { color: 'var(--green)', label: 'CLEAR' },
+  'CAUTION':          { color: 'var(--amber)', label: 'CAUTION' },
+  'RISK':             { color: 'var(--red)',   label: 'RISK' },
+  'DATA UNAVAILABLE': { color: 'var(--t3)',    label: 'DATA UNAVAILABLE' },
+};
+
+function renderStoryView(r) {
+  const sv = document.getElementById('storyView');
+  if (!sv || !r) return;
+  const pi = r.parcel_info || {};
+  const ev = effectiveVerdict(r);
+  const vColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
+  const conf = pi.confidence_pct;
+  const confOk = pi.sources_ok, confTotal = pi.sources_total || 12;
+  const cats = _svCategoryVerdicts(r);
+
+  const catsHtml = cats.map(c => {
+    const st = _SV_STATUS[c.status] || _SV_STATUS['DATA UNAVAILABLE'];
+    return '<div class="sv-cat">' +
+      '<div class="sv-cat-head"><span class="sv-cat-dot" style="background:' + st.color + '"></span>' +
+      '<span class="sv-cat-name">' + escHtml(c.name) + '</span>' +
+      '<span class="sv-cat-status" style="color:' + st.color + '">' + st.label + '</span></div>' +
+      '<div class="sv-cat-txt">' + escHtml(c.txt) + '</div></div>';
+  }).join('');
+
+  // Parcel facts — same hide-if-empty + translate rules as the panel
+  const facts = [];
+  const fact = (lbl, val, sub) => facts.push('<div><div class="sv-fact-lbl">' + escHtml(lbl) + '</div><div class="sv-fact-val">' + val + '</div>' + (sub ? '<div class="sv-fact-sub">' + escHtml(sub) + '</div>' : '') + '</div>');
+  if (pi.owner && pi.owner !== 'N/A') fact('Owner', escHtml(pi.owner), 'as of county tax roll');
+  const apn = pi.parcel_id || pi.apn;
+  if (apn) fact('APN', '<span style="font-family:monospace;font-size:12px">' + escHtml(apn) + '</span>');
+  const av = pi.assessed_value != null ? pi.assessed_value : pi.just_value;
+  if (av != null && av > 0) fact('Assessed Value', escHtml(fmt$(av)), 'County tax estimate — not market value');
+  const svAc = getAcreage(r);
+  if (svAc != null) fact('Acreage', escHtml(svAc + ' ac'));
+  if (pi.land_use_code != null) fact('Land Use', escHtml(getLandUseCategory(pi.land_use_code)));
+  if (pi.last_sale_price > 0 && pi.last_sale_year) fact('Last Sale', escHtml(fmt$(pi.last_sale_price) + ' (' + pi.last_sale_year + ')'), pi.sale_price_likely_market_value === false ? 'Likely non-market (gift/transfer)' : '');
+  if (pi.county) fact('County', escHtml(pi.county));
+
+  sv.innerHTML =
+    '<div class="sv-wrap">' +
+      '<div class="sv-header">' +
+        '<button class="sv-back" onclick="closeStoryView()">← Back to batch</button>' +
+        '<div style="min-width:0;flex:1">' +
+          '<div class="sv-addr">' + escHtml(r.address || '') + '</div>' +
+          (apn ? '<div class="sv-apn">APN ' + escHtml(apn) + '</div>' : '') +
+        '</div>' +
+        '<span class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
+        (r.score != null ? '<span style="font-size:18px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '') +
+        '<div class="sv-navbtns">' +
+          '<button class="sv-back" onclick="storyNav(-1)">← Prev</button>' +
+          '<button class="sv-back" onclick="storyNav(1)">Next →</button>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="sv-verdict-block">' +
+        '<div class="sv-verdict-row">' +
+          '<span class="sv-verdict-word" style="color:' + vColor + '">' + escHtml(ev) + '</span>' +
+          (r.score != null ? '<span class="sv-score">Score <b>' + r.score + '</b> / 100</span>' : '') +
+          (conf != null ? '<span class="sv-conf">Confidence: ' + conf + '%' + (confOk != null ? ' — based on ' + confOk + ' of ' + confTotal + ' data checks completed' : '') + '</span>' : '') +
+        '</div>' +
+        (conf != null && conf < 70 ? '<div class="sv-conf-warn">Some data sources were unavailable — verify manually before proceeding.</div>' : '') +
+        '<p class="sv-reason">' + escHtml(_svMainReason(r)) + '</p>' +
+        '<div class="sv-next"><span class="sv-next-lbl">Next step</span><span class="sv-next-txt">' + escHtml(_svNextStep(r)) + '</span></div>' +
+      '</div>' +
+
+      '<div class="sv-sec-title">Parcel Map</div>' +
+      '<div class="sv-map-wrap"><div id="svMap" style="position:absolute;inset:0"></div></div>' +
+      '<div class="sv-map-controls">' +
+        '<button class="map-toggle active" data-svlayer="parcel" onclick="svToggleLayer(this)">Parcel</button>' +
+        '<button class="map-toggle" data-svlayer="flood" onclick="svToggleLayer(this)">Flood zones</button>' +
+        '<button class="map-toggle" data-svlayer="wetlands" onclick="svToggleLayer(this)">Wetlands</button>' +
+        '<button class="map-toggle" data-svlayer="satellite" onclick="svToggleSat(this)">Satellite</button>' +
+      '</div>' +
+
+      '<div class="sv-sec-title">What Each Check Found</div>' +
+      '<div class="sv-cats">' + catsHtml + '</div>' +
+
+      (facts.length ? '<div class="sv-sec-title">Parcel Facts</div><div class="sv-facts">' + facts.join('') + '</div>' : '') +
+
+      '<div class="sv-sec-title">What’s Next on ParceliQ</div>' +
+      '<div class="sv-soon">' +
+        '<div class="sv-soon-card"><span class="sv-soon-badge">🔒 Coming Soon</span>' +
+          '<div class="sv-soon-blur"><div class="sv-soon-title">Nearby Comps</div>' +
+          '<div class="sv-soon-desc">Compare recent sales of similar vacant lots within a few miles — know what this parcel is really worth before you offer.</div></div></div>' +
+        '<div class="sv-soon-card"><span class="sv-soon-badge">🔒 Coming Soon</span>' +
+          '<div class="sv-soon-blur"><div class="sv-soon-title">Skip Tracing</div>' +
+          '<div class="sv-soon-desc">Find the owner’s phone and email in one click and go straight from screen to outreach.</div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  _svInitMap(r);
+}
+
+function _svInitMap(r) {
+  const mapDiv = document.getElementById('svMap');
+  if (!mapDiv || typeof L === 'undefined') return;
+  if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
+  Object.keys(_svLayers).forEach(k => delete _svLayers[k]);
+  const lat = r._lat || 28.0, lng = r._lng || -81.5;
+  _svMap = L.map('svMap', { zoomControl: true }).setView([lat, lng], 15);
+  _svLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_svMap);
+  _svLayers['_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri', maxZoom: 19 });
+  const coords = extractPolygonCoords(r.parcel_info?.geometry);
+  if (coords && coords.length > 2) {
+    const poly = L.polygon(coords, { color: '#38BDF8', weight: 3, fillColor: '#38BDF8', fillOpacity: 0.15 }).addTo(_svMap);
+    _svLayers['parcel'] = poly;
+    try { _svMap.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 17 }); } catch(e) {}
+  } else {
+    _svLayers['parcel'] = L.circleMarker([lat, lng], { radius: 14, color: '#38BDF8', weight: 2, fillColor: '#38BDF8', fillOpacity: 0.25 }).addTo(_svMap);
+  }
+  _svLayers['flood']    = _makeFemaLayer(0.5);
+  _svLayers['wetlands'] = _makeWetlandsLayer(0.5);
+  setTimeout(() => { if (_svMap) _svMap.invalidateSize(); }, 250);
+}
+
+function svToggleLayer(btn) {
+  const key = btn.dataset.svlayer;
+  if (!_svMap || !_svLayers[key]) return;
+  if (_svMap.hasLayer(_svLayers[key])) { _svMap.removeLayer(_svLayers[key]); btn.classList.remove('active'); }
+  else { _svMap.addLayer(_svLayers[key]); btn.classList.add('active'); }
+}
+let _svSatOn = false;
+function svToggleSat(btn) {
+  if (!_svMap) return;
+  _svSatOn = !_svSatOn;
+  if (_svSatOn) { _svMap.removeLayer(_svLayers['_osm']); _svLayers['_sat'].addTo(_svMap); btn.classList.add('active'); }
+  else { _svMap.removeLayer(_svLayers['_sat']); _svLayers['_osm'].addTo(_svMap); btn.classList.remove('active'); }
+}
+
+function openStoryView() {
+  if (!_openParcel) return;
+  const sv = document.getElementById('storyView');
+  if (!sv) return;
+  renderStoryView(_openParcel);
+  sv.classList.add('open');
+  sv.scrollTop = 0;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeStoryView() {
+  const sv = document.getElementById('storyView');
+  if (!sv) return;
+  sv.classList.remove('open');
+  document.body.style.overflow = '';
+  if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
+}
+
+function storyNav(dir) {
+  const next = _openParcelIdx + dir;
+  if (next < 0 || next >= _currentDisplayed.length) { toast(dir > 0 ? 'Last parcel reached' : 'First parcel reached'); return; }
+  const page = Math.floor(next / _rowsPerPage) + 1;
+  if (page !== _currentPage) { _currentPage = page; renderPage(); }
+  openDetailPanel(next, null);
+  const sv = document.getElementById('storyView');
+  if (sv && sv.classList.contains('open') && _openParcel) {
+    renderStoryView(_openParcel);
+    sv.scrollTop = 0;
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeStoryView();
+});
+
 // ── Address autocomplete ──────────────────────────────────────────────────────
 function _attachAddressAutocomplete(inputEl) {
   let _acTimer = null;
@@ -7636,6 +8036,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (el) _attachAddressAutocomplete(el);
 });
 </script>
+
+<!-- ════════ FULL-SCREEN PARCEL STORY VIEW ════════ -->
+<div class="dp-expand-handle" id="dpExpandHandle" onclick="openStoryView()" title="Open full report" style="display:none">‹</div>
+<div id="storyView"></div>
 
 <!-- ════════ EDIT BATCH MODAL ════════ -->
 <div id="editBatchModal" class="modal-overlay" onclick="if(event.target===this)closeEditBatchModal()" style="display:none">
