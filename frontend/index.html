@@ -394,18 +394,53 @@ body.on-results .detail-panel{top:0}
 .filter-clear-btn:hover{color:var(--t1)}
 /* ── Filter Panel ── */
 .filter-panel-btn{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px}
-.fp-panel{position:absolute;right:0;top:calc(100% + 6px);z-index:600;background:var(--card);border:1px solid var(--b);border-radius:var(--r);width:310px;box-shadow:0 8px 32px rgba(0,0,0,.55)}
-.fp-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--b);font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em}
+.fp-panel{position:absolute;right:0;top:calc(100% + 6px);z-index:600;background:var(--card);border:1px solid var(--b);border-radius:var(--r);width:360px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.55)}
+.fp-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--b);font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;position:sticky;top:0;background:var(--card);z-index:2}
 .fp-clear-btn{background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;padding:2px 6px;border-radius:4px}
 .fp-clear-btn:hover{color:var(--t1)}
 .fp-group{padding:10px 14px;border-bottom:1px solid var(--b)}
 .fp-group:last-child{border-bottom:none}
-.fp-group-label{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.fp-group-label{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
 .fp-items{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
 .fp-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);cursor:pointer;padding:3px 0;user-select:none}
 .fp-item:hover{color:var(--t1)}
 .fp-item input[type=checkbox]{width:13px;height:13px;accent-color:var(--green);cursor:pointer;flex-shrink:0}
 .fp-item-count{font-size:10px;color:var(--t3);margin-left:auto}
+/* Decision toggle */
+.fp-decision-row{display:flex;gap:6px}
+.fp-decision-btn{flex:1;text-align:center;font-size:11px;font-weight:700;padding:6px 4px;border-radius:var(--rs);border:1px solid var(--b);background:none;color:var(--t2);cursor:pointer}
+.fp-decision-btn.on{background:var(--card-h);border-color:var(--bh);color:var(--t1)}
+/* Any/All mode toggle */
+.fp-mode-toggle{display:flex;font-size:9px;font-weight:700;border:1px solid var(--b);border-radius:99px;overflow:hidden}
+.fp-mode-toggle button{background:none;border:none;padding:2px 8px;color:var(--t3);cursor:pointer;letter-spacing:.04em}
+.fp-mode-toggle button.on{background:var(--green);color:#000}
+/* Dual-handle range slider (no dependency) */
+.fp-range{margin-bottom:2px}
+.fp-range-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:6px}
+.fp-range-lbl b{color:var(--t1);font-weight:600}
+.fp-range-track{position:relative;height:20px}
+.fp-range-track input[type=range]{position:absolute;top:6px;left:0;width:100%;margin:0;pointer-events:none;-webkit-appearance:none;appearance:none;background:none}
+.fp-range-track input[type=range]::-webkit-slider-runnable-track{height:4px;background:transparent}
+.fp-range-track input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:14px;height:14px;border-radius:50%;background:var(--green);border:2px solid var(--card);margin-top:-5px;cursor:pointer}
+.fp-range-track input[type=range]::-moz-range-thumb{pointer-events:auto;width:14px;height:14px;border-radius:50%;background:var(--green);border:2px solid var(--card);cursor:pointer}
+.fp-range-track input[type=range]::-moz-range-track{height:4px;background:transparent}
+.fp-range-bg{position:absolute;top:8px;left:0;right:0;height:4px;background:var(--b);border-radius:99px}
+.fp-range-fill{position:absolute;top:8px;height:4px;background:var(--green);border-radius:99px}
+/* Multi-select county / land-use list */
+.fp-multilist{max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.fp-multilist .fp-item{display:flex}
+/* Size preset buttons */
+.fp-preset-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.fp-preset-btn{font-size:10.5px;font-weight:600;padding:4px 8px;border-radius:99px;border:1px solid var(--b);background:none;color:var(--t2);cursor:pointer}
+.fp-preset-btn.on{background:var(--gbg);border-color:rgba(34,197,94,.3);color:var(--green)}
+/* Save view */
+.fp-saveview-row{display:flex;gap:6px;padding:10px 14px}
+.fp-saveview-row select,.fp-saveview-row input{flex:1;min-width:0;font-size:11px;padding:5px 7px;border:1px solid var(--b);border-radius:var(--rs);background:var(--bg);color:var(--t1)}
+/* Active filter summary chips above the table */
+.af-chips{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 10px}
+.af-chip{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--t1);background:var(--card-h);border:1px solid var(--bh);border-radius:99px;padding:3px 6px 3px 10px}
+.af-chip button{background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px;line-height:1;padding:0 2px}
+.af-chip button:hover{color:var(--red)}
 /* ── Map expand ── */
 .map-wrap{margin:0 12px 12px;position:relative}
 .map-controls{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--b)}
@@ -1852,12 +1887,56 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div style="position:relative">
           <button class="btn-o btn-sm filter-panel-btn" id="filterPanelBtn" onclick="toggleFilterPanel()">▼ Filters <span id="activeFilterCount" style="display:none;background:var(--green);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:2px">0</span></button>
           <div id="filterPanel" class="fp-panel" style="display:none">
-            <div class="fp-header"><span>Filter by signal</span><button class="fp-clear-btn" onclick="clearAllFilters()">Clear all</button></div>
-            <div style="font-size:11px;color:var(--t3);padding:0 12px 8px">Filter your batch by what drove each verdict.</div>
-            <div id="fpGroupsContainer"></div>
+            <div class="fp-header"><span>Filter your batch</span><button class="fp-clear-btn" onclick="clearAllFilters()">Clear all</button></div>
+
+            <div class="fp-group">
+              <div class="fp-group-label">Decision</div>
+              <div class="fp-decision-row" id="fpDecisionRow"></div>
+            </div>
+
+            <div class="fp-group" id="fpRangesGroup">
+              <div class="fp-group-label">Numbers</div>
+              <div id="fpRangesContainer"></div>
+            </div>
+
+            <div class="fp-group">
+              <div class="fp-group-label">Parcel Basics</div>
+              <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:6px">SIZE</div>
+              <div class="fp-preset-row" id="fpSizePresets"></div>
+              <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:6px">COUNTY</div>
+              <div class="fp-multilist" id="fpCountyList" style="margin-bottom:10px"></div>
+              <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:6px">LAND USE</div>
+              <div class="fp-multilist" id="fpLandUseList"></div>
+            </div>
+
+            <div class="fp-group">
+              <div class="fp-group-label">Deal Killers
+                <div class="fp-mode-toggle" id="fpDealKillerMode">
+                  <button data-mode="any" onclick="setDealKillerMode('any')">ANY</button>
+                  <button data-mode="all" onclick="setDealKillerMode('all')">ALL</button>
+                </div>
+              </div>
+              <div class="fp-items" id="fpGroupDealKillers"></div>
+            </div>
+
+            <div class="fp-group">
+              <div class="fp-group-label">Risk Flags</div>
+              <div class="fp-items" id="fpGroupRiskFlags"></div>
+            </div>
+
+            <div class="fp-group">
+              <div class="fp-group-label">Positive Signals</div>
+              <div class="fp-items" id="fpGroupPositiveSignals"></div>
+            </div>
+
+            <div class="fp-saveview-row">
+              <select id="fpSavedViewSelect" onchange="loadSavedView(this.value)"><option value="">Saved views…</option></select>
+              <button class="btn-o btn-sm" style="font-size:11px;padding:5px 9px" onclick="promptSaveView()">💾 Save view</button>
+            </div>
           </div>
         </div>
       </div>
+      <div class="af-chips" id="activeFilterChips" style="display:none"></div>
       <div class="limit-banner" id="resLimitBanner"></div>
       <div class="nonfl-banner" id="nonflBanner"></div>
       <!-- Add parcel bar -->
@@ -2608,6 +2687,11 @@ const RULES_DEF = [
   { key:'noRoadPenalty', label:'Road data unavailable = penalty', def:false },
 ];
 let _activeFilters  = new Set();
+let _dealKillerMode = 'any';
+let _countyFilters  = new Set();
+let _landUseFilters = new Set();
+let _rangeFilters   = {};
+let _sizePreset     = null;
 let _screeningRules = {};
 let _currentDisplayed = [];
 let _currentPage    = 1;
@@ -4959,33 +5043,54 @@ function toggleRule(key, val) {
   try { localStorage.setItem('parceliq-rules', JSON.stringify(_screeningRules)); } catch(e) {}
 }
 
+// ══════════ FILTER PANEL (Stage 17 rebuild) ══════════
+// Root cause of the old multi-select bug: every checkbox's onchange handler
+// called buildFilterPanel(), which did container.innerHTML='' and recreated
+// every checkbox in the panel — including the one the user just clicked —
+// while the browser was still mid-event. Clicking a second box quickly could
+// land on a node that was about to be torn down and replaced. The fix: never
+// tear down the checkbox/slider DOM in response to its own interaction —
+// only mutate state (_activeFilters etc.) and re-render counts/badge/chips.
+// Full buildFilterPanel() now runs ONLY when the panel opens or the batch
+// data itself changes, never on a per-toggle basis.
+
+const RANGE_DEFS = [
+  { key: 'acreage',        label: 'Acreage',         min: 0, max: 50,     step: 0.25, fmt: v => (Math.round(v*100)/100) + ' ac', get: r => getAcreage(r) },
+  { key: 'score',           label: 'Score',           min: 0, max: 100,    step: 1,    fmt: v => String(Math.round(v)),           get: r => r.score },
+  { key: 'confidence',      label: 'Confidence',      min: 0, max: 100,    step: 1,    fmt: v => Math.round(v) + '%',              get: r => (r.parcel_info||{}).confidence_pct },
+  { key: 'assessed_value',  label: 'Assessed Value',  min: 0, max: 500000, step: 5000, fmt: v => '$' + Math.round(v).toLocaleString(), get: r => { const pi=r.parcel_info||{}; return pi.assessed_value!=null?pi.assessed_value:pi.just_value; } },
+  { key: 'road_distance_m', label: 'Road Distance',   min: 0, max: 1000,   step: 10,   fmt: v => Math.round(v) + 'm',              get: r => (r.parcel_info||{}).road_distance_m },
+  { key: 'power_distance_m',label: 'Power Distance',  min: 0, max: 5000,   step: 100,  fmt: v => Math.round(v) + 'm',              get: r => _parsePowerDistanceM(r) },
+];
+
+function _parsePowerDistanceM(r) {
+  const s = (r.parcel_info||{}).powerline_distance;
+  if (!s) return null;
+  const m = /([\d.]+)\s*(mile|mi|m)\b/i.exec(s);
+  if (!m) return null;
+  const n = parseFloat(m[1]);
+  return /mile|mi/i.test(m[2]) ? n * 1609.34 : n;
+}
+
+const SIZE_PRESETS = [
+  { key: 'under_quarter', label: '< 0.25 ac', test: ac => ac != null && ac < 0.25 },
+  { key: 'quarter_to_1',  label: '0.25–1 ac', test: ac => ac != null && ac >= 0.25 && ac <= 1 },
+  { key: '1_to_5',        label: '1–5 ac',    test: ac => ac != null && ac > 1 && ac <= 5 },
+  { key: '5_plus',        label: '5+ ac',     test: ac => ac != null && ac > 5 },
+];
+
 function buildFilterPanel() {
-  const container = document.getElementById('fpGroupsContainer');
-  if (!container) return;
-  const results = batchState.results;
-  container.innerHTML = '';
-  FILTER_GROUPS.forEach(group => {
-    const defs = group.keys.map(k => FLAG_DEFS.find(d => d.key === k)).filter(Boolean);
-    const withCounts = defs.map(def => ({ def, count: results.filter(r => def.match(r)).length }));
-    const groupEl = document.createElement('div');
-    groupEl.className = 'fp-group';
-    const grid = document.createElement('div');
-    grid.className = 'fp-items';
-    withCounts.forEach(({ def, count }) => {
-      const item = document.createElement('label');
-      item.className = 'fp-item';
-      const checked = _activeFilters.has(def.key);
-      const countStyle = count === 0 ? ' style="color:var(--t3)"' : '';
-      item.innerHTML = '<input type="checkbox" data-flag="' + def.key + '"' + (checked ? ' checked' : '') + ' onchange="applyFilters()"><span>' + escHtml(def.label) + '</span><span class="fp-item-count"' + countStyle + '>' + count + '</span>';
-      if (count === 0 && !checked) item.style.opacity = '0.5';
-      grid.appendChild(item);
-    });
-    groupEl.innerHTML = '<div class="fp-group-label" style="color:' + group.color + ';border-left:3px solid ' + group.color + ';padding-left:8px;margin-bottom:8px">' + group.label + '</div>';
-    groupEl.appendChild(grid);
-    container.appendChild(groupEl);
-  });
-  const badge = document.getElementById('activeFilterCount');
-  if (badge) { badge.textContent = _activeFilters.size; badge.style.display = _activeFilters.size > 0 ? '' : 'none'; }
+  _buildDecisionRow();
+  _buildRangeSliders();
+  _buildSizePresets();
+  _buildCountyList();
+  _buildLandUseList();
+  _buildFlagGroup('fpGroupDealKillers', FILTER_GROUPS[0].keys);
+  _buildFlagGroup('fpGroupRiskFlags', FILTER_GROUPS[1].keys);
+  _buildFlagGroup('fpGroupPositiveSignals', FILTER_GROUPS[2].keys);
+  document.querySelectorAll('#fpDealKillerMode button').forEach(b => b.classList.toggle('on', b.dataset.mode === _dealKillerMode));
+  _populateSavedViewsDropdown();
+  _updateFilterBadgeAndChips();
 }
 
 function renderFilterPanel() { buildFilterPanel(); }
@@ -4999,20 +5104,277 @@ function toggleFilterPanel() {
   panel.style.display = 'block';
 }
 
-function applyFilters() {
-  _activeFilters.clear();
-  document.querySelectorAll('#filterPanel input[type=checkbox]:checked').forEach(cb => _activeFilters.add(cb.dataset.flag));
-  buildFilterPanel();
-  _refreshTable();
+function _buildDecisionRow() {
+  const row = document.getElementById('fpDecisionRow');
+  if (!row) return;
+  const results = batchState.results;
+  let kill = 0, pursue = 0;
+  results.forEach(r => { const v = effectiveVerdict(r); if (v === 'KILL') kill++; else if (v === 'PURSUE') pursue++; });
+  const opts = [['all', 'All', results.length], ['KILL', 'Kill', kill], ['PURSUE', 'Pursue', pursue]];
+  row.innerHTML = opts.map(([key, label, n]) =>
+    '<button class="fp-decision-btn' + (batchState.filtered === key ? ' on' : '') + '" onclick="fpSetDecision(\'' + key + '\')">' + label + ' (' + n + ')</button>').join('');
 }
+
+function fpSetDecision(v) {
+  filterResults(v);
+  _buildDecisionRow();
+  _updateFilterBadgeAndChips();
+}
+
+function _buildRangeSliders() {
+  const container = document.getElementById('fpRangesContainer');
+  if (!container) return;
+  container.innerHTML = '';
+  RANGE_DEFS.forEach(def => {
+    const cur = _rangeFilters[def.key] || [def.min, def.max];
+    const wrap = document.createElement('div');
+    wrap.className = 'fp-range';
+    wrap.style.marginBottom = '14px';
+    wrap.innerHTML =
+      '<div class="fp-range-lbl"><span>' + def.label + '</span><b id="fpRangeVal-' + def.key + '">' + def.fmt(cur[0]) + ' – ' + def.fmt(cur[1]) + '</b></div>' +
+      '<div class="fp-range-track">' +
+        '<div class="fp-range-bg"></div>' +
+        '<div class="fp-range-fill" id="fpRangeFill-' + def.key + '"></div>' +
+        '<input type="range" min="' + def.min + '" max="' + def.max + '" step="' + def.step + '" value="' + cur[0] + '" id="fpRangeMin-' + def.key + '">' +
+        '<input type="range" min="' + def.min + '" max="' + def.max + '" step="' + def.step + '" value="' + cur[1] + '" id="fpRangeMax-' + def.key + '">' +
+      '</div>';
+    container.appendChild(wrap);
+    const minEl = wrap.querySelector('#fpRangeMin-' + def.key);
+    const maxEl = wrap.querySelector('#fpRangeMax-' + def.key);
+    const update = () => {
+      let lo = parseFloat(minEl.value), hi = parseFloat(maxEl.value);
+      if (lo > hi) { const t = lo; lo = hi; hi = t; minEl.value = lo; maxEl.value = hi; }
+      _setRangeFillVisual(def, lo, hi);
+      if (lo !== def.min || hi !== def.max) _rangeFilters[def.key] = [lo, hi];
+      else delete _rangeFilters[def.key];
+      _refreshTable();
+      _updateFilterBadgeAndChips();
+    };
+    minEl.addEventListener('input', update);
+    maxEl.addEventListener('input', update);
+    _setRangeFillVisual(def, cur[0], cur[1]);
+  });
+}
+
+function _setRangeFillVisual(def, lo, hi) {
+  const fill = document.getElementById('fpRangeFill-' + def.key);
+  const valEl = document.getElementById('fpRangeVal-' + def.key);
+  const span = (def.max - def.min) || 1;
+  const leftPct = (lo - def.min) / span * 100;
+  const rightPct = (hi - def.min) / span * 100;
+  if (fill) { fill.style.left = leftPct + '%'; fill.style.width = Math.max(0, rightPct - leftPct) + '%'; }
+  if (valEl) valEl.textContent = def.fmt(lo) + ' – ' + def.fmt(hi);
+}
+
+function _buildSizePresets() {
+  const el = document.getElementById('fpSizePresets');
+  if (!el) return;
+  el.innerHTML = SIZE_PRESETS.map(p =>
+    '<button class="fp-preset-btn' + (_sizePreset === p.key ? ' on' : '') + '" onclick="toggleSizePreset(\'' + p.key + '\')">' + p.label + '</button>').join('');
+}
+
+function toggleSizePreset(key) {
+  _sizePreset = (_sizePreset === key) ? null : key;
+  _buildSizePresets();
+  _refreshTable();
+  _updateFilterBadgeAndChips();
+}
+
+function _buildCountyList() {
+  const el = document.getElementById('fpCountyList');
+  if (!el) return;
+  const counts = {};
+  batchState.results.forEach(r => {
+    const pi = r.parcel_info || {};
+    const county = pi.county || extractCounty(r.address || '');
+    if (county) counts[county] = (counts[county] || 0) + 1;
+  });
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) { el.innerHTML = '<div style="font-size:11px;color:var(--t3)">No county data yet.</div>'; return; }
+  el.innerHTML = '';
+  entries.forEach(([county, count]) => {
+    const checked = _countyFilters.has(county);
+    const item = document.createElement('label');
+    item.className = 'fp-item';
+    item.style.opacity = (count === 0 && !checked) ? '0.5' : '';
+    item.innerHTML = '<input type="checkbox"' + (checked ? ' checked' : '') + '><span>' + escHtml(county) + '</span><span class="fp-item-count">' + count + '</span>';
+    item.querySelector('input').addEventListener('change', function() {
+      if (this.checked) _countyFilters.add(county); else _countyFilters.delete(county);
+      _refreshTable(); _updateFilterBadgeAndChips();
+    });
+    el.appendChild(item);
+  });
+}
+
+function _buildLandUseList() {
+  const el = document.getElementById('fpLandUseList');
+  if (!el) return;
+  const counts = {};
+  batchState.results.forEach(r => {
+    const pi = r.parcel_info || {};
+    if (pi.land_use_code == null) return;
+    const cat = getLandUseCategory(pi.land_use_code);
+    if (cat) counts[cat] = (counts[cat] || 0) + 1;
+  });
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) { el.innerHTML = '<div style="font-size:11px;color:var(--t3)">No land use data yet.</div>'; return; }
+  el.innerHTML = '';
+  entries.forEach(([cat, count]) => {
+    const checked = _landUseFilters.has(cat);
+    const item = document.createElement('label');
+    item.className = 'fp-item';
+    item.style.opacity = (count === 0 && !checked) ? '0.5' : '';
+    item.innerHTML = '<input type="checkbox"' + (checked ? ' checked' : '') + '><span>' + escHtml(cat) + '</span><span class="fp-item-count">' + count + '</span>';
+    item.querySelector('input').addEventListener('change', function() {
+      if (this.checked) _landUseFilters.add(cat); else _landUseFilters.delete(cat);
+      _refreshTable(); _updateFilterBadgeAndChips();
+    });
+    el.appendChild(item);
+  });
+}
+
+function _buildFlagGroup(containerId, keys) {
+  const grid = document.getElementById(containerId);
+  if (!grid) return;
+  const results = batchState.results;
+  grid.innerHTML = '';
+  keys.forEach(key => {
+    const def = FLAG_DEFS.find(d => d.key === key);
+    if (!def) return;
+    const count = results.filter(r => def.match(r)).length;
+    const checked = _activeFilters.has(key);
+    const item = document.createElement('label');
+    item.className = 'fp-item';
+    item.style.opacity = (count === 0 && !checked) ? '0.5' : '';
+    item.innerHTML = '<input type="checkbox"' + (checked ? ' checked' : '') + '><span>' + escHtml(def.label) + '</span><span class="fp-item-count">' + count + '</span>';
+    item.querySelector('input').addEventListener('change', function() {
+      toggleFlagFilter(key, this.checked, item, count);
+    });
+    grid.appendChild(item);
+  });
+}
+
+function toggleFlagFilter(key, isChecked, itemEl, count) {
+  if (isChecked) _activeFilters.add(key); else _activeFilters.delete(key);
+  if (itemEl) itemEl.style.opacity = (count === 0 && !isChecked) ? '0.5' : '';
+  _refreshTable();
+  _updateFilterBadgeAndChips();
+}
+
+function setDealKillerMode(mode) {
+  _dealKillerMode = mode;
+  document.querySelectorAll('#fpDealKillerMode button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  _refreshTable();
+  _updateFilterBadgeAndChips();
+}
+
+function _countActiveFilters() {
+  let n = _activeFilters.size + _countyFilters.size + _landUseFilters.size + Object.keys(_rangeFilters).length;
+  if (_sizePreset) n++;
+  return n;
+}
+
+function _updateFilterBadgeAndChips() {
+  const n = _countActiveFilters();
+  const badge = document.getElementById('activeFilterCount');
+  if (badge) { badge.textContent = n; badge.style.display = n > 0 ? '' : 'none'; }
+  _renderActiveFilterChips();
+}
+
+function _renderActiveFilterChips() {
+  const wrap = document.getElementById('activeFilterChips');
+  if (!wrap) return;
+  const chips = [];
+  const chip = (label, onRemove) => chips.push(
+    '<span class="af-chip">' + escHtml(label) + '<button onclick="' + onRemove + '" title="Remove">✕</button></span>');
+
+  _activeFilters.forEach(key => {
+    const def = FLAG_DEFS.find(d => d.key === key);
+    if (def) chip(def.label, 'removeChipFlag(\'' + key + '\')');
+  });
+  _countyFilters.forEach(c => chip('County: ' + c, 'removeChipCounty(' + JSON.stringify(c) + ')'));
+  _landUseFilters.forEach(c => chip('Land use: ' + c, 'removeChipLandUse(' + JSON.stringify(c) + ')'));
+  if (_sizePreset) {
+    const p = SIZE_PRESETS.find(p => p.key === _sizePreset);
+    if (p) chip('Size: ' + p.label, 'removeChipSizePreset()');
+  }
+  Object.keys(_rangeFilters).forEach(key => {
+    const def = RANGE_DEFS.find(d => d.key === key);
+    if (!def) return;
+    const [lo, hi] = _rangeFilters[key];
+    chip(def.label + ': ' + def.fmt(lo) + '–' + def.fmt(hi), 'removeChipRange(\'' + key + '\')');
+  });
+
+  wrap.style.display = chips.length ? 'flex' : 'none';
+  wrap.innerHTML = chips.join('');
+}
+
+function removeChipFlag(key) { _activeFilters.delete(key); buildFilterPanel(); _refreshTable(); }
+function removeChipCounty(c) { _countyFilters.delete(c); buildFilterPanel(); _refreshTable(); }
+function removeChipLandUse(c) { _landUseFilters.delete(c); buildFilterPanel(); _refreshTable(); }
+function removeChipSizePreset() { _sizePreset = null; buildFilterPanel(); _refreshTable(); }
+function removeChipRange(key) { delete _rangeFilters[key]; buildFilterPanel(); _refreshTable(); }
 
 function clearAllFilters() {
   _activeFilters.clear();
-  buildFilterPanel();
+  _countyFilters.clear();
+  _landUseFilters.clear();
+  _rangeFilters = {};
+  _sizePreset = null;
+  _dealKillerMode = 'any';
   if (document.getElementById('filterPanel')?.style.display !== 'none') buildFilterPanel();
+  _updateFilterBadgeAndChips();
   _refreshTable();
 }
 function clearFlagFilters() { clearAllFilters(); }
+
+// ── Saved views (per user, persisted to localStorage) ────────────────────
+function _savedViewsKey() { return 'piq-savedviews-' + (currentUser ? currentUser.id : 'anon'); }
+function _getSavedViews() {
+  try { return JSON.parse(localStorage.getItem(_savedViewsKey()) || '{}'); } catch(e) { return {}; }
+}
+function _populateSavedViewsDropdown() {
+  const sel = document.getElementById('fpSavedViewSelect');
+  if (!sel) return;
+  const views = _getSavedViews();
+  const names = Object.keys(views);
+  sel.innerHTML = '<option value="">Saved views…</option>' +
+    names.map(n => '<option value="' + escHtml(n) + '">' + escHtml(n) + '</option>').join('');
+}
+function promptSaveView() {
+  const name = prompt('Name this view (e.g. "Clean pursues under 2ac"):', batchState.name || '');
+  if (!name) return;
+  const views = _getSavedViews();
+  views[name] = {
+    verdict: batchState.filtered,
+    activeFilters: [..._activeFilters],
+    dealKillerMode: _dealKillerMode,
+    countyFilters: [..._countyFilters],
+    landUseFilters: [..._landUseFilters],
+    sizePreset: _sizePreset,
+    rangeFilters: _rangeFilters,
+  };
+  try { localStorage.setItem(_savedViewsKey(), JSON.stringify(views)); toast('View saved.'); } catch(e) { toast('Could not save view.'); }
+  _populateSavedViewsDropdown();
+  const sel = document.getElementById('fpSavedViewSelect');
+  if (sel) sel.value = name;
+}
+function loadSavedView(name) {
+  if (!name) return;
+  const views = _getSavedViews();
+  const v = views[name];
+  if (!v) return;
+  _activeFilters = new Set(v.activeFilters || []);
+  _dealKillerMode = v.dealKillerMode || 'any';
+  _countyFilters = new Set(v.countyFilters || []);
+  _landUseFilters = new Set(v.landUseFilters || []);
+  _sizePreset = v.sizePreset || null;
+  _rangeFilters = v.rangeFilters || {};
+  if (v.verdict) filterResults(v.verdict);
+  buildFilterPanel();
+  _refreshTable();
+  toast('Loaded view "' + name + '".');
+}
 
 function defaultSort(results) {
   // Honor the "Default sort" preference from Settings
@@ -5091,22 +5453,46 @@ function _refreshTable() {
     sorted = defaultSort(batchState.results);
   }
   let filtered = verdict === 'all' ? sorted : sorted.filter(r => effectiveVerdict(r) === verdict);
-  if (_activeFilters.size > 0) {
-    const activeByGroup = FILTER_GROUPS.map(g => ({
-      keys: g.keys.filter(k => _activeFilters.has(k))
-    })).filter(g => g.keys.length > 0);
-    filtered = filtered.filter(r =>
-      activeByGroup.every(group =>
-        group.keys.some(key => {
-          const f = FLAG_DEFS.find(f => f.key === key);
-          return f ? f.match(r) : false;
-        })
-      )
-    );
-  }
+  filtered = filtered.filter(_passesPanelFilters);
   _currentDisplayed = filtered;
   if (!batchState._streaming) _currentPage = 1;
   renderPage();
+}
+
+function _passesPanelFilters(r) {
+  // Risk Flags + Positive Signals groups: OR within the group, AND across groups.
+  // Deal Killers group: same OR-within-group by default, but switches to
+  // AND-within-group (every checked killer must be present) in ALL mode.
+  for (let gi = 0; gi < FILTER_GROUPS.length; gi++) {
+    const keys = FILTER_GROUPS[gi].keys.filter(k => _activeFilters.has(k));
+    if (!keys.length) continue;
+    const matches = key => { const f = FLAG_DEFS.find(f => f.key === key); return f ? f.match(r) : false; };
+    const isDealKillers = gi === 0;
+    const pass = (isDealKillers && _dealKillerMode === 'all') ? keys.every(matches) : keys.some(matches);
+    if (!pass) return false;
+  }
+  if (_countyFilters.size > 0) {
+    const pi = r.parcel_info || {};
+    const county = pi.county || extractCounty(r.address || '');
+    if (!_countyFilters.has(county)) return false;
+  }
+  if (_landUseFilters.size > 0) {
+    const pi = r.parcel_info || {};
+    const cat = pi.land_use_code != null ? getLandUseCategory(pi.land_use_code) : null;
+    if (!cat || !_landUseFilters.has(cat)) return false;
+  }
+  if (_sizePreset) {
+    const preset = SIZE_PRESETS.find(p => p.key === _sizePreset);
+    if (preset && !preset.test(getAcreage(r))) return false;
+  }
+  for (const key in _rangeFilters) {
+    const def = RANGE_DEFS.find(d => d.key === key);
+    if (!def) continue;
+    const [lo, hi] = _rangeFilters[key];
+    const val = def.get(r);
+    if (val == null || val < lo || val > hi) return false;
+  }
+  return true;
 }
 
 function loadSbUsage() {
