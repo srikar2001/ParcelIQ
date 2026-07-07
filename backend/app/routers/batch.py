@@ -452,7 +452,7 @@ def _timeout_result(address: str) -> dict:
         "auto_kill": False, "auto_kill_reason": None,
         "flags": [],
         "positives": [], "parcel_info": {}, "sources": [],
-        "error": "Timed out — data sources were too slow. Retry.",
+        "error": "Timed out. The data sources were too slow, retry this one.",
     }
 
 
@@ -480,11 +480,11 @@ def _geocode_error_result(address: str, geo: dict) -> dict:
         if suggestions:
             return _error_result(
                 address,
-                f"Address not found — did you mean {suggestions[0]}?",
+                f"Address not found. Did you mean {suggestions[0]}?",
                 suggestions=suggestions,
             )
         return _error_result(address, "Address not found.")
-    return _error_result(address, "Address not found — enter a full street address.")
+    return _error_result(address, "Address not found. Enter a full street address.")
 
 
 async def _check_batch_auth(authorization: Optional[str], parcel_count: int) -> Optional[JSONResponse]:
@@ -575,7 +575,7 @@ async def batch_screen_stream(
             processed_addrs = {r["address"] for r in all_results}
             for p in parcels:
                 if p.address not in processed_addrs:
-                    r = _error_result(p.address, "Internal error — retry this parcel")
+                    r = _error_result(p.address, "Internal error. Retry this parcel")
                     all_results.append(r)
 
         summary = {

@@ -53,7 +53,7 @@ def score_parcel(
 
     # Flag when FEMA API itself failed (distinct from area not being mapped)
     if flood_zone == "ERROR":
-        flags.append("Flood zone data unavailable — verify with FEMA manually")
+        flags.append("Flood zone data unavailable. Verify the flood maps manually")
 
     if flood_zone in SFHA_ZONES and flood.get("sfha") is True:
         reason = f"FEMA Flood Zone {flood_zone}"
@@ -64,7 +64,7 @@ def score_parcel(
 
     # Flag when NWI API itself failed
     if wetlands.get("error") is True:
-        flags.append("Wetland data unavailable — verify with USFWS NWI manually")
+        flags.append("Wetland data unavailable. Verify the wetland maps manually")
 
     if wetlands.get("wetland_on_parcel") is True:
         reason = "Wetlands on parcel (USFWS NWI)"
@@ -82,7 +82,7 @@ def score_parcel(
         auto_kill = True
 
     if habitat.get("data_available") is False:
-        flags.append("Wildlife check unavailable — verify manually")
+        flags.append("Wildlife check unavailable. Verify manually")
     elif habitat.get("habitat_found") is True:
         species = habitat.get("species") or []
         sp = ", ".join(species[:2]) if species else "listed species"
@@ -94,7 +94,7 @@ def score_parcel(
 
     if easement and easement.get("easement_found") is True:
         etype = easement.get("easement_type") or "conservation easement"
-        reason = f"Conservation easement: {etype} — development permanently restricted"
+        reason = f"Conservation easement: {etype}. Development permanently restricted"
         flags.append(reason)
         if not auto_kill:
             auto_kill_reason = reason
@@ -125,13 +125,13 @@ def score_parcel(
     _name_txt   = f" ({_road_name})" if _road_name else ""
     if roads.get("road_surface") == "error" or _road_found is None:
         score -= 5
-        flags.append("Road data unavailable — verify access")
+        flags.append("Road data unavailable. Verify access")
     elif _road_found is False:
         score -= 15
-        flags.append("No road detected within 150m — possible landlocked parcel, verify legal access")
+        flags.append("No road detected within 150m. Possible landlocked parcel, verify legal access")
     elif roads.get("road_private"):
         score -= 6
-        flags.append(f"Nearest road is private{_name_txt}{_dist_txt} — confirm legal access or easement")
+        flags.append(f"Nearest road is private{_name_txt}{_dist_txt}. Confirm legal access or easement")
 
     if acreage is not None and acreage < 0.25:
         score -= 20
@@ -160,7 +160,7 @@ def score_parcel(
     if _road_found is True and not roads.get("road_private"):
         if roads.get("road_surface") == "unknown":
             score -= 3
-            flags.append("Road surface unconfirmed — check satellite view")
+            flags.append("Road surface unconfirmed. Check satellite view")
             score += 2
             positives.append(f"Road access confirmed{_name_txt}{_dist_txt}")
         elif roads.get("road_surface") == "dirt":
@@ -180,7 +180,7 @@ def score_parcel(
     if waterways and waterways.get("waterway_nearby"):
         wtype = waterways.get("waterway_type", "waterway")
         score -= 5
-        flags.append(f"Canal/waterway nearby ({wtype}) — check easements and drainage")
+        flags.append(f"Canal or waterway nearby ({wtype}). Check easements and drainage")
 
     if just_value and land_value and just_value > 0:
         if abs(just_value - land_value) / max(just_value, 1) > 0.15:
@@ -193,13 +193,13 @@ def score_parcel(
         if elev_ft is not None:
             if elev_ft < 2:
                 score -= 20
-                flags.append(f"Very low elevation ({elev_ft} ft) — extreme storm surge / flood risk")
+                flags.append(f"Very low elevation ({elev_ft} ft), extreme storm surge and flood risk")
             elif elev_ft < 5:
                 score -= 12
-                flags.append(f"Low elevation ({elev_ft} ft) — storm surge and flood risk")
+                flags.append(f"Low elevation ({elev_ft} ft), storm surge and flood risk")
             elif elev_ft >= 20:
                 score += 4
-                positives.append(f"Good elevation ({elev_ft} ft) — above typical flood levels")
+                positives.append(f"Good elevation ({elev_ft} ft), above typical flood levels")
 
     # Soil drainage (USDA)
     if soil:
@@ -207,10 +207,10 @@ def score_parcel(
         drainage = soil.get("soil_drainage") or ""
         if septic is False:
             score -= 12
-            flags.append(f"Poor soil drainage ({drainage}) — septic system likely not feasible")
+            flags.append(f"Poor soil drainage ({drainage}), septic system likely not feasible")
         elif septic is True:
             score += 4
-            positives.append(f"Well-drained soil ({drainage}) — septic feasible")
+            positives.append(f"Well-drained soil ({drainage}), septic feasible")
 
     # Hurricane evacuation zone (FL FDEM)
     if evac:
@@ -220,13 +220,13 @@ def score_parcel(
         county_str = f" ({county} County)" if county else ""
         if zone == "A":
             score -= 18
-            flags.append(f"Hurricane Evacuation Zone A{county_str} — highest surge risk, mandatory evac")
+            flags.append(f"Hurricane Evacuation Zone A{county_str}, highest surge risk with mandatory evacuations")
         elif zone == "B":
             score -= 12
-            flags.append(f"Hurricane Evacuation Zone B{county_str} — high surge risk")
+            flags.append(f"Hurricane Evacuation Zone B{county_str}, high surge risk")
         elif zone == "C":
             score -= 6
-            flags.append(f"Hurricane Evacuation Zone C{county_str} — moderate surge risk")
+            flags.append(f"Hurricane Evacuation Zone C{county_str}, moderate surge risk")
         elif zone in ("D", "E", "F"):
             score -= 2
             flags.append(f"Hurricane Evacuation Zone {zone}{county_str}")
@@ -237,12 +237,12 @@ def score_parcel(
     if powerlines:
         if powerlines.get("powerline_nearby") is False:
             score -= 5
-            flags.append("No power lines within 1 mile — electric connection costly")
+            flags.append("No power lines within 1 mile, electric connection will be costly")
 
     # Additions
     if flood_zone == "X":
         score += 5
-        positives.append("FEMA Zone X — minimal flood hazard")
+        positives.append("FEMA Zone X, minimal flood hazard")
 
     if not wetlands.get("wetland_on_parcel") and not wetlands.get("wetland_nearby"):
         score += 5

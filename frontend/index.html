@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ParceliQ — Batch Parcel Screening · Florida</title>
+<title>ParceliQ · Batch Parcel Screening for Florida</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1094,7 +1094,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           Upload your leads.<br>
           <span class="lp-green">We'll kill the bad ones.</span>
         </h1>
-        <p class="lp-sub hero-sub-anim">ParceliQ analyzes every parcel against flood zones, wetlands, wildlife habitat, EPA records, road access, and county data — so your team makes faster, smarter offers.</p>
+        <p class="lp-sub hero-sub-anim">ParceliQ checks every parcel for flood zones, wetlands, protected wildlife, contamination records, road access, and county records. Your team makes faster, smarter offers.</p>
         <div class="lp-ctas hero-ctas-anim">
           <button class="lp-btn-primary" style="font-size:16px;padding:14px 28px" onclick="startScreening()">Start screening free →</button>
           <button class="lp-btn-outline" style="font-size:16px;padding:14px 28px" onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">▶ See how it works</button>
@@ -1186,12 +1186,12 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div class="lp-step reveal" style="transition-delay:0ms">
           <div class="lp-step-icon-wrap"><span class="lp-step-num">1</span>↑</div>
           <div class="lp-step-title">Upload your leads</div>
-          <div class="lp-step-desc">Paste addresses or upload a CSV — any format.</div>
+          <div class="lp-step-desc">Paste addresses or upload a spreadsheet. Any format works.</div>
         </div>
         <div class="lp-step reveal" style="transition-delay:100ms">
           <div class="lp-step-icon-wrap"><span class="lp-step-num">2</span>⚡</div>
           <div class="lp-step-title">We run the checks</div>
-          <div class="lp-step-desc">Flood zones, wetlands, wildlife, road access, county records — all at once.</div>
+          <div class="lp-step-desc">Flood zones, wetlands, wildlife, road access, and county records, all at once.</div>
         </div>
         <div class="lp-step reveal" style="transition-delay:200ms">
           <div class="lp-step-icon-wrap"><span class="lp-step-num">3</span>◉</div>
@@ -1302,7 +1302,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="reveal">
         <div class="lp-sec-label" style="text-align:left">TRANSPARENT BY DESIGN</div>
         <div class="lp-sec-title" style="text-align:left">Explainable. Transparent. <span style="color:#22C55E">Trusted.</span></div>
-        <p style="font-size:16px;color:var(--t2);line-height:1.7;margin:0 0 28px">We show you why each parcel is a good buy — or a pass. Clear reasons. Linked sources. High confidence.</p>
+        <p style="font-size:16px;color:var(--t2);line-height:1.7;margin:0 0 28px">We show you why each parcel is a good buy or a pass. Clear reasons, in plain English.</p>
         <div class="lp-explain-check"><span class="lp-explain-ck">✓</span><span class="lp-explain-text">Human-readable reasoning</span></div>
         <div class="lp-explain-check"><span class="lp-explain-ck">✓</span><span class="lp-explain-text">Linked to map &amp; source</span></div>
         <div class="lp-explain-check"><span class="lp-explain-ck">✓</span><span class="lp-explain-text">Confidence you can trust</span></div>
@@ -1364,7 +1364,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div>
         <div class="lp-footer-logo">Parcel<span>iQ</span></div>
         <div class="lp-footer-tag">Live data. Smarter decisions.</div>
-        <div class="lp-footer-note">Florida Beta — Live data for Florida. Updating continuously.</div>
+        <div class="lp-footer-note">Florida Beta. Live data, updated continuously.</div>
       </div>
       <div class="lp-footer-col">
         <div class="lp-footer-col-title">Product</div>
@@ -1426,7 +1426,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       reader.onload = function(ev) {
         try {
           if (typeof XLSX === 'undefined') {
-            if (typeof toast === 'function') toast('File parsing unavailable — paste addresses instead.'); else alert('File parsing unavailable — paste addresses instead.');
+            if (typeof toast === 'function') toast('File parsing unavailable. Paste addresses instead.'); else alert('File parsing unavailable. Paste addresses instead.');
             return;
           }
           var wb = XLSX.read(ev.target.result, { type: 'binary' });
@@ -1650,7 +1650,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         </div>
         <select class="state-sel">
           <option value="FL">Florida ▾</option>
-          <option disabled>Other states — Coming Soon</option>
+          <option disabled>Other states coming soon</option>
         </select>
         <div id="limitBanner" class="limit-banner"></div>
         <button class="run-btn" id="runBatchBtn" onclick="runBatch()">Screen Parcels →</button>
@@ -1987,14 +1987,14 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   <button class="bulk-bar-btn primary" onclick="exportSelected()">↓ Export</button>
   <button class="bulk-bar-btn" onclick="clearSelection()">✕ Clear</button>
 </div>
-<div id="cmpMaxMsg" style="display:none;position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:var(--card-h);border:1px solid var(--bh);border-radius:var(--rp);padding:7px 16px;font-size:12px;color:var(--amber);z-index:201;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.4)">Max 3 parcels — uncheck one to change selection</div>
+<div id="cmpMaxMsg" style="display:none;position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:var(--card-h);border:1px solid var(--bh);border-radius:var(--rp);padding:7px 16px;font-size:12px;color:var(--amber);z-index:201;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.4)">Max 3 parcels. Uncheck one to change your selection</div>
 
 <!-- ════════ PRICING ════════ -->
 <div id="page-pricing" class="screen">
   <div class="pricing-wrap">
     <h2 class="pricing-title">Simple, flat pricing.</h2>
     <p class="pricing-sub">No upsells. No per-parcel charges. No contracts.</p>
-    <p class="pricing-sub" style="color:var(--green);font-size:13px;margin-top:-8px">ParceliQ is in free beta — every plan is free until paid plans launch.</p>
+    <p class="pricing-sub" style="color:var(--green);font-size:13px;margin-top:-8px">ParceliQ is in free beta. Every plan is free until paid plans launch.</p>
     <div class="ptier-grid">
       <div class="ptier">
         <div class="ptier-name">Starter</div>
@@ -2069,7 +2069,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <div style="padding:12px 16px;color:var(--green);font-weight:700">Seconds per parcel</div>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--t3);text-align:center;margin-top:12px">A 100-lead list is a week of evenings by hand — or one screening run.</div>
+      <div style="font-size:12px;color:var(--t3);text-align:center;margin-top:12px">A 100-lead list is a week of evenings by hand, or one screening run.</div>
     </div>
   </div>
 </div>
@@ -2087,7 +2087,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div style="font-size:24px;font-weight:800;letter-spacing:-.02em">Admin</div>
       <span style="font-size:10px;font-weight:700;letter-spacing:.8px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:var(--red);border-radius:99px;padding:3px 10px">ADMIN VIEW</span>
     </div>
-    <div style="font-size:13px;color:var(--t3);margin-bottom:26px">Platform controls — changes here affect real users immediately.</div>
+    <div style="font-size:13px;color:var(--t3);margin-bottom:26px">Platform controls. Changes here affect real users immediately.</div>
 
     <div class="stats-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px" id="admStats"></div>
 
@@ -2140,7 +2140,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         </div>
         <div style="border:1px solid var(--b);border-radius:12px;padding:20px;background:var(--card)">
           <div class="sv-sec-title" style="margin-bottom:4px">What's killing your deals</div>
-          <div style="font-size:11px;color:var(--t3);margin-bottom:14px">Where your lead sources have problems — use this to refine sourcing.</div>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:14px">Where your lead sources have problems. Use this to refine sourcing.</div>
           <div id="anKillReasons"></div>
         </div>
       </div>
@@ -2161,10 +2161,10 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <p>By creating an account or using ParceliQ (the "Service"), you agree to these Terms of Service. If you do not agree, do not use the Service.</p>
 
     <h2 class="legal-h2">2. What ParceliQ is</h2>
-    <p>ParceliQ is a screening tool for vacant land in Florida. It aggregates publicly available government data about parcels — such as flood zones, wetlands, wildlife habitat, road access, soil, and county property records — and produces informational risk screenings and verdicts to help you prioritize which parcels deserve deeper due diligence.</p>
+    <p>ParceliQ is a screening tool for vacant land in Florida. It brings together publicly available government data about parcels, such as flood zones, wetlands, wildlife habitat, road access, soil, and county property records, and produces informational risk screenings and verdicts to help you prioritize which parcels deserve deeper due diligence.</p>
 
-    <h2 class="legal-h2">3. Not professional advice — verify everything</h2>
-    <p><b style="color:var(--t1)">ParceliQ provides informational screening only, built from public government data. It is not legal, financial, engineering, environmental, or real estate advice, and no output of the Service is a substitute for professional due diligence.</b> Government datasets can be incomplete, outdated, mismapped, or wrong. Geocoding can place a point on the wrong parcel. A "PURSUE" verdict is not a recommendation to buy, and a "KILL" verdict is not a determination that a parcel is worthless. You must independently verify all information — including flood status, wetlands, legal access, title, zoning, and permits — with qualified professionals and primary sources before making any offer, purchase, or other investment decision.</p>
+    <h2 class="legal-h2">3. Not professional advice. Verify everything</h2>
+    <p><b style="color:var(--t1)">ParceliQ provides informational screening only, built from public government data. It is not legal, financial, engineering, environmental, or real estate advice, and no output of the Service is a substitute for professional due diligence.</b> Government datasets can be incomplete, outdated, mismapped, or wrong. Geocoding can place a point on the wrong parcel. A "PURSUE" verdict is not a recommendation to buy, and a "KILL" verdict is not a determination that a parcel is worthless. You must independently verify all information, including flood status, wetlands, legal access, title, zoning, and permits, with qualified professionals and primary sources before making any offer, purchase, or other investment decision.</p>
 
     <h2 class="legal-h2">4. Your account</h2>
     <p>You must provide accurate registration information and keep your credentials secure. You are responsible for all activity under your account. One account per person or team seat; do not share credentials to circumvent usage limits.</p>
@@ -2176,7 +2176,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <p>The Service is currently offered as a free beta with daily usage limits. Paid subscription plans will launch in the future; pricing shown before launch is indicative. We may change features, limits, or availability during the beta at any time.</p>
 
     <h2 class="legal-h2">7. Limitation of liability</h2>
-    <p>To the maximum extent permitted by law, the Service is provided "as is" and "as available," without warranties of any kind, express or implied, including accuracy, completeness, merchantability, or fitness for a particular purpose. ParceliQ and its operator shall not be liable for any indirect, incidental, special, consequential, or exemplary damages — including lost profits, lost opportunities, or losses arising from investment decisions made using the Service. Our total aggregate liability for any claim shall not exceed the greater of $100 or the amount you paid us in the twelve months before the claim arose.</p>
+    <p>To the maximum extent permitted by law, the Service is provided "as is" and "as available," without warranties of any kind, express or implied, including accuracy, completeness, merchantability, or fitness for a particular purpose. ParceliQ and its operator shall not be liable for any indirect, incidental, special, consequential, or exemplary damages, including lost profits, lost opportunities, or losses arising from investment decisions made using the Service. Our total aggregate liability for any claim shall not exceed the greater of $100 or the amount you paid us in the twelve months before the claim arose.</p>
 
     <h2 class="legal-h2">8. Termination</h2>
     <p>You may stop using the Service and delete your account at any time. We may suspend or terminate accounts that violate these terms, with notice where practical. Sections 3, 7, and 9 survive termination.</p>
@@ -2203,7 +2203,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <p>When you use ParceliQ we collect: your email address and name (at signup), the property addresses and parcel numbers you screen, your screening results and saved batches, notes you attach to parcels, and basic usage data (batches run, parcels screened, feature usage) needed to operate limits and improve the product.</p>
 
     <h2 class="legal-h2">2. How we use it</h2>
-    <p>We use your data to deliver the Service: running screenings, saving your batch history, enforcing usage limits, providing support, and improving reliability. <b style="color:var(--t1)">We do not sell your personal information or your screened-address lists to anyone.</b> Your lead lists are your business — we treat them as confidential.</p>
+    <p>We use your data to deliver the Service: running screenings, saving your batch history, enforcing usage limits, providing support, and improving reliability. <b style="color:var(--t1)">We do not sell your personal information or your screened-address lists to anyone.</b> Your lead lists are your business, and we treat them as confidential.</p>
 
     <h2 class="legal-h2">3. Where it lives</h2>
     <p>Account data and screening results are stored with Supabase (our database and authentication provider), which acts as a data processor on our behalf. Screening requests are processed by our backend hosting provider. Property addresses you screen are sent to third-party geocoding and public government data services solely to produce your results.</p>
@@ -2834,7 +2834,7 @@ async function doSignout() {
 }
 
 async function doForgot() {
-  if (!sb) { toast('Auth not ready — reload the page'); return; }
+  if (!sb) { toast('Sign-in is still loading. Reload the page.'); return; }
   const email = (document.getElementById('forgotEmail')?.value || '').trim();
   const err   = document.getElementById('forgotErr');
   const btn   = document.getElementById('forgotBtn');
@@ -2859,7 +2859,7 @@ async function doForgot() {
 }
 
 async function doResetPassword() {
-  if (!sb) { toast('Auth not ready — reload the page'); return; }
+  if (!sb) { toast('Sign-in is still loading. Reload the page.'); return; }
   const pw      = (document.getElementById('resetPw')?.value || '');
   const confirm = (document.getElementById('resetConfirm')?.value || '');
   const err     = document.getElementById('resetErr');
@@ -2967,7 +2967,7 @@ window.addEventListener('focus', async () => {
 });
 
 async function signInWithGoogle() {
-  if (!sb) { toast('Auth not ready — reload page'); return; }
+  if (!sb) { toast('Sign-in is still loading. Reload the page.'); return; }
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -3040,7 +3040,7 @@ async function loadSharedBatch(token) {
         Parcel<span style='color:#22C55E'>iQ</span>
       </div>
       <div style='display:flex;gap:10px;align-items:center'>
-        <span style='font-size:13px;color:var(--t2)'>Shared results — View only</span>
+        <span style='font-size:13px;color:var(--t2)'>Shared results (view only)</span>
         <button onclick='window.location.hash="#signup"'
           style='background:#22C55E;color:#fff;border:none;padding:7px 14px;
           border-radius:99px;cursor:pointer;font-weight:600;font-size:13px'>
@@ -3144,7 +3144,7 @@ function renderSharedResults(results, container) {
       </table>
     </div>
     <div style="margin-top:32px;padding:28px;background:linear-gradient(135deg,rgba(34,197,94,.08),rgba(34,197,94,.03));border:1px solid rgba(34,197,94,.2);border-radius:14px;text-align:center">
-      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Screen your own parcels — free</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Screen your own parcels, free</div>
       <div style="font-size:13px;color:var(--t2);margin-bottom:16px">Florida statewide · Kill / Pursue in seconds</div>
       <button onclick='window.location.hash="#signup"'
         style='background:#22C55E;color:#fff;border:none;padding:11px 28px;border-radius:99px;cursor:pointer;font-weight:700;font-size:15px'>
@@ -3235,26 +3235,28 @@ function getDORDescription(code) {
 // FIX 3: Flag + source translation
 function translateFlag(f) {
   const exact = {
-    'Wetlands nearby (within ~100m)':               'Wetlands within 100m — not on parcel itself',
-    'Wetlands on parcel (USFWS NWI)':               'Wetlands confirmed on parcel — auto-kill',
-    'Road surface unverified (unpaved or unmapped)': 'Road access unverified — check satellite view',
-    'Road data unavailable — verify access':         'Road access unverified — check satellite view',
-    'Road type unconfirmed':                         'Road access unverified — check satellite view',
-    'Last sale price very low ($0)':                 'No recorded sale — normal for vacant land',
-    'Vacant lot with no sale history':               'No recorded sale — normal for vacant land',
-    'Just value and land value diverge >15%':        'Tax exemption likely — assessed value may jump at sale',
-    'FEMA Zone X — minimal flood hazard':            'Zone X — clean',
-    'FEMA Flood Zone AE':                            'In FEMA flood zone AE — high flood risk',
-    'FEMA Flood Zone VE':                            'In FEMA coastal flood zone — very high risk',
-    'No road detected in OSM (possible rural gap or landlocked)': 'No road found — check satellite view',
+    'Wetlands nearby (within ~100m)':               'Wetlands within 100m, not on the parcel itself',
+    'Wetlands on parcel (USFWS NWI)':               'Wetlands confirmed on this parcel',
+    'Road surface unverified (unpaved or unmapped)': 'Road access unverified. Check satellite view',
+    'Road data unavailable — verify access':         'Road access unverified. Check satellite view',
+    'Road data unavailable. Verify access':          'Road access unverified. Check satellite view',
+    'Road type unconfirmed':                         'Road access unverified. Check satellite view',
+    'Last sale price very low ($0)':                 'No recorded sale, normal for vacant land',
+    'Vacant lot with no sale history':               'No recorded sale, normal for vacant land',
+    'Just value and land value diverge >15%':        'Tax exemption likely. Assessed value may jump at sale',
+    'FEMA Zone X — minimal flood hazard':            'Zone X, no flood risk',
+    'FEMA Zone X, minimal flood hazard':             'Zone X, no flood risk',
+    'FEMA Flood Zone AE':                            'In flood zone AE, high flood risk',
+    'FEMA Flood Zone VE':                            'In a coastal flood zone, very high risk',
+    'No road detected in OSM (possible rural gap or landlocked)': 'No road found. Check satellite view',
     'No parcel record found in FL cadastral':        'County records unavailable for this parcel',
     'County data unavailable':                       'County records unavailable for this parcel',
-    'Conservation easement on parcel':               'Conservation easement — land use restricted',
+    'Conservation easement on parcel':               'Conservation easement, land use restricted',
     'Ideal parcel size':                             'Good buildable size',
     'Recent market sale':                            'Recent market sale on record',
     'Vacant/unimproved lot':                         'Confirmed vacant lot',
     'Not in a hurricane evacuation zone':            'Outside hurricane evacuation zone',
-    'Zone X — clean':                                'No flood zone risk (FEMA Zone X)',
+    'Zone X — clean':                                'No flood zone risk (Zone X)',
     'No wetlands on parcel or nearby':               'No wetlands detected',
     'Vacant lot':                                    'Confirmed vacant lot',
     'Market sale':                                   'Recent market sale on record',
@@ -3262,22 +3264,22 @@ function translateFlag(f) {
   if (exact[f]) return exact[f];
   if (/^Good elevation \(/i.test(f)) {
     const m = f.match(/\(([0-9.]+)\s*ft\)/i);
-    return m ? 'Elevation ' + m[1] + ' ft — above flood risk' : f;
+    return m ? 'Elevation ' + m[1] + ' ft, above flood risk' : f;
   }
-  if (/^Well-drained soil \(/i.test(f)) return 'Well-drained soil — septic system feasible';
+  if (/^Well-drained soil \(/i.test(f)) return 'Well-drained soil, septic system feasible';
   if (/^Ideal parcel size \(/i.test(f)) {
     const m = f.match(/\(([0-9.]+)\s*ac\)/i);
-    return m ? m[1] + ' acres — good buildable size' : 'Good buildable size';
+    return m ? m[1] + ' acres, a good buildable size' : 'Good buildable size';
   }
   if (/^Power infrastructure/i.test(f)) {
     const m = f.match(/Power infrastructure (.+)/i);
     return m ? 'Power lines ' + m[1] + ' away' : 'Power infrastructure nearby';
   }
-  if (/^Agricultural land use code/i.test(f)) return 'Agricultural use — rezoning required to build';
+  if (/^Agricultural land use code/i.test(f)) return 'Agricultural use. Rezoning required to build';
   if (/^Critical habitat nearby:/i.test(f)) return f.replace('Critical habitat nearby:', 'Wildlife:');
   if (/^Critical habitat:/i.test(f)) {
     const species = f.replace(/^Critical habitat:\s*/i, '');
-    return 'Protected wildlife habitat: ' + species + ' — auto-kill';
+    return 'Protected wildlife habitat: ' + species;
   }
   return f;
 }
@@ -3481,7 +3483,7 @@ function handleFileUpload(e) {
   const reader = new FileReader();
   reader.onload = ev => {
     try {
-      if (typeof XLSX === 'undefined') { toast('Paste addresses manually — SheetJS not loaded'); return; }
+      if (typeof XLSX === 'undefined') { toast('The file reader did not load. Paste addresses manually.'); return; }
       const wb = XLSX.read(ev.target.result, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
@@ -4234,7 +4236,7 @@ function showPricingComingSoon() {
     '<div style="background:var(--card);border:1px solid var(--b);border-radius:12px;padding:32px 28px;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.4)">' +
       '<div style="font-size:28px;margin-bottom:12px">🚧</div>' +
       '<div style="font-size:18px;font-weight:800;margin-bottom:10px;color:var(--t1)">Paid plans coming soon</div>' +
-      '<div style="font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:20px">You\'re on free beta — enjoy unlimited screening while it lasts.<br><br>We\'ll email you when paid plans launch.</div>' +
+      '<div style="font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:20px">You\'re on the free beta. Enjoy unlimited screening while it lasts.<br><br>We\'ll email you when paid plans launch.</div>' +
       '<button onclick="document.getElementById(\'pricingComingSoonModal\').style.display=\'none\'" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;width:100%">Got it</button>' +
     '</div>';
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.style.display = 'none'; });
@@ -4287,7 +4289,7 @@ async function runBatch() {
 }
 
 async function _executeBatch(lines, estimatedSet) {
-  if (_batchInProgress) { toast('A batch is already running — please wait.', 4000); return; }
+  if (_batchInProgress) { toast('A batch is already running. Give it a moment.', 4000); return; }
   _batchInProgress    = true;
   _estimatedAddresses = estimatedSet || new Set();
   _lastBatchLines     = lines;
@@ -4305,7 +4307,7 @@ async function _executeBatch(lines, estimatedSet) {
   if (nonFlLines.length >= 5) {
     toast(nonFlLines.length + ' addresses outside Florida were skipped. Other states coming soon.', 6000);
   } else if (nonFlLines.length > 0) {
-    toast(nonFlLines.length + ' non-Florida address' + (nonFlLines.length > 1 ? 'es' : '') + ' skipped — FL only during beta', 4000);
+    toast(nonFlLines.length + ' non-Florida address' + (nonFlLines.length > 1 ? 'es' : '') + ' skipped. Florida only during beta', 4000);
   }
 
   if (!flLines.length) {
@@ -4331,7 +4333,7 @@ async function _executeBatch(lines, estimatedSet) {
       if (e && e.isLimitExceeded) { goTo('landing'); setTimeout(() => showUpgradeModal(), 150); }
       else if (batchState.results.length > outsideResults.length) {
         batchState._streaming = false; renderBatchResults(); goTo('dashboard');
-        toast('Screening interrupted — showing partial results.', 5000);
+        toast('Screening was interrupted. Showing partial results.', 5000);
       } else {
         toast('Batch error: ' + (e.message || e), 5000); goTo('landing');
       }
@@ -4374,7 +4376,7 @@ async function _executeBatch(lines, estimatedSet) {
   let _reassureTimer = setTimeout(() => {
     if (batchState.results.length === outsideResults.length) {
       const sub = document.getElementById('procEta');
-      if (sub) sub.textContent = 'Taking a bit longer than usual — still working…';
+      if (sub) sub.textContent = 'Taking a bit longer than usual. Still working…';
     }
   }, 25000);
   let _firstResultTimer = setTimeout(() => {
@@ -4425,10 +4427,10 @@ async function _executeBatch(lines, estimatedSet) {
           else { renderBatchResults(); }
           const _errCount = batchState.results.filter(r => r.verdict === 'ERROR').length;
           if (_errCount > 0) {
-            toast(_errCount + (_errCount === 1 ? ' address' : ' addresses') + ' could not be matched — see highlighted rows below', 6000);
+            toast(_errCount + (_errCount === 1 ? ' address' : ' addresses') + ' could not be matched. See the highlighted rows below', 6000);
           }
           notifyBatchComplete(summary);
-          toast('Stream ended early — showing ' + flResults.length + ' of ' + flLines.length + ' results', 5000);
+          toast('Stream ended early. Showing ' + flResults.length + ' of ' + flLines.length + ' results', 5000);
         }
         break;
       }
@@ -4496,7 +4498,7 @@ async function _executeBatch(lines, estimatedSet) {
           else { renderBatchResults(); }
           const _errCount = batchState.results.filter(r => r.verdict === 'ERROR').length;
           if (_errCount > 0) {
-            toast(_errCount + (_errCount === 1 ? ' address' : ' addresses') + ' could not be matched — see highlighted rows below', 6000);
+            toast(_errCount + (_errCount === 1 ? ' address' : ' addresses') + ' could not be matched. See the highlighted rows below', 6000);
           }
           notifyBatchComplete(summary);
         }
@@ -4514,9 +4516,9 @@ async function _executeBatch(lines, estimatedSet) {
         batchState._streaming = false;
         renderBatchResults();
         if (!batchState._streaming) goTo('dashboard');
-        toast(isNetwork ? 'Connection lost — showing partial results.' : 'Streaming interrupted — showing partial results.', 5000);
+        toast(isNetwork ? 'Connection lost. Showing partial results.' : 'Streaming was interrupted. Showing partial results.', 5000);
       } else if (batchState._streaming) {
-        toast(isNetwork ? 'Connection lost — partial results shown.' : 'Streaming interrupted.', 5000);
+        toast(isNetwork ? 'Connection lost. Partial results shown.' : 'Streaming was interrupted.', 5000);
         batchState._streaming = false;
       } else {
         goTo('landing');
@@ -4627,7 +4629,7 @@ const _PROC_PHASES = [
   ['Geocoding addresses…',            'Pinpointing each parcel'],
   ['Checking flood zones…',           'Federal flood hazard maps'],
   ['Checking wetlands and wildlife…', 'Protected land screening'],
-  ['Checking road access…',           'The #1 kill signal — worth the wait'],
+  ['Checking road access…',           'The first kill signal every investor checks'],
   ['Pulling county records…',         'Owner, acreage, values, sales'],
   ['Checking soil and elevation…',    'Septic feasibility and drainage'],
   ['Calculating verdicts…',           'Scoring every risk factor'],
@@ -4674,7 +4676,7 @@ function updateStatCards() {
   const setEl   = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   setEl('sbKill', kill); setEl('sbPursue', pursue);
   setEl('resTitleCount', batchState.name || total + ' lot' + (total !== 1 ? 's' : '') + ' screened');
-  setEl('resCountSuffix', batchState.name ? '— ' + total + (total === 1 ? ' parcel' : ' parcels') : '');
+  setEl('resCountSuffix', batchState.name ? '· ' + total + (total === 1 ? ' parcel' : ' parcels') : '');
 }
 
 function updateProgress(completed, total, latestAddress) {
@@ -5007,7 +5009,7 @@ function renderBatchResults() {
   const setEl    = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
   setEl('resTitleCount', batchState.name || results.length + ' lot' + (results.length !== 1 ? 's' : '') + ' screened');
-  setEl('resCountSuffix', batchState.name ? '— ' + total + (total === 1 ? ' parcel' : ' parcels') : '');
+  setEl('resCountSuffix', batchState.name ? '· ' + total + (total === 1 ? ' parcel' : ' parcels') : '');
   const _doneAt = new Date(batchState.completedAt || Date.now());
   const _when = _doneAt.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }) +
     ' at ' + _doneAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -5019,7 +5021,7 @@ function renderBatchResults() {
   if (banner) {
     if (outside.length > 0) {
       banner.textContent = outside.length + ' address' + (outside.length > 1 ? 'es' : '') +
-        ' outside Florida coverage were skipped — other states coming soon.';
+        ' outside Florida coverage were skipped. Other states coming soon.';
       banner.classList.add('show');
     } else {
       banner.classList.remove('show');
@@ -5212,12 +5214,12 @@ let _openParcelIdx = -1;
 
 const KILL_EXPLANATIONS = {
   'wetland':       'Auto-killed: wetlands confirmed on this parcel.',
-  'flood zone ae': 'Auto-killed: parcel is in FEMA flood zone AE — high flood risk.',
-  'flood zone ve': 'Auto-killed: parcel is in a FEMA coastal flood zone — effectively unbuildable.',
-  'flood zone v':  'Auto-killed: parcel is in a FEMA coastal flood zone — effectively unbuildable.',
+  'flood zone ae': 'Auto-killed: this parcel is in a high-risk flood zone (AE).',
+  'flood zone ve': 'Auto-killed: this parcel is in a coastal surge zone and is effectively unbuildable.',
+  'flood zone v':  'Auto-killed: this parcel is in a coastal surge zone and is effectively unbuildable.',
   'habitat':       'Auto-killed: protected wildlife habitat overlaps this parcel.',
-  'public':        'Auto-killed: parcel is government-owned — not available to private buyers.',
-  'landlocked':    'Auto-killed: no road access confirmed — parcel may be landlocked.',
+  'public':        'Auto-killed: this parcel is government-owned and not available to private buyers.',
+  'landlocked':    'Auto-killed: no road access confirmed. This parcel may be landlocked.',
   'easement':      'Auto-killed: conservation easement permanently restricts development.',
 };
 
@@ -5225,8 +5227,8 @@ const KILL_EXPLANATIONS = {
 const KILL_MEANINGS = {
   'wetland':       'land is effectively unbuildable and hard to insure or finance',
   'flood zone ae': 'development is heavily restricted and flood insurance is expensive',
-  'flood zone ve': 'coastal surge zone — effectively unbuildable',
-  'flood zone v':  'coastal surge zone — effectively unbuildable',
+  'flood zone ve': 'a coastal surge zone, effectively unbuildable',
+  'flood zone v':  'a coastal surge zone, effectively unbuildable',
   'habitat':       'federal species protections severely restrict or prohibit development',
   'public':        'government-owned, not available to private buyers',
   'easement':      'a recorded covenant permanently restricts development',
@@ -5242,9 +5244,9 @@ function getKillExplanation(r) {
   const flags = (result.flags || []).map(translateFlag);
   if (!akr) {
     const top = flags.filter(f => !/unavailable|unconfirmed|no recorded sale/i.test(f)).slice(0, 2);
-    if (top.length >= 2) return 'Score too low — ' + _lc1(_stripParens(top[0])) + ' plus ' + _lc1(_stripParens(top[1])) + '.';
-    if (top.length === 1) return 'Score too low — ' + _lc1(_stripParens(top[0])) + ' stacked with other risk factors.';
-    return 'Score too low to pursue — multiple risk factors on this lot.';
+    if (top.length >= 2) return 'Score too low: ' + _lc1(_stripParens(top[0])) + ' plus ' + _lc1(_stripParens(top[1])) + '.';
+    if (top.length === 1) return 'Score too low: ' + _lc1(_stripParens(top[0])) + ' stacked with other risk factors.';
+    return 'Score too low to pursue. Multiple risk factors stack up on this lot.';
   }
   const rl = akr.toLowerCase();
   let meaning = '';
@@ -5252,7 +5254,7 @@ function getKillExplanation(r) {
     if (rl.includes(key)) { meaning = m; break; }
   }
   let out = 'Auto-killed: ' + _lc1(_stripParens(translateFlag(akr)));
-  if (meaning) out += ' — ' + meaning;
+  if (meaning) out += '. That means ' + meaning;
   out += '.';
   // Add THIS parcel's most serious secondary flag so no two summaries read alike
   const secondary = flags.find(f =>
@@ -5268,10 +5270,10 @@ function getPursueExplanation(result) {
   const flags = (result.flags || []).map(translateFlag);
   const top = positives.slice(0, 2).map(pv => _stripParens(pv));
   let out;
-  if (result.score >= 100) out = 'Passes every major screen' + (top.length ? ' — ' + _lc1(top[0]) : '') + '.';
-  else if (top.length >= 2) out = top[0] + ' and ' + _lc1(top[1]) + ' — worth a closer look.';
-  else if (top.length === 1) out = top[0] + ' — worth a closer look.';
-  else out = 'No major risk factors detected — worth a closer look.';
+  if (result.score >= 100) out = 'Passes every major screen' + (top.length ? ', including ' + _lc1(top[0]) : '') + '.';
+  else if (top.length >= 2) out = top[0] + ' and ' + _lc1(top[1]) + '. Worth a closer look.';
+  else if (top.length === 1) out = top[0] + '. Worth a closer look.';
+  else out = 'No major risk factors detected. Worth a closer look.';
   const caveat = flags.find(f => !/no recorded sale|non-market/i.test(f));
   if (caveat) out += ' Main caveat: ' + _lc1(_stripParens(caveat)) + '.';
   return out;
@@ -5471,7 +5473,7 @@ function openDetailPanel(absIdx, event) {
     // (>20% apart and >$1,000 — filters the $100 agricultural-exemption artifact)
     const assessedVal = pi.assessed_value != null ? pi.assessed_value : pi.just_value;
     if (assessedVal != null && assessedVal > 0) {
-      let valHtml = escHtml(fmt$(assessedVal)) + '<div class="dp-grid-sub">County tax estimate — not market value</div>';
+      let valHtml = escHtml(fmt$(assessedVal)) + '<div class="dp-grid-sub">County tax estimate, not market value</div>';
       const lv = pi.land_value;
       if (lv != null && lv > 1000 && assessedVal > 0 && Math.abs(lv - assessedVal) / assessedVal > 0.2) {
         valHtml += '<div class="dp-grid-sub">Land alone valued at ' + escHtml(fmt$(lv)) + '</div>';
@@ -5490,11 +5492,11 @@ function openDetailPanel(absIdx, event) {
 
     // Soil — plain English verdict, never the raw USDA class alone
     if (pi.septic_suitable === true) {
-      infoH += _cell('Soil', 'Well drained — septic likely feasible');
+      infoH += _cell('Soil', 'Well drained, septic likely feasible');
     } else if (pi.septic_suitable === false) {
-      infoH += _cell('Soil', 'Poorly drained — septic likely not feasible');
+      infoH += _cell('Soil', 'Poorly drained, septic likely not feasible');
     } else if (pi.soil_drainage) {
-      infoH += _cell('Soil', escHtml(_cap(pi.soil_drainage) + ' — septic feasibility unclear'));
+      infoH += _cell('Soil', escHtml(_cap(pi.soil_drainage) + ', septic feasibility unclear'));
     }
 
     if (pi.evac_zone) {
@@ -5521,11 +5523,11 @@ function openDetailPanel(absIdx, event) {
     // Road — type, surface when known, name, distance, private caveat
     if (pi.road_type) {
       let roadTxt = _cap(pi.road_type);
-      if (pi.road_surface && pi.road_surface !== 'unknown' && pi.road_surface !== 'none' && pi.road_surface !== 'error') roadTxt += ' — ' + pi.road_surface;
+      if (pi.road_surface && pi.road_surface !== 'unknown' && pi.road_surface !== 'none' && pi.road_surface !== 'error') roadTxt += ', ' + pi.road_surface;
       if (pi.road_name) roadTxt += ' (' + pi.road_name + ')';
       if (pi.road_distance_m != null) roadTxt += ' · ~' + pi.road_distance_m + 'm away';
       let roadHtml = escHtml(roadTxt);
-      if (pi.road_private) roadHtml += '<div class="dp-grid-sub" style="color:var(--amber)">Private road — confirm legal access</div>';
+      if (pi.road_private) roadHtml += '<div class="dp-grid-sub" style="color:var(--amber)">Private road. Confirm legal access</div>';
       infoH += _cell('Road', roadHtml);
     }
 
@@ -6189,7 +6191,7 @@ function _populateMapModalSidebar(r) {
   if (ev === 'KILL' && r.auto_kill_reason) {
     verdictReason = 'Auto-killed: ' + _stripSource(r.auto_kill_reason);
   } else if (ev === 'PURSUE') {
-    verdictReason = (score === 100 || score === '100') ? 'Passes all major screens' : 'Score: ' + score + ' — minor flags present';
+    verdictReason = (score === 100 || score === '100') ? 'Passes all major screens' : 'Score ' + score + ' with minor flags present';
   }
 
   // Snapshot stats — 2x2 grid
@@ -6500,7 +6502,7 @@ async function submitBatchEdit() {
     try { sessionStorage.removeItem('piq-batches'); } catch(e) {}
 
     closeEditBatchModal();
-    toast('Batch re-screened — ' + results.length + ' parcels');
+    toast('Batch re-screened, ' + results.length + ' parcels');
 
     if (_currentBatchId === _editBatchId) {
       await loadBatchResults(_editBatchId);
@@ -6548,7 +6550,7 @@ async function _runQueueBatch(flLines, outsideResults) {
     let st;
     try {
       const sr = await fetch(API + '/api/batch/status/' + job_id + '?since=' + seen);
-      if (sr.status === 404) throw new Error('Batch job disappeared — try again');
+      if (sr.status === 404) throw new Error('That batch job disappeared. Try again.');
       if (!sr.ok) { failedPolls++; if (failedPolls > 8) throw new Error('Lost contact with the screening service'); continue; }
       st = await sr.json();
       failedPolls = 0;
@@ -6590,7 +6592,7 @@ async function _runQueueBatch(flLines, outsideResults) {
     if (st.status === 'complete') break;
     if (st.status === 'error') {
       if (seen > 0) break; // show what we have
-      throw new Error('Screening failed on the server — try again');
+      throw new Error('Screening failed on the server. Try again.');
     }
   }
 
@@ -6610,7 +6612,7 @@ async function _runQueueBatch(flLines, outsideResults) {
   if (!navigated) { renderBatchResults(); goTo('dashboard'); }
   else { renderBatchResults(); }
   const errCount = flResults.filter(r => r.verdict === 'ERROR').length;
-  if (errCount > 0) toast(errCount + (errCount === 1 ? ' address' : ' addresses') + ' could not be matched — see highlighted rows below', 6000);
+  if (errCount > 0) toast(errCount + (errCount === 1 ? ' address' : ' addresses') + ' could not be matched. See the highlighted rows below', 6000);
   notifyBatchComplete(summary);
 }
 
@@ -6788,7 +6790,7 @@ function processUploadedFile(file) {
   const reader = new FileReader();
   reader.onload = ev => {
     try {
-      if (typeof XLSX === 'undefined') { toast('Paste addresses manually — SheetJS not loaded'); return; }
+      if (typeof XLSX === 'undefined') { toast('The file reader did not load. Paste addresses manually.'); return; }
       const wb = XLSX.read(ev.target.result, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
@@ -6900,9 +6902,9 @@ async function saveSettingsPassword() {
 function requestAccountDeletion() {
   if (!confirm('Request deletion of your account and all data? We process deletions within 30 days per the privacy policy.')) return;
   const em = currentUser?.email || '';
-  window.location.href = 'mailto:srikarvudaru1@gmail.com?subject=' + encodeURIComponent('Account deletion request — ' + em) +
+  window.location.href = 'mailto:srikarvudaru1@gmail.com?subject=' + encodeURIComponent('Account deletion request: ' + em) +
     '&body=' + encodeURIComponent('Please delete my ParceliQ account (' + em + ') and all associated data.');
-  toast('Deletion request opened in your email client — send it and we will process within 30 days');
+  toast('Deletion request opened in your email client. Send it and we will process it within 30 days.');
 }
 
 function loadSettingsPage() {
@@ -7075,7 +7077,7 @@ function processModalFile(file) {
   const reader = new FileReader();
   reader.onload = ev => {
     try {
-      if (typeof XLSX === 'undefined') { toast('Paste addresses manually — SheetJS not loaded'); return; }
+      if (typeof XLSX === 'undefined') { toast('The file reader did not load. Paste addresses manually.'); return; }
       const wb   = XLSX.read(ev.target.result, { type: 'binary' });
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
@@ -7197,7 +7199,7 @@ function exportCSV() {
 }
 
 function exportExcel() {
-  if (typeof XLSX === 'undefined') { toast('SheetJS not loaded — try CSV instead'); return; }
+  if (typeof XLSX === 'undefined') { toast('The Excel writer did not load. Try CSV instead.'); return; }
   const rows = batchState.results.map(r => {
     const pi = r.parcel_info || {};
     return {
@@ -7264,7 +7266,7 @@ function exportPDF() {
     '</tr>';
   }).join('');
 
-  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ParceliQ — ' + escHtml(batchState.name || 'Results') + '</title>' +
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ParceliQ · ' + escHtml(batchState.name || 'Results') + '</title>' +
   '<style>' +
   '@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");' +
   '*{box-sizing:border-box;margin:0;padding:0}' +
@@ -7329,7 +7331,7 @@ window.addEventListener('beforeunload', e => {
 function setBatchNotif(cb) {
   if (cb.checked && typeof Notification !== 'undefined' && Notification.permission === 'default') {
     Notification.requestPermission().then(p => {
-      if (p !== 'granted') { cb.checked = false; localStorage.setItem('piq-notif-batch', ''); toast('Browser notifications blocked — allow them in your browser settings'); }
+      if (p !== 'granted') { cb.checked = false; localStorage.setItem('piq-notif-batch', ''); toast('Browser notifications are blocked. Allow them in your browser settings.'); }
     });
   }
   localStorage.setItem('piq-notif-batch', cb.checked ? '1' : '');
@@ -7341,7 +7343,7 @@ function notifyBatchComplete(summary) {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     if (!document.hidden) return; // only notify when the tab is in the background
     const body = (summary?.pursue ?? 0) + ' pursue · ' + (summary?.kill ?? 0) + ' kill';
-    new Notification('ParceliQ — batch complete', { body });
+    new Notification('ParceliQ: batch complete', { body });
   } catch(e) {}
 }
 
@@ -7531,7 +7533,7 @@ function openCmpModal() {
   const parcels = idxs.map(i => _currentDisplayed[i]).filter(Boolean);
   if (parcels.length < 2) return;
   if (parcels.length > _CMP_MAX) {
-    toast('Max 3 parcels to compare — uncheck some and try again');
+    toast('You can compare up to 3 parcels. Uncheck some and try again.');
     return;
   }
   const n    = parcels.length;
@@ -7711,7 +7713,7 @@ function _toggleStarFromPanel() {
 function _picksJumpToResults(address) {
   showScreen('page-results');
   const dispIdx = _currentDisplayed.findIndex(r => r.address === address);
-  if (dispIdx === -1) { toast('Parcel not in current view — clear filters to find it'); return; }
+  if (dispIdx === -1) { toast('That parcel is not in the current view. Clear filters to find it.'); return; }
   const page = Math.ceil((dispIdx + 1) / _rowsPerPage);
   if (page !== _currentPage) { _currentPage = page; renderPage(); }
   setTimeout(() => {
@@ -7755,7 +7757,7 @@ async function loadAdminPage() {
     _admRenderWaitlist(waitlist.waitlist || []);
     _admRenderAudit(audit.audit || []);
   } catch(e) {
-    if (statsEl) statsEl.innerHTML = '<div style="font-size:12px;color:var(--red)">Failed to load admin data — check the backend logs.</div>';
+    if (statsEl) statsEl.innerHTML = '<div style="font-size:12px;color:var(--red)">Failed to load admin data. Check the backend logs.</div>';
   }
 }
 
@@ -7835,7 +7837,7 @@ async function admShowUser(uid, email) {
   try {
     const { batches } = await fetch(API + '/api/admin/user/' + uid + '/batches', { headers: _admHdrs() }).then(r => r.json());
     el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">' +
-      '<span style="font-size:13px;font-weight:700;color:var(--t1)">' + escHtml(email) + ' — batches</span>' +
+      '<span style="font-size:13px;font-weight:700;color:var(--t1)">' + escHtml(email) + ' batches</span>' +
       '<span style="font-size:10px;font-weight:700;letter-spacing:.6px;color:var(--red)">ADMIN VIEW · READ ONLY</span>' +
       '<button class="btn-o btn-sm" style="margin-left:auto;padding:3px 10px;font-size:11px" onclick="document.getElementById(\'admUserDetail\').style.display=\'none\'">Close</button></div>' +
       ((batches || []).length ? (batches || []).map(b =>
@@ -7909,7 +7911,7 @@ async function admMarkInvited(id, btn) {
     });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     if (btn) btn.outerHTML = '<span style="font-size:11px;color:var(--green);font-weight:700">✓ Invited</span>';
-    toast('Marked as invited — note: no invite email is sent yet (needs building)');
+    toast('Marked as invited. Note: no invite email is sent yet.');
   } catch(e) { toast('Failed: ' + e.message, 4000); }
 }
 
@@ -8000,7 +8002,7 @@ async function loadAnalyticsPage() {
         }
       });
       const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-      if (!entries.length) { reasonsEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">No killed parcels yet — nothing bad in your lead sources so far.</div>'; }
+      if (!entries.length) { reasonsEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">No killed parcels yet. Nothing bad in your lead sources so far.</div>'; }
       else {
         const max = entries[0][1];
         reasonsEl.innerHTML = entries.map(([name, n]) =>
@@ -8012,7 +8014,7 @@ async function loadAnalyticsPage() {
           '</div>').join('');
       }
     } catch(e) {
-      reasonsEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">Could not load kill reasons — try again.</div>';
+      reasonsEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">Could not load kill reasons. Try again.</div>';
     }
   }
 
@@ -8089,26 +8091,26 @@ function _svCategoryVerdicts(r) {
   // FLOOD RISK
   const fz = getFloodText(r);
   if (/zone x/i.test(fz)) {
-    push('Flood Risk', 'CLEAR', 'FEMA Zone X — minimal flood hazard. This parcel is outside any special flood hazard area, so flood insurance is not federally required.');
+    push('Flood Risk', 'CLEAR', 'Zone X, minimal flood hazard. This parcel sits outside any special flood hazard area, so flood insurance is not federally required.');
   } else if (/AE|AO|AH|\bA\b/i.test(fz) && has(/fema flood zone a/i)) {
-    push('Flood Risk', 'RISK', 'FEMA Flood ' + fz + ' — high flood risk. Development is heavily restricted and flood insurance will be expensive. This is an auto-kill signal.');
+    push('Flood Risk', 'RISK', 'Flood ' + fz + ', a high-risk flood zone. Development is heavily restricted and flood insurance will be expensive.');
   } else if (/VE|\bV\b/i.test(fz)) {
-    push('Flood Risk', 'RISK', 'FEMA coastal ' + fz + ' — storm surge zone. Effectively unbuildable for most purposes. Auto-kill.');
+    push('Flood Risk', 'RISK', 'Coastal ' + fz + ', a storm surge zone. Effectively unbuildable for most purposes.');
   } else if (has(/zone a \(undetermined/i)) {
-    push('Flood Risk', 'CAUTION', 'FEMA Zone A — flood-prone area with no detailed study. Base flood elevations are undetermined; expect insurance and permitting friction.');
+    push('Flood Risk', 'CAUTION', 'Zone A, a flood-prone area with no detailed study. Expect insurance and permitting friction.');
   } else if (has(/flood zone data unavailable/i)) {
-    push('Flood Risk', 'DATA UNAVAILABLE', 'Flood zone data could not be fetched — check the FEMA flood map for this address before proceeding.');
+    push('Flood Risk', 'DATA UNAVAILABLE', 'Flood zone data could not be fetched. Check the federal flood map for this address before proceeding.');
   } else if (fz && fz !== '—') {
-    push('Flood Risk', 'CAUTION', 'FEMA ' + fz + ' — review flood status for this zone before proceeding.');
+    push('Flood Risk', 'CAUTION', fz + '. Review the flood status for this zone before proceeding.');
   }
 
   // WETLANDS
   if (pi.wetland_type || has(/wetlands confirmed|wetlands on parcel/i)) {
     push('Wetlands', 'RISK', _svCap(pi.wetland_type ? pi.wetland_type.toLowerCase() : 'wetlands') + ' confirmed on this parcel by federal wetland mapping. Filling or building on wetlands requires permits that are rarely granted for private development. Auto-kill.');
   } else if (has(/wetlands within|wetland.*nearby/i)) {
-    push('Wetlands', 'CAUTION', 'Wetlands detected within about 100m of this parcel but not on it. Buffer restrictions may apply depending on the county — check setback rules before designing a build.');
+    push('Wetlands', 'CAUTION', 'Wetlands detected within about 100m of this parcel but not on it. Buffer restrictions may apply depending on the county. Check setback rules before planning a build.');
   } else if (has(/wetland data unavailable/i)) {
-    push('Wetlands', 'DATA UNAVAILABLE', 'Federal wetland data could not be fetched — verify on the national wetlands map before proceeding.');
+    push('Wetlands', 'DATA UNAVAILABLE', 'Federal wetland data could not be fetched. Verify on the national wetlands map before proceeding.');
   } else {
     push('Wetlands', 'CLEAR', 'No wetlands detected on or within 100m of this parcel by federal wetland mapping. Safe to proceed on this factor.');
   }
@@ -8117,15 +8119,15 @@ function _svCategoryVerdicts(r) {
   const rdDist = pi.road_distance_m != null ? '~' + pi.road_distance_m + 'm from the parcel' : 'nearby';
   const rdName = pi.road_name ? ' (' + pi.road_name + ')' : '';
   if (pi.road_type && pi.road_private) {
-    push('Road Access', 'CAUTION', 'The nearest road' + rdName + ' is private, ' + rdDist + '. Access exists physically but may not be legal frontage — verify a recorded easement or deeded access before offering.');
+    push('Road Access', 'CAUTION', 'The nearest road' + rdName + ' is private, ' + rdDist + '. Access exists physically but may not be legal frontage. Verify a recorded easement or deeded access before offering.');
   } else if (pi.road_surface === 'paved') {
     push('Road Access', 'CLEAR', 'Paved road access confirmed ' + rdDist + rdName + '. Legal access appears available.');
   } else if (pi.road_surface === 'dirt') {
-    push('Road Access', 'CAUTION', 'Unpaved road or track detected ' + rdDist + rdName + '. Access exists but may be seasonal or unmaintained — check condition on satellite and confirm county maintenance.');
+    push('Road Access', 'CAUTION', 'Unpaved road or track detected ' + rdDist + rdName + '. Access exists but may be seasonal or unmaintained. Check the condition on satellite and confirm county maintenance.');
   } else if (pi.road_type) {
-    push('Road Access', 'CLEAR', _svCap(pi.road_type) + ' road detected ' + rdDist + rdName + '. Surface type is unconfirmed — a quick satellite check will settle it.');
+    push('Road Access', 'CLEAR', _svCap(pi.road_type) + ' road detected ' + rdDist + rdName + '. Surface type is unconfirmed. A quick satellite check will settle it.');
   } else if (has(/no road detected|landlocked/i)) {
-    push('Road Access', 'RISK', 'No road detected within 150m of this parcel. It may be landlocked — a critical issue for financing, permitting, and resale. Verify legal access before anything else.');
+    push('Road Access', 'RISK', 'No road detected within 150m of this parcel. It may be landlocked, which is a critical problem for financing, permitting, and resale. Verify legal access before anything else.');
   } else {
     push('Road Access', 'DATA UNAVAILABLE', 'Road data could not be fetched for this parcel. Strongly recommend verifying access on satellite view and county records before proceeding.');
   }
@@ -8134,31 +8136,31 @@ function _svCategoryVerdicts(r) {
   if (pi.habitat_species && pi.habitat_species.length) {
     push('Wildlife & Habitat', 'RISK', 'Designated critical habitat for ' + pi.habitat_species.slice(0, 2).join(' and ') + ' overlaps this area. Endangered Species Act protections severely restrict or prohibit development. Auto-kill.');
   } else if (has(/wildlife.*unavailable/i)) {
-    push('Wildlife & Habitat', 'DATA UNAVAILABLE', 'Wildlife habitat data could not be fetched — verify against the federal critical habitat mapper.');
+    push('Wildlife & Habitat', 'DATA UNAVAILABLE', 'Wildlife habitat data could not be fetched. Verify against the federal habitat maps.');
   } else {
     push('Wildlife & Habitat', 'CLEAR', 'No designated critical habitat detected. No federal species protections apply to this parcel.');
   }
 
   // SOIL & SEPTIC
   if (pi.septic_suitable === true) {
-    push('Soil & Septic', 'CLEAR', 'Well-drained soil' + (pi.soil_name ? ' (' + pi.soil_name + ')' : '') + ' — septic installation is likely feasible without specialized engineering.');
+    push('Soil & Septic', 'CLEAR', 'Well-drained soil' + (pi.soil_name ? ' (' + pi.soil_name + ')' : '') + '. Septic installation is likely feasible without specialized engineering.');
   } else if (pi.septic_suitable === false) {
-    push('Soil & Septic', 'RISK', 'Poorly drained soil — septic systems are typically not feasible here. That eliminates most residential builds unless public sewer is reachable nearby.');
+    push('Soil & Septic', 'RISK', 'Poorly drained soil. Septic systems are typically not feasible here, which rules out most residential builds unless public sewer is reachable nearby.');
   } else if (pi.soil_drainage) {
-    push('Soil & Septic', 'CAUTION', _svCap(pi.soil_drainage) + ' soil — septic may be feasible with engineered system design. Get an engineer’s read before purchase.');
+    push('Soil & Septic', 'CAUTION', _svCap(pi.soil_drainage) + ' soil. Septic may be feasible with an engineered system design. Get an engineer\'s read before purchase.');
   }
 
   // ELEVATION
   if (pi.elevation_ft != null) {
-    if (pi.elevation_ft < 2)       push('Elevation & Drainage', 'RISK', 'Elevation ' + pi.elevation_ft + ' ft — very low. High storm surge and drainage risk even outside designated flood zones.');
-    else if (pi.elevation_ft < 5)  push('Elevation & Drainage', 'CAUTION', 'Elevation ' + pi.elevation_ft + ' ft — low enough to warrant reviewing flood insurance costs even in Zone X.');
-    else push('Elevation & Drainage', 'CLEAR', 'Elevation ' + pi.elevation_ft + ' ft — comfortably above typical storm surge and flood thresholds for this region.');
+    if (pi.elevation_ft < 2)       push('Elevation & Drainage', 'RISK', 'Elevation ' + pi.elevation_ft + ' ft, very low. High storm surge and drainage risk even outside mapped flood zones.');
+    else if (pi.elevation_ft < 5)  push('Elevation & Drainage', 'CAUTION', 'Elevation ' + pi.elevation_ft + ' ft, low enough to be worth checking flood insurance costs even in Zone X.');
+    else push('Elevation & Drainage', 'CLEAR', 'Elevation ' + pi.elevation_ft + ' ft, comfortably above typical storm surge and flood levels for this region.');
   }
 
   // HURRICANE EVACUATION
   if (pi.evac_zone) {
-    if (/^[AB]$/i.test(pi.evac_zone)) push('Hurricane Evacuation', 'RISK', 'Evacuation Zone ' + pi.evac_zone + ' — high-priority evacuation area, elevated risk in any significant hurricane. This affects financing and the future buyer pool.');
-    else push('Hurricane Evacuation', 'CAUTION', 'Evacuation Zone ' + pi.evac_zone + ' — lower-priority evacuation zone with some risk in major storms.');
+    if (/^[AB]$/i.test(pi.evac_zone)) push('Hurricane Evacuation', 'RISK', 'Evacuation Zone ' + pi.evac_zone + ', a high-priority evacuation area with elevated risk in any significant hurricane. This affects financing and the future buyer pool.');
+    else push('Hurricane Evacuation', 'CAUTION', 'Evacuation Zone ' + pi.evac_zone + ', a lower-priority evacuation zone with some risk in major storms.');
   } else {
     push('Hurricane Evacuation', 'CLEAR', 'Outside all hurricane evacuation zones. No mandatory evacuation exposure for this area.');
   }
@@ -8173,14 +8175,14 @@ function _svCategoryVerdicts(r) {
 
   // POWER
   if (pi.powerline_nearby === true) {
-    push('Power & Utilities', 'CLEAR', 'Power infrastructure detected ' + (pi.powerline_distance ? pi.powerline_distance + ' away' : 'nearby') + ' — connection is likely feasible.');
+    push('Power & Utilities', 'CLEAR', 'Power infrastructure detected ' + (pi.powerline_distance ? pi.powerline_distance + ' away' : 'nearby') + '. A connection is likely feasible.');
   } else if (pi.powerline_nearby === false) {
     push('Power & Utilities', 'CAUTION', 'No power lines detected within a mile. Budget for off-grid systems or a costly utility extension.');
   }
 
   // EASEMENT
   if (pi.easement_found) {
-    push('Conservation Easement', 'RISK', 'Conservation easement detected' + (pi.easement_type ? ' (' + pi.easement_type + ')' : '') + '. Land use is permanently restricted by covenant — development, subdivision, and most commercial uses are prohibited. Auto-kill.');
+    push('Conservation Easement', 'RISK', 'Conservation easement detected' + (pi.easement_type ? ' (' + pi.easement_type + ')' : '') + '. Land use is permanently restricted by covenant. Development, subdivision, and most commercial uses are prohibited. Auto-kill.');
   } else {
     push('Conservation Easement', 'CLEAR', 'No conservation easements detected on this parcel.');
   }
@@ -8227,20 +8229,20 @@ function _svNextStep(r) {
   const risks = cats.filter(c => c.status === 'RISK').map(c => c.name);
   const ev = effectiveVerdict(r);
   if (ev === 'KILL') {
-    if (risks.includes('Wetlands')) return 'If this lead matters to you, order a professional wetland delineation before spending anything else — otherwise kill it and move to the next lead.';
-    if (risks.includes('Road Access')) return 'Pull the deed and title to check for recorded access easements — without legal access this parcel is not financeable.';
-    if (risks.includes('Conservation Easement')) return 'Pull the deed and confirm the recorded conservation restrictions — they almost always survive a sale.';
-    if (risks.includes('Wildlife & Habitat')) return 'Confirm the critical habitat boundary on the federal mapper — if it truly overlaps, pass on this parcel.';
-    if (risks.includes('Flood Risk')) return 'Get a flood insurance quote if you still want this lot — the premium usually settles the decision.';
-    if (risks.includes('Contamination')) return 'Order a Phase I environmental assessment before any offer — contamination liability transfers with title.';
-    return 'Kill it and move on — the stacked risk factors here rarely pencil out.';
+    if (risks.includes('Wetlands')) return 'If this lead matters to you, order a professional wetland survey before spending anything else. Otherwise kill it and move to the next lead.';
+    if (risks.includes('Road Access')) return 'Pull the deed and title to check for recorded access easements. Without legal access this parcel is not financeable.';
+    if (risks.includes('Conservation Easement')) return 'Pull the deed and confirm the recorded conservation restrictions. They almost always survive a sale.';
+    if (risks.includes('Wildlife & Habitat')) return 'Confirm the protected habitat boundary on the federal map. If it truly overlaps, pass on this parcel.';
+    if (risks.includes('Flood Risk')) return 'Get a flood insurance quote if you still want this lot. The premium usually settles the decision.';
+    if (risks.includes('Contamination')) return 'Order a Phase I environmental assessment before any offer. Contamination liability transfers with the title.';
+    return 'Kill it and move on. Parcels with this many stacked risk factors rarely pencil out.';
   }
   const cautions = cats.filter(c => c.status === 'CAUTION');
   const unavailable = cats.filter(c => c.status === 'DATA UNAVAILABLE');
-  if (unavailable.some(c => c.name === 'Road Access')) return 'Run a satellite check on road access — data was unavailable. Otherwise this parcel looks clean.';
-  if (cautions.some(c => c.name === 'Road Access')) return 'Verify road access quality on satellite view' + (pi.road_private ? ' and confirm the private-road easement in the deed' : '') + ' — everything else checks out.';
-  if (cautions.some(c => c.name === 'Soil & Septic')) return 'Get a septic engineer’s opinion on the soil before offering — the rest of the screen is clean.';
-  if (cautions.some(c => c.name === 'Wetlands')) return 'Confirm the wetland buffer setback with the county — the wetlands are near but not on the parcel.';
+  if (unavailable.some(c => c.name === 'Road Access')) return 'Run a satellite check on road access, since that data was unavailable. Otherwise this parcel looks clean.';
+  if (cautions.some(c => c.name === 'Road Access')) return 'Verify road access quality on satellite view' + (pi.road_private ? ' and confirm the private-road easement in the deed' : '') + '. Everything else checks out.';
+  if (cautions.some(c => c.name === 'Soil & Septic')) return 'Get a septic engineer\'s opinion on the soil before offering. The rest of the screen is clean.';
+  if (cautions.some(c => c.name === 'Wetlands')) return 'Confirm the wetland buffer setback with the county. The wetlands are near the parcel, not on it.';
   if (cautions.length) return 'Double-check the ' + cautions[0].name.toLowerCase() + ' caveat, then this parcel is ready for an offer analysis.';
   return 'This parcel appears clean across all checks. Request a survey and title search, and start your offer analysis.';
 }
@@ -8278,7 +8280,7 @@ function renderStoryView(r) {
   const apn = pi.parcel_id || pi.apn;
   if (apn) fact('APN', '<span style="font-family:monospace;font-size:12px">' + escHtml(apn) + '</span>');
   const av = pi.assessed_value != null ? pi.assessed_value : pi.just_value;
-  if (av != null && av > 0) fact('Assessed Value', escHtml(fmt$(av)), 'County tax estimate — not market value');
+  if (av != null && av > 0) fact('Assessed Value', escHtml(fmt$(av)), 'County tax estimate, not market value');
   const svAc = getAcreage(r);
   if (svAc != null) fact('Acreage', escHtml(svAc + ' ac'));
   if (pi.land_use_code != null) fact('Land Use', escHtml(getLandUseCategory(pi.land_use_code)));
@@ -8305,9 +8307,9 @@ function renderStoryView(r) {
         '<div class="sv-verdict-row">' +
           '<span class="sv-verdict-word" style="color:' + vColor + '">' + escHtml(ev) + '</span>' +
           (r.score != null ? '<span class="sv-score">Score <b>' + r.score + '</b> / 100</span>' : '') +
-          (conf != null ? '<span class="sv-conf">Confidence: ' + conf + '%' + (confOk != null ? ' — based on ' + confOk + ' of ' + confTotal + ' data checks completed' : '') + '</span>' : '') +
+          (conf != null ? '<span class="sv-conf">Confidence: ' + conf + '%' + (confOk != null ? ', based on ' + confOk + ' of ' + confTotal + ' data checks completed' : '') + '</span>' : '') +
         '</div>' +
-        (conf != null && conf < 70 ? '<div class="sv-conf-warn">Some data sources were unavailable — verify manually before proceeding.</div>' : '') +
+        (conf != null && conf < 70 ? '<div class="sv-conf-warn">Some data sources were unavailable. Verify manually before proceeding.</div>' : '') +
         '<p class="sv-reason">' + escHtml(_svMainReason(r)) + '</p>' +
         '<div class="sv-next"><span class="sv-next-lbl">Next step</span><span class="sv-next-txt">' + escHtml(_svNextStep(r)) + '</span></div>' +
       '</div>' +
@@ -8330,7 +8332,7 @@ function renderStoryView(r) {
       '<div class="sv-soon">' +
         '<div class="sv-soon-card"><span class="sv-soon-badge">🔒 Coming Soon</span>' +
           '<div class="sv-soon-blur"><div class="sv-soon-title">Nearby Comps</div>' +
-          '<div class="sv-soon-desc">Compare recent sales of similar vacant lots within a few miles — know what this parcel is really worth before you offer.</div></div></div>' +
+          '<div class="sv-soon-desc">Compare recent sales of similar vacant lots within a few miles, so you know what this parcel is really worth before you offer.</div></div></div>' +
         '<div class="sv-soon-card"><span class="sv-soon-badge">🔒 Coming Soon</span>' +
           '<div class="sv-soon-blur"><div class="sv-soon-title">Skip Tracing</div>' +
           '<div class="sv-soon-desc">Find the owner’s phone and email in one click and go straight from screen to outreach.</div></div></div>' +
@@ -8387,7 +8389,7 @@ function openStoryView() {
     sv.innerHTML = '<div class="sv-wrap"><div class="sv-header">' +
       '<button class="sv-back" onclick="closeStoryView()">← Back to batch</button>' +
       '<div class="sv-addr">' + escHtml(_openParcel.address || '') + '</div></div>' +
-      '<div style="padding:40px 0;color:var(--t2);font-size:14px">Could not build the full report for this parcel — its data may be from an older screening. ' +
+      '<div style="padding:40px 0;color:var(--t2);font-size:14px">Could not build the full report for this parcel. Its data may be from an older screening. ' +
       'Re-screen it (↻ on the row) and try again.</div></div>';
   }
   sv.classList.add('open');
@@ -8523,7 +8525,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </button>
       <button class="export-option-btn" onclick="exportPDF();hideExportModal()">
         <span class="export-icon">🖨️</span>
-        <div><div class="export-title">PDF</div><div class="export-sub">Printable summary — opens print dialog</div></div>
+        <div><div class="export-title">PDF</div><div class="export-sub">Printable summary, opens your print dialog</div></div>
       </button>
     </div>
   </div>
