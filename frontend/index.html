@@ -1829,6 +1829,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <button class="btn-o btn-sm filter-panel-btn" id="filterPanelBtn" onclick="toggleFilterPanel()">▼ Filters <span id="activeFilterCount" style="display:none;background:var(--green);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:2px">0</span></button>
           <div id="filterPanel" class="fp-panel" style="display:none">
             <div class="fp-header"><span>Filter by signal</span><button class="fp-clear-btn" onclick="clearAllFilters()">Clear all</button></div>
+            <div style="font-size:11px;color:var(--t3);padding:0 12px 8px">Filter your batch by what drove each verdict.</div>
             <div id="fpGroupsContainer"></div>
           </div>
         </div>
@@ -2489,11 +2490,11 @@ const FLAG_DEFS = [
 const FLAG_FILTERS = FLAG_DEFS.map(d => ({ ...d, test: d.match }));
 
 const FILTER_GROUPS = [
-  { label: 'Auto-Kill Signals', color: '#ef4444',
+  { label: 'Killed For', color: '#ef4444',
     keys: ['wetlands','flood_ae','wildlife','epa','easement'] },
-  { label: 'Risk Flags', color: '#f59e0b',
+  { label: 'Has Risk Factor', color: '#f59e0b',
     keys: ['no_road','road_unverified','poor_soil','low_elev','evac','canal','small_lot','no_power'] },
-  { label: 'Positive Signals', color: '#22c55e',
+  { label: 'Passed Check', color: '#22c55e',
     keys: ['zone_x','good_soil','no_wetlands','no_evac','good_elev','pursue_100'] },
 ];
 const RULES_DEF = [
