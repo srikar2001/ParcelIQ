@@ -15,7 +15,7 @@ the Supabase dashboard later to migrate this properly.
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
@@ -228,6 +228,127 @@ async def admin_stats(request: Request, authorization: Optional[str] = Header(No
         "total_pursues": sum(b.get("pursues") or 0 for b in batches),
         "kill_reasons": sorted(reason_counts.items(), key=lambda kv: -kv[1]),
         "signups_by_day": sorted(signups.items()),
+    })
+
+
+@router.get("/engagement")
+async def admin_engagement(request: Request, authorization: Optional[str] = Header(None)):
+    """Usage & Engagement tab data — everything derivable from batches,
+    profiles, and parcel_results. No login/session table exists yet, so
+    "active" and "session" numbers below are proxied off batch-creation
+    activity, not actual logins. Noted inline rather than faked."""
+    denied, actor = await _require_admin(request, authorization)
+    if denied is not None:
+        return denied
+
+    rb = await _sb_get("/rest/v1/batches", {
+        "select": "user_id,total,kills,pursues,created_at", "limit": "10000",
+    })
+    batches = rb.json() if rb.status_code == 200 else []
+    rp = await _sb_get("/rest/v1/profiles", {"select": "id,email,created_at", "limit": "5000"})
+    profiles = rp.json() if rp.status_code == 200 else []
+
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    prev_week_start = week_start - timedelta(days=7)
+
+    def _parse(ts: str):
+        if not ts:
+            return None
+        try:
+            return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except Exception:
+            return None
+
+    # ── Per-user aggregation ──────────────────────────────────────────────
+    per_user: dict = {}
+    for b in batches:
+        uid = b.get("user_id")
+        if not uid:
+            continue
+        a = per_user.setdefault(uid, {
+            "batches": 0, "parcels": 0, "kills": 0, "pursues": 0,
+            "last_active": None, "batches_this_week": 0, "first_batch_at": None,
+        })
+        a["batches"] += 1
+        a["parcels"] += b.get("total") or 0
+        a["kills"] += b.get("kills") or 0
+        a["pursues"] += b.get("pursues") or 0
+        ca = b.get("created_at") or ""
+        if not a["last_active"] or ca > a["last_active"]:
+            a["last_active"] = ca
+        if not a["first_batch_at"] or ca < a["first_batch_at"]:
+            a["first_batch_at"] = ca
+        dt = _parse(ca)
+        if dt and dt >= week_start:
+            a["batches_this_week"] += 1
+
+    email_by_id = {p.get("id"): (p.get("email") or "") for p in profiles}
+    created_by_id = {p.get("id"): p.get("created_at") for p in profiles}
+
+    per_user_out = []
+    signup_to_first_batch_hours = []
+    for uid, a in per_user.items():
+        avg_batch_size = round(a["parcels"] / a["batches"], 1) if a["batches"] else 0
+        kp_ratio = round(a["kills"] / a["pursues"], 2) if a["pursues"] else None
+        signup_dt = _parse(created_by_id.get(uid))
+        first_batch_dt = _parse(a["first_batch_at"])
+        if signup_dt and first_batch_dt:
+            hrs = (first_batch_dt - signup_dt).total_seconds() / 3600
+            if hrs >= 0:
+                signup_to_first_batch_hours.append(hrs)
+        per_user_out.append({
+            "user_id": uid,
+            "email": email_by_id.get(uid, ""),
+            "total_batches": a["batches"],
+            "total_parcels": a["parcels"],
+            "avg_batch_size": avg_batch_size,
+            "last_active": a["last_active"],
+            "batches_this_week": a["batches_this_week"],
+            "kill_pursue_ratio": kp_ratio,
+        })
+    per_user_out.sort(key=lambda u: u["total_parcels"], reverse=True)
+
+    # ── Platform-wide ─────────────────────────────────────────────────────
+    dau = len({b.get("user_id") for b in batches
+               if (_parse(b.get("created_at")) or today_start) >= today_start and b.get("user_id")})
+
+    signups_this_week = sum(1 for p in profiles if (_parse(p.get("created_at")) or prev_week_start) >= week_start)
+    signups_prev_week = sum(1 for p in profiles
+                             if week_start > (_parse(p.get("created_at")) or prev_week_start) >= prev_week_start)
+
+    parcels_today = sum(b.get("total") or 0 for b in batches if (_parse(b.get("created_at")) or today_start) >= today_start)
+    parcels_week = sum(b.get("total") or 0 for b in batches if (_parse(b.get("created_at")) or week_start) >= week_start)
+    parcels_alltime = sum(b.get("total") or 0 for b in batches)
+
+    buckets = [(1, 10), (11, 50), (51, 100), (101, 250), (251, 500), (501, float("inf"))]
+    bucket_labels = ["1-10", "11-50", "51-100", "101-250", "251-500", "500+"]
+    bucket_counts = [0] * len(buckets)
+    for b in batches:
+        total = b.get("total") or 0
+        for i, (lo, hi) in enumerate(buckets):
+            if lo <= total <= hi:
+                bucket_counts[i] += 1
+                break
+
+    return _ok({
+        "note": "DAU and 'this week' activity are proxied off batch creation — "
+                "there is no login/session table yet to measure true sessions.",
+        "platform": {
+            "dau": dau,
+            "signups_this_week": signups_this_week,
+            "signups_prev_week": signups_prev_week,
+            "parcels_today": parcels_today,
+            "parcels_week": parcels_week,
+            "parcels_alltime": parcels_alltime,
+            "avg_signup_to_first_batch_hours": (
+                round(sum(signup_to_first_batch_hours) / len(signup_to_first_batch_hours), 1)
+                if signup_to_first_batch_hours else None
+            ),
+            "batch_size_distribution": list(zip(bucket_labels, bucket_counts)),
+        },
+        "most_active_users": per_user_out[:20],
     })
 
 

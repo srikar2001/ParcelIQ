@@ -2099,24 +2099,44 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div style="font-size:24px;font-weight:800;letter-spacing:-.02em">Admin</div>
       <span style="font-size:10px;font-weight:700;letter-spacing:.8px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:var(--red);border-radius:99px;padding:3px 10px">ADMIN VIEW</span>
     </div>
-    <div style="font-size:13px;color:var(--t3);margin-bottom:26px">Platform controls. Changes here affect real users immediately.</div>
+    <div style="font-size:13px;color:var(--t3);margin-bottom:18px">Platform controls. Changes here affect real users immediately.</div>
 
-    <div class="stats-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px" id="admStats"></div>
-
-    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px;margin-bottom:18px">
-      <div class="sett-rail-card"><div class="sv-sec-title" style="margin-bottom:10px">Signups over time</div><div id="admSignups" style="display:flex;align-items:flex-end;gap:2px;height:64px"></div></div>
-      <div class="sett-rail-card"><div class="sv-sec-title" style="margin-bottom:10px">Kill reasons (all users)</div><div id="admKillReasons"></div></div>
+    <div style="display:flex;gap:6px;margin-bottom:22px">
+      <button class="map-toggle active" id="admTabOverviewBtn" onclick="admSwitchTab('overview')">Overview</button>
+      <button class="map-toggle" id="admTabEngagementBtn" onclick="admSwitchTab('engagement')">Usage &amp; Engagement</button>
     </div>
 
-    <div class="sv-sec-title">Users</div>
-    <div id="admUsers" style="border:1px solid var(--b);border-radius:12px;overflow-x:auto;margin-bottom:18px"></div>
-    <div id="admUserDetail" style="display:none;border:1px solid var(--b);border-radius:12px;padding:14px 16px;margin-bottom:18px;background:var(--card)"></div>
+    <div id="admPanelOverview">
+      <div class="stats-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px" id="admStats"></div>
 
-    <div class="sv-sec-title">Waitlist</div>
-    <div id="admWaitlist" style="border:1px solid var(--b);border-radius:12px;overflow:hidden;margin-bottom:18px"></div>
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px;margin-bottom:18px">
+        <div class="sett-rail-card"><div class="sv-sec-title" style="margin-bottom:10px">Signups over time</div><div id="admSignups" style="display:flex;align-items:flex-end;gap:2px;height:64px"></div></div>
+        <div class="sett-rail-card"><div class="sv-sec-title" style="margin-bottom:10px">Kill reasons (all users)</div><div id="admKillReasons"></div></div>
+      </div>
 
-    <div class="sv-sec-title">Admin activity log</div>
-    <div id="admAudit" style="border:1px solid var(--b);border-radius:12px;overflow:hidden"></div>
+      <div class="sv-sec-title">Users</div>
+      <div id="admUsers" style="border:1px solid var(--b);border-radius:12px;overflow-x:auto;margin-bottom:18px"></div>
+      <div id="admUserDetail" style="display:none;border:1px solid var(--b);border-radius:12px;padding:14px 16px;margin-bottom:18px;background:var(--card)"></div>
+
+      <div class="sv-sec-title">Waitlist</div>
+      <div id="admWaitlist" style="border:1px solid var(--b);border-radius:12px;overflow:hidden;margin-bottom:18px"></div>
+
+      <div class="sv-sec-title">Admin activity log</div>
+      <div id="admAudit" style="border:1px solid var(--b);border-radius:12px;overflow:hidden"></div>
+    </div>
+
+    <div id="admPanelEngagement" style="display:none">
+      <div style="font-size:12px;color:var(--t3);margin-bottom:14px" id="admEngNote"></div>
+      <div class="stats-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px" id="admEngStats"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+        <div class="sett-rail-card"><div class="sv-sec-title" style="margin-bottom:10px">Batch size distribution</div><div id="admEngBuckets"></div></div>
+        <div class="sett-rail-card"><div class="sv-sec-title" style="margin-bottom:10px">Signups: this week vs last week</div><div id="admEngSignups"></div></div>
+      </div>
+
+      <div class="sv-sec-title">Most active users</div>
+      <div id="admEngUsers" style="border:1px solid var(--b);border-radius:12px;overflow-x:auto"></div>
+    </div>
   </div>
 </div>
 
@@ -2491,7 +2511,10 @@ const HASH_MAP = {
   '#results': 'page-results', '#pricing': 'page-pricing',
   '#settings': 'page-settings', '#picks': 'page-picks',
   '#terms': 'page-terms', '#privacy': 'page-privacy', '#contact': 'page-contact',
-  '#admin': 'page-admin',
+  // Admin route uses an unguessable hash instead of '#admin' - real gate is
+  // still server-side (every /api/admin endpoint 403s non-admins), this just
+  // keeps the route off anything a casual user might type or find by guessing.
+  '#_sys_c9f2a': 'page-admin',
 };
 
 const batchState = { results: [], filtered: 'all', elapsed: 0, name: '', sortCol: null, sortDir: 'desc' };
@@ -2679,7 +2702,7 @@ async function router() {
     goTo('landing'); return;
   }
   if (hash === '#settings') { loadSettingsPage(); updateNav(); }
-  if (hash === '#admin') {
+  if (hash === '#_sys_c9f2a') {
     // Silent gate: non-admins are redirected with no hint the route exists.
     // The real enforcement is server-side — every /api/admin endpoint 403s.
     _guardAdminRoute();
@@ -7767,6 +7790,8 @@ async function _guardAdminRoute() {
 }
 
 async function loadAdminPage() {
+  _admEngagementLoaded = false;
+  admSwitchTab('overview');
   const statsEl = document.getElementById('admStats');
   if (statsEl) statsEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">Loading…</div>';
   try {
@@ -7937,6 +7962,92 @@ async function admMarkInvited(id, btn) {
     if (btn) btn.outerHTML = '<span style="font-size:11px;color:var(--green);font-weight:700">✓ Invited</span>';
     toast('Marked as invited. Note: no invite email is sent yet.');
   } catch(e) { toast('Failed: ' + e.message, 4000); }
+}
+
+let _admEngagementLoaded = false;
+function admSwitchTab(tab) {
+  const ov = document.getElementById('admPanelOverview');
+  const en = document.getElementById('admPanelEngagement');
+  const ovBtn = document.getElementById('admTabOverviewBtn');
+  const enBtn = document.getElementById('admTabEngagementBtn');
+  if (ov) ov.style.display = tab === 'overview' ? '' : 'none';
+  if (en) en.style.display = tab === 'engagement' ? '' : 'none';
+  if (ovBtn) ovBtn.classList.toggle('active', tab === 'overview');
+  if (enBtn) enBtn.classList.toggle('active', tab === 'engagement');
+  if (tab === 'engagement' && !_admEngagementLoaded) {
+    _admEngagementLoaded = true;
+    loadEngagementTab();
+  }
+}
+
+async function loadEngagementTab() {
+  const el = document.getElementById('admEngStats');
+  if (el) el.innerHTML = '<div style="font-size:12px;color:var(--t3)">Loading…</div>';
+  try {
+    const data = await fetch(API + '/api/admin/engagement', { headers: _admHdrs() }).then(r => r.json());
+    _admRenderEngagement(data);
+  } catch(e) {
+    if (el) el.innerHTML = '<div style="font-size:12px;color:var(--red)">Failed to load engagement data. Check the backend logs.</div>';
+  }
+}
+
+function _admRenderEngagement(d) {
+  const noteEl = document.getElementById('admEngNote');
+  if (noteEl) noteEl.textContent = d.note || '';
+  const p = d.platform || {};
+  const card = (num, lbl) => '<div class="stat-card"><div class="stat-num">' + num + '</div><div class="stat-lbl">' + lbl + '</div></div>';
+  const el = document.getElementById('admEngStats');
+  if (el) {
+    el.innerHTML =
+      card((p.dau ?? 0).toLocaleString(), 'Active today') +
+      card((p.parcels_today ?? 0).toLocaleString(), 'Parcels today') +
+      card((p.parcels_week ?? 0).toLocaleString(), 'Parcels this week') +
+      card((p.parcels_alltime ?? 0).toLocaleString(), 'Parcels all-time') +
+      card(p.avg_signup_to_first_batch_hours != null ? p.avg_signup_to_first_batch_hours + 'h' : '—', 'Signup → first batch');
+  }
+  const bk = document.getElementById('admEngBuckets');
+  if (bk) {
+    const rows = p.batch_size_distribution || [];
+    const max = Math.max(1, ...rows.map(r => r[1]));
+    bk.innerHTML = rows.map(([label, n]) =>
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">' +
+      '<div style="width:70px;font-size:12px;color:var(--t1)">' + label + '</div>' +
+      '<div style="flex:1;height:7px;background:var(--b);border-radius:99px;overflow:hidden"><div style="width:' + Math.max(4, Math.round(n / max * 100)) + '%;height:100%;background:var(--green)"></div></div>' +
+      '<div style="width:34px;text-align:right;font-size:12px;font-weight:700;color:var(--t2)">' + n + '</div></div>').join('');
+  }
+  const sg = document.getElementById('admEngSignups');
+  if (sg) {
+    const cur = p.signups_this_week ?? 0, prev = p.signups_prev_week ?? 0;
+    const max = Math.max(1, cur, prev);
+    const bar = (n, lbl, color) => '<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">' +
+      '<div style="width:80px;font-size:12px;color:var(--t1)">' + lbl + '</div>' +
+      '<div style="flex:1;height:7px;background:var(--b);border-radius:99px;overflow:hidden"><div style="width:' + Math.max(4, Math.round(n / max * 100)) + '%;height:100%;background:' + color + '"></div></div>' +
+      '<div style="width:34px;text-align:right;font-size:12px;font-weight:700;color:var(--t2)">' + n + '</div></div>';
+    sg.innerHTML = bar(cur, 'This week', 'var(--green)') + bar(prev, 'Last week', 'var(--t3)');
+  }
+  const usersEl = document.getElementById('admEngUsers');
+  if (usersEl) {
+    const users = d.most_active_users || [];
+    if (!users.length) {
+      usersEl.innerHTML = '<div style="padding:20px;font-size:13px;color:var(--t3)">No batch activity yet.</div>';
+    } else {
+      usersEl.innerHTML =
+        '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;color:var(--t3);border-bottom:1px solid var(--b)">' +
+        '<th style="padding:8px 12px">Email</th><th style="padding:8px 12px">Batches</th><th style="padding:8px 12px">Parcels</th>' +
+        '<th style="padding:8px 12px">Avg batch size</th><th style="padding:8px 12px">This week</th>' +
+        '<th style="padding:8px 12px">Kill/pursue ratio</th><th style="padding:8px 12px">Last active</th></tr></thead><tbody>' +
+        users.map(u => '<tr style="border-bottom:1px solid var(--b)">' +
+          '<td style="padding:8px 12px;color:var(--t1)">' + escHtml(u.email || u.user_id) + '</td>' +
+          '<td style="padding:8px 12px">' + u.total_batches + '</td>' +
+          '<td style="padding:8px 12px">' + u.total_parcels + '</td>' +
+          '<td style="padding:8px 12px">' + u.avg_batch_size + '</td>' +
+          '<td style="padding:8px 12px">' + u.batches_this_week + '</td>' +
+          '<td style="padding:8px 12px">' + (u.kill_pursue_ratio != null ? u.kill_pursue_ratio : '—') + '</td>' +
+          '<td style="padding:8px 12px;color:var(--t3)">' + (u.last_active ? new Date(u.last_active).toLocaleDateString() : '—') + '</td>' +
+          '</tr>').join('') +
+        '</tbody></table>';
+    }
+  }
 }
 
 // ══════════ FULL-SCREEN PARCEL STORY VIEW (Stage 13) ══════════
