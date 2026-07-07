@@ -1,5 +1,6 @@
 """Share batch — generate public read-only links."""
 import os
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -91,3 +92,56 @@ async def get_shared(token: str):
         return {"batch": br.json()[0] if br.json() else {}, "results": pr.json() or []}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ── Public contact form ──────────────────────────────────────────────────────
+from datetime import datetime as _dt
+
+_SUPABASE_SVC = (
+    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    or os.environ.get("SUPABASE_SERVICE_KEY")
+    or os.environ.get("SUPABASE_ANON_KEY")
+    or os.environ.get("SUPABASE_KEY", "")
+)
+
+_CONTACT_SUBJECTS = {"General question", "Bug report", "Beta access", "Partnership", "Other"}
+
+
+class ContactRequest(BaseModel):
+    name: str
+    email: str
+    subject: str
+    message: str
+
+
+@router.post("/contact")
+async def contact(req: ContactRequest):
+    name = (req.name or "").strip()[:120]
+    email = (req.email or "").strip()[:200]
+    subject = req.subject if req.subject in _CONTACT_SUBJECTS else "Other"
+    message = (req.message or "").strip()[:5000]
+    if not name or not message or "@" not in email or "." not in email.split("@")[-1]:
+        return JSONResponse(status_code=400, content={"error": "Please fill in your name, a valid email, and a message."})
+
+    now = _dt.now(timezone.utc).isoformat()
+    row = {"name": name, "email": email, "subject": subject, "message": message, "created_at": now}
+    headers = {"apikey": _SUPABASE_SVC, "Authorization": f"Bearer {_SUPABASE_SVC}",
+               "Content-Type": "application/json", "Prefer": "return=minimal"}
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.post(f"{_SUPABASE_URL}/rest/v1/contact_submissions", json=row, headers=headers)
+            if r.status_code in (200, 201, 204):
+                return {"ok": True}
+            # Table may not exist yet. Never drop a lead: park it in the
+            # reports KV table under a reserved key until the table is created
+            # (SQL: create table contact_submissions (id uuid primary key
+            # default gen_random_uuid(), name text, email text, subject text,
+            # message text, created_at timestamptz default now());)
+            kv = {"address": f"contact:{now}", "folio": f"contact:{now}", "report_json": json.dumps(row)}
+            r2 = await client.post(f"{_SUPABASE_URL}/rest/v1/reports", json=kv,
+                                   headers={**headers, "Prefer": "resolution=merge-duplicates,return=minimal"})
+            if r2.status_code in (200, 201, 204):
+                return {"ok": True}
+    except Exception as e:
+        print(f"[Contact] save failed: {e}")
+    return JSONResponse(status_code=500, content={"error": "Could not save your message."})

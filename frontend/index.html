@@ -1374,7 +1374,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       </div>
       <div class="lp-footer-col">
         <div class="lp-footer-col-title">Company</div>
-        <a href="mailto:srikarvudaru1@gmail.com" style="text-decoration:none;color:inherit">Contact</a>
+        <a onclick="window.location.hash='#contact'">Contact</a>
       </div>
       <div class="lp-footer-col">
         <div class="lp-footer-col-title">Legal</div>
@@ -2151,6 +2151,33 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   </div>
 </div>
 
+<!-- ════════ CONTACT PAGE ════════ -->
+<div id="page-contact" class="screen">
+  <div style="max-width:520px;margin:0 auto;padding:96px 24px 80px">
+    <h1 style="font-size:26px;font-weight:800;color:var(--t1);margin:0 0 6px">Contact us</h1>
+    <div style="font-size:13px;color:var(--t3);margin-bottom:26px">Questions, bugs, beta access. We read everything.</div>
+    <div id="contactForm">
+      <label class="auth-lbl">Name</label>
+      <input class="inp" id="ctName" style="width:100%;margin-bottom:14px;background:var(--bg)" placeholder="Your name">
+      <label class="auth-lbl">Email</label>
+      <input class="inp" id="ctEmail" type="email" style="width:100%;margin-bottom:14px;background:var(--bg)" placeholder="you@example.com">
+      <label class="auth-lbl">What are you reaching out about?</label>
+      <select class="inp" id="ctSubject" style="width:100%;margin-bottom:14px;background:var(--bg)">
+        <option>General question</option>
+        <option>Bug report</option>
+        <option>Beta access</option>
+        <option>Partnership</option>
+        <option>Other</option>
+      </select>
+      <label class="auth-lbl">Message</label>
+      <textarea class="inp" id="ctMessage" rows="5" style="width:100%;margin-bottom:18px;background:var(--bg);resize:vertical;font-family:'Inter',sans-serif" placeholder="How can we help?"></textarea>
+      <button class="btn-p" id="ctSend" style="width:100%" onclick="submitContact()">Send message</button>
+      <div id="ctStatus" style="display:none;margin-top:14px;font-size:13px;text-align:center"></div>
+    </div>
+    <div style="margin-top:32px"><a onclick="window.location.hash='#landing'" style="color:var(--green);cursor:pointer">← Back to ParceliQ</a></div>
+  </div>
+</div>
+
 <!-- ════════ LEGAL PAGES ════════ -->
 <div id="page-terms" class="screen">
   <div style="max-width:760px;margin:0 auto;padding:96px 24px 80px;line-height:1.7;font-size:14px;color:var(--t2)">
@@ -2188,7 +2215,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <p>We may update these terms; material changes will be announced in the app or by email. Continued use after changes take effect constitutes acceptance.</p>
 
     <h2 class="legal-h2">11. Contact</h2>
-    <p>Questions about these terms: <a href="mailto:srikarvudaru1@gmail.com" style="color:var(--green)">srikarvudaru1@gmail.com</a></p>
+    <p>Questions about these terms? <a onclick="window.location.hash='#contact'" style="color:var(--green);cursor:pointer">Use the contact form</a>.</p>
 
     <div style="margin-top:36px"><a onclick="window.location.hash='#landing'" style="color:var(--green);cursor:pointer">← Back to ParceliQ</a></div>
   </div>
@@ -2218,7 +2245,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <p>We keep your account data and batch history while your account is active. Cached screening results expire automatically. If you delete your account, associated personal data is deleted within 30 days, except records we must keep for legal or security reasons.</p>
 
     <h2 class="legal-h2">7. Contact</h2>
-    <p>Privacy questions or requests: <a href="mailto:srikarvudaru1@gmail.com" style="color:var(--green)">srikarvudaru1@gmail.com</a></p>
+    <p>Privacy questions or requests? <a onclick="window.location.hash='#contact'" style="color:var(--green);cursor:pointer">Use the contact form</a>.</p>
 
     <div style="margin-top:36px"><a onclick="window.location.hash='#landing'" style="color:var(--green);cursor:pointer">← Back to ParceliQ</a></div>
   </div>
@@ -2494,7 +2521,7 @@ const HASH_MAP = {
   '#dashboard': 'page-results', '#processing': 'page-processing',
   '#results': 'page-results', '#pricing': 'page-pricing',
   '#settings': 'page-settings', '#picks': 'page-picks',
-  '#terms': 'page-terms', '#privacy': 'page-privacy',
+  '#terms': 'page-terms', '#privacy': 'page-privacy', '#contact': 'page-contact',
   '#analytics': 'page-analytics',
   '#admin': 'page-admin',
 };
@@ -6903,12 +6930,18 @@ async function saveSettingsPassword() {
   } catch(e) { if (errEl) { errEl.textContent=e.message; errEl.classList.add('show'); } }
 }
 
-function requestAccountDeletion() {
+async function requestAccountDeletion() {
   if (!confirm('Request deletion of your account and all data? We process deletions within 30 days per the privacy policy.')) return;
   const em = currentUser?.email || '';
-  window.location.href = 'mailto:srikarvudaru1@gmail.com?subject=' + encodeURIComponent('Account deletion request: ' + em) +
-    '&body=' + encodeURIComponent('Please delete my ParceliQ account (' + em + ') and all associated data.');
-  toast('Deletion request opened in your email client. Send it and we will process it within 30 days.');
+  try {
+    const r = await fetch(API + '/api/contact', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: em, email: em, subject: 'Other',
+        message: 'ACCOUNT DELETION REQUEST: please delete the ParceliQ account ' + em + ' and all associated data.' }),
+    });
+    if (!r.ok) throw new Error();
+    toast('Deletion request sent. We will process it within 30 days.');
+  } catch(e) { toast('Could not send the request. Try again in a minute.', 4000); }
 }
 
 function loadSettingsPage() {
@@ -7729,6 +7762,32 @@ function _picksJumpToResults(address) {
 
 
 
+
+
+// ── Contact form
+async function submitContact() {
+  const g = id => (document.getElementById(id)?.value || '').trim();
+  const btn = document.getElementById('ctSend');
+  const st = document.getElementById('ctStatus');
+  const show = (msg, ok) => { if (st) { st.style.display = 'block'; st.style.color = ok ? 'var(--green)' : 'var(--red)'; st.textContent = msg; } };
+  const name = g('ctName'), email = g('ctEmail'), message = g('ctMessage');
+  const subject = document.getElementById('ctSubject')?.value || 'Other';
+  if (!name || !email.includes('@') || !message) { show('Fill in your name, a valid email, and a message.', false); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    const r = await fetch(API + '/api/contact', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, subject, message }),
+    });
+    if (!r.ok) throw new Error();
+    show("Thanks, we'll be in touch soon.", true);
+    ['ctName', 'ctEmail', 'ctMessage'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  } catch(e) {
+    show('Something went wrong. Try again.', false);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send message'; }
+  }
+}
 
 // ══════════ ADMIN PORTAL (Stage 19) — server-side enforced ══════════
 function _admHdrs() {
