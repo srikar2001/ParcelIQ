@@ -171,17 +171,25 @@ _SB_HEADERS_SVC = lambda: {
 }
 
 
-async def _job_create(job_id: str, total: int) -> None:
+async def _job_create(job_id: str, total: int, name: str | None = None) -> None:
+    """NOTE: the queue path writes ONLY to batch_jobs (polling state). The
+    frontend is the single writer of batches/parcel_results after it confirms
+    completion, so a run can never produce duplicate batch records server-side."""
     if not _SUPABASE_URL:
         return
+    base = {"id": job_id, "status": "queued", "progress": 0, "total": total,
+            "results": [], "created_at": datetime.now(timezone.utc).isoformat()}
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(
-                f"{_SUPABASE_URL}/rest/v1/{_JOBS_TABLE}",
-                json={"id": job_id, "status": "queued", "progress": 0, "total": total,
-                      "results": [], "created_at": datetime.now(timezone.utc).isoformat()},
-                headers={**_SB_HEADERS_SVC(), "Prefer": "return=minimal"},
-            )
+            if name:
+                # best effort: include the display name if the column exists
+                r = await client.post(f"{_SUPABASE_URL}/rest/v1/{_JOBS_TABLE}",
+                                      json={**base, "name": name[:200]},
+                                      headers={**_SB_HEADERS_SVC(), "Prefer": "return=minimal"})
+                if r.status_code in (200, 201, 204):
+                    return
+            await client.post(f"{_SUPABASE_URL}/rest/v1/{_JOBS_TABLE}", json=base,
+                              headers={**_SB_HEADERS_SVC(), "Prefer": "return=minimal"})
     except Exception as e:
         print(f"[Jobs] Create error: {e}")
 
@@ -230,6 +238,7 @@ class ParcelInput(BaseModel):
 class BatchRequest(BaseModel):
     parcels: list[ParcelInput]
     state: str = "FL"
+    name: Optional[str] = None  # display name, echoed back so processing and save agree
 
 
 async def _safe(factory, default, sem, timeout: float = _API_TIMEOUT, retry_if=None, name: str = ""):
@@ -684,7 +693,7 @@ async def batch_queue(
     if denied is not None:
         return denied
     job_id = str(uuid4())
-    await _job_create(job_id, len(request.parcels))
+    await _job_create(job_id, len(request.parcels), request.name)
     asyncio.create_task(_process_batch_background(job_id, request.parcels))
     return {"job_id": job_id, "total": len(request.parcels)}
 

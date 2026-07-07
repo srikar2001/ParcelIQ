@@ -4106,7 +4106,13 @@ async function saveBatchToSupabase(batchName, results) {
   if (!currentUser) return null;
   try {
     const summary = results.summary || {};
+    // Idempotent save: every screening run gets ONE client-generated id at
+    // start. Partial saves (stream died, poll error) and the final save all
+    // upsert the same record instead of stacking duplicate batches. This is
+    // what previously split one 313-parcel run into two same-named records.
+    if (!batchState.runId) batchState.runId = (crypto.randomUUID ? crypto.randomUUID() : ('r' + Date.now() + Math.random().toString(16).slice(2)));
     const insertPayload = {
+      id:       batchState.runId,
       user_id:  currentUser.id,
       name:     batchName || _generateBatchName([]),
       state:    'FL',
@@ -4117,9 +4123,8 @@ async function saveBatchToSupabase(batchName, results) {
       status:   'complete',
       created_at: new Date().toISOString()
     };
-    const { data: batch, error: batchErr } = await sb.from('batches').insert(insertPayload).select().single();
-    // FIX 7: log insert errors so name-save failures are visible in the browser console
-    if (batchErr) { console.error('[saveBatch] Insert error:', batchErr.message, '| payload:', insertPayload); }
+    const { data: batch, error: batchErr } = await sb.from('batches').upsert(insertPayload, { onConflict: 'id' }).select().single();
+    if (batchErr) { console.error('[saveBatch] Upsert error:', batchErr.message, '| payload:', insertPayload); }
     if (!batch) return null;
     _currentBatchId = batch.id;
     try { sessionStorage.setItem('piq-last-batch', batch.id); } catch(e) {}
@@ -4147,6 +4152,8 @@ async function saveBatchToSupabase(batchName, results) {
     if (rows.length > 0) {
       let savedRows = null;
       try {
+        // A re-save of the same run replaces its rows rather than appending
+        await sb.from('parcel_results').delete().eq('batch_id', batch.id).eq('user_id', currentUser.id);
         const res = await sb.from('parcel_results').insert(rows).select('id, address');
         if (res.error) throw res.error;
         savedRows = res.data;
@@ -4349,6 +4356,7 @@ async function _executeBatch(lines, estimatedSet) {
   }
 
   const t0 = Date.now();
+  batchState.runId      = null; // fresh save identity for this run
   batchState._streaming = true;
   batchState.results    = [...outsideResults];
   batchState.filtered   = 'all';
@@ -6541,6 +6549,7 @@ async function submitBatchEdit() {
 // connection anywhere; results render progressively as parcels complete.
 async function _runQueueBatch(flLines, outsideResults) {
   const t0 = Date.now();
+  batchState.runId      = null; // fresh save identity for this run
   batchState._streaming = true;
   batchState.results    = [...outsideResults];
   batchState.filtered   = 'all';
@@ -6557,7 +6566,7 @@ async function _runQueueBatch(flLines, outsideResults) {
   if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
   const startResp = await fetch(API + '/api/batch/queue', {
     method: 'POST', headers: hdrs,
-    body: JSON.stringify({ parcels: flLines.map(a => ({ address: a })), state: 'FL' }),
+    body: JSON.stringify({ parcels: flLines.map(a => ({ address: a })), state: 'FL', name: batchState.name || '' }),
   });
   if (startResp.status === 429) throw Object.assign(new Error('limit_exceeded'), { isLimitExceeded: true });
   if (startResp.status === 401) throw new Error('Sign in to screen parcels');
