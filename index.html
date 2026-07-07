@@ -3405,6 +3405,92 @@ function shortenFlag(f) {
   return f.length > 18 ? f.slice(0, 16) + '…' : f;
 }
 
+// ── Canonical decision signals. parcel_info (structured, same data the
+// detail panel shows) is the source of truth; flag/positive strings are only
+// a fallback for old saved batches that lack the structured fields. This is
+// what keeps the chips row and the panel from ever contradicting each other.
+function computeSignals(r) {
+  const pi = r.parcel_info || {};
+  const flags = r.flags || [];
+  const pos = r.positives || [];
+  const has = pat => flags.some(f => pat.test(f));
+  const hasPos = pat => pos.some(f => pat.test(f));
+  const out = [];
+  const red = l => out.push({ type: 'red', label: '✗ ' + l });
+  const amber = l => out.push({ type: 'amber', label: '⚠ ' + l });
+  const green = l => out.push({ type: 'green', label: '✓ ' + l });
+
+  // Reds straight from the auto-kill reason
+  if (r.auto_kill && r.auto_kill_reason) {
+    const akr = r.auto_kill_reason;
+    red(/wetland/i.test(akr) ? 'Wetlands on parcel' :
+        /VE/i.test(akr) ? 'Flood zone VE' :
+        /AE/i.test(akr) ? 'Flood zone AE' :
+        /habitat/i.test(akr) ? 'Wildlife habitat' :
+        /easement/i.test(akr) ? 'Conservation easement' :
+        /public/i.test(akr) ? 'Public land' : _stripParens(akr));
+  }
+
+  // Road: structured first. Confirmed road data can never read as unverified.
+  if (pi.road_type) {
+    if (pi.road_private) amber('Private road access');
+    else if (pi.road_surface === 'dirt') amber('Dirt road access');
+    else if (pi.road_surface === 'paved') green('Paved road' + (pi.road_distance_m != null ? ' ~' + pi.road_distance_m + 'm' : ''));
+    else green('Road ~' + (pi.road_distance_m != null ? pi.road_distance_m + 'm' : 'nearby'));
+  } else if (has(/no road detected|landlocked/i)) {
+    amber('Possibly landlocked');
+  } else if (has(/road data unavailable/i)) {
+    amber('Road unverified');
+  } else if (has(/road.*unverified|road.*unconfirmed/i)) {
+    amber('Road unverified');
+  }
+
+  // Wetlands nearby (on-parcel is a red above); no structured nearby field, strings decide
+  if (!(r.auto_kill_reason || '').match(/wetland/i)) {
+    if (pi.wetland_type || has(/wetlands? on parcel|wetlands confirmed/i)) amber('Wetlands present');
+    else if (has(/wetland.*nearby|nearby.*wetland|wetlands within/i)) amber('Wetlands nearby');
+    else if (hasPos(/no wetlands/i)) green('No wetlands');
+  }
+
+  // Flood: only when not already the kill reason
+  const fz = getFloodText(r);
+  if (!/AE|VE/i.test(r.auto_kill_reason || '')) {
+    if (/zone x/i.test(fz)) green('Zone X');
+    else if (/zone a\b/i.test(fz) || has(/zone a \(undetermined/i)) amber('Flood zone A');
+  }
+
+  // Soil from the structured septic verdict
+  if (pi.septic_suitable === false) amber('Poor drainage');
+  else if (pi.septic_suitable === true) green('Good drainage');
+  else if (has(/poorly drained|septic.*not feasible/i)) amber('Poor drainage');
+  else if (hasPos(/well.*drain|excessively drain/i)) green('Good drainage');
+
+  // Elevation: only when decision-relevant
+  if (pi.elevation_ft != null) {
+    if (pi.elevation_ft < 2) amber('Very low elevation');
+    else if (pi.elevation_ft < 5) amber('Low elevation');
+    else if (pi.elevation_ft >= 20) green('Good elevation');
+  } else if (has(/very low elevation|low elevation/i)) amber('Low elevation');
+
+  // Evacuation
+  if (pi.evac_zone) {
+    if (/^[AB]$/i.test(pi.evac_zone)) amber('Evac zone ' + pi.evac_zone.toUpperCase());
+  } else if (pi.county || pi.parcel_id || hasPos(/not in.*evacuation|not in.*hurricane/i)) {
+    green('No evac risk');
+  }
+
+  // Contamination / canal / power / vacant
+  if ((pi.contamination_sites || []).length || has(/contamination/i)) amber('Contamination nearby');
+  if (pi.waterway_type || has(/canal|waterway/i)) amber('Canal nearby');
+  if (pi.powerline_nearby === true) green('Power nearby');
+  if (pi.building_count === 0 && hasPos(/vacant/i)) green('Vacant lot');
+
+  // Order: reds, ambers, greens
+  const rank = { red: 0, amber: 1, green: 2 };
+  out.sort((a, b) => rank[a.type] - rank[b.type]);
+  return out;
+}
+
 function buildSignals(r) {
   const v = r.verdict;
   if (v === 'OUTSIDE_COVERAGE') return '<span style="color:var(--t3);font-size:11px">Outside FL</span>';
@@ -5359,62 +5445,13 @@ function openDetailPanel(absIdx, event) {
   }
   const dpSig = document.getElementById('dpSignals');
   if (dpSig) {
-    const stats = [];
-
-    // Red — auto-kill reason first
-    if (r.auto_kill && r.auto_kill_reason) {
-      const akr = r.auto_kill_reason;
-      const label =
-        /wetland/i.test(akr) ? 'Wetlands on parcel' :
-        /AE/i.test(akr) ? 'Flood Zone AE' :
-        /VE/i.test(akr) ? 'Flood Zone VE' :
-        /habitat/i.test(akr) ? 'Wildlife habitat' :
-        /easement/i.test(akr) ? 'Conservation easement' :
-        /public/i.test(akr) ? 'Public land' : akr;
-      stats.push({ label: '✗ ' + label, color: 'var(--red)' });
-    }
-
-    // Amber — from flags, up to 3
-    const amberRules = [
-      [/wetland.*nearby|nearby.*wetland/i, 'Wetlands nearby'],
-      [/road.*unavailable|road.*unverified|road.*unconfirmed/i, 'Road unverified'],
-      [/poor.*drain|very poorly/i, 'Poor drainage'],
-      [/evacuation zone [ab]/i, 'Evac zone'],
-      [/canal|waterway/i, 'Canal nearby'],
-      [/low elevation|very low elevation/i, 'Low elevation'],
-      [/agricultural land use/i, 'Ag zoning'],
-    ];
-    for (const [pat, lbl] of amberRules) {
-      if (stats.length >= 4) break;
-      if ((r.flags || []).some(f => pat.test(f))) {
-        stats.push({ label: '⚠ ' + lbl, color: 'var(--amber)' });
-      }
-    }
-
-    // Green — fill remaining up to 5 total
-    const greenRules = [
-      [/zone x/i, 'Zone X clean'],
-      [/well.drain|excessively drain/i, 'Good drainage'],
-      [/no wetlands/i, 'No wetlands'],
-      [/not in.*hurricane|not in.*evacuation/i, 'No evac risk'],
-      [/good elevation/i, 'Good elevation'],
-      [/power infrastructure/i, 'Power nearby'],
-      [/vacant.*(lot|unimproved)/i, 'Vacant lot'],
-    ];
-    for (const [pat, lbl] of greenRules) {
-      if (stats.length >= 5) break;
-      if ((r.positives || []).some(p => pat.test(p))) {
-        stats.push({ label: '✓ ' + lbl, color: 'var(--green)' });
-      }
-    }
-
-    dpSig.innerHTML = stats.map((s, i) => {
-      const sep = i < stats.length - 1
-        ? '<span style="color:var(--t3);margin:0 10px">·</span>'
-        : '';
-      return '<span style="white-space:nowrap;font-size:13px;font-weight:700;color:' + s.color + '">' + escHtml(s.label) + '</span>' + sep;
+    const chips = computeSignals(r).slice(0, 4);
+    const COLOR = { red: 'var(--red)', amber: 'var(--amber)', green: 'var(--green)' };
+    dpSig.innerHTML = chips.map((c, i2) => {
+      const sep = i2 < chips.length - 1 ? '<span style="color:var(--t3);margin:0 10px">·</span>' : '';
+      return '<span style="white-space:nowrap;font-size:13px;font-weight:700;color:' + COLOR[c.type] + '">' + escHtml(c.label) + '</span>' + sep;
     }).join('');
-    dpSig.style.display = stats.length ? 'flex' : 'none';
+    dpSig.style.display = chips.length ? 'flex' : 'none';
   }
   // Risk flags (red/amber/grey only — no positives mixed in)
   const dpFlags = document.getElementById('dpFlags');
@@ -6247,30 +6284,9 @@ function _populateMapModalSidebar(r) {
     ).join('') +
     '</div>';
 
-  // Short signals: red → amber → green, max 5
-  const signals = [];
-  const _allText = [...(r.kill_flags || []), ...(r.review_flags || []), ...(r.flags || []), ...(r.positives || [])];
-  const _hasText = pat => _allText.some(t => pat.test(t));
-
-  if (r.auto_kill_reason) {
-    const a = r.auto_kill_reason;
-    if (/wetland/i.test(a) && signals.length < 5) signals.push(_shortSignal('Wetlands', '#ef4444'));
-    else if (/VE/i.test(a) && signals.length < 5) signals.push(_shortSignal('Flood Zone VE', '#ef4444'));
-    else if (/AE/i.test(a) && signals.length < 5) signals.push(_shortSignal('Flood Zone AE', '#ef4444'));
-    else if (/habitat/i.test(a) && signals.length < 5) signals.push(_shortSignal('Wildlife habitat', '#ef4444'));
-    else if (/easement/i.test(a) && signals.length < 5) signals.push(_shortSignal('Easement', '#ef4444'));
-  }
-  if (signals.length < 5 && _hasText(/wetland.*nearby|nearby.*wetland/i)) signals.push(_shortSignal('Wetlands nearby', '#f59e0b'));
-  if (signals.length < 5 && _hasText(/road.*unavailable|road.*unverified/i)) signals.push(_shortSignal('Road unverified', '#f59e0b'));
-  if (signals.length < 5 && _hasText(/poor.*drain/i)) signals.push(_shortSignal('Poor drainage', '#f59e0b'));
-  if (signals.length < 5 && _hasText(/canal|waterway/i)) signals.push(_shortSignal('Canal nearby', '#f59e0b'));
-  if (signals.length < 5 && _hasText(/zone x/i)) signals.push(_shortSignal('Zone X', '#22c55e'));
-  if (signals.length < 5 && _hasText(/no wetlands/i)) signals.push(_shortSignal('No wetlands', '#22c55e'));
-  if (signals.length < 5 && _hasText(/not in.*evacuation|no evac/i)) signals.push(_shortSignal('No evac risk', '#22c55e'));
-  if (signals.length < 5 && _hasText(/good elevation/i)) signals.push(_shortSignal('Good elevation', '#22c55e'));
-  if (signals.length < 5 && _hasText(/well.drain/i)) signals.push(_shortSignal('Good drainage', '#22c55e'));
-  if (signals.length < 5 && _hasText(/vacant/i)) signals.push(_shortSignal('Vacant lot', '#22c55e'));
-  if (signals.length < 5 && _hasText(/power infrastructure/i)) signals.push(_shortSignal('Power nearby', '#22c55e'));
+  // Same canonical signals as the panel chips, max 5
+  const COLORS = { red: '#ef4444', amber: '#f59e0b', green: '#22c55e' };
+  const signals = computeSignals(r).slice(0, 5).map(c => _shortSignal(c.label.replace(/^[✗⚠✓]\s*/, ''), COLORS[c.type]));
 
   const signalsBlock = signals.length ? (
     '<div class="mms-divider"></div>' +
