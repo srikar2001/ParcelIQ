@@ -90,6 +90,43 @@ async def _user_id_from_token(token: str) -> Optional[tuple[str, str]]:
 def _limit_for(email: str) -> int:
     return _VIP_LIMITS.get(email, WEEKLY_LIMIT)
 
+
+# ── Admin overrides (plan / daily limit / suspended), stored as reserved keys
+# in the existing `reports` KV table because PostgREST can't ALTER TABLE.
+# See routers/admin.py for the write side.
+import time as _time_mod
+
+_user_override_cache: dict = {"ts": 0.0, "data": {}}
+
+
+async def _override_get_all(prefix: str) -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(
+                f"{_SUPABASE_URL}/rest/v1/reports",
+                params={"select": "address,report_json", "address": f"like.{prefix}%", "limit": "2000"},
+                headers=_SB_HEADERS_SVC(),
+            )
+        out = {}
+        for row in (r.json() if r.status_code == 200 else []):
+            raw = row.get("report_json")
+            out[row["address"].removeprefix(prefix)] = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        return out
+    except Exception:
+        return {}
+
+
+async def get_user_override(user_id: str) -> dict:
+    now = _time_mod.monotonic()
+    if now - _user_override_cache["ts"] > 60:
+        _user_override_cache["data"] = await _override_get_all("admin:user:")
+        _user_override_cache["ts"] = now
+    return _user_override_cache["data"].get(user_id, {})
+
+
+def _bust_override_cache() -> None:
+    _user_override_cache["ts"] = 0.0
+
 async def _weekly_usage(user_id: str) -> int:
     """Usage since midnight UTC today — the limit is 1,000/day."""
     if not user_id or not _SUPABASE_URL:
@@ -467,7 +504,10 @@ async def _check_batch_auth(authorization: Optional[str], parcel_count: int) -> 
     if not id_email:
         return JSONResponse(status_code=401, content={'error': 'Sign in to screen parcels.'})
     user_id, email = id_email
-    limit = _limit_for(email)
+    override = await get_user_override(user_id)
+    if override.get("suspended"):
+        return JSONResponse(status_code=403, content={'error': 'This account is suspended. Contact support.'})
+    limit = override.get("daily_limit") if override.get("daily_limit") is not None else _limit_for(email)
     used  = await _weekly_usage(user_id)
     if used + parcel_count > limit:
         return JSONResponse(
