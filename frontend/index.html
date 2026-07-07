@@ -1921,16 +1921,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <div class="dp-sec-title">Parcel Details</div>
     <div class="dp-grid" id="dpInfo"></div>
   </div>
-  <!-- 6. What's Looking Good — investors scan for what's clean first -->
-  <div class="dp-section" id="dpPositivesSection" style="display:none">
-    <div class="dp-sec-title">What's Looking Good</div>
-    <div id="dpPositives"></div>
-  </div>
-  <!-- 7. Risk Flags -->
-  <div class="dp-section" id="dpFlagsSection">
-    <div class="dp-sec-title">Risk Flags</div>
-    <div id="dpFlags"></div>
-  </div>
+  <!-- Positives and risk-flag lists live in the full report (story view).
+       The panel is a 10-second snapshot, not an essay. -->
   <div class="dp-section">
     <div class="dp-sec-title">Notes</div>
     <div id="dpNoteDisplay" style="display:none">
@@ -5376,8 +5368,7 @@ function getKillExplanation(r) {
     !akr.includes(f) && !f.includes(_stripParens(translateFlag(akr))) &&
     !/unavailable|unconfirmed|no recorded sale|non-market/i.test(f) &&
     _stripParens(f).toLowerCase() !== _stripParens(translateFlag(akr)).toLowerCase());
-  if (secondary) out += ' Also flagged: ' + _lc1(_stripParens(secondary)) + '.';
-  return out;
+  return out; // two sentences max; the full flag list lives in the story view
 }
 
 function getPursueExplanation(result) {
@@ -5390,7 +5381,7 @@ function getPursueExplanation(result) {
   else if (top.length === 1) out = top[0] + '. Worth a closer look.';
   else out = 'No major risk factors detected. Worth a closer look.';
   const caveat = flags.find(f => !/no recorded sale|non-market/i.test(f));
-  if (caveat) out += ' Main caveat: ' + _lc1(_stripParens(caveat)) + '.';
+  if (caveat) out = out.replace(/ Worth a closer look\.$/, '') + ' Main caveat: ' + _lc1(_stripParens(caveat)) + '.';
   return out;
 }
 
@@ -5453,49 +5444,7 @@ function openDetailPanel(absIdx, event) {
     }).join('');
     dpSig.style.display = chips.length ? 'flex' : 'none';
   }
-  // Risk flags (red/amber/grey only — no positives mixed in)
-  const dpFlags = document.getElementById('dpFlags');
-  const dpFlagsSec = document.getElementById('dpFlagsSection');
-  if (dpFlags) {
-    const killF = r.kill_flags || (r.auto_kill ? r.flags : []) || [];
-    const revF  = r.review_flags || [];
-    const _isInfoOnly = f => /road.*(unavailable|unverified|unconfirmed)/i.test(f) || /no.*(recorded )?sale|no sale history|vacant.*no sale/i.test(f) || /county data unavailable/i.test(f) || /last sale.*\$0/i.test(f);
-    const _isAutoKillFlag = f => {
-      if (!r.auto_kill_reason) return false;
-      return f === r.auto_kill_reason || f.includes(r.auto_kill_reason) || r.auto_kill_reason.includes(f);
-    };
-    // Promote info-only flags from killF/revF into infoF
-    const _killFScored  = killF.filter(f => !_isInfoOnly(f));
-    const _killFInfo    = killF.filter(f =>  _isInfoOnly(f));
-    const _revFScored   = revF.filter(f =>  !_isInfoOnly(f));
-    const _revFInfo     = revF.filter(f =>   _isInfoOnly(f));
-    const infoF = [
-      ...(r.info_flags || r.flags || []).filter(f => !killF.includes(f) && !revF.includes(f)),
-      ..._killFInfo,
-      ..._revFInfo,
-    ];
-    let h = '';
-    _killFScored.forEach(f => {
-      const label = _isAutoKillFlag(f) ? '<span class="dp-flag-src">⛔</span>' : '';
-      h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-r"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span>' + label + '</div>';
-    });
-    _revFScored.forEach(f => {
-      h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-a"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>';
-    });
-    infoF.forEach(f => { h += '<div class="dp-flag-row"><div class="dp-dot dp-dot-m"></div><span class="dp-flag-text">' + escHtml(translateFlag(f)) + '</span></div>'; });
-    dpFlags.innerHTML = h || '<div style="font-size:12px;color:var(--t3)">No risk flags.</div>';
-    if (dpFlagsSec) dpFlagsSec.style.display = (h || killF.length || revF.length) ? '' : 'none';
-  }
-  // What's Looking Good — filter out items already in Snapshot (flood zone, elevation, acreage)
-  const dpPos = document.getElementById('dpPositives');
-  const dpPosSec = document.getElementById('dpPositivesSection');
-  if (dpPos) {
-    const _snapPats = [/zone x/i, /elevation/i, /ideal parcel size/i, /good buildable size/i];
-    const pos = (r.positives || []).filter(p => !_snapPats.some(re => re.test(p)));
-    const ph = pos.map(p => '<div class="dp-pos-row"><div class="dp-dot dp-dot-g"></div><span class="dp-flag-text">' + escHtml(translateFlag(p)) + '</span></div>').join('');
-    dpPos.innerHTML = ph;
-    if (dpPosSec) dpPosSec.style.display = pos.length > 0 ? '' : 'none';
-  }
+  // Risk-flag and positives lists moved to the full report (story view)
   // Parcel Details grid — decision-first rules: never show raw codes, never
   // show empty "no record" rows, hide anything that wouldn't change pursue/kill
   const dpInfo = document.getElementById('dpInfo');
@@ -5530,30 +5479,12 @@ function openDetailPanel(absIdx, event) {
     const _dpAc = getAcreage(r);
     if (_dpAc != null) infoH += _cell('Acreage', escHtml(_dpAc + ' ac'));
 
-    // Buildings — only relevant when something is actually on a residential/mixed lot
-    if (pi.building_count > 0 && (_luCat === 'Residential' || _luCat === 'Mixed Use')) {
-      infoH += _cell('Buildings', escHtml(String(pi.building_count)));
-    }
-
     // Assessed Value is THE number; Land Value only when meaningfully different
     // (>20% apart and >$1,000 — filters the $100 agricultural-exemption artifact)
     const assessedVal = pi.assessed_value != null ? pi.assessed_value : pi.just_value;
     if (assessedVal != null && assessedVal > 0) {
       let valHtml = escHtml(fmt$(assessedVal)) + '<div class="dp-grid-sub">County tax estimate, not market value</div>';
-      const lv = pi.land_value;
-      if (lv != null && lv > 1000 && assessedVal > 0 && Math.abs(lv - assessedVal) / assessedVal > 0.2) {
-        valHtml += '<div class="dp-grid-sub">Land alone valued at ' + escHtml(fmt$(lv)) + '</div>';
-      }
       infoH += _cell('Assessed Value', valHtml);
-    }
-
-    // Last Sale — only when a real sale exists; no "No recorded sale" clutter
-    if (pi.last_sale_price != null && pi.last_sale_price > 0 && pi.last_sale_year) {
-      let saleHtml = escHtml(fmt$(pi.last_sale_price) + ' (' + pi.last_sale_year + ')');
-      if (pi.sale_price_likely_market_value === false) {
-        saleHtml += '<div class="dp-grid-sub">Likely non-market (gift/transfer)</div>';
-      }
-      infoH += _cell('Last Sale', saleHtml);
     }
 
     // Soil — plain English verdict, never the raw USDA class alone
@@ -5582,10 +5513,6 @@ function openDetailPanel(absIdx, event) {
 
     if (pi.wetland_type) infoH += _cell('Wetland Type', escHtml(_cap(pi.wetland_type)));
 
-    if (pi.habitat_species && pi.habitat_species.length) {
-      infoH += _cell('Protected Wildlife', escHtml(pi.habitat_species.slice(0, 3).join(', ')));
-    }
-
     // Road — type, surface when known, name, distance, private caveat
     if (pi.road_type) {
       let roadTxt = _cap(pi.road_type);
@@ -5595,13 +5522,6 @@ function openDetailPanel(absIdx, event) {
       let roadHtml = escHtml(roadTxt);
       if (pi.road_private) roadHtml += '<div class="dp-grid-sub" style="color:var(--amber)">Private road. Confirm legal access</div>';
       infoH += _cell('Road', roadHtml);
-    }
-
-    if (pi.powerline_nearby === true) {
-      const dist = pi.powerline_distance ? ' (' + pi.powerline_distance + ')' : '';
-      infoH += _cell('Power', 'Nearby' + escHtml(dist));
-    } else if (pi.powerline_nearby === false) {
-      infoH += _cell('Power', 'None detected within 1 mile');
     }
 
     if (pi.contamination_sites && pi.contamination_sites.length) {
@@ -6067,7 +5987,6 @@ function buildExpandHtml(r, expId) {
   const pi       = r.parcel_info || {};
   const flags    = (r.flags     || []).map(translateFlag);
   const positives= (r.positives || []).map(translateFlag);
-  const sources  = (r.sources   || []).map(translateSource);
 
   const akBanner = r.auto_kill && r.auto_kill_reason
     ? '<div class="autokill-banner">⛔ ' + escHtml(r.auto_kill_reason) + '</div>' : '';
@@ -6083,9 +6002,8 @@ function buildExpandHtml(r, expId) {
     pi.land_use_code ? '🏢 ' + escHtml(getLandUseCategory(pi.land_use_code)) : '',
   ].filter(Boolean);
   const metaHtml = meta.length ? '<div class="rcard-meta">' + meta.map(m => '<span>' + m + '</span>').join('') + '</div>' : '';
-  const srcHtml  = sources.length ? '<div class="sources-row">Sources: ' + sources.map(s => escHtml(s)).join(' · ') + '</div>' : '';
 
-  return '<div class="expand-inner">' + akBanner + flagsHtml + posHtml + metaHtml + srcHtml + '</div>';
+  return '<div class="expand-inner">' + akBanner + flagsHtml + posHtml + metaHtml + '</div>';
 }
 
 function filterResults(verdict, btn) {
