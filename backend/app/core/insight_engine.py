@@ -56,7 +56,7 @@ def score_parcel(
         flags.append("Flood zone data unavailable. Verify the flood maps manually")
 
     if flood_zone in SFHA_ZONES and flood.get("sfha") is True:
-        reason = f"FEMA Flood Zone {flood_zone}"
+        reason = f"Flood Zone {flood_zone}"
         flags.append(reason)
         if not auto_kill:
             auto_kill_reason = reason
@@ -114,7 +114,7 @@ def score_parcel(
     # Deductions
     if epa.get("contamination_found"):
         score -= 25
-        flags.append("EPA contamination record found")
+        flags.append("Contamination record found nearby")
 
     # ── Road access (Census TIGERweb) — the #1 kill signal investors check.
     # "No road found" is a real finding now (reliable source), not a data gap.
@@ -139,7 +139,7 @@ def score_parcel(
 
     if flood_zone == "A":
         score -= 15
-        flags.append("FEMA Zone A (undetermined flood risk)")
+        flags.append("Flood Zone A (undetermined flood risk)")
 
     if land_use in AGRI_CODES:
         score -= 15
@@ -242,7 +242,7 @@ def score_parcel(
     # Additions
     if flood_zone == "X":
         score += 5
-        positives.append("FEMA Zone X, minimal flood hazard")
+        positives.append("Flood Zone X, minimal flood hazard")
 
     if not wetlands.get("wetland_on_parcel") and not wetlands.get("wetland_nearby"):
         score += 5

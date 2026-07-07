@@ -1314,7 +1314,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <div class="lp-sample-id">Parcel ID: 272632-000000-012050</div>
         </div>
         <div class="lp-check-row">
-          <span class="lp-ck-left"><span class="lp-ck-icon pass">✓</span>&nbsp;Outside FEMA floodplain</span>
+          <span class="lp-ck-left"><span class="lp-ck-icon pass">✓</span>&nbsp;Outside mapped floodplain</span>
           <span class="lp-ck-badge">Low Risk</span>
         </div>
         <div class="lp-check-row">
@@ -1326,7 +1326,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <span class="lp-ck-badge">Yes</span>
         </div>
         <div class="lp-check-row">
-          <span class="lp-ck-left"><span class="lp-ck-icon neut">○</span>&nbsp;EPA sites (1 mi)</span>
+          <span class="lp-ck-left"><span class="lp-ck-icon neut">○</span>&nbsp;Contamination sites (1 mi)</span>
           <span class="lp-ck-badge grey">None Found</span>
         </div>
         <div class="lp-check-row">
@@ -2049,7 +2049,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <div style="padding:12px 16px;color:var(--green);border-bottom:1px solid var(--b);text-transform:uppercase;font-size:11px;letter-spacing:.6px;font-weight:700">ParceliQ</div>
 
           <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">Flood zone lookup</div>
-          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t2)">FEMA map portal, ~5 min</div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t2)">Federal flood map portal, ~5 min</div>
           <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">Automatic</div>
 
           <div style="padding:12px 16px;border-bottom:1px solid var(--b);color:var(--t1)">Wetlands + wildlife check</div>
@@ -3229,7 +3229,7 @@ function getDORDescription(code) {
     80:'Govt Parks',81:'Military',82:'Forest/Recreation',83:'Public Schools',84:'Colleges',85:'Hospitals',86:'Counties',87:'State',88:'Federal',89:'Municipal',
     90:'Leasehold',91:'Utility',92:'Mining',93:'Subsurface Rights',94:'Right of Way',95:'Rivers/Lakes',96:'Sewage Disposal',97:'Outdoor Recreation',98:'Centrally Assessed',99:'Acreage not zoned agric'
   };
-  return MAP[c] != null ? MAP[c] : ('DOR code ' + code);
+  return MAP[c] != null ? MAP[c] : ('County use code ' + code);
 }
 
 // FIX 3: Flag + source translation
@@ -3247,6 +3247,10 @@ function translateFlag(f) {
     'FEMA Zone X — minimal flood hazard':            'Zone X, no flood risk',
     'FEMA Zone X, minimal flood hazard':             'Zone X, no flood risk',
     'FEMA Flood Zone AE':                            'In flood zone AE, high flood risk',
+    'Flood Zone AE':                                 'In flood zone AE, high flood risk',
+    'Flood Zone VE':                                 'In a coastal flood zone, very high risk',
+    'Flood Zone X, minimal flood hazard':            'Zone X, no flood risk',
+    'Contamination record found nearby':             'Contamination on record nearby',
     'FEMA Flood Zone VE':                            'In a coastal flood zone, very high risk',
     'No road detected in OSM (possible rural gap or landlocked)': 'No road found. Check satellite view',
     'No parcel record found in FL cadastral':        'County records unavailable for this parcel',
@@ -3286,8 +3290,8 @@ function translateFlag(f) {
 
 function translateSource(s) {
   const MAP = {
-    'FEMA NFHL':'FEMA','USFWS NWI':'Wetlands','USFWS Critical Habitat':'Wildlife',
-    'EPA ECHO Superfund':'EPA','OpenStreetMap':'Roads','FL DOR Cadastral':'County Records',
+    'FEMA NFHL':'Flood maps','USFWS NWI':'Wetlands','USFWS Critical Habitat':'Wildlife',
+    'EPA ECHO Superfund':'Contamination','OpenStreetMap':'Roads','FL DOR Cadastral':'County records',
     'USGS National Elevation Dataset':'Elevation','USDA Web Soil Survey':'Soil',
     'FL Division of Emergency Management':'Evac Zones','USDA NRCS':'Easements','USDA NRCS / FNAI':'Easements',
   };
@@ -3297,7 +3301,7 @@ function translateSource(s) {
 // FIX 4: Extract flood/access from result data
 function getFloodText(r) {
   for (const f of (r.flags || [])) {
-    if (/FEMA Zone/i.test(f)) {
+    if (/FEMA Zone|Flood Zone/i.test(f)) {
       const m = f.match(/Zone\s+([A-Z0-9]+)/i);
       return m ? 'Zone ' + m[1] : f.replace('FEMA ', '');
     }
@@ -3381,14 +3385,14 @@ function extractCounty(addr) {
 // ── SIGNAL PILLS
 function shortenFlag(f) {
   f = String(f || '');
-  const m = f.match(/FEMA Flood Zone\s+(\w+)/i); if (m) return 'Flood ' + m[1];
+  const m = f.match(/(?:FEMA )?Flood Zone\s+(\w+)/i); if (m) return 'Flood ' + m[1];
   if (/Wetlands on parcel/i.test(f))        return 'Wetlands';
   if (/Critical habitat/i.test(f))          return 'Wildlife';
   if (/Public.conservation/i.test(f))       return 'Public land';
-  if (/EPA contamination/i.test(f))         return 'Contamination';
+  if (/contamination record/i.test(f))      return 'Contamination';
   if (/Road data unavailable/i.test(f))     return 'No road data';
   if (/Parcel very small/i.test(f))         { const a = f.match(/([\d.]+)\s*ac/i); return a ? a[1] + ' ac' : 'Very small'; }
-  if (/FEMA Zone A/i.test(f))               return 'Zone A';
+  if (/Zone A \(undetermined/i.test(f))     return 'Zone A';
   if (/Agricultural land use/i.test(f))     return 'Agricultural';
   if (/County data unavailable/i.test(f))   return 'No county data';
   if (/Wetlands nearby/i.test(f))           return 'Wetlands nearby';
@@ -3397,7 +3401,7 @@ function shortenFlag(f) {
   if (/Vacant lot with no sale/i.test(f))   return 'No sale history';
   if (/Last sale price very low/i.test(f))  return 'Low sale price';
   if (/value.*diverge/i.test(f))            return 'Value gap';
-  if (/FEMA Zone X/i.test(f))               return 'Zone X';
+  if (/Zone X/i.test(f))                    return 'Zone X';
   if (/No wetlands on parcel/i.test(f))     return 'No wetlands';
   if (/Paved road/i.test(f))                return 'Paved road';
   if (/Ideal parcel size/i.test(f))         { const a = f.match(/([\d.]+)\s*ac/i); return a ? a[1] + ' ac' : 'Good size'; }
@@ -6060,7 +6064,7 @@ function _makeFemaLayer(opacity) {
       return img;
     }
   });
-  return new FemaGrid({ opacity: opacity, attribution: 'FEMA NFHL', tileSize: 256, minZoom: 13 });
+  return new FemaGrid({ opacity: opacity, attribution: '', tileSize: 256, minZoom: 13 });
 }
 
 // USFWS NWI wetlands via working USGS-hosted WMS (www.fws.gov is unreliable)
@@ -6075,7 +6079,7 @@ function _makeWetlandsLayer(opacity) {
   });
   return new WetWMS(
     'https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/services/Wetlands/MapServer/WMSServer',
-    { layers: '0', format: 'image/png', transparent: true, opacity: opacity, attribution: 'USFWS NWI' }
+    { layers: '0', format: 'image/png', transparent: true, opacity: opacity, attribution: '' }
   );
 }
 
@@ -6322,7 +6326,7 @@ function expandMap() {
   window._modalMap = _modalMap;
 
   _modalLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap, FEMA NFHL, USFWS NWI', maxZoom: 19
+    attribution: '© OpenStreetMap', maxZoom: 19
   }).addTo(_modalMap);
   _modalLayers['_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Esri World Imagery', maxZoom: 19
@@ -8092,7 +8096,7 @@ function _svCategoryVerdicts(r) {
   const fz = getFloodText(r);
   if (/zone x/i.test(fz)) {
     push('Flood Risk', 'CLEAR', 'Zone X, minimal flood hazard. This parcel sits outside any special flood hazard area, so flood insurance is not federally required.');
-  } else if (/AE|AO|AH|\bA\b/i.test(fz) && has(/fema flood zone a/i)) {
+  } else if (/AE|AO|AH|\bA\b/i.test(fz) && has(/flood zone a/i)) {
     push('Flood Risk', 'RISK', 'Flood ' + fz + ', a high-risk flood zone. Development is heavily restricted and flood insurance will be expensive.');
   } else if (/VE|\bV\b/i.test(fz)) {
     push('Flood Risk', 'RISK', 'Coastal ' + fz + ', a storm surge zone. Effectively unbuildable for most purposes.');
@@ -8168,9 +8172,9 @@ function _svCategoryVerdicts(r) {
   // CONTAMINATION
   if (pi.contamination_sites && pi.contamination_sites.length) {
     const names = pi.contamination_sites.slice(0, 2).map(x => (typeof x === 'object' && x) ? x.name : String(x)).filter(Boolean).join('; ');
-    push('Contamination', 'RISK', 'EPA contamination records found near this parcel' + (names ? ': ' + names : '') + '. A Phase I environmental assessment is recommended before purchase.');
+    push('Contamination', 'RISK', 'Contamination records found near this parcel' + (names ? ': ' + names : '') + '. A Phase I environmental assessment is recommended before purchase.');
   } else {
-    push('Contamination', 'CLEAR', 'No EPA contamination records or Superfund sites found nearby.');
+    push('Contamination', 'CLEAR', 'No contamination records or federal cleanup sites found nearby.');
   }
 
   // POWER
@@ -8211,7 +8215,7 @@ function _svMainReason(r) {
   // PURSUE
   let parts = ['No major risk factors detected.'];
   const fz = getFloodText(r);
-  if (/zone x/i.test(fz)) parts.push('Flood zone is clear (FEMA Zone X).');
+  if (/zone x/i.test(fz)) parts.push('Flood zone is clear (Zone X).');
   if (pi.septic_suitable === true) parts.push('Soil drains well, making septic feasible.');
   if (pi.road_type) {
     parts.push('Road access is confirmed' + (pi.road_surface && pi.road_surface !== 'unknown' ? ' (' + pi.road_surface + ')' : '') + (pi.road_distance_m != null ? ' about ' + pi.road_distance_m + 'm away' : '') + '.');
