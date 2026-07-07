@@ -7354,9 +7354,13 @@ function exportPDF() {
 
 function downloadCSV() { exportCSV(); }
 
-// FIX 3 — Close panel on Escape
+// Close on Escape: if the story view is open, ESC closes only it and the
+// detail panel stays put underneath.
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDetailPanel(); hideExportModal(); closeMapModal(); closeUploadModal(); }
+  if (e.key !== 'Escape') return;
+  const sv = document.getElementById('storyView');
+  if (sv && sv.classList.contains('open')) { closeStoryView(); return; }
+  closeDetailPanel(); hideExportModal(); closeMapModal(); closeUploadModal();
 });
 
 // Warn before closing/refreshing the tab while a screening stream is running —
@@ -7417,6 +7421,12 @@ let _suppressPanelClose = false;
 document.addEventListener('click', function(e) {
   if (_suppressPanelClose) { _suppressPanelClose = false; return; }
   if (!_openParcel) return;
+  // The expand handle sits OUTSIDE the panel element; clicking it must open
+  // the story view, never count as a click-away. Same while the story view
+  // is open: it covers the screen, so nothing here should close the panel.
+  if (e.target.closest('#dpExpandHandle')) return;
+  const sv = document.getElementById('storyView');
+  if (sv && (sv.classList.contains('open') || sv.contains(e.target))) return;
   const panel = document.getElementById('detailPanel');
   if (!panel) return;
   if (panel.contains(e.target)) return;
@@ -8012,14 +8022,16 @@ window.addEventListener('resize', _positionExpandHandle);
       if (startX === null || opened) return;
       const dx = startX - e.clientX;
       if (dx > 0) h.style.transform = 'translateY(-50%) translateX(' + (-Math.min(dx, 40)) + 'px)';
-      if (dx > 50) { opened = true; h.style.transform = 'translateY(-50%)'; openStoryView(); }
+      if (dx > 50) { opened = true; _suppressPanelClose = true; h.style.transform = 'translateY(-50%)'; openStoryView(); }
     });
     h.addEventListener('pointerup', e => {
+      e.stopPropagation(); e.preventDefault();
       const dx = startX === null ? 0 : Math.abs(startX - e.clientX);
       h.style.transform = 'translateY(-50%)';
-      if (!opened && dx < 8) openStoryView();   // plain click
+      if (!opened && dx < 8) { _suppressPanelClose = true; openStoryView(); }   // plain click
       startX = null;
     });
+    h.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
     h.addEventListener('pointercancel', () => { startX = null; h.style.transform = 'translateY(-50%)'; });
   });
 })();
@@ -8362,9 +8374,7 @@ function storyNav(dir) {
   }
 }
 
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeStoryView();
-});
+
 
 // ── Address autocomplete ──────────────────────────────────────────────────────
 function _attachAddressAutocomplete(inputEl) {
