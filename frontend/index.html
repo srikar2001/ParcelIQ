@@ -407,10 +407,10 @@ body.on-results .detail-panel{top:0}
 .fp-item input[type=checkbox]{width:13px;height:13px;accent-color:var(--green);cursor:pointer;flex-shrink:0}
 .fp-item-count{font-size:10px;color:var(--t3);margin-left:auto}
 /* ── Map expand ── */
-.map-wrap{margin:0 12px 12px}
+.map-wrap{margin:0 12px 12px;position:relative}
 .map-controls{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--b)}
-.map-expand-btn{margin-left:auto;background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:11px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap}
-.map-expand-btn:hover{color:var(--t1);border-color:var(--bh)}
+.map-expand-btn{position:absolute;right:8px;bottom:8px;z-index:20;background:var(--card);border:1px solid var(--b);border-radius:6px;color:var(--t2);font-size:15px;line-height:1;padding:6px 7px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.map-expand-btn:hover{color:var(--t1);border-color:var(--bh);background:var(--card2,var(--card))}
 #mapModal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55)}
 #uploadModal{display:none;position:fixed;inset:0;z-index:2001;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px}
 #uploadModal.show{display:flex}
@@ -1908,11 +1908,11 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <button class="map-toggle" data-layer="flood" onclick="toggleMapLayer(this)">Flood zones</button>
     <button class="map-toggle" data-layer="wetlands" onclick="toggleMapLayer(this)">Wetlands</button>
     <button class="map-toggle" data-layer="satellite" onclick="toggleSatellite(this)">Satellite</button>
-    <button class="map-expand-btn" id="mapExpandBtn" onclick="expandMap()" style="display:none">&#x2922; Expand</button>
   </div>
   <div class="map-wrap">
     <div id="dpMapPlaceholder" class="dp-map-placeholder" style="display:none;height:240px;margin:0">Loading map…</div>
     <div id="parcel-map" style="height:240px;border-radius:var(--rs);overflow:hidden;display:none;cursor:pointer" title="Click to expand map" onclick="expandMap()"></div>
+    <button class="map-expand-btn" id="mapExpandBtn" onclick="expandMap()" title="Expand map" style="display:none">&#x2922;</button>
   </div>
   <!-- 4. Verdict Summary -->
   <div id="dpWhy" class="dp-why"></div>
