@@ -2076,7 +2076,12 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 
 <!-- ════════ ADMIN PORTAL (server-gated) ════════ -->
 <div id="page-admin" class="screen">
-  <div style="max-width:1180px;margin:0 auto;padding:84px 28px 64px">
+  <style>
+    #page-admin .stat-card{padding:10px 12px}
+    #page-admin .stat-card .stat-num{font-size:20px}
+    #page-admin .sett-rail-card{padding:14px 16px}
+  </style>
+  <div style="max-width:1180px;margin:0 auto;padding:72px 24px 48px">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:4px">
       <button class="sv-back" onclick="goTo('dashboard')">← Dashboard</button>
       <div style="font-size:24px;font-weight:800;letter-spacing:-.02em">Admin</div>
@@ -2084,19 +2089,22 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     </div>
     <div style="font-size:13px;color:var(--t3);margin-bottom:26px">Platform controls — changes here affect real users immediately.</div>
 
-    <div class="stats-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:26px" id="admStats"></div>
+    <div class="stats-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px" id="admStats"></div>
 
-    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:26px">
-      <div class="sett-rail-card"><div class="sv-sec-title" style="margin-bottom:12px">Signups over time</div><div id="admSignups" style="display:flex;align-items:flex-end;gap:2px;height:90px"></div></div>
-      <div class="sett-rail-card"><div class="sv-sec-title" style="margin-bottom:12px">Kill reasons (all users)</div><div id="admKillReasons"></div></div>
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px;margin-bottom:18px">
+      <div class="sett-rail-card"><div class="sv-sec-title" style="margin-bottom:10px">Signups over time</div><div id="admSignups" style="display:flex;align-items:flex-end;gap:2px;height:64px"></div></div>
+      <div class="sett-rail-card"><div class="sv-sec-title" style="margin-bottom:10px">Kill reasons (all users)</div><div id="admKillReasons"></div></div>
     </div>
 
     <div class="sv-sec-title">Users</div>
-    <div id="admUsers" style="border:1px solid var(--b);border-radius:12px;overflow-x:auto;margin-bottom:26px"></div>
-    <div id="admUserDetail" style="display:none;border:1px solid var(--b);border-radius:12px;padding:18px;margin-bottom:26px;background:var(--card)"></div>
+    <div id="admUsers" style="border:1px solid var(--b);border-radius:12px;overflow-x:auto;margin-bottom:18px"></div>
+    <div id="admUserDetail" style="display:none;border:1px solid var(--b);border-radius:12px;padding:14px 16px;margin-bottom:18px;background:var(--card)"></div>
 
     <div class="sv-sec-title">Waitlist</div>
-    <div id="admWaitlist" style="border:1px solid var(--b);border-radius:12px;overflow:hidden"></div>
+    <div id="admWaitlist" style="border:1px solid var(--b);border-radius:12px;overflow:hidden;margin-bottom:18px"></div>
+
+    <div class="sv-sec-title">Admin activity log</div>
+    <div id="admAudit" style="border:1px solid var(--b);border-radius:12px;overflow:hidden"></div>
   </div>
 </div>
 
@@ -5224,7 +5232,7 @@ const KILL_MEANINGS = {
   'easement':      'a recorded covenant permanently restricts development',
 };
 
-function _lc1(t) { t = String(t || ''); return t ? t.charAt(0).toLowerCase() + t.slice(1) : t; }
+function _lc1(t) { t = String(t || ''); if (!t) return t; if (t.length > 1 && t[1] === t[1].toUpperCase() && /[A-Z]/.test(t[1])) return t; return t.charAt(0).toLowerCase() + t.slice(1); }
 function _stripParens(t) { return String(t || '').replace(/\s*\([^)]*\)/g, '').trim(); }
 
 function getKillExplanation(r) {
@@ -7736,14 +7744,16 @@ async function loadAdminPage() {
   const statsEl = document.getElementById('admStats');
   if (statsEl) statsEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">Loading…</div>';
   try {
-    const [stats, users, waitlist] = await Promise.all([
+    const [stats, users, waitlist, audit] = await Promise.all([
       fetch(API + '/api/admin/stats', { headers: _admHdrs() }).then(r => r.json()),
       fetch(API + '/api/admin/users', { headers: _admHdrs() }).then(r => r.json()),
       fetch(API + '/api/admin/waitlist', { headers: _admHdrs() }).then(r => r.json()),
+      fetch(API + '/api/admin/audit', { headers: _admHdrs() }).then(r => r.json()).catch(() => ({ audit: [] })),
     ]);
     _admRenderStats(stats);
     _admRenderUsers(users.users || []);
     _admRenderWaitlist(waitlist.waitlist || []);
+    _admRenderAudit(audit.audit || []);
   } catch(e) {
     if (statsEl) statsEl.innerHTML = '<div style="font-size:12px;color:var(--red)">Failed to load admin data — check the backend logs.</div>';
   }
@@ -7792,7 +7802,7 @@ function _admRenderUsers(users) {
   if (!el) return;
   if (!users.length) { el.innerHTML = '<div style="padding:20px;font-size:13px;color:var(--t3)">No users found.</div>'; return; }
   const th = t => '<th style="text-align:left;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--t3);padding:10px 12px;border-bottom:1px solid var(--b);white-space:nowrap">' + t + '</th>';
-  const td = (v, extra) => '<td style="padding:9px 12px;font-size:12.5px;color:var(--t1);border-bottom:1px solid var(--b);white-space:nowrap;' + (extra || '') + '">' + v + '</td>';
+  const td = (v, extra) => '<td style="padding:6px 10px;font-size:12px;color:var(--t1);border-bottom:1px solid var(--b);white-space:nowrap;' + (extra || '') + '">' + v + '</td>';
   el.innerHTML = '<table style="width:100%;border-collapse:collapse;min-width:900px">' +
     '<thead><tr>' + th('Email') + th('Signed up') + th('Plan') + th('Today / limit') + th('All-time') + th('Last active') + th('Status') + th('Actions') + '</tr></thead><tbody>' +
     users.map(u => {
@@ -7809,8 +7819,10 @@ function _admRenderUsers(users) {
         td((u.all_time || 0).toLocaleString() + ' <span style="color:var(--t3)">(' + (u.batches || 0) + ' batches)</span>') +
         td(dt(u.last_active || u.last_sign_in_at)) +
         td(statusHtml) +
-        td('<button class="btn-o btn-sm" style="padding:3px 10px;font-size:11px" onclick="admToggleSuspend(\'' + u.id + '\',' + (!u.suspended) + ')">' + (u.suspended ? 'Reactivate' : 'Suspend') + '</button> ' +
-           '<button class="btn-o btn-sm" style="padding:3px 10px;font-size:11px;color:var(--red)" onclick="admDeleteUser(\'' + u.id + '\',\'' + escHtml(u.email || '') + '\')">Delete</button>') +
+        td(u.is_admin
+          ? '<span style="font-size:10px;font-weight:700;letter-spacing:.6px;color:var(--green)">ADMIN</span>'
+          : '<button class="btn-o btn-sm" style="padding:2px 8px;font-size:11px" onclick="admToggleSuspend(\'' + u.id + '\',' + (!u.suspended) + ')">' + (u.suspended ? 'Reactivate' : 'Suspend') + '</button> ' +
+            '<button class="btn-o btn-sm" style="padding:2px 8px;font-size:11px;color:var(--red)" onclick="admDeleteUser(\'' + u.id + '\',\'' + escHtml(u.email || '') + '\')">Delete</button>') +
       '</tr>';
     }).join('') + '</tbody></table>';
 }
@@ -7862,6 +7874,19 @@ async function admDeleteUser(uid, email) {
     toast('User ' + email + ' deleted');
     loadAdminPage();
   } catch(e) { toast('Delete failed: ' + e.message, 5000); }
+}
+
+function _admRenderAudit(entries) {
+  const el = document.getElementById('admAudit');
+  if (!el) return;
+  if (!entries.length) { el.innerHTML = '<div style="padding:14px 16px;font-size:12px;color:var(--t3)">No admin actions recorded yet. Every plan change, limit override, suspension, and deletion lands here.</div>'; return; }
+  el.innerHTML = entries.map(e =>
+    '<div style="display:flex;gap:12px;align-items:center;padding:7px 14px;border-bottom:1px solid var(--b);font-size:11.5px">' +
+    '<span style="color:var(--t3);white-space:nowrap">' + escHtml((e.ts || '').replace('T', ' ').slice(0, 16)) + '</span>' +
+    '<span style="color:var(--t1);font-weight:600">' + escHtml(e.action || '') + '</span>' +
+    '<span style="color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(e.target || '') + ' ' + escHtml(JSON.stringify(e.detail || {})) + '</span>' +
+    '<span style="margin-left:auto;color:var(--t3)">' + escHtml(e.actor || '') + '</span>' +
+    '</div>').join('');
 }
 
 function _admRenderWaitlist(rows) {
@@ -8352,10 +8377,19 @@ function svToggleSat(btn) {
 }
 
 function openStoryView() {
-  if (!_openParcel) return;
+  if (!_openParcel) { toast('Open a parcel first, then view its full report'); return; }
   const sv = document.getElementById('storyView');
   if (!sv) return;
-  renderStoryView(_openParcel);
+  try {
+    renderStoryView(_openParcel);
+  } catch(e) {
+    console.error('Story render error:', e);
+    sv.innerHTML = '<div class="sv-wrap"><div class="sv-header">' +
+      '<button class="sv-back" onclick="closeStoryView()">← Back to batch</button>' +
+      '<div class="sv-addr">' + escHtml(_openParcel.address || '') + '</div></div>' +
+      '<div style="padding:40px 0;color:var(--t2);font-size:14px">Could not build the full report for this parcel — its data may be from an older screening. ' +
+      'Re-screen it (↻ on the row) and try again.</div></div>';
+  }
   sv.classList.add('open');
   sv.scrollTop = 0;
   document.body.style.overflow = 'hidden';
