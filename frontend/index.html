@@ -577,8 +577,9 @@ body.on-results .detail-panel{top:0}
 .dp-why-p{background:var(--gbg);border:1px solid rgba(34,197,94,.2)}
 .dp-section{padding:0 16px 14px}
 /* ── Full-screen parcel story view ── */
-.dp-expand-handle{position:fixed;top:50%;transform:translateY(-50%);width:16px;height:72px;background:var(--card-h);border:1px solid var(--b);border-radius:8px 0 0 8px;align-items:center;justify-content:center;cursor:pointer;color:var(--t3);font-size:14px;z-index:101;transition:color .15s,background .15s}
-.dp-expand-handle:hover{color:var(--green);background:var(--card)}
+.dp-expand-handle{position:fixed;top:50%;transform:translateY(-50%);width:22px;height:104px;background:var(--card-h);border:1px solid var(--bh);border-radius:10px 0 0 10px;align-items:center;justify-content:center;cursor:grab;color:var(--t2);font-size:15px;font-weight:700;z-index:101;transition:color .15s,background .15s;box-shadow:-2px 0 10px rgba(0,0,0,.25);touch-action:none;user-select:none}
+.dp-expand-handle:hover{color:var(--green);background:var(--card);border-color:var(--green)}
+.dp-expand-handle:active{cursor:grabbing}
 #storyView{display:none;position:fixed;inset:0;z-index:12000;background:var(--bg);overflow-y:auto}
 #storyView.open{display:block}
 .sv-wrap{max-width:960px;margin:0 auto;padding:0 32px 80px}
@@ -1881,6 +1882,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;padding-top:2px">
       <div id="dpBadge"></div>
       <div class="dp-score-num" id="dpScore" style="font-size:20px"></div>
+      <button onclick="openStoryView()" title="Open full-screen report" style="background:none;border:1px solid var(--b);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;padding:4px 8px;color:var(--t2);line-height:1;white-space:nowrap;transition:all .12s" onmouseenter="this.style.color='var(--green)';this.style.borderColor='var(--green)'" onmouseleave="this.style.color='var(--t2)';this.style.borderColor='var(--b)'">⛶ Report</button>
       <button id="dpStarBtn" onclick="_toggleStarFromPanel()" title="Add to My Picks" style="background:none;border:none;font-size:18px;cursor:pointer;padding:0 2px;color:var(--t3);line-height:1;transition:color .12s">☆</button>
       <button class="dp-close" onclick="closeDetailPanel()">✕</button>
     </div>
@@ -8024,6 +8026,33 @@ function _positionExpandHandle() {
 }
 window.addEventListener('resize', _positionExpandHandle);
 
+// Click OR drag-left both open the full report
+(function _wireExpandHandle() {
+  document.addEventListener('DOMContentLoaded', () => {
+    const h = document.getElementById('dpExpandHandle');
+    if (!h) return;
+    let startX = null, opened = false;
+    h.addEventListener('pointerdown', e => {
+      startX = e.clientX; opened = false;
+      h.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    h.addEventListener('pointermove', e => {
+      if (startX === null || opened) return;
+      const dx = startX - e.clientX;
+      if (dx > 0) h.style.transform = 'translateY(-50%) translateX(' + (-Math.min(dx, 40)) + 'px)';
+      if (dx > 50) { opened = true; h.style.transform = 'translateY(-50%)'; openStoryView(); }
+    });
+    h.addEventListener('pointerup', e => {
+      const dx = startX === null ? 0 : Math.abs(startX - e.clientX);
+      h.style.transform = 'translateY(-50%)';
+      if (!opened && dx < 8) openStoryView();   // plain click
+      startX = null;
+    });
+    h.addEventListener('pointercancel', () => { startX = null; h.style.transform = 'translateY(-50%)'; });
+  });
+})();
+
 // ── Narrative builders — every sentence comes from THIS parcel's data
 function _svCategoryVerdicts(r) {
   const pi = r.parcel_info || {};
@@ -8420,7 +8449,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <!-- ════════ FULL-SCREEN PARCEL STORY VIEW ════════ -->
-<div class="dp-expand-handle" id="dpExpandHandle" onclick="openStoryView()" title="Open full report" style="display:none">‹</div>
+<div class="dp-expand-handle" id="dpExpandHandle" title="Click or drag left for the full report" style="display:none">‹</div>
 <div id="storyView"></div>
 
 <!-- ════════ EDIT BATCH MODAL ════════ -->
