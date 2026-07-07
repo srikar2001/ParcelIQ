@@ -1807,6 +1807,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <div>
             <div style="display:flex;align-items:center;gap:6px">
               <div class="res-title" id="resTitleCount" style="cursor:text" title="Click to rename" onclick="inlineEditBatchTitle(this)">Dashboard</div>
+              <div class="res-title" id="resCountSuffix" style="color:var(--t3);font-weight:600"></div>
               <button onclick="inlineEditBatchTitle(document.getElementById('resTitleCount'))" title="Rename batch" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:1px 4px;opacity:.3;transition:opacity .15s" id="batchTitleEditBtn">✎</button>
             </div>
             <div class="res-meta-txt" id="resMeta"></div>
@@ -1817,12 +1818,6 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <button class="btn-o btn-sm" onclick="shareResults()">⤴ Share</button>
           <button class="btn-o btn-sm" onclick="showExportModal()">↓ Export</button>
         </div>
-      </div>
-      <div class="stats-row">
-        <div class="stat-card"><div class="stat-num" id="statTotal">—</div><div class="stat-lbl">Total</div></div>
-        <div class="stat-card"><div class="stat-num c-r" id="statKill">—</div><div class="stat-lbl">Kill</div></div>
-        <div class="stat-card"><div class="stat-num c-g" id="statPursue">—</div><div class="stat-lbl">Pursue</div></div>
-        <div class="stat-card"><div class="stat-num c-g" id="timeSaved">—</div><div class="stat-lbl">Time Saved</div><div id="statElapsed" style="font-size:10px;color:var(--t2);margin-top:4px;font-style:italic"></div></div>
       </div>
       <div class="res-filter-row">
         <div class="filter-pills">
@@ -3899,7 +3894,7 @@ function _sidebarBatchClick(id) {
 }
 
 function showResultsLoading() {
-  const ids = ['statTotal','statKill','statPursue','timeSaved','resTitleCount','resMeta'];
+  const ids = ['resTitleCount','resMeta'];
   ids.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = id === 'resTitleCount' ? 'Loading…' : '…'; });
   const wrap = document.getElementById('resTableWrap');
   if (wrap) {
@@ -4398,6 +4393,7 @@ async function _executeBatch(lines, estimatedSet) {
           clearInterval(_resMetaTimer); _resMetaTimer = null;
           batchState._streaming = false;
           batchState.elapsed    = Math.round((Date.now() - t0) / 1000);
+          batchState.completedAt = Date.now();
           updateStreamProgress(ev.summary.total, ev.summary.total);
           const flResults = batchState.results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
           const summary = {
@@ -4587,12 +4583,9 @@ function updateStatCards() {
   const pursue  = flOnly.filter(r => effectiveVerdict(r) === 'PURSUE').length;
   const total   = flOnly.length;
   const setEl   = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  setEl('statTotal', total); setEl('statKill', kill); setEl('statPursue', pursue);
   setEl('sbKill', kill); setEl('sbPursue', pursue);
-  const mins = total * 30;
-  const hrs  = Math.round(mins / 6) / 10;
-  setEl('timeSaved', hrs >= 1 ? '~' + hrs + 'h' : mins + 'm');
   setEl('resTitleCount', batchState.name || total + ' lot' + (total !== 1 ? 's' : '') + ' screened');
+  setEl('resCountSuffix', batchState.name ? '— ' + total + (total === 1 ? ' parcel' : ' parcels') : '');
 }
 
 function updateProgress(completed, total, latestAddress) {
@@ -4925,15 +4918,12 @@ function renderBatchResults() {
   const setEl    = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
   setEl('resTitleCount', batchState.name || results.length + ' lot' + (results.length !== 1 ? 's' : '') + ' screened');
-  setEl('resMeta', (batchState.elapsed ? 'Done in ' + batchState.elapsed + 's · ' : '') + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }));
-  setEl('statTotal', total); setEl('statKill', kills); setEl('statPursue', pursues);
+  setEl('resCountSuffix', batchState.name ? '— ' + total + (total === 1 ? ' parcel' : ' parcels') : '');
+  const _doneAt = new Date(batchState.completedAt || Date.now());
+  const _when = _doneAt.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }) +
+    ' at ' + _doneAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  setEl('resMeta', (batchState.elapsed ? 'Fetched in ' + batchState.elapsed + 's · ' : '') + _when);
   setEl('sbKill', kills); setEl('sbPursue', pursues);
-
-  const mins = total * 30;
-  const hrs  = Math.round(mins / 6) / 10;
-  const ts = hrs >= 1 ? '~' + hrs + 'h' : mins + 'm';
-  setEl('timeSaved', ts);
-  setEl('statElapsed', batchState.elapsed ? 'fetched in ' + _fmtElapsed(batchState.elapsed) : '');
 
   // Non-FL banner
   const banner = document.getElementById('nonflBanner');
@@ -6518,6 +6508,7 @@ async function _runQueueBatch(flLines, outsideResults) {
   // Finalize — same shape as the SSE path
   batchState._streaming = false;
   batchState.elapsed = Math.round((Date.now() - t0) / 1000);
+  batchState.completedAt = Date.now();
   updateStreamProgress(seen, seen);
   const flResults = batchState.results.filter(r => r.verdict !== 'OUTSIDE_COVERAGE');
   const summary = {
