@@ -3951,7 +3951,7 @@ async function loadBatchResults(batchId) {
   showResultsLoading();
   try {
     const [{ data: batch }, { data: results }] = await Promise.all([
-      sb.from('batches').select('name').eq('id', batchId).eq('user_id', currentUser.id).single(),
+      sb.from('batches').select('name,created_at').eq('id', batchId).eq('user_id', currentUser.id).single(),
       sb.from('parcel_results').select('*')
         .eq('batch_id', batchId).eq('user_id', currentUser.id)
         .order('score', { ascending: true }),
@@ -3974,6 +3974,7 @@ async function loadBatchResults(batchId) {
     batchState.results  = mapped;
     batchState.filtered = 'all';
     batchState.elapsed  = 0;
+    batchState.completedAt = batch?.created_at ? new Date(batch.created_at).getTime() : null;
     batchState.name     = batch?.name || '';
     renderBatchResults();
     goTo('dashboard');
@@ -3995,7 +3996,7 @@ async function _refreshBatchFromServer(batchId) {
   // Cache is missing — fetch from Supabase as fallback
   try {
     const [{ data: batch }, { data: results }] = await Promise.all([
-      sb.from('batches').select('name').eq('id', batchId).eq('user_id', currentUser.id).single(),
+      sb.from('batches').select('name,created_at').eq('id', batchId).eq('user_id', currentUser.id).single(),
       sb.from('parcel_results').select('*')
         .eq('batch_id', batchId).eq('user_id', currentUser.id)
         .order('score', { ascending: true }),
