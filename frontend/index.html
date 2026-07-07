@@ -1782,7 +1782,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <button onclick="showPricingComingSoon()" style="width:100%;padding:8px 12px;background:var(--green);color:#fff;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.02em">⬆ Upgrade Plan</button>
         <div class="rsb-usage-row">
           <div class="rsb-usage-bar"><div class="rsb-usage-bar-fill" id="sbUsageFill" style="width:0%"></div></div>
-          <div class="rsb-usage-txt"><span id="sbUsageCount">—</span> / 1,000 this week</div>
+          <div class="rsb-usage-txt"><span id="sbUsageCount">—</span> / 1,000 today</div>
         </div>
         <div class="rsb-profile">
           <div class="rsb-profile-av" id="rsbAvatar">?</div>
@@ -2564,15 +2564,11 @@ const _WEEKLY_LIMIT = 1000;
 let _rescreenAborted = false;
 let _rescreenReader  = null;
 
-function getWeekStart() {
+function getDayStart() {
   const now = new Date();
-  const day = now.getUTCDay();
-  const diff = (day === 0 ? 6 : day - 1);
-  const monday = new Date(now);
-  monday.setUTCDate(now.getUTCDate() - diff);
-  monday.setUTCHours(0, 0, 0, 0);
-  return monday.toISOString();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0)).toISOString();
 }
+const getWeekStart = getDayStart; // legacy alias — limit is daily now
 
 function _refreshAllUsage() {
   _weeklyUsed = null;
@@ -3407,10 +3403,10 @@ async function loadDashboardData() {
       const banner = document.getElementById('limitBanner');
       if (banner) {
         if (remaining <= 0) {
-          banner.textContent = 'Weekly limit reached (1,000 parcels). Resets Monday.';
+          banner.textContent = 'Daily limit reached (1,000 parcels). Resets at midnight UTC.';
           banner.classList.add('show');
         } else if (remaining <= 100) {
-          banner.textContent = remaining + ' parcels remaining this week. Limit resets Monday.';
+          banner.textContent = remaining + ' parcels remaining today. Limit resets at midnight UTC.';
           banner.classList.add('show');
         } else {
           banner.classList.remove('show');
@@ -4225,7 +4221,7 @@ async function runBatch() {
       const banner = document.getElementById('limitBanner');
       if (banner) {
         if (remaining <= 100) {
-          banner.textContent = remaining + ' parcels remaining this week. Limit resets Monday.';
+          banner.textContent = remaining + ' parcels remaining today. Limit resets at midnight UTC.';
           banner.classList.add('show');
         } else {
           banner.classList.remove('show');
@@ -4996,10 +4992,10 @@ function renderBatchResults() {
         const rb = document.getElementById('resLimitBanner');
         if (!rb) return;
         if (remaining <= 0) {
-          rb.textContent = 'Weekly limit reached (1,000 parcels). Resets Monday. Upgrade for more.';
+          rb.textContent = 'Daily limit reached (1,000 parcels). Resets at midnight UTC. Upgrade for more.';
           rb.classList.add('show');
         } else if (remaining <= 100) {
-          rb.textContent = remaining + ' parcels remaining this week. Limit resets Monday.';
+          rb.textContent = remaining + ' parcels remaining today. Limit resets at midnight UTC.';
           rb.classList.add('show');
         } else {
           rb.classList.remove('show');
@@ -6912,7 +6908,7 @@ async function _loadWeeklyUsage(el) {
     );
     const cr = r.headers.get('content-range') || '';
     const total = cr.includes('/') ? cr.split('/')[1] : '?';
-    el.textContent = total + ' / 1,000 parcels';
+    el.textContent = total + ' / 1,000 parcels today';
     const fill = document.getElementById('settUsageFill');
     const n = parseInt(total);
     if (fill && !isNaN(n)) fill.style.width = Math.min(100, Math.round(n / 1000 * 100)) + '%';
@@ -8267,10 +8263,10 @@ document.addEventListener('DOMContentLoaded', () => {
 <div id="upgradeModal" class="upgrade-overlay" onclick="if(event.target===this)hideUpgradeModal()">
   <div class="upgrade-modal">
     <div class="upgrade-modal-icon">🚫</div>
-    <div class="upgrade-modal-title">Weekly limit reached</div>
+    <div class="upgrade-modal-title">Daily limit reached</div>
     <div class="upgrade-modal-body">
-      You have screened 1,000 parcels this week.<br>
-      Your limit resets every Monday.<br><br>
+      You have screened 1,000 parcels today.<br>
+      Your limit resets at midnight UTC.<br><br>
       Upgrade to Pro or Unlimited for higher limits.
     </div>
     <div class="upgrade-modal-btns">
