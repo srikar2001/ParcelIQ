@@ -286,6 +286,27 @@ body.on-results .detail-panel{top:0}
 .rsb-review.active{color:var(--amber)}
 .rsb-pursue.active{color:var(--green)}
 .rsb-count{font-size:11px;font-weight:700;background:var(--bg);padding:1px 7px;border-radius:var(--rp);color:var(--t3)}
+/* Batch parcel navigator — replaces the sidebar while the story view is open */
+.pnav-wrap{display:flex;flex-direction:column;height:100%;min-height:0;gap:12px}
+.pnav-links{display:flex;flex-direction:column;gap:6px}
+.pnav-links a{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer}
+.pnav-links a:hover{color:var(--t1)}
+.pnav-title{border-bottom:1px solid var(--b);padding-bottom:12px}
+.pnav-name{font-size:15px;font-weight:800;color:var(--t1);letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pnav-count{font-size:11.5px;color:var(--t3);margin-top:2px}
+.pnav-tabs{display:flex;gap:4px}
+.pnav-tab{flex:1;text-align:center;font-size:10.5px;font-weight:700;padding:6px 2px;border-radius:var(--rs);border:1px solid var(--b);background:none;color:var(--t2);cursor:pointer;white-space:nowrap}
+.pnav-tab.on{background:var(--gbg);border-color:var(--green);color:var(--green)}
+.pnav-search{width:100%;font-size:12px;padding:7px 9px;border:1px solid var(--b);border-radius:var(--rs);background:var(--bg);color:var(--t1);outline:none}
+.pnav-search:focus{border-color:var(--bh)}
+.pnav-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:0 -6px}
+.pnav-row{padding:7px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;min-height:52px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.pnav-row:hover{background:var(--card-h)}
+.pnav-row-active{border-left-color:var(--green);background:var(--card-h)}
+.pnav-row-addr{font-size:12.5px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pnav-row-meta{display:flex;align-items:center;gap:8px}
+.pnav-badge{font-size:9px;padding:1px 6px}
+.pnav-row-score{font-size:11px;font-weight:700;color:var(--t2)}
 .rsb-time-val{font-size:15px;font-weight:700;color:var(--green);letter-spacing:-.01em}
 .rsb-time-sub{font-size:11px;color:var(--t3)}
 #sidebarBatchList::-webkit-scrollbar{width:4px}
@@ -8737,6 +8758,103 @@ function svToggleSat(btn) {
   else { _svMap.removeLayer(_svLayers['_sat']); _svLayers['_osm'].addTo(_svMap); btn.classList.remove('active'); }
 }
 
+// ── Batch parcel navigator: replaces the app sidebar while the story view is
+// open. Its filter/search state is local — it never touches the dashboard's
+// own _activeFilters/batchState.filtered.
+let _savedSidebarHTML = null;
+let _pnavFilter = 'all';
+let _pnavQuery = '';
+
+function _buildParcelNavigator() {
+  const sidebar = document.getElementById('resSidebar');
+  if (!sidebar) return;
+  if (_savedSidebarHTML === null) _savedSidebarHTML = sidebar.innerHTML;
+  const results = batchState.results || [];
+  let kill = 0, pursue = 0;
+  results.forEach(r => { const v = effectiveVerdict(r); if (v === 'KILL') kill++; else if (v === 'PURSUE') pursue++; });
+  const tab = (v, label, n) => '<button class="pnav-tab' + (_pnavFilter === v ? ' on' : '') + '" data-v="' + v + '" onclick="_pnavSetFilter(\'' + v + '\')">' + label + ' ' + n + '</button>';
+  sidebar.innerHTML =
+    '<div class="pnav-wrap">' +
+      '<div class="pnav-links">' +
+        '<a onclick="goTo(\'landing\')">← All Batches</a>' +
+        '<a onclick="closeStoryView()">← Back to Results</a>' +
+      '</div>' +
+      '<div class="pnav-title">' +
+        '<div class="pnav-name">' + escHtml(batchState.name || 'Batch') + '</div>' +
+        '<div class="pnav-count">' + results.length + ' parcel' + (results.length !== 1 ? 's' : '') + '</div>' +
+      '</div>' +
+      '<div class="pnav-tabs">' + tab('all', 'All', results.length) + tab('KILL', 'Kill', kill) + tab('PURSUE', 'Pursue', pursue) + '</div>' +
+      '<input class="pnav-search" id="pnavSearch" placeholder="Search address or APN..." value="' + escHtml(_pnavQuery) + '" oninput="_pnavSetQuery(this.value)">' +
+      '<div class="pnav-list" id="pnavList"></div>' +
+    '</div>';
+  _pnavRenderList();
+}
+
+function _restoreSidebar() {
+  const sidebar = document.getElementById('resSidebar');
+  if (sidebar && _savedSidebarHTML !== null) {
+    sidebar.innerHTML = _savedSidebarHTML;
+    _savedSidebarHTML = null;
+  }
+}
+
+function _pnavSetFilter(v) {
+  _pnavFilter = v;
+  document.querySelectorAll('#resSidebar .pnav-tab').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  _pnavRenderList();
+}
+
+function _pnavSetQuery(q) {
+  _pnavQuery = q;
+  _pnavRenderList();
+}
+
+function _pnavRenderList() {
+  const list = document.getElementById('pnavList');
+  if (!list) return;
+  const q = _pnavQuery.trim().toLowerCase();
+  const filtered = (batchState.results || []).filter(r => {
+    if (_pnavFilter !== 'all' && effectiveVerdict(r) !== _pnavFilter) return false;
+    if (q) {
+      const pi = r.parcel_info || {};
+      const addr = (r.address || '').toLowerCase();
+      const apn = (pi.parcel_id || pi.apn || '').toLowerCase();
+      if (!addr.includes(q) && !apn.includes(q)) return false;
+    }
+    return true;
+  });
+  if (!filtered.length) {
+    list.innerHTML = '<div style="padding:16px 10px;font-size:12px;color:var(--t3);text-align:center">No matching parcels.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  filtered.forEach(r => {
+    const ev = effectiveVerdict(r);
+    const row = document.createElement('div');
+    row.className = 'pnav-row' + (r === _openParcel ? ' pnav-row-active' : '');
+    row.innerHTML =
+      '<div class="pnav-row-addr">' + escHtml(r.address || '') + '</div>' +
+      '<div class="pnav-row-meta"><span class="verdict-badge ' + verdictClass(ev) + ' pnav-badge">' + escHtml(ev) + '</span>' +
+      (r.score != null ? '<span class="pnav-row-score">' + r.score + '</span>' : '') + '</div>';
+    row.addEventListener('click', function() { _pnavOpenParcel(r); });
+    list.appendChild(row);
+  });
+}
+
+function _pnavOpenParcel(r) {
+  const idx = _currentDisplayed.indexOf(r);
+  if (idx !== -1) {
+    openDetailPanel(idx, null);
+  } else {
+    // Excluded by the dashboard's own active filters — still open it here.
+    _openParcel = r;
+    _openParcelIdx = -1;
+  }
+  renderStoryView(r);
+  document.querySelectorAll('#storyView .sv-col-left,#storyView .sv-col-right').forEach(c => c.scrollTop = 0);
+  _pnavRenderList();
+}
+
 function openStoryView() {
   if (!_openParcel) { toast('Open a parcel first, then view its full report'); return; }
   const sv = document.getElementById('storyView');
@@ -8761,6 +8879,7 @@ function openStoryView() {
   // they belong to the story view but actually re-trigger/tear down the panel.
   const panel = document.getElementById('detailPanel');
   if (panel) panel.style.display = 'none';
+  _buildParcelNavigator();
 }
 
 function closeStoryView() {
@@ -8772,6 +8891,7 @@ function closeStoryView() {
   const panel = document.getElementById('detailPanel');
   if (panel && _openParcel) panel.style.display = '';
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
+  _restoreSidebar();
 }
 
 function storyNav(dir) {
@@ -8784,6 +8904,7 @@ function storyNav(dir) {
   if (sv && sv.classList.contains('open') && _openParcel) {
     renderStoryView(_openParcel);
     document.querySelectorAll('#storyView .sv-col-left,#storyView .sv-col-right').forEach(c => c.scrollTop = 0);
+    _pnavRenderList();
   }
 }
 
