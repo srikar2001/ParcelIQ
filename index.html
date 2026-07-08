@@ -26,12 +26,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 
 /* SCREENS */
 .screen{display:none}
-.screen.active{display:block;animation:fadeIn .18s ease}
+.screen.active{display:block}
+.screen.active.anim-in{animation:fadeIn .18s ease}
 #page-landing.active{display:flex;flex-direction:column;min-height:100vh}
 #page-login.active,#page-signup.active,#page-forgot.active,#page-reset-password.active{display:flex;align-items:center;justify-content:center;min-height:100vh;padding-top:58px}
 #page-processing.active{display:flex;align-items:center;justify-content:center;min-height:100vh}
 #page-dashboard.active,#page-results.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+/* Exit half of the page crossfade — applied by goTo() to the outgoing
+   screen for 150ms before the hash actually changes and swaps it out. */
+.page-exit{opacity:0 !important;transition:opacity .15s ease}
 
 /* NAV */
 .nav{position:fixed;top:0;left:0;right:0;z-index:9999;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:rgba(13,15,18,.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--b)}
@@ -2590,7 +2594,32 @@ let userProfile = null;
 let currentBatchResults = [];
 
 // ── HELPERS
-function goTo(page) { closeDetailPanel(); window.location.hash = '#' + page; }
+// Crossfade state for page transitions — see showScreen() for the enter half.
+// Default OFF rather than trying to detect-and-suppress on back/forward:
+// popstate firing behavior for a plain location.hash= assignment is
+// inconsistent enough across browsers that detection was unreliable. Instead
+// goTo() is the only thing that ever turns this on, and only for the one
+// transition it just initiated — every other way a screen can change
+// (back/forward, a direct showScreen() call elsewhere) is correctly a no-op.
+let _allowNextScreenAnim = false;
+function goTo(page) {
+  closeDetailPanel();
+  const targetHash = '#' + page;
+  if (window.location.hash === targetHash) return;
+  const current = document.querySelector('.screen.active');
+  // The processing screen has its own dedicated animation — never crossfade
+  // into or out of it, and skip the fade entirely if nothing is showing yet.
+  if (page === 'processing' || !current || current.id === 'page-processing') {
+    window.location.hash = targetHash;
+    return;
+  }
+  current.classList.add('page-exit');
+  setTimeout(() => {
+    current.classList.remove('page-exit');
+    _allowNextScreenAnim = true;
+    window.location.hash = targetHash;
+  }, 150);
+}
 
 // ── FIX 3: single initAuth — always reads from localStorage
 async function initAuth() {
@@ -2637,9 +2666,15 @@ function showScreen(id) {
   // panel — otherwise both linger (invisible, since #page-results itself
   // goes display:none) and reappear stale next time the results page shows.
   if (id !== 'page-results' && typeof closeDetailPanel === 'function') closeDetailPanel();
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active', 'anim-in'));
   const el = document.getElementById(id);
-  if (el) el.classList.add('active');
+  if (el) {
+    el.classList.add('active');
+    // Only the transition goTo() just started gets the entrance fade — see
+    // the comment on _allowNextScreenAnim above for why.
+    if (_allowNextScreenAnim && id !== 'page-processing') el.classList.add('anim-in');
+  }
+  _allowNextScreenAnim = false;
   document.body.classList.toggle('on-results', id === 'page-results');
   if (id !== 'page-results') {
     _selectedRows.clear();
@@ -2907,6 +2942,11 @@ async function router() {
 }
 
 window.addEventListener('hashchange', router);
+// Persist the hash so a refresh (or a session restored from a bare bookmarked
+// URL with no hash) can land back where the user left off — see initApp().
+window.addEventListener('hashchange', () => {
+  try { sessionStorage.setItem('piq_hash', window.location.hash); } catch(e) {}
+});
 // NOTE: there was a second popstate handler here that raced the router on
 // back/forward and defaulted unknown hashes to page-results with no data —
 // that's what broke back-then-forward navigation. hashchange alone covers
@@ -3193,6 +3233,16 @@ async function initApp() {
       }, 500);
     }
     return;
+  }
+  // A refresh preserves the URL hash on its own, but a session restored from
+  // a bare bookmarked URL (no hash at all) has nothing to go on — fall back
+  // to the last hash we saw, read before the router runs so it never fights
+  // with whatever hash is actually already in the address bar.
+  if (!window.location.hash) {
+    try {
+      const savedHash = sessionStorage.getItem('piq_hash');
+      if (savedHash) window.location.hash = savedHash;
+    } catch(e) {}
   }
   // Wait for Supabase to restore session (onAuthStateChange fires before getSession is reliable)
   // 800ms timeout — Supabase restores from localStorage in ~100-200ms; long wait only needed if init fails
