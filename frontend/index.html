@@ -398,18 +398,26 @@ body.on-results .detail-panel{top:0}
 .fp-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--b);font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;position:sticky;top:0;background:var(--card);z-index:2}
 .fp-clear-btn{background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;padding:2px 6px;border-radius:4px}
 .fp-clear-btn:hover{color:var(--t1)}
-.fp-group{padding:10px 14px;border-bottom:1px solid var(--b)}
+.fp-group{padding:10px 14px;border-bottom:1px solid var(--b);border-left:3px solid transparent}
 .fp-group:last-child{border-bottom:none}
-.fp-group-label{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.fp-group-red{border-left-color:#ef4444;background:rgba(239,68,68,.04)}
+.fp-group-amber{border-left-color:#f59e0b;background:rgba(245,158,11,.04)}
+.fp-group-green{border-left-color:#22c55e;background:rgba(34,197,94,.04)}
+.fp-group-label{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;justify-content:space-between;color:var(--t1)}
 .fp-items{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
 .fp-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);cursor:pointer;padding:3px 0;user-select:none}
 .fp-item:hover{color:var(--t1)}
 .fp-item input[type=checkbox]{width:13px;height:13px;accent-color:var(--green);cursor:pointer;flex-shrink:0}
-.fp-item-count{font-size:10px;color:var(--t3);margin-left:auto}
+.fp-item-count{font-size:10px;font-weight:700;color:var(--t3);margin-left:auto;background:var(--card-h);border-radius:99px;padding:1px 7px;min-width:20px;text-align:center}
+.fp-group-red .fp-item-count{color:#ef4444;background:rgba(239,68,68,.12)}
+.fp-group-amber .fp-item-count{color:#f59e0b;background:rgba(245,158,11,.12)}
+.fp-group-green .fp-item-count{color:#22c55e;background:rgba(34,197,94,.12)}
 /* Decision toggle */
 .fp-decision-row{display:flex;gap:6px}
 .fp-decision-btn{flex:1;text-align:center;font-size:11px;font-weight:700;padding:6px 4px;border-radius:var(--rs);border:1px solid var(--b);background:none;color:var(--t2);cursor:pointer}
 .fp-decision-btn.on{background:var(--card-h);border-color:var(--bh);color:var(--t1)}
+.fp-decision-btn.on.kill{background:rgba(239,68,68,.14);border-color:#ef4444;color:#ef4444}
+.fp-decision-btn.on.pursue{background:rgba(34,197,94,.14);border-color:#22c55e;color:#22c55e}
 /* Any/All mode toggle */
 .fp-mode-toggle{display:flex;font-size:9px;font-weight:700;border:1px solid var(--b);border-radius:99px;overflow:hidden}
 .fp-mode-toggle button{background:none;border:none;padding:2px 8px;color:var(--t3);cursor:pointer;letter-spacing:.04em}
@@ -426,13 +434,6 @@ body.on-results .detail-panel{top:0}
 .fp-range-track input[type=range]::-moz-range-track{height:4px;background:transparent}
 .fp-range-bg{position:absolute;top:8px;left:0;right:0;height:4px;background:var(--b);border-radius:99px}
 .fp-range-fill{position:absolute;top:8px;height:4px;background:var(--green);border-radius:99px}
-/* Multi-select county / land-use list */
-.fp-multilist{max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
-.fp-multilist .fp-item{display:flex}
-/* Size preset buttons */
-.fp-preset-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
-.fp-preset-btn{font-size:10.5px;font-weight:600;padding:4px 8px;border-radius:99px;border:1px solid var(--b);background:none;color:var(--t2);cursor:pointer}
-.fp-preset-btn.on{background:var(--gbg);border-color:rgba(34,197,94,.3);color:var(--green)}
 /* Save view */
 .fp-saveview-row{display:flex;gap:6px;padding:10px 14px}
 .fp-saveview-row select,.fp-saveview-row input{flex:1;min-width:0;font-size:11px;padding:5px 7px;border:1px solid var(--b);border-radius:var(--rs);background:var(--bg);color:var(--t1)}
@@ -444,7 +445,7 @@ body.on-results .detail-panel{top:0}
 /* ── Map expand ── */
 .map-wrap{margin:0 12px 12px;position:relative}
 .map-controls{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--b)}
-.map-expand-btn{position:absolute;right:8px;bottom:8px;z-index:20;background:var(--card);border:1px solid var(--b);border-radius:6px;color:var(--t2);font-size:15px;line-height:1;padding:6px 7px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.map-expand-btn{position:absolute;right:8px;bottom:8px;z-index:1200;background:var(--card);border:1px solid var(--b);border-radius:6px;color:var(--t2);font-size:15px;line-height:1;padding:6px 7px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .map-expand-btn:hover{color:var(--t1);border-color:var(--bh);background:var(--card2,var(--card))}
 #mapModal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55)}
 #uploadModal{display:none;position:fixed;inset:0;z-index:2001;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px}
@@ -618,9 +619,13 @@ body.on-results .detail-panel{top:0}
 .dp-expand-handle{position:fixed;top:50%;transform:translateY(-50%);width:22px;height:104px;background:var(--card-h);border:1px solid var(--bh);border-radius:10px 0 0 10px;align-items:center;justify-content:center;cursor:grab;color:var(--t2);font-size:15px;font-weight:700;z-index:101;transition:color .15s,background .15s;box-shadow:-2px 0 10px rgba(0,0,0,.25);touch-action:none;user-select:none}
 .dp-expand-handle:hover{color:var(--green);background:var(--card);border-color:var(--green)}
 .dp-expand-handle:active{cursor:grabbing}
-#storyView{display:none;position:fixed;inset:0;z-index:12000;background:var(--bg)}
-#storyView.open{display:flex;flex-direction:column}
-.sv-wrap{display:flex;flex-direction:column;height:100vh;min-height:0}
+/* Story view renders inside the results layout, beside the app sidebar —
+   not a full-viewport overlay — so Upload/My Picks/Overview/Recents stay
+   visible and clickable while looking at a parcel's full report. */
+#storyView{display:none;flex:1;min-width:0;height:100vh;background:var(--bg);overflow:hidden}
+#storyView.open{display:flex;flex-direction:column;animation:svFadeIn .22s ease}
+@keyframes svFadeIn{from{opacity:0;transform:scale(.99)}to{opacity:1;transform:scale(1)}}
+.sv-wrap{display:flex;flex-direction:column;height:100%;min-height:0}
 .sv-header{flex-shrink:0;background:var(--bg);border-bottom:1px solid var(--b);padding:12px 24px;display:flex;align-items:center;gap:14px}
 .sv-back{background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:13px;font-weight:600;padding:7px 14px;cursor:pointer;white-space:nowrap}
 .sv-back:hover{color:var(--t1);border-color:var(--bh)}
@@ -1838,7 +1843,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <button onclick="showPricingComingSoon()" style="display:none;width:100%;padding:8px 12px;background:var(--green);color:#fff;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.02em">⬆ Upgrade Plan</button><!-- PRICING_HIDDEN, re-enable for launch -->
         <div class="rsb-usage-row">
           <div class="rsb-usage-bar"><div class="rsb-usage-bar-fill" id="sbUsageFill" style="width:0%"></div></div>
-          <div class="rsb-usage-txt"><span id="sbUsageCount">—</span> / 1,000 today</div>
+          <div class="rsb-usage-txt"><span id="sbUsageCount">—</span> / <span id="sbUsageLimit">1,000</span> today</div>
         </div>
         <div class="rsb-profile">
           <div class="rsb-profile-av" id="rsbAvatar">?</div>
@@ -1887,30 +1892,15 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div style="position:relative">
           <button class="btn-o btn-sm filter-panel-btn" id="filterPanelBtn" onclick="toggleFilterPanel()">▼ Filters <span id="activeFilterCount" style="display:none;background:var(--green);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:2px">0</span></button>
           <div id="filterPanel" class="fp-panel" style="display:none">
-            <div class="fp-header"><span>Filter your batch</span><button class="fp-clear-btn" onclick="clearAllFilters()">Clear all</button></div>
+            <div class="fp-header"><span>🔻 Filter your batch</span><button class="fp-clear-btn" onclick="clearAllFilters()">Clear all</button></div>
 
             <div class="fp-group">
-              <div class="fp-group-label">Decision</div>
+              <div class="fp-group-label">🎯 Decision</div>
               <div class="fp-decision-row" id="fpDecisionRow"></div>
             </div>
 
-            <div class="fp-group" id="fpRangesGroup">
-              <div class="fp-group-label">Numbers</div>
-              <div id="fpRangesContainer"></div>
-            </div>
-
-            <div class="fp-group">
-              <div class="fp-group-label">Parcel Basics</div>
-              <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:6px">SIZE</div>
-              <div class="fp-preset-row" id="fpSizePresets"></div>
-              <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:6px">COUNTY</div>
-              <div class="fp-multilist" id="fpCountyList" style="margin-bottom:10px"></div>
-              <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:6px">LAND USE</div>
-              <div class="fp-multilist" id="fpLandUseList"></div>
-            </div>
-
-            <div class="fp-group">
-              <div class="fp-group-label">Deal Killers
+            <div class="fp-group fp-group-red">
+              <div class="fp-group-label">🚫 Deal Killers
                 <div class="fp-mode-toggle" id="fpDealKillerMode">
                   <button data-mode="any" onclick="setDealKillerMode('any')">ANY</button>
                   <button data-mode="all" onclick="setDealKillerMode('all')">ALL</button>
@@ -1919,14 +1909,19 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
               <div class="fp-items" id="fpGroupDealKillers"></div>
             </div>
 
-            <div class="fp-group">
-              <div class="fp-group-label">Risk Flags</div>
+            <div class="fp-group fp-group-amber">
+              <div class="fp-group-label">⚠️ Risk Flags</div>
               <div class="fp-items" id="fpGroupRiskFlags"></div>
             </div>
 
-            <div class="fp-group">
-              <div class="fp-group-label">Positive Signals</div>
+            <div class="fp-group fp-group-green">
+              <div class="fp-group-label">✅ Positive Signals</div>
               <div class="fp-items" id="fpGroupPositiveSignals"></div>
+            </div>
+
+            <div class="fp-group" id="fpRangesGroup">
+              <div class="fp-group-label">🔢 Numbers</div>
+              <div id="fpRangesContainer"></div>
             </div>
 
             <div class="fp-saveview-row">
@@ -1967,6 +1962,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <span>ParceliQ · FL Beta</span>
       </div>
     </main>
+    <div id="storyView"></div>
   </div>
 </div>
 
@@ -2688,10 +2684,7 @@ const RULES_DEF = [
 ];
 let _activeFilters  = new Set();
 let _dealKillerMode = 'any';
-let _countyFilters  = new Set();
-let _landUseFilters = new Set();
 let _rangeFilters   = {};
-let _sizePreset     = null;
 let _screeningRules = {};
 let _currentDisplayed = [];
 let _currentPage    = 1;
@@ -2699,7 +2692,7 @@ let _rowsPerPage    = 25;
 let _selectedRows   = new Set();
 let _openParcel     = null;
 let _weeklyUsed     = null; // cached weekly usage count
-const _WEEKLY_LIMIT = 1000;
+let _dailyLimit     = 1000; // updated from /api/usage — reflects any admin override
 let _rescreenAborted = false;
 let _rescreenReader  = null;
 
@@ -2709,8 +2702,21 @@ function getDayStart() {
 }
 const getWeekStart = getDayStart; // legacy alias — limit is daily now
 
+async function _loadUsageLimit() {
+  if (!currentSession?.access_token) return;
+  try {
+    const r = await fetch(API + '/api/usage', { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } });
+    const data = await r.json();
+    if (data.limit != null) {
+      _dailyLimit = data.limit;
+      document.querySelectorAll('#sbUsageLimit').forEach(el => el.textContent = _dailyLimit.toLocaleString());
+    }
+  } catch(e) {}
+}
+
 function _refreshAllUsage() {
   _weeklyUsed = null;
+  _loadUsageLimit();
   loadSbUsage();
   if (sb && currentUser) {
     sb.from('batches').select('total').eq('user_id', currentUser.id)
@@ -2735,7 +2741,7 @@ async function checkWeeklyLimit(count = 1) {
       _weeklyUsed = wb?.reduce((s, b) => s + (b.total || 0), 0) || 0;
     } catch(e) { return true; }
   }
-  if (_weeklyUsed + count > _WEEKLY_LIMIT) {
+  if (_weeklyUsed + count > _dailyLimit) {
     showUpgradeModal();
     return false;
   }
@@ -3627,19 +3633,20 @@ async function loadDashboardData() {
   updateUIWithProfile();
   if (sb && currentUser) {
     try {
+      await _loadUsageLimit();
       const { data: wb } = await sb.from('batches').select('total')
         .eq('user_id', currentUser.id).gte('created_at', getWeekStart());
       const weeklyCount = wb?.reduce((s, b) => s + (b.total || 0), 0) || 0;
       _weeklyUsed = weeklyCount;
-      const remaining = 1000 - weeklyCount;
+      const remaining = _dailyLimit - weeklyCount;
       const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
       setEl('dashUsed', weeklyCount);
       const fill = document.getElementById('dashUsageFill');
-      if (fill) fill.style.width = Math.min(Math.round(weeklyCount / 1000 * 100), 100) + '%';
+      if (fill) fill.style.width = Math.min(Math.round(weeklyCount / _dailyLimit * 100), 100) + '%';
       const banner = document.getElementById('limitBanner');
       if (banner) {
         if (remaining <= 0) {
-          banner.textContent = 'Daily limit reached (1,000 parcels). Resets at midnight UTC.';
+          banner.textContent = 'Daily limit reached (' + _dailyLimit.toLocaleString() + ' parcels). Resets at midnight UTC.';
           banner.classList.add('show');
         } else if (remaining <= 100) {
           banner.textContent = remaining + ' parcels remaining today. Limit resets at midnight UTC.';
@@ -5072,22 +5079,12 @@ function _parsePowerDistanceM(r) {
   return /mile|mi/i.test(m[2]) ? n * 1609.34 : n;
 }
 
-const SIZE_PRESETS = [
-  { key: 'under_quarter', label: '< 0.25 ac', test: ac => ac != null && ac < 0.25 },
-  { key: 'quarter_to_1',  label: '0.25–1 ac', test: ac => ac != null && ac >= 0.25 && ac <= 1 },
-  { key: '1_to_5',        label: '1–5 ac',    test: ac => ac != null && ac > 1 && ac <= 5 },
-  { key: '5_plus',        label: '5+ ac',     test: ac => ac != null && ac > 5 },
-];
-
 function buildFilterPanel() {
   _buildDecisionRow();
-  _buildRangeSliders();
-  _buildSizePresets();
-  _buildCountyList();
-  _buildLandUseList();
   _buildFlagGroup('fpGroupDealKillers', FILTER_GROUPS[0].keys);
   _buildFlagGroup('fpGroupRiskFlags', FILTER_GROUPS[1].keys);
   _buildFlagGroup('fpGroupPositiveSignals', FILTER_GROUPS[2].keys);
+  _buildRangeSliders();
   document.querySelectorAll('#fpDealKillerMode button').forEach(b => b.classList.toggle('on', b.dataset.mode === _dealKillerMode));
   _populateSavedViewsDropdown();
   _updateFilterBadgeAndChips();
@@ -5110,9 +5107,9 @@ function _buildDecisionRow() {
   const results = batchState.results;
   let kill = 0, pursue = 0;
   results.forEach(r => { const v = effectiveVerdict(r); if (v === 'KILL') kill++; else if (v === 'PURSUE') pursue++; });
-  const opts = [['all', 'All', results.length], ['KILL', 'Kill', kill], ['PURSUE', 'Pursue', pursue]];
-  row.innerHTML = opts.map(([key, label, n]) =>
-    '<button class="fp-decision-btn' + (batchState.filtered === key ? ' on' : '') + '" onclick="fpSetDecision(\'' + key + '\')">' + label + ' (' + n + ')</button>').join('');
+  const opts = [['all', '📋 All', results.length, ''], ['KILL', '🚫 Kill', kill, 'kill'], ['PURSUE', '✅ Pursue', pursue, 'pursue']];
+  row.innerHTML = opts.map(([key, label, n, cls]) =>
+    '<button class="fp-decision-btn' + (batchState.filtered === key ? ' on ' + cls : '') + '" onclick="fpSetDecision(\'' + key + '\')">' + label + ' (' + n + ')</button>').join('');
 }
 
 function fpSetDecision(v) {
@@ -5166,73 +5163,6 @@ function _setRangeFillVisual(def, lo, hi) {
   if (valEl) valEl.textContent = def.fmt(lo) + ' – ' + def.fmt(hi);
 }
 
-function _buildSizePresets() {
-  const el = document.getElementById('fpSizePresets');
-  if (!el) return;
-  el.innerHTML = SIZE_PRESETS.map(p =>
-    '<button class="fp-preset-btn' + (_sizePreset === p.key ? ' on' : '') + '" onclick="toggleSizePreset(\'' + p.key + '\')">' + p.label + '</button>').join('');
-}
-
-function toggleSizePreset(key) {
-  _sizePreset = (_sizePreset === key) ? null : key;
-  _buildSizePresets();
-  _refreshTable();
-  _updateFilterBadgeAndChips();
-}
-
-function _buildCountyList() {
-  const el = document.getElementById('fpCountyList');
-  if (!el) return;
-  const counts = {};
-  batchState.results.forEach(r => {
-    const pi = r.parcel_info || {};
-    const county = pi.county || extractCounty(r.address || '');
-    if (county) counts[county] = (counts[county] || 0) + 1;
-  });
-  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  if (!entries.length) { el.innerHTML = '<div style="font-size:11px;color:var(--t3)">No county data yet.</div>'; return; }
-  el.innerHTML = '';
-  entries.forEach(([county, count]) => {
-    const checked = _countyFilters.has(county);
-    const item = document.createElement('label');
-    item.className = 'fp-item';
-    item.style.opacity = (count === 0 && !checked) ? '0.5' : '';
-    item.innerHTML = '<input type="checkbox"' + (checked ? ' checked' : '') + '><span>' + escHtml(county) + '</span><span class="fp-item-count">' + count + '</span>';
-    item.querySelector('input').addEventListener('change', function() {
-      if (this.checked) _countyFilters.add(county); else _countyFilters.delete(county);
-      _refreshTable(); _updateFilterBadgeAndChips();
-    });
-    el.appendChild(item);
-  });
-}
-
-function _buildLandUseList() {
-  const el = document.getElementById('fpLandUseList');
-  if (!el) return;
-  const counts = {};
-  batchState.results.forEach(r => {
-    const pi = r.parcel_info || {};
-    if (pi.land_use_code == null) return;
-    const cat = getLandUseCategory(pi.land_use_code);
-    if (cat) counts[cat] = (counts[cat] || 0) + 1;
-  });
-  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  if (!entries.length) { el.innerHTML = '<div style="font-size:11px;color:var(--t3)">No land use data yet.</div>'; return; }
-  el.innerHTML = '';
-  entries.forEach(([cat, count]) => {
-    const checked = _landUseFilters.has(cat);
-    const item = document.createElement('label');
-    item.className = 'fp-item';
-    item.style.opacity = (count === 0 && !checked) ? '0.5' : '';
-    item.innerHTML = '<input type="checkbox"' + (checked ? ' checked' : '') + '><span>' + escHtml(cat) + '</span><span class="fp-item-count">' + count + '</span>';
-    item.querySelector('input').addEventListener('change', function() {
-      if (this.checked) _landUseFilters.add(cat); else _landUseFilters.delete(cat);
-      _refreshTable(); _updateFilterBadgeAndChips();
-    });
-    el.appendChild(item);
-  });
-}
-
 function _buildFlagGroup(containerId, keys) {
   const grid = document.getElementById(containerId);
   if (!grid) return;
@@ -5269,9 +5199,7 @@ function setDealKillerMode(mode) {
 }
 
 function _countActiveFilters() {
-  let n = _activeFilters.size + _countyFilters.size + _landUseFilters.size + Object.keys(_rangeFilters).length;
-  if (_sizePreset) n++;
-  return n;
+  return _activeFilters.size + Object.keys(_rangeFilters).length;
 }
 
 function _updateFilterBadgeAndChips() {
@@ -5292,12 +5220,6 @@ function _renderActiveFilterChips() {
     const def = FLAG_DEFS.find(d => d.key === key);
     if (def) chip(def.label, 'removeChipFlag(\'' + key + '\')');
   });
-  _countyFilters.forEach(c => chip('County: ' + c, 'removeChipCounty(' + JSON.stringify(c) + ')'));
-  _landUseFilters.forEach(c => chip('Land use: ' + c, 'removeChipLandUse(' + JSON.stringify(c) + ')'));
-  if (_sizePreset) {
-    const p = SIZE_PRESETS.find(p => p.key === _sizePreset);
-    if (p) chip('Size: ' + p.label, 'removeChipSizePreset()');
-  }
   Object.keys(_rangeFilters).forEach(key => {
     const def = RANGE_DEFS.find(d => d.key === key);
     if (!def) return;
@@ -5310,17 +5232,11 @@ function _renderActiveFilterChips() {
 }
 
 function removeChipFlag(key) { _activeFilters.delete(key); buildFilterPanel(); _refreshTable(); }
-function removeChipCounty(c) { _countyFilters.delete(c); buildFilterPanel(); _refreshTable(); }
-function removeChipLandUse(c) { _landUseFilters.delete(c); buildFilterPanel(); _refreshTable(); }
-function removeChipSizePreset() { _sizePreset = null; buildFilterPanel(); _refreshTable(); }
 function removeChipRange(key) { delete _rangeFilters[key]; buildFilterPanel(); _refreshTable(); }
 
 function clearAllFilters() {
   _activeFilters.clear();
-  _countyFilters.clear();
-  _landUseFilters.clear();
   _rangeFilters = {};
-  _sizePreset = null;
   _dealKillerMode = 'any';
   if (document.getElementById('filterPanel')?.style.display !== 'none') buildFilterPanel();
   _updateFilterBadgeAndChips();
@@ -5349,9 +5265,6 @@ function promptSaveView() {
     verdict: batchState.filtered,
     activeFilters: [..._activeFilters],
     dealKillerMode: _dealKillerMode,
-    countyFilters: [..._countyFilters],
-    landUseFilters: [..._landUseFilters],
-    sizePreset: _sizePreset,
     rangeFilters: _rangeFilters,
   };
   try { localStorage.setItem(_savedViewsKey(), JSON.stringify(views)); toast('View saved.'); } catch(e) { toast('Could not save view.'); }
@@ -5366,9 +5279,6 @@ function loadSavedView(name) {
   if (!v) return;
   _activeFilters = new Set(v.activeFilters || []);
   _dealKillerMode = v.dealKillerMode || 'any';
-  _countyFilters = new Set(v.countyFilters || []);
-  _landUseFilters = new Set(v.landUseFilters || []);
-  _sizePreset = v.sizePreset || null;
   _rangeFilters = v.rangeFilters || {};
   if (v.verdict) filterResults(v.verdict);
   buildFilterPanel();
@@ -5471,20 +5381,6 @@ function _passesPanelFilters(r) {
     const pass = (isDealKillers && _dealKillerMode === 'all') ? keys.every(matches) : keys.some(matches);
     if (!pass) return false;
   }
-  if (_countyFilters.size > 0) {
-    const pi = r.parcel_info || {};
-    const county = pi.county || extractCounty(r.address || '');
-    if (!_countyFilters.has(county)) return false;
-  }
-  if (_landUseFilters.size > 0) {
-    const pi = r.parcel_info || {};
-    const cat = pi.land_use_code != null ? getLandUseCategory(pi.land_use_code) : null;
-    if (!cat || !_landUseFilters.has(cat)) return false;
-  }
-  if (_sizePreset) {
-    const preset = SIZE_PRESETS.find(p => p.key === _sizePreset);
-    if (preset && !preset.test(getAcreage(r))) return false;
-  }
   for (const key in _rangeFilters) {
     const def = RANGE_DEFS.find(d => d.key === key);
     if (!def) continue;
@@ -5505,7 +5401,7 @@ function loadSbUsage() {
       const el   = document.getElementById('sbUsageCount');
       const fill = document.getElementById('sbUsageFill');
       if (el)   el.textContent = wc;
-      if (fill) fill.style.width = Math.min(Math.round(wc / 1000 * 100), 100) + '%';
+      if (fill) fill.style.width = Math.min(Math.round(wc / _dailyLimit * 100), 100) + '%';
     }).catch(() => {});
 }
 
@@ -6236,7 +6132,7 @@ async function rescreenSelected() {
     const usageEl = document.getElementById('sbUsageCount');
     const usageFill = document.getElementById('sbUsageFill');
     if (usageEl) usageEl.textContent = _weeklyUsed;
-    if (usageFill) usageFill.style.width = Math.min(Math.round(_weeklyUsed / 1000 * 100), 100) + '%';
+    if (usageFill) usageFill.style.width = Math.min(Math.round(_weeklyUsed / _dailyLimit * 100), 100) + '%';
     if (sb && currentUser) {
       sb.from('batches').insert({ user_id: currentUser.id, name: '[Re-screen]', total: done, created_at: new Date().toISOString() })
         .then(() => loadSbUsage()).catch(() => {});
@@ -6309,7 +6205,7 @@ async function rescreenAll() {
     const usageEl = document.getElementById('sbUsageCount');
     const usageFill = document.getElementById('sbUsageFill');
     if (usageEl) usageEl.textContent = _weeklyUsed;
-    if (usageFill) usageFill.style.width = Math.min(Math.round(_weeklyUsed / 1000 * 100), 100) + '%';
+    if (usageFill) usageFill.style.width = Math.min(Math.round(_weeklyUsed / _dailyLimit * 100), 100) + '%';
     if (sb && currentUser) {
       sb.from('batches').insert({ user_id: currentUser.id, name: '[Re-screen]', total: done, created_at: new Date().toISOString() })
         .then(() => loadSbUsage()).catch(() => {});
@@ -7341,10 +7237,11 @@ async function _loadWeeklyUsage(el) {
     );
     const cr = r.headers.get('content-range') || '';
     const total = cr.includes('/') ? cr.split('/')[1] : '?';
-    el.textContent = total + ' / 1,000 parcels today';
+    await _loadUsageLimit();
+    el.textContent = total + ' / ' + _dailyLimit.toLocaleString() + ' parcels today';
     const fill = document.getElementById('settUsageFill');
     const n = parseInt(total);
-    if (fill && !isNaN(n)) fill.style.width = Math.min(100, Math.round(n / 1000 * 100)) + '%';
+    if (fill && !isNaN(n)) fill.style.width = Math.min(100, Math.round(n / _dailyLimit * 100)) + '%';
   } catch(e) { el.textContent = '—'; }
 }
 
@@ -7755,11 +7652,23 @@ function toggleMode() {
   }
 }
 
-document.addEventListener('click', function(e) {
+// Some filter-panel controls (size presets, save-view select, decision
+// buttons) rebuild their own small piece of the DOM on click, which detaches
+// the clicked element from the document before the click event finishes
+// bubbling. By the time it reaches this listener, panel.contains(e.target)
+// wrongly returns false for a detached node, so the panel would close even
+// though the click was legitimately inside it. Fixed by capturing "was this
+// interaction inside the panel" on mousedown — before any rebuild runs.
+let _fpMouseDownInside = false;
+document.addEventListener('mousedown', function(e) {
   const panel = document.getElementById('filterPanel');
   const btn = document.getElementById('filterPanelBtn');
+  _fpMouseDownInside = !!((panel && panel.contains(e.target)) || (btn && btn.contains(e.target)));
+});
+document.addEventListener('click', function(e) {
+  const panel = document.getElementById('filterPanel');
   if (!panel || panel.style.display === 'none') return;
-  if (!panel.contains(e.target) && btn && !btn.contains(e.target)) panel.style.display = 'none';
+  if (!_fpMouseDownInside) panel.style.display = 'none';
 });
 document.addEventListener('click', function(e) {
   const modal = document.getElementById('mapModal');
@@ -7773,7 +7682,7 @@ document.addEventListener('click', function(e) {
   if (!_openParcel) return;
   // The expand handle sits OUTSIDE the panel element; clicking it must open
   // the story view, never count as a click-away. Same while the story view
-  // is open: it covers the screen, so nothing here should close the panel.
+  // is open: it replaces the main content area, so nothing here should close the panel.
   if (e.target.closest('#dpExpandHandle')) return;
   const sv = document.getElementById('storyView');
   if (sv && (sv.classList.contains('open') || sv.contains(e.target))) return;
@@ -8806,14 +8715,16 @@ function openStoryView() {
   }
   sv.classList.add('open');
   document.querySelectorAll('#storyView .sv-col-left,#storyView .sv-col-right').forEach(c => c.scrollTop = 0);
-  document.body.style.overflow = 'hidden';
+  const main = document.querySelector('#page-results .res-main');
+  if (main) main.style.display = 'none';
 }
 
 function closeStoryView() {
   const sv = document.getElementById('storyView');
   if (!sv) return;
   sv.classList.remove('open');
-  document.body.style.overflow = '';
+  const main = document.querySelector('#page-results .res-main');
+  if (main) main.style.display = '';
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
 }
 
@@ -8896,7 +8807,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <!-- ════════ FULL-SCREEN PARCEL STORY VIEW ════════ -->
 <div class="dp-expand-handle" id="dpExpandHandle" title="Click or drag left for the full report" style="display:none">‹</div>
-<div id="storyView"></div>
 
 <!-- ════════ EDIT BATCH MODAL ════════ -->
 <div id="editBatchModal" class="modal-overlay" onclick="if(event.target===this)closeEditBatchModal()" style="display:none">

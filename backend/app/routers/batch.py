@@ -531,6 +531,27 @@ async def _check_batch_auth(authorization: Optional[str], parcel_count: int) -> 
     return None
 
 
+@router.get("/usage")
+async def get_usage(authorization: Optional[str] = Header(None)):
+    """Current user's daily screening usage and effective limit — the
+    admin-set per-user override if one exists, otherwise the plan default.
+    The frontend usage bar and the pre-submit client-side check both read
+    this instead of a hardcoded number, so an admin override actually shows
+    up for the user instead of silently applying only server-side."""
+    token = (authorization or '').removeprefix('Bearer ').strip()
+    try:
+        id_email = await _user_id_from_token(token)
+    except _AuthUnavailable:
+        return JSONResponse(status_code=200, content={"used": 0, "limit": WEEKLY_LIMIT})
+    if not id_email:
+        return JSONResponse(status_code=401, content={"error": "Sign in required."})
+    user_id, email = id_email
+    override = await get_user_override(user_id)
+    limit = override.get("daily_limit") if override.get("daily_limit") is not None else _limit_for(email)
+    used = await _weekly_usage(user_id)
+    return JSONResponse(content={"used": used, "limit": limit})
+
+
 @router.post("/batch/stream")
 async def batch_screen_stream(
     request: BatchRequest,
