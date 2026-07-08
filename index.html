@@ -2616,6 +2616,13 @@ function copyApn(btn) {
   });
 }
 function fmt$(n) { return n != null ? '$' + Number(n).toLocaleString() : '—'; }
+function formatDuration(seconds) {
+  seconds = Math.max(0, Math.round(seconds));
+  if (seconds < 60) return seconds + 's';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? m + ' min ' + s + 's' : m + ' min';
+}
 
 function toast(msg, ms = 3000) {
   const el = document.getElementById('toast');
@@ -4642,7 +4649,7 @@ async function _executeBatch(lines, estimatedSet) {
   const _procLabelEl = document.getElementById('batchProcLabel');
   if (_procLabelEl) _procLabelEl.textContent = 'Screening ' + flLines.length + ' parcel' + (flLines.length !== 1 ? 's' : '') + '…';
   const _procEtaEl = document.getElementById('procEta');
-  if (_procEtaEl) _procEtaEl.textContent = '~' + _estLow + '–' + _estHigh + 's';
+  if (_procEtaEl) _procEtaEl.textContent = '~' + formatDuration(_estLow) + '–' + formatDuration(_estHigh);
   updateProgress(0, flLines.length, null);
 
   // Gentle reassurance at 25s with no results (rural parcels queue behind
@@ -4739,8 +4746,7 @@ async function _executeBatch(lines, estimatedSet) {
               const remaining = rate > 0
                 ? Math.max(0, Math.round(rate * (_streamTotal - _resMetaCompleted)))
                 : Math.max(0, _estHigh - elapsed);
-              const remStr = remaining >= 90 ? '~' + Math.ceil(remaining / 60) + ' min remaining'
-                : remaining > 0 ? '~' + remaining + 's remaining' : 'almost done…';
+              const remStr = remaining > 0 ? '~' + formatDuration(remaining) + ' remaining' : 'almost done…';
               const stalled = Date.now() - _lastResultAt > 20000 ? ' · taking a bit longer than usual, still working…' : '';
               const metaEl = document.getElementById('resMeta');
               if (metaEl) metaEl.textContent = 'Screening · ' + _resMetaCompleted + ' of ' + _streamTotal + ' · ' + remStr + stalled;
@@ -5032,7 +5038,7 @@ function updateProgress(completed, total, latestAddress) {
     const rate = completed / elapsed;
     const eta = Math.round((total - completed) / rate);
     const etaEl = document.querySelector('.proc-eta');
-    if (etaEl) etaEl.textContent = '~' + eta + 's remaining';
+    if (etaEl) etaEl.textContent = '~' + formatDuration(eta) + ' remaining';
   }
 
   // Progress dots
@@ -5554,7 +5560,7 @@ function renderBatchResults() {
   const _doneAt = new Date(batchState.completedAt || Date.now());
   const _when = _doneAt.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }) +
     ' at ' + _doneAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  setEl('resMeta', (batchState.elapsed ? 'Fetched in ' + batchState.elapsed + 's · ' : '') + _when);
+  setEl('resMeta', (batchState.elapsed ? 'Fetched in ' + formatDuration(batchState.elapsed) + ' · ' : '') + _when);
   setEl('sbKill', kills); setEl('sbPursue', pursues);
 
   // Non-FL banner
@@ -6980,8 +6986,7 @@ async function _runQueueBatch(flLines, outsideResults) {
     const elapsed = (Date.now() - t0) / 1000;
     const rate = seen > 0 ? elapsed / seen : 0;
     const remaining = rate > 0 ? Math.max(0, Math.round(rate * (total - seen))) : 0;
-    const remStr = remaining >= 90 ? '~' + Math.ceil(remaining / 60) + ' min remaining'
-      : remaining > 0 ? '~' + remaining + 's remaining' : (seen >= total ? 'finishing up…' : 'estimating…');
+    const remStr = remaining > 0 ? '~' + formatDuration(remaining) + ' remaining' : (seen >= total ? 'finishing up…' : 'estimating…');
     const stalled = Date.now() - lastNewAt > 20000 ? ' · taking a bit longer than usual, still working…' : '';
     if (navigated) {
       updateStreamProgress(seen, total);
