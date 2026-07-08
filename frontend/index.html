@@ -4612,7 +4612,6 @@ async function _executeBatch(lines, estimatedSet) {
         toast('Batch error: ' + (e.message || e), 5000); goTo('landing');
       }
     } finally {
-      _stopProcStatusRotation();
       batchState._streaming = false;
       _batchInProgress = false;
       if (btn) { btn.disabled = false; btn.textContent = 'Screen Parcels →'; }
@@ -4645,7 +4644,6 @@ async function _executeBatch(lines, estimatedSet) {
   const _procEtaEl = document.getElementById('procEta');
   if (_procEtaEl) _procEtaEl.textContent = '~' + _estLow + '–' + _estHigh + 's';
   updateProgress(0, flLines.length, null);
-  _startProcStatusRotation();
 
   // Gentle reassurance at 25s with no results (rural parcels queue behind
   // rate-limited sources); a real error state only after 90s of nothing.
@@ -4657,7 +4655,6 @@ async function _executeBatch(lines, estimatedSet) {
   }, 25000);
   let _firstResultTimer = setTimeout(() => {
     if (batchState.results.length === outsideResults.length) {
-      _stopProcStatusRotation();
       const errEl    = document.getElementById('procError');
       const errTitle = document.getElementById('procErrTitle');
       const errSub   = document.getElementById('procErrSub');
@@ -4733,7 +4730,6 @@ async function _executeBatch(lines, estimatedSet) {
           _lastResultAt = Date.now();
           if (!_navigatedToResults) {
             _navigatedToResults = true;
-            _stopProcStatusRotation();
             renderBatchResults();
             goTo('dashboard');
             _resMetaStart = Date.now();
@@ -4771,7 +4767,14 @@ async function _executeBatch(lines, estimatedSet) {
             pursue: flResults.filter(r => r.verdict === 'PURSUE').length,
           };
           await saveBatchToSupabase(batchState.name, { summary, results: flResults });
-          if (!_navigatedToResults) { _navigatedToResults = true; renderBatchResults(); goTo('dashboard'); }
+          if (!_navigatedToResults) {
+            _navigatedToResults = true;
+            // Still on the processing screen — show the ring reaching 100%
+            // and hold for a beat instead of cutting to the dashboard mid-animation.
+            updateProgress(ev.summary.total, ev.summary.total, null);
+            await new Promise(r => setTimeout(r, 400));
+            renderBatchResults(); goTo('dashboard');
+          }
           else { renderBatchResults(); }
           const _errCount = batchState.results.filter(r => r.verdict === 'ERROR').length;
           if (_errCount > 0) {
@@ -4805,7 +4808,6 @@ async function _executeBatch(lines, estimatedSet) {
   } finally {
     clearTimeout(_firstResultTimer);
     clearTimeout(_reassureTimer);
-    _stopProcStatusRotation();
     clearInterval(_resMetaTimer); _resMetaTimer = null;
     batchState._streaming = false;
     _batchInProgress = false;
@@ -4936,24 +4938,6 @@ const _PROC_PHASES = [
   ['Checking soil and elevation…',    'Septic feasibility and drainage'],
   ['Calculating verdicts…',           'Scoring every risk factor'],
 ];
-let _procRotTimer = null;
-function _startProcStatusRotation() {
-  _stopProcStatusRotation();
-  let i = 0;
-  const stat = document.getElementById('batchStat');
-  const sub  = document.getElementById('batchSub');
-  const tick = () => {
-    const [a, b] = _PROC_PHASES[i % _PROC_PHASES.length];
-    if (stat) stat.textContent = a;
-    if (sub)  sub.textContent  = b;
-    i++;
-  };
-  tick();
-  _procRotTimer = setInterval(tick, 2500);
-}
-function _stopProcStatusRotation() {
-  if (_procRotTimer) { clearInterval(_procRotTimer); _procRotTimer = null; }
-}
 
 // After a single-address search or add, open the parcel immediately.
 // One result means one obvious next step; don't make the user click the row.
@@ -5023,6 +5007,18 @@ function updateProgress(completed, total, latestAddress) {
     } else {
       titleEl.textContent = 'Screened ' + completed + ' of ' + total;
     }
+  }
+
+  // Phase text — driven by the same completed/total ratio as everything else
+  // here, not an independent setInterval, so it can never show a phase far
+  // out of step with the real progress (e.g. "Calculating verdicts" at 5%).
+  const statEl = document.getElementById('batchStat');
+  const subEl  = document.getElementById('batchSub');
+  if (statEl || subEl) {
+    const phaseIdx = Math.max(0, Math.min(_PROC_PHASES.length - 1, Math.floor((pct / 100) * _PROC_PHASES.length)));
+    const [phaseA, phaseB] = _PROC_PHASES[phaseIdx];
+    if (statEl) statEl.textContent = phaseA;
+    if (subEl)  subEl.textContent  = phaseB;
   }
 
   // Latest address
@@ -6938,7 +6934,6 @@ async function _runQueueBatch(flLines, outsideResults) {
   _setProc('procCount', 'Geocoding ' + flLines.length + ' addresses…');
   _setProc('batchProcLabel', 'Screening ' + flLines.length + ' parcels…');
   updateProgress(0, flLines.length, null);
-  _startProcStatusRotation();
 
   const hdrs = { 'Content-Type': 'application/json' };
   if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
@@ -6977,7 +6972,7 @@ async function _runQueueBatch(flLines, outsideResults) {
         batchState.results.push({ ...r, _estimated: _estimatedAddresses.has((r.address || '').toLowerCase()) });
         seen++;
       }
-      if (!navigated) { navigated = true; _stopProcStatusRotation(); renderBatchResults(); goTo('dashboard'); }
+      if (!navigated) { navigated = true; renderBatchResults(); goTo('dashboard'); }
       else { _refreshTable(); }
       updateStatCards();
     }
@@ -7018,8 +7013,13 @@ async function _runQueueBatch(flLines, outsideResults) {
     pursue: flResults.filter(r => r.verdict === 'PURSUE').length,
   };
   await saveBatchToSupabase(batchState.name, { summary, results: flResults });
-  if (!navigated) { renderBatchResults(); goTo('dashboard'); }
-  else { renderBatchResults(); }
+  if (!navigated) {
+    // Still on the processing screen — let the ring visibly reach 100% and
+    // hold for a beat instead of cutting to the dashboard mid-animation.
+    updateProgress(total, total, null);
+    await sleep(400);
+    renderBatchResults(); goTo('dashboard');
+  } else { renderBatchResults(); }
   const errCount = flResults.filter(r => r.verdict === 'ERROR').length;
   if (errCount > 0) toast(errCount + (errCount === 1 ? ' address' : ' addresses') + ' could not be matched. See the highlighted rows below', 6000);
   notifyBatchComplete(summary);
