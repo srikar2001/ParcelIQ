@@ -402,6 +402,13 @@ body.on-results .detail-panel{top:0}
 .tb-sub{font-size:12px;color:var(--t2);margin-top:2px}
 .tb-right{font-size:13px;color:var(--t2);text-align:right}
 .res-filter-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.res-search-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.res-search-box{position:relative;flex:1;max-width:360px}
+.res-search-input{width:100%;font-size:12.5px;padding:8px 30px 8px 10px;border:1px solid var(--b);border-radius:var(--rs);background:var(--bg);color:var(--t1);outline:none}
+.res-search-input:focus{border-color:var(--bh)}
+.res-search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:2px 4px;line-height:1}
+.res-search-clear:hover{color:var(--t1)}
+.res-search-count{font-size:11.5px;color:var(--t3);white-space:nowrap}
 .filter-pills{display:flex;gap:6px;flex-wrap:wrap}
 .sumchip{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:6px 14px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s}
 .filter-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--b);flex-wrap:wrap;min-height:46px}
@@ -672,6 +679,13 @@ body.on-results .detail-panel{top:0}
 .sv-verdict-word{font-size:26px;font-weight:900;letter-spacing:-.02em;line-height:1}
 .sv-score{font-size:14px;color:var(--t2)}.sv-score b{font-size:18px;color:var(--t1)}
 .sv-conf{font-size:12px;color:var(--t3)}
+.sv-jump{position:relative;flex-shrink:0;width:150px}
+.sv-jump-input{width:100%;font-size:12px;padding:6px 9px;border:1px solid var(--b);border-radius:var(--rs);background:var(--bg);color:var(--t1);outline:none}
+.sv-jump-input:focus{border-color:var(--bh)}
+.sv-jump-dropdown{position:absolute;top:calc(100% + 4px);left:0;width:280px;max-height:280px;overflow-y:auto;background:var(--card);border:1px solid var(--b);border-radius:var(--rs);box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:1300}
+.sv-jump-item{padding:8px 12px;font-size:12.5px;color:var(--t1);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sv-jump-item:hover{background:var(--card-h)}
+.sv-jump-empty{padding:10px 12px;font-size:12px;color:var(--t3)}
 .sv-conf-warn{font-size:12px;color:var(--amber);margin-top:6px}
 .sv-reason{font-size:14px;line-height:1.6;color:var(--t1);margin:0 0 14px}
 .sv-next{display:flex;gap:10px;align-items:flex-start;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);border-radius:10px;padding:12px 16px}
@@ -1969,6 +1983,13 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         </div>
       </div>
       <div class="af-chips" id="activeFilterChips" style="display:none"></div>
+      <div class="res-search-row">
+        <div class="res-search-box">
+          <input type="text" id="tableSearchInput" class="res-search-input" placeholder="Search address or APN..." oninput="_tableSearchInput(this.value)">
+          <button class="res-search-clear" id="tableSearchClear" style="display:none" onclick="_tableSearchClear()" title="Clear search">✕</button>
+        </div>
+        <span class="res-search-count" id="tableSearchCount" style="display:none"></span>
+      </div>
       <div class="limit-banner" id="resLimitBanner"></div>
       <div class="nonfl-banner" id="nonflBanner"></div>
       <!-- Add parcel bar -->
@@ -5406,9 +5427,43 @@ function _refreshTable() {
   }
   let filtered = verdict === 'all' ? sorted : sorted.filter(r => effectiveVerdict(r) === verdict);
   filtered = filtered.filter(_passesPanelFilters);
+  const _preSearchCount = filtered.length;
+  filtered = filtered.filter(_matchesTableSearch);
+  _updateTableSearchCount(filtered.length, _preSearchCount);
   _currentDisplayed = filtered;
   if (!batchState._streaming) _currentPage = 1;
   renderPage();
+}
+
+// ── Live table search (address/APN substring, layered on top of verdict + panel filters)
+let _tableSearchQuery = '';
+function _matchesTableSearch(r) {
+  if (!_tableSearchQuery) return true;
+  const pi = r.parcel_info || {};
+  const addr = (r.address || '').toLowerCase();
+  const apn = (pi.parcel_id || pi.apn || '').toLowerCase();
+  return addr.includes(_tableSearchQuery) || apn.includes(_tableSearchQuery);
+}
+function _tableSearchInput(v) {
+  _tableSearchQuery = v.trim().toLowerCase();
+  const clearBtn = document.getElementById('tableSearchClear');
+  if (clearBtn) clearBtn.style.display = v ? '' : 'none';
+  _refreshTable();
+}
+function _tableSearchClear() {
+  _tableSearchQuery = '';
+  const input = document.getElementById('tableSearchInput');
+  if (input) input.value = '';
+  const clearBtn = document.getElementById('tableSearchClear');
+  if (clearBtn) clearBtn.style.display = 'none';
+  _refreshTable();
+}
+function _updateTableSearchCount(shown, total) {
+  const el = document.getElementById('tableSearchCount');
+  if (!el) return;
+  if (!_tableSearchQuery) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.textContent = 'Showing ' + shown + ' of ' + total + ' parcel' + (total !== 1 ? 's' : '');
 }
 
 function _passesPanelFilters(r) {
@@ -8677,6 +8732,10 @@ function renderStoryView(r) {
           '<div class="sv-addr">' + escHtml(r.address || '') + '</div>' +
           (apn ? '<div class="sv-apn">APN ' + escHtml(apn) + '</div>' : '') +
         '</div>' +
+        '<div class="sv-jump">' +
+          '<input type="text" id="svJumpInput" class="sv-jump-input" placeholder="Jump to parcel..." oninput="_svJumpInput(this.value)" onkeydown="if(event.key===\'Escape\')_svJumpClose()" onblur="setTimeout(_svJumpClose,150)">' +
+          '<div class="sv-jump-dropdown" id="svJumpDropdown" style="display:none"></div>' +
+        '</div>' +
         '<span class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
         (r.score != null ? '<span style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '') +
         (conf != null ? '<span class="sv-conf" style="flex-shrink:0">Confidence: ' + conf + '%</span>' : '') +
@@ -8861,6 +8920,41 @@ function _pnavOpenParcel(r) {
   renderStoryView(r);
   document.querySelectorAll('#storyView .sv-col-left,#storyView .sv-col-right').forEach(c => c.scrollTop = 0);
   _pnavRenderList();
+}
+
+// ── Deal Review header "Jump to parcel" search ────────────────────────────
+function _svJumpInput(v) {
+  const dd = document.getElementById('svJumpDropdown');
+  if (!dd) return;
+  const q = v.trim().toLowerCase();
+  if (!q) { dd.style.display = 'none'; dd.innerHTML = ''; return; }
+  const matches = (batchState.results || []).filter(r => {
+    const pi = r.parcel_info || {};
+    const addr = (r.address || '').toLowerCase();
+    const apn = (pi.parcel_id || pi.apn || '').toLowerCase();
+    return addr.includes(q) || apn.includes(q);
+  }).slice(0, 8);
+  dd.innerHTML = '';
+  if (!matches.length) {
+    dd.innerHTML = '<div class="sv-jump-empty">No matches</div>';
+  } else {
+    matches.forEach(r => {
+      const item = document.createElement('div');
+      item.className = 'sv-jump-item';
+      item.textContent = r.address || '';
+      // mousedown fires before the input's blur-triggered close, so the
+      // click still registers even though the dropdown is about to unmount.
+      item.addEventListener('mousedown', function(e) { e.preventDefault(); _pnavOpenParcel(r); });
+      dd.appendChild(item);
+    });
+  }
+  dd.style.display = 'block';
+}
+function _svJumpClose() {
+  const dd = document.getElementById('svJumpDropdown');
+  const input = document.getElementById('svJumpInput');
+  if (dd) { dd.style.display = 'none'; dd.innerHTML = ''; }
+  if (input) input.value = '';
 }
 
 function openStoryView() {
