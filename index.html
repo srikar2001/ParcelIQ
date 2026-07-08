@@ -330,7 +330,7 @@ body.on-results .detail-panel{top:0}
 .rsb-item:hover .rsb-3dot-wrap,.rsb-item.active .rsb-3dot-wrap{opacity:1}
 .rsb-3dot-btn{background:none;border:none;color:var(--t3);cursor:pointer;font-size:18px;padding:0 5px;border-radius:4px;line-height:1;letter-spacing:2px}
 .rsb-3dot-btn:hover{color:var(--t1);background:var(--b)}
-.rsb-3dot-menu{position:absolute;right:0;top:calc(100% + 2px);background:var(--card);border:1px solid var(--b);border-radius:var(--rs);z-index:9999;min-width:130px;box-shadow:0 4px 16px rgba(0,0,0,.4);padding:3px 0;display:none}
+.rsb-3dot-menu{position:fixed;background:var(--card);border:1px solid var(--b);border-radius:var(--rs);z-index:9999;min-width:130px;box-shadow:0 4px 16px rgba(0,0,0,.4);padding:3px 0;display:none}
 .rsb-3dot-menu button{display:block;width:100%;text-align:left;background:none;border:none;padding:7px 12px;font-size:12px;color:var(--t2);cursor:pointer;font-family:'Inter',sans-serif;transition:background .1s,color .1s;white-space:nowrap}
 .rsb-3dot-menu button:hover{background:var(--card-h);color:var(--t1)}
 #resTitleCount:hover~#batchTitleEditBtn,#batchTitleEditBtn:hover{opacity:1!important}
@@ -4228,6 +4228,11 @@ function _renderSidebarBatches(batches) {
   }).join('');
 }
 
+// The menu is position:fixed (not absolute inside .rsb-3dot-wrap) so it can
+// never be clipped by #sidebarBatchList's own overflow:auto — the root cause
+// of it rendering cut off for items near the bottom of a long batch list.
+// Position is computed from the trigger button's real screen location, and
+// flips to open upward when there isn't ~120px of room below it.
 let _openBatchMenu = null;
 function toggleBatchMenu(id, event) {
   event.stopPropagation();
@@ -4235,15 +4240,29 @@ function toggleBatchMenu(id, event) {
   if (!menu) return;
   if (_openBatchMenu && _openBatchMenu !== menu) { _openBatchMenu.style.display = 'none'; }
   const isOpen = menu.style.display === 'block';
-  menu.style.display = isOpen ? 'none' : 'block';
-  _openBatchMenu = isOpen ? null : menu;
+  if (isOpen) { menu.style.display = 'none'; _openBatchMenu = null; return; }
+
+  const btn = event.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  menu.style.display = 'block'; // show first so its real height can be measured
+  const menuH = menu.offsetHeight;
+  const menuW = menu.offsetWidth;
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const openUpward = spaceBelow < menuH + 8 && rect.top > menuH + 8;
+  menu.style.left = Math.max(4, rect.right - menuW) + 'px';
+  menu.style.top = (openUpward ? rect.top - menuH - 2 : rect.bottom + 2) + 'px';
+  _openBatchMenu = menu;
 }
 function closeBatchMenu() {
   if (_openBatchMenu) { _openBatchMenu.style.display = 'none'; _openBatchMenu = null; }
 }
 document.addEventListener('click', function(e) {
-  if (_openBatchMenu && !e.target.closest('.rsb-3dot-wrap')) { _openBatchMenu.style.display = 'none'; _openBatchMenu = null; }
+  if (_openBatchMenu && !e.target.closest('.rsb-3dot-wrap') && !e.target.closest('.rsb-3dot-menu')) { _openBatchMenu.style.display = 'none'; _openBatchMenu = null; }
 });
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && _openBatchMenu) { _openBatchMenu.style.display = 'none'; _openBatchMenu = null; }
+});
+document.getElementById('sidebarBatchList')?.addEventListener('scroll', closeBatchMenu);
 
 function _sidebarBatchClick(id) {
   if (id === _currentBatchId) return;
