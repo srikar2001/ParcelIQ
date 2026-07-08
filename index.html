@@ -566,10 +566,8 @@ body.on-results .detail-panel{top:0}
 .sig-pill-m{background:var(--card-h);color:var(--t3);border:1px solid var(--b)}
 .tbl-addr-street{font-size:13px;font-weight:600;color:var(--t1)}
 .tbl-addr-city{font-size:11px;color:var(--t3);margin-top:2px}
-.tbl-addr-link{cursor:pointer}
+.tbl-addr-link{cursor:pointer;color:var(--green)}
 .tbl-addr-link:hover{text-decoration:underline}
-.tbl-hover-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding:0 12px;font-size:10px;font-weight:600;color:var(--t2);background:var(--card-h);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;pointer-events:none;transition:opacity .15s}
-.res-trow:hover .tbl-hover-hint{opacity:1}
 .tbl-county{font-size:12px;color:var(--t2);white-space:nowrap}
 .tbl-size{font-size:12px;color:var(--t2);white-space:nowrap}
 .tbl-size-amber{color:var(--amber)}
@@ -5819,8 +5817,7 @@ function renderTable(results, offset) {
         (city && !isOutside ? '<div class="tbl-addr-city">' + escHtml(city) + ', FL</div>' : '') +
       '</div>' +
       rescreenBtn +
-    '</div>' +
-    (addrClickable ? '<span class="tbl-hover-hint">Click address for Deal Review · Click row for Quick Preview</span>' : '');
+    '</div>';
     const county = (!isOutside && !isError) ? ((r.parcel_info || {}).county || extractCounty(r.address || '')) : '';
     let sizeHtml = '';
     if (!isOutside && !isError) {
