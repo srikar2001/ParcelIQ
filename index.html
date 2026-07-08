@@ -650,7 +650,7 @@ body.on-results .detail-panel{top:0}
    not a full-viewport overlay — so Upload/My Picks/Overview/Recents stay
    visible and clickable while looking at a parcel's full report. */
 #storyView{display:none;flex:1;min-width:0;height:100vh;background:var(--bg);overflow:hidden;position:relative}
-.sv-navfab{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;background:var(--card-h);border:1px solid var(--bh);display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--t1);cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.45);z-index:50;transition:color .15s,border-color .15s,transform .15s;line-height:1}
+.sv-navfab{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;background:var(--card-h);border:1px solid var(--bh);display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--t1);cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.45);z-index:1200;transition:color .15s,border-color .15s,transform .15s;line-height:1}
 .sv-navfab:hover{color:var(--green);border-color:var(--green);transform:translateY(-50%) scale(1.08)}
 .sv-navfab-prev{left:10px}
 .sv-navfab-next{right:10px}
@@ -682,21 +682,18 @@ body.on-results .detail-panel{top:0}
 .sv-map-controls{display:flex;gap:6px;margin-bottom:16px}
 .sv-cats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:600px){.sv-cats{grid-template-columns:1fr}}
-.sv-cat{border:1px solid var(--b);border-radius:10px;padding:2px 12px;background:var(--card);transition:border-color .15s,box-shadow .15s}
-.sv-cat:hover{border-color:var(--bh)}
-.sv-cat[open]{box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.sv-cat{border:1px solid var(--b);border-radius:10px;padding:10px 12px;background:var(--card)}
 .sv-cat-risk{border-left:3px solid var(--red)}
 .sv-cat-caution{border-left:3px solid var(--amber)}
 .sv-cat-clear{border-left:3px solid var(--green)}
 .sv-cat-data-unavailable{border-left:3px solid var(--t3)}
-.sv-cat-head{display:flex;align-items:center;gap:8px;padding:9px 0;cursor:pointer;list-style:none;user-select:none}
-.sv-cat-head::-webkit-details-marker{display:none}
+.sv-cat-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .sv-cat-icon{font-size:14px;flex-shrink:0;line-height:1}
 .sv-cat-name{font-size:12.5px;font-weight:700;color:var(--t1);letter-spacing:.01em}
 .sv-cat-status{margin-left:auto;font-size:9px;font-weight:800;letter-spacing:.6px;padding:2px 7px;border-radius:99px;flex-shrink:0}
-.sv-cat-chevron{font-size:10px;color:var(--t3);transition:transform .15s;flex-shrink:0}
-.sv-cat[open] .sv-cat-chevron{transform:rotate(180deg)}
-.sv-cat-txt{font-size:12px;line-height:1.55;color:var(--t2);padding:0 0 12px 22px}
+.sv-cat-txt{font-size:12px;line-height:1.55;color:var(--t2)}
+.sv-cat-txt-clamp{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sv-cat-more{display:inline-block;margin-top:3px;font-size:11px;font-weight:700;color:var(--green);cursor:pointer;user-select:none}
 .sv-facts{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin-bottom:20px}
 .sv-fact-lbl{font-size:10px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--t3);margin-bottom:3px}
 .sv-fact-val{font-size:13px;font-weight:600;color:var(--t1);line-height:1.4}
@@ -1858,7 +1855,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <!-- Overview nav -->
       <div class="rsb-nav-item" onclick="openOverviewFromNav()">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="5.5" height="5.5" rx="1"/><rect x="7.5" y="1" width="5.5" height="5.5" rx="1"/><rect x="1" y="7.5" width="5.5" height="5.5" rx="1"/><rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1"/></svg>
-        Overview
+        Deal Review
       </div>
       </div>
       <!-- Recents (always open) -->
@@ -2018,7 +2015,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;padding-top:2px">
       <div id="dpBadge"></div>
       <div class="dp-score-num" id="dpScore" style="font-size:20px"></div>
-      <button onclick="openStoryView()" title="Open full-screen report" style="background:none;border:1px solid var(--b);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;padding:4px 8px;color:var(--t2);line-height:1;white-space:nowrap;transition:all .12s" onmouseenter="this.style.color='var(--green)';this.style.borderColor='var(--green)'" onmouseleave="this.style.color='var(--t2)';this.style.borderColor='var(--b)'">⛶ Report</button>
+      <button onclick="openStoryView()" title="Open Deal Review" style="background:none;border:1px solid var(--b);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;padding:4px 8px;color:var(--t2);line-height:1;white-space:nowrap;transition:all .12s" onmouseenter="this.style.color='var(--green)';this.style.borderColor='var(--green)'" onmouseleave="this.style.color='var(--t2)';this.style.borderColor='var(--b)'">⛶ Deal Review</button>
       <button id="dpStarBtn" onclick="_toggleStarFromPanel()" title="Add to My Picks" style="background:none;border:none;font-size:18px;cursor:pointer;padding:0 2px;color:var(--t3);line-height:1;transition:color .12s">☆</button>
       <button class="dp-close" onclick="closeDetailPanel()">✕</button>
     </div>
@@ -7975,7 +7972,7 @@ function showPicksPage() {
 
 function openOverviewFromNav() {
   if (!_openParcel) {
-    toast('Select a parcel from your batch to see its full overview.');
+    toast('Select a parcel from your batch to see its Deal Review.');
     return;
   }
   if (window.location.hash !== '#dashboard') window.location.hash = '#dashboard';
@@ -8625,6 +8622,13 @@ const _SV_CAT_ICONS = {
 };
 function _svCatIcon(name) { return _SV_CAT_ICONS[name] || '📋'; }
 
+function _svToggleCatText(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const stillClamped = el.classList.toggle('sv-cat-txt-clamp');
+  btn.textContent = stillClamped ? 'more' : 'less';
+}
+
 function renderStoryView(r) {
   const sv = document.getElementById('storyView');
   if (!sv || !r) return;
@@ -8636,15 +8640,17 @@ function renderStoryView(r) {
 
   const catsHtml = cats.map((c, i) => {
     const st = _SV_STATUS[c.status] || _SV_STATUS['DATA UNAVAILABLE'];
-    const openAttr = (c.status === 'RISK' && i < 2) ? ' open' : '';
-    return '<details class="sv-cat sv-cat-' + c.status.toLowerCase().replace(' ', '-') + '"' + openAttr + '>' +
-      '<summary class="sv-cat-head">' +
+    const isLong = c.txt.length > 120;
+    const txtId = 'svCatTxt' + i;
+    return '<div class="sv-cat sv-cat-' + c.status.toLowerCase().replace(' ', '-') + '">' +
+      '<div class="sv-cat-head">' +
       '<span class="sv-cat-icon">' + _svCatIcon(c.name) + '</span>' +
       '<span class="sv-cat-name">' + escHtml(c.name) + '</span>' +
       '<span class="sv-cat-status" style="color:' + st.color + ';background:' + st.bg + '">' + st.label + '</span>' +
-      '<span class="sv-cat-chevron">▾</span>' +
-      '</summary>' +
-      '<div class="sv-cat-txt">' + escHtml(c.txt) + '</div></details>';
+      '</div>' +
+      '<div class="sv-cat-txt' + (isLong ? ' sv-cat-txt-clamp' : '') + '" id="' + txtId + '">' + escHtml(c.txt) + '</div>' +
+      (isLong ? '<span class="sv-cat-more" onclick="_svToggleCatText(\'' + txtId + '\',this)">more</span>' : '') +
+      '</div>';
   }).join('');
 
   // Parcel facts — same hide-if-empty + translate rules as the panel
@@ -8666,7 +8672,7 @@ function renderStoryView(r) {
     '<button class="sv-navfab sv-navfab-next" onclick="storyNav(1)" title="Next parcel">›</button>' +
     '<div class="sv-wrap">' +
       '<div class="sv-header">' +
-        '<button class="sv-back" onclick="closeStoryView()">← Back to batch</button>' +
+        '<button class="sv-back" onclick="closeStoryView()">← Back to Results</button>' +
         '<div style="min-width:0;flex:1">' +
           '<div class="sv-addr">' + escHtml(r.address || '') + '</div>' +
           (apn ? '<div class="sv-apn">APN ' + escHtml(apn) + '</div>' : '') +
@@ -8858,7 +8864,7 @@ function _pnavOpenParcel(r) {
 }
 
 function openStoryView() {
-  if (!_openParcel) { toast('Open a parcel first, then view its full report'); return; }
+  if (!_openParcel) { toast('Open a parcel first, then view its Deal Review'); return; }
   const sv = document.getElementById('storyView');
   if (!sv) return;
   try {
@@ -8866,9 +8872,9 @@ function openStoryView() {
   } catch(e) {
     console.error('Story render error:', e);
     sv.innerHTML = '<div class="sv-wrap"><div class="sv-header">' +
-      '<button class="sv-back" onclick="closeStoryView()">← Back to batch</button>' +
+      '<button class="sv-back" onclick="closeStoryView()">← Back to Results</button>' +
       '<div class="sv-addr">' + escHtml(_openParcel.address || '') + '</div></div>' +
-      '<div style="padding:40px 0;color:var(--t2);font-size:14px">Could not build the full report for this parcel. Its data may be from an older screening. ' +
+      '<div style="padding:40px 0;color:var(--t2);font-size:14px">Could not build the Deal Review for this parcel. Its data may be from an older screening. ' +
       'Re-screen it (↻ on the row) and try again.</div></div>';
   }
   sv.classList.add('open');
@@ -8881,6 +8887,10 @@ function openStoryView() {
   // they belong to the story view but actually re-trigger/tear down the panel.
   const panel = document.getElementById('detailPanel');
   if (panel) panel.style.display = 'none';
+  // The expand handle is also fixed-position and only re-evaluates its own
+  // visibility from _positionExpandHandle() — which nothing was calling here,
+  // so it kept floating over the story view after the panel above was hidden.
+  _positionExpandHandle();
   _buildParcelNavigator();
 }
 
@@ -8892,6 +8902,7 @@ function closeStoryView() {
   if (main) main.style.display = '';
   const panel = document.getElementById('detailPanel');
   if (panel && _openParcel) panel.style.display = '';
+  _positionExpandHandle();
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
   _restoreSidebar();
 }
@@ -8975,7 +8986,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <!-- ════════ FULL-SCREEN PARCEL STORY VIEW ════════ -->
-<div class="dp-expand-handle" id="dpExpandHandle" title="Click or drag left for the full report" style="display:none">‹</div>
+<div class="dp-expand-handle" id="dpExpandHandle" title="Click or drag left for Deal Review" style="display:none">‹</div>
 
 <!-- ════════ EDIT BATCH MODAL ════════ -->
 <div id="editBatchModal" class="modal-overlay" onclick="if(event.target===this)closeEditBatchModal()" style="display:none">
