@@ -2725,6 +2725,82 @@ function resetBatchState() {
 }
 const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings']);
 
+// ── DEEP-LINK SUB-HASH HELPERS ──────────────────────────────────────────
+// A hash can now carry a sub-path/query beyond the base page, e.g.
+// '#dashboard/<batchId>/parcel/<addr>?filter=kill&sort=score-desc'. Every
+// exact-match comparison against a bare page hash (router(), PROTECTED,
+// HASH_MAP) must go through _baseHash() first, or a sub-pathed hash fails
+// every one of those checks — including the PROTECTED auth gate.
+function _baseHash(hash) {
+  return (hash || '').split(/[/?]/)[0];
+}
+
+function _parseSubHash(hash) {
+  hash = hash || window.location.hash || '';
+  const base = _baseHash(hash);
+  const qIdx = hash.indexOf('?');
+  const pathPart = qIdx === -1 ? hash : hash.slice(0, qIdx);
+  const queryPart = qIdx === -1 ? '' : hash.slice(qIdx + 1);
+  const segments = pathPart.slice(base.length).split('/').filter(Boolean).map(s => decodeURIComponent(s));
+  const params = {};
+  new URLSearchParams(queryPart).forEach((v, k) => { params[k] = v; });
+  return { base, segments, params };
+}
+
+// batchId -> '#dashboard/<id>', optionally with a parcel sub-path and a
+// filter/sort query string. Omits anything at its default value so a plain
+// '#dashboard/<id>' stays the common case.
+function _buildResultsHash(batchId, opts) {
+  opts = opts || {};
+  if (!batchId) return '#dashboard';
+  let h = '#dashboard/' + encodeURIComponent(batchId);
+  if (opts.parcel) h += '/parcel/' + encodeURIComponent(opts.parcel);
+  const q = [];
+  if (opts.filter && opts.filter.toLowerCase() !== 'all') q.push('filter=' + encodeURIComponent(opts.filter.toLowerCase()));
+  if (opts.sort && opts.sort.col) q.push('sort=' + encodeURIComponent(opts.sort.col + '-' + (opts.sort.dir || 'desc')));
+  if (q.length) h += '?' + q.join('&');
+  return h;
+}
+
+function _buildDashHash(mode) {
+  return mode === 'single' ? '#dashboard?mode=single' : '#dashboard';
+}
+
+// Admin route is intentionally unguessable (see HASH_MAP comment below) —
+// sub-tabs must stay nested under that same obscure prefix, never '#admin/...'.
+function _buildAdminHash(tab) {
+  return (tab && tab !== 'overview') ? '#_sys_c9f2a/' + tab : '#_sys_c9f2a';
+}
+
+// DOM id (scrollSettSection's argument) <-> short URL token. 'Account' has
+// no scroll target of its own (it's the top of the page, shown by default),
+// so it has no entry here and maps to the bare '#settings' hash.
+const _SETT_SECTION_TOKENS = {
+  'sett-sec-security': 'password',
+  'sett-sec-preferences': 'preferences',
+  'sett-sec-notifications': 'notifications',
+  'sett-sec-rules': 'rules',
+};
+function _buildSettingsHash(domId) {
+  const token = _SETT_SECTION_TOKENS[domId];
+  return token ? '#settings/' + token : '#settings';
+}
+
+// Single chokepoint for every "keep the URL in sync with in-page sub-state"
+// write. Uses replaceState (not location.hash=) specifically so it does NOT
+// fire hashchange/router() — sort/filter/parcel-open clicks must never
+// re-trigger the page-transition or data-fetch logic that a real hash
+// navigation does. The sessionStorage mirror matters because the existing
+// hashchange listener (below) that normally keeps piq_hash current never
+// fires for a replaceState-only change — without mirroring here, arriving
+// at a bare hash-less URL would restore the last *navigated* view instead
+// of the more specific last *sub-state* (e.g. batch but not the open parcel).
+function _syncHash(hashString) {
+  if (window.location.hash === hashString) return;
+  history.replaceState(null, '', hashString);
+  try { sessionStorage.setItem('piq_hash', hashString); } catch(e) {}
+}
+
 const FLAG_DEFS = [
   { key: 'wetlands', label: 'Wetlands', match: r =>
       (r.flags||[]).some(f => /wetland/i.test(f)) ||
@@ -2882,8 +2958,9 @@ async function checkWeeklyLimit(count = 1) {
 async function router() {
   closeDetailPanel();
   // Legacy alias: the batch table is now the Dashboard
-  if (window.location.hash === '#results') { window.location.replace('#dashboard'); return; }
-  const hash = window.location.hash || '#landing';
+  if (_baseHash(window.location.hash) === '#results') { window.location.replace('#dashboard'); return; }
+  const rawHash = window.location.hash || '#landing';
+  const hash = _baseHash(rawHash);
   // If already logged in and navigating to a pure auth page, skip straight to dashboard.
   // #landing is intentionally excluded — the logo should always reach the landing page.
   const _authOnlyPages = new Set(['#login', '#signup', '#forgot', '', '#']);
@@ -3205,7 +3282,7 @@ window.addEventListener('focus', async () => {
   if (!sb) return;
   const session = await initAuth();
   updateNav();
-  if (!session && PROTECTED.has(window.location.hash)) goTo('login');
+  if (!session && PROTECTED.has(_baseHash(window.location.hash))) goTo('login');
 });
 
 async function signInWithGoogle() {
