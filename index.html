@@ -398,20 +398,25 @@ body.on-results .detail-panel{top:0}
 .fp-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--b);font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;position:sticky;top:0;background:var(--card);z-index:2}
 .fp-clear-btn{background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;padding:2px 6px;border-radius:4px}
 .fp-clear-btn:hover{color:var(--t1)}
-.fp-group{padding:10px 14px;border-bottom:1px solid var(--b);border-left:3px solid transparent}
+.fp-group{padding:12px 14px;border-bottom:1px solid var(--b);border-left:5px solid transparent}
 .fp-group:last-child{border-bottom:none}
-.fp-group-red{border-left-color:#ef4444;background:rgba(239,68,68,.04)}
-.fp-group-amber{border-left-color:#f59e0b;background:rgba(245,158,11,.04)}
-.fp-group-green{border-left-color:#22c55e;background:rgba(34,197,94,.04)}
-.fp-group-label{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;justify-content:space-between;color:var(--t1)}
+.fp-group-red{border-left-color:#ef4444;background:rgba(239,68,68,.09)}
+.fp-group-amber{border-left-color:#f59e0b;background:rgba(245,158,11,.09)}
+.fp-group-green{border-left-color:#22c55e;background:rgba(34,197,94,.09)}
+.fp-group-blue{border-left-color:#38bdf8;background:rgba(56,189,248,.09)}
+.fp-group-label{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:9px;display:flex;align-items:center;gap:6px;justify-content:space-between;color:var(--t1)}
+.fp-group-red>.fp-group-label{color:#ef4444}
+.fp-group-amber>.fp-group-label{color:#f59e0b}
+.fp-group-green>.fp-group-label{color:#22c55e}
+.fp-group-blue>.fp-group-label{color:#38bdf8}
 .fp-items{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
 .fp-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);cursor:pointer;padding:3px 0;user-select:none}
 .fp-item:hover{color:var(--t1)}
 .fp-item input[type=checkbox]{width:13px;height:13px;accent-color:var(--green);cursor:pointer;flex-shrink:0}
 .fp-item-count{font-size:10px;font-weight:700;color:var(--t3);margin-left:auto;background:var(--card-h);border-radius:99px;padding:1px 7px;min-width:20px;text-align:center}
-.fp-group-red .fp-item-count{color:#ef4444;background:rgba(239,68,68,.12)}
-.fp-group-amber .fp-item-count{color:#f59e0b;background:rgba(245,158,11,.12)}
-.fp-group-green .fp-item-count{color:#22c55e;background:rgba(34,197,94,.12)}
+.fp-group-red .fp-item-count{color:#ef4444;background:rgba(239,68,68,.18)}
+.fp-group-amber .fp-item-count{color:#f59e0b;background:rgba(245,158,11,.18)}
+.fp-group-green .fp-item-count{color:#22c55e;background:rgba(34,197,94,.18)}
 /* Decision toggle */
 .fp-decision-row{display:flex;gap:6px}
 .fp-decision-btn{flex:1;text-align:center;font-size:11px;font-weight:700;padding:6px 4px;border-radius:var(--rs);border:1px solid var(--b);background:none;color:var(--t2);cursor:pointer}
@@ -622,7 +627,11 @@ body.on-results .detail-panel{top:0}
 /* Story view renders inside the results layout, beside the app sidebar —
    not a full-viewport overlay — so Upload/My Picks/Overview/Recents stay
    visible and clickable while looking at a parcel's full report. */
-#storyView{display:none;flex:1;min-width:0;height:100vh;background:var(--bg);overflow:hidden}
+#storyView{display:none;flex:1;min-width:0;height:100vh;background:var(--bg);overflow:hidden;position:relative}
+.sv-navfab{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;background:var(--card-h);border:1px solid var(--bh);display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--t1);cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.45);z-index:50;transition:color .15s,border-color .15s,transform .15s;line-height:1}
+.sv-navfab:hover{color:var(--green);border-color:var(--green);transform:translateY(-50%) scale(1.08)}
+.sv-navfab-prev{left:10px}
+.sv-navfab-next{right:10px}
 #storyView.open{display:flex;flex-direction:column;animation:svFadeIn .22s ease}
 @keyframes svFadeIn{from{opacity:0;transform:scale(.99)}to{opacity:1;transform:scale(1)}}
 .sv-wrap{display:flex;flex-direction:column;height:100%;min-height:0}
@@ -636,7 +645,7 @@ body.on-results .detail-panel{top:0}
 .sv-col-left{overflow-y:auto;padding:18px 24px;border-right:1px solid var(--b);min-height:0}
 .sv-col-right{overflow-y:auto;padding:18px 24px;min-height:0}
 @media(max-width:900px){.sv-body{grid-template-columns:1fr;overflow-y:auto}.sv-col-left,.sv-col-right{overflow-y:visible;border-right:none}}
-.sv-verdict-block{border:1px solid var(--b);border-radius:14px;padding:20px 22px;margin-bottom:16px;background:var(--card)}
+.sv-verdict-block{border:1px solid var(--b);border-top:3px solid var(--vc,var(--b));border-radius:14px;padding:20px 22px;margin-bottom:16px;background:var(--card);box-shadow:0 4px 20px rgba(0,0,0,.1)}
 .sv-verdict-row{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:10px}
 .sv-verdict-word{font-size:26px;font-weight:900;letter-spacing:-.02em;line-height:1}
 .sv-score{font-size:14px;color:var(--t2)}.sv-score b{font-size:18px;color:var(--t1)}
@@ -647,16 +656,25 @@ body.on-results .detail-panel{top:0}
 .sv-next-lbl{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--green);white-space:nowrap;padding-top:3px}
 .sv-next-txt{font-size:13px;color:var(--t1);line-height:1.55}
 .sv-sec-title{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin:0 0 10px}
-.sv-map-wrap{height:220px;border-radius:14px;overflow:hidden;border:1px solid var(--b);margin-bottom:8px;position:relative}
+.sv-map-wrap{height:min(50vh,420px);min-height:280px;border-radius:14px;overflow:hidden;border:1px solid var(--b);margin-bottom:8px;position:relative}
 .sv-map-controls{display:flex;gap:6px;margin-bottom:16px}
 .sv-cats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:600px){.sv-cats{grid-template-columns:1fr}}
-.sv-cat{border:1px solid var(--b);border-radius:10px;padding:10px 12px;background:var(--card)}
-.sv-cat-head{display:flex;align-items:center;gap:7px;margin-bottom:4px}
-.sv-cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.sv-cat-name{font-size:12px;font-weight:700;color:var(--t1);letter-spacing:.01em}
-.sv-cat-status{margin-left:auto;font-size:9px;font-weight:800;letter-spacing:.6px}
-.sv-cat-txt{font-size:12px;line-height:1.5;color:var(--t2)}
+.sv-cat{border:1px solid var(--b);border-radius:10px;padding:2px 12px;background:var(--card);transition:border-color .15s,box-shadow .15s}
+.sv-cat:hover{border-color:var(--bh)}
+.sv-cat[open]{box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.sv-cat-risk{border-left:3px solid var(--red)}
+.sv-cat-caution{border-left:3px solid var(--amber)}
+.sv-cat-clear{border-left:3px solid var(--green)}
+.sv-cat-data-unavailable{border-left:3px solid var(--t3)}
+.sv-cat-head{display:flex;align-items:center;gap:8px;padding:9px 0;cursor:pointer;list-style:none;user-select:none}
+.sv-cat-head::-webkit-details-marker{display:none}
+.sv-cat-icon{font-size:14px;flex-shrink:0;line-height:1}
+.sv-cat-name{font-size:12.5px;font-weight:700;color:var(--t1);letter-spacing:.01em}
+.sv-cat-status{margin-left:auto;font-size:9px;font-weight:800;letter-spacing:.6px;padding:2px 7px;border-radius:99px;flex-shrink:0}
+.sv-cat-chevron{font-size:10px;color:var(--t3);transition:transform .15s;flex-shrink:0}
+.sv-cat[open] .sv-cat-chevron{transform:rotate(180deg)}
+.sv-cat-txt{font-size:12px;line-height:1.55;color:var(--t2);padding:0 0 12px 22px}
 .sv-facts{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin-bottom:20px}
 .sv-fact-lbl{font-size:10px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--t3);margin-bottom:3px}
 .sv-fact-val{font-size:13px;font-weight:600;color:var(--t1);line-height:1.4}
@@ -1919,7 +1937,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
               <div class="fp-items" id="fpGroupPositiveSignals"></div>
             </div>
 
-            <div class="fp-group" id="fpRangesGroup">
+            <div class="fp-group fp-group-blue" id="fpRangesGroup">
               <div class="fp-group-label">🔢 Numbers</div>
               <div id="fpRangesContainer"></div>
             </div>
@@ -2564,6 +2582,10 @@ function toast(msg, ms = 3000) {
 }
 
 function showScreen(id) {
+  // Leaving the results page must tear down the story view and the detail
+  // panel — otherwise both linger (invisible, since #page-results itself
+  // goes display:none) and reappear stale next time the results page shows.
+  if (id !== 'page-results' && typeof closeDetailPanel === 'function') closeDetailPanel();
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(id);
   if (el) el.classList.add('active');
@@ -8560,11 +8582,25 @@ function _svNextStep(r) {
 }
 
 const _SV_STATUS = {
-  'CLEAR':            { color: 'var(--green)', label: 'CLEAR' },
-  'CAUTION':          { color: 'var(--amber)', label: 'CAUTION' },
-  'RISK':             { color: 'var(--red)',   label: 'RISK' },
-  'DATA UNAVAILABLE': { color: 'var(--t3)',    label: 'DATA UNAVAILABLE' },
+  'CLEAR':            { color: 'var(--green)', bg: 'rgba(34,197,94,.14)',  label: 'CLEAR' },
+  'CAUTION':          { color: 'var(--amber)', bg: 'rgba(245,158,11,.14)', label: 'CAUTION' },
+  'RISK':             { color: 'var(--red)',   bg: 'rgba(239,68,68,.14)', label: 'RISK' },
+  'DATA UNAVAILABLE': { color: 'var(--t3)',    bg: 'rgba(148,163,184,.14)', label: 'DATA UNAVAILABLE' },
 };
+
+const _SV_CAT_ICONS = {
+  'Flood Risk': '🌊',
+  'Wetlands': '🌿',
+  'Road Access': '🛣️',
+  'Wildlife & Habitat': '🦉',
+  'Soil & Septic': '🌱',
+  'Elevation & Drainage': '⛰️',
+  'Hurricane Evacuation': '🌀',
+  'Contamination': '☣️',
+  'Power & Utilities': '⚡',
+  'Conservation Easement': '🌳',
+};
+function _svCatIcon(name) { return _SV_CAT_ICONS[name] || '📋'; }
 
 function renderStoryView(r) {
   const sv = document.getElementById('storyView');
@@ -8575,13 +8611,17 @@ function renderStoryView(r) {
   const conf = pi.confidence_pct;
   const cats = _svCategoryVerdicts(r);
 
-  const catsHtml = cats.map(c => {
+  const catsHtml = cats.map((c, i) => {
     const st = _SV_STATUS[c.status] || _SV_STATUS['DATA UNAVAILABLE'];
-    return '<div class="sv-cat">' +
-      '<div class="sv-cat-head"><span class="sv-cat-dot" style="background:' + st.color + '"></span>' +
+    const openAttr = (c.status === 'RISK' && i < 2) ? ' open' : '';
+    return '<details class="sv-cat sv-cat-' + c.status.toLowerCase().replace(' ', '-') + '"' + openAttr + '>' +
+      '<summary class="sv-cat-head">' +
+      '<span class="sv-cat-icon">' + _svCatIcon(c.name) + '</span>' +
       '<span class="sv-cat-name">' + escHtml(c.name) + '</span>' +
-      '<span class="sv-cat-status" style="color:' + st.color + '">' + st.label + '</span></div>' +
-      '<div class="sv-cat-txt">' + escHtml(c.txt) + '</div></div>';
+      '<span class="sv-cat-status" style="color:' + st.color + ';background:' + st.bg + '">' + st.label + '</span>' +
+      '<span class="sv-cat-chevron">▾</span>' +
+      '</summary>' +
+      '<div class="sv-cat-txt">' + escHtml(c.txt) + '</div></details>';
   }).join('');
 
   // Parcel facts — same hide-if-empty + translate rules as the panel
@@ -8599,6 +8639,8 @@ function renderStoryView(r) {
   if (pi.county) fact('County', escHtml(pi.county));
 
   sv.innerHTML =
+    '<button class="sv-navfab sv-navfab-prev" onclick="storyNav(-1)" title="Previous parcel">‹</button>' +
+    '<button class="sv-navfab sv-navfab-next" onclick="storyNav(1)" title="Next parcel">›</button>' +
     '<div class="sv-wrap">' +
       '<div class="sv-header">' +
         '<button class="sv-back" onclick="closeStoryView()">← Back to batch</button>' +
@@ -8609,15 +8651,11 @@ function renderStoryView(r) {
         '<span class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
         (r.score != null ? '<span style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '') +
         (conf != null ? '<span class="sv-conf" style="flex-shrink:0">Confidence: ' + conf + '%</span>' : '') +
-        '<div class="sv-navbtns">' +
-          '<button class="sv-back" onclick="storyNav(-1)">← Prev</button>' +
-          '<button class="sv-back" onclick="storyNav(1)">Next →</button>' +
-        '</div>' +
       '</div>' +
 
       '<div class="sv-body">' +
         '<div class="sv-col-left">' +
-          '<div class="sv-sec-title">Parcel Map</div>' +
+          '<div class="sv-sec-title">🗺️ Parcel Map</div>' +
           '<div class="sv-map-wrap"><div id="svMap" style="position:absolute;inset:0"></div></div>' +
           '<div class="sv-map-controls">' +
             '<button class="map-toggle active" data-svlayer="parcel" onclick="svToggleLayer(this)">Parcel</button>' +
@@ -8626,12 +8664,12 @@ function renderStoryView(r) {
             '<button class="map-toggle" data-svlayer="satellite" onclick="svToggleSat(this)">Satellite</button>' +
           '</div>' +
 
-          '<div class="sv-sec-title">What Each Check Found</div>' +
+          '<div class="sv-sec-title">🔍 What Each Check Found</div>' +
           '<div class="sv-cats">' + catsHtml + '</div>' +
         '</div>' +
 
         '<div class="sv-col-right">' +
-          '<div class="sv-verdict-block">' +
+          '<div class="sv-verdict-block" style="--vc:' + vColor + '">' +
             '<div class="sv-verdict-row">' +
               '<span class="sv-verdict-word" style="color:' + vColor + '">' + escHtml(ev) + '</span>' +
               (r.score != null ? '<span class="sv-score">Score <b>' + r.score + '</b> / 100</span>' : '') +
@@ -8641,18 +8679,18 @@ function renderStoryView(r) {
             '<div class="sv-next"><span class="sv-next-lbl">Next step</span><span class="sv-next-txt">' + escHtml(_svNextStep(r)) + '</span></div>' +
           '</div>' +
 
-          (facts.length ? '<div class="sv-sec-title">Parcel Facts</div><div class="sv-facts">' + facts.join('') + '</div>' : '') +
+          (facts.length ? '<div class="sv-sec-title">📋 Parcel Facts</div><div class="sv-facts">' + facts.join('') + '</div>' : '') +
 
-          '<div class="sv-sec-title">What’s Next on ParceliQ</div>' +
+          '<div class="sv-sec-title">🚀 What’s Next on ParceliQ</div>' +
           '<div class="sv-soon">' +
             '<div class="sv-soon-card">' +
               '<span class="sv-soon-badge">🔒 Coming Soon</span>' +
-              '<div class="sv-soon-title">Nearby Comps</div>' +
+              '<div class="sv-soon-title">📊 Nearby Comps</div>' +
               '<div class="sv-soon-desc">Compare recent sales of similar vacant lots within a few miles, so you know what this parcel is really worth before you offer.</div>' +
             '</div>' +
             '<div class="sv-soon-card">' +
               '<span class="sv-soon-badge">🔒 Coming Soon</span>' +
-              '<div class="sv-soon-title">Skip Tracing</div>' +
+              '<div class="sv-soon-title">📞 Skip Tracing</div>' +
               '<div class="sv-soon-desc">Find the owner’s phone and email in one click and go straight from screen to outreach.</div>' +
             '</div>' +
           '</div>' +
@@ -8717,6 +8755,12 @@ function openStoryView() {
   document.querySelectorAll('#storyView .sv-col-left,#storyView .sv-col-right').forEach(c => c.scrollTop = 0);
   const main = document.querySelector('#page-results .res-main');
   if (main) main.style.display = 'none';
+  // The detail panel is a fixed-position element outside the results-page
+  // flow, so it keeps floating over the story view's right column unless
+  // explicitly hidden here — otherwise its Report/close buttons look like
+  // they belong to the story view but actually re-trigger/tear down the panel.
+  const panel = document.getElementById('detailPanel');
+  if (panel) panel.style.display = 'none';
 }
 
 function closeStoryView() {
@@ -8725,6 +8769,8 @@ function closeStoryView() {
   sv.classList.remove('open');
   const main = document.querySelector('#page-results .res-main');
   if (main) main.style.display = '';
+  const panel = document.getElementById('detailPanel');
+  if (panel && _openParcel) panel.style.display = '';
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
 }
 
