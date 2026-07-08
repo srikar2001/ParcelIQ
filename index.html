@@ -2606,7 +2606,11 @@ let _allowNextScreenAnim = false;
 function goTo(page) {
   closeDetailPanel();
   const targetHash = '#' + page;
-  if (window.location.hash === targetHash) return;
+  // Base-hash aware: e.g. switching batches while already on
+  // '#dashboard/<oldId>' must not replay the crossfade — that would
+  // schedule a delayed bare-hash reassignment 150ms from now that clobbers
+  // whatever sub-path the caller is about to sync via _syncHash().
+  if (_baseHash(window.location.hash) === targetHash) return;
   const current = document.querySelector('.screen.active');
   // The processing screen has its own dedicated animation — never crossfade
   // into or out of it, and skip the fade entirely if nothing is showing yet.
@@ -2801,6 +2805,15 @@ function _syncHash(hashString) {
   try { sessionStorage.setItem('piq_hash', hashString); } catch(e) {}
 }
 
+// Set by router() when a deep-linked '#dashboard/<id>/...' hash specifies
+// sub-state (parcel, and later filter/sort) to restore once the batch
+// finishes loading. Consumed by renderBatchResults()'s tail — read from
+// this plain variable rather than re-reading window.location.hash at that
+// point, because intermediate _syncHash calls during the same render pass
+// (e.g. closeDetailPanel's reset) will already have overwritten the hash
+// this is meant to restore.
+let _pendingHashRestore = null;
+
 const FLAG_DEFS = [
   { key: 'wetlands', label: 'Wetlands', match: r =>
       (r.flags||[]).some(f => /wetland/i.test(f)) ||
@@ -2956,7 +2969,7 @@ async function checkWeeklyLimit(count = 1) {
 
 // FIX 6: router is async — calls initAuth() before allowing protected pages
 async function router() {
-  closeDetailPanel();
+  closeDetailPanel(true);
   // Legacy alias: the batch table is now the Dashboard
   if (_baseHash(window.location.hash) === '#results') { window.location.replace('#dashboard'); return; }
   const rawHash = window.location.hash || '#landing';
@@ -2975,6 +2988,17 @@ async function router() {
     if (!session) { goTo('login'); return; }
   }
   if (hash === '#dashboard' && !batchState.results.length && !_batchInProgress) {
+    // Deep-linked '#dashboard/<batchId>/...' takes priority over the
+    // session/most-recent fallback below — someone opened a specific
+    // shared/bookmarked batch, not just "whatever I had open last".
+    const sub = _parseSubHash(rawHash);
+    if (sub.segments[0] && currentSession) {
+      showScreen('page-results');
+      showResultsLoading();
+      _pendingHashRestore = sub;
+      loadBatchResults(sub.segments[0]);
+      return;
+    }
     const lastBatch = sessionStorage.getItem('piq-last-batch');
     if (lastBatch && currentSession) {
       showScreen('page-results');
@@ -4471,6 +4495,12 @@ async function loadBatchResults(batchId) {
       currentBatchResults = rows;
       renderBatchResults();
       goTo('dashboard');
+      _consumePendingHashRestore();
+      // Read live state (post-restore) rather than assuming a bare
+      // batch-only hash — _consumePendingHashRestore() above may have just
+      // opened a parcel from a deep link, and this call must reflect that,
+      // not clobber it back down to a bare '#dashboard/<id>'.
+      _syncHash(_buildResultsHash(batchId, { parcel: _openParcel ? _openParcel.address : null, filter: batchState.filtered, sort: { col: batchState.sortCol, dir: batchState.sortDir } }));
       // Background refresh — update cache silently
       _refreshBatchFromServer(batchId).catch(() => {});
       return;
@@ -4492,6 +4522,7 @@ async function loadBatchResults(batchId) {
       // refreshed after deletion) — clear it so future navigation doesn't
       // keep retrying the same nonexistent batch.
       resetBatchState();
+      _pendingHashRestore = null;
       toast('Batch not found');
       goTo('landing');
       return;
@@ -4505,6 +4536,8 @@ async function loadBatchResults(batchId) {
       batchState.name = batch?.name || '';
       renderBatchResults();
       goTo('dashboard');
+      _consumePendingHashRestore();
+      _syncHash(_buildResultsHash(batchId, { parcel: _openParcel ? _openParcel.address : null, filter: batchState.filtered, sort: { col: batchState.sortCol, dir: batchState.sortDir } }));
       return;
     }
     const mapped = _mapBatchRows(results);
@@ -4517,6 +4550,8 @@ async function loadBatchResults(batchId) {
     batchState.name     = batch?.name || '';
     renderBatchResults();
     goTo('dashboard');
+    _consumePendingHashRestore();
+    _syncHash(_buildResultsHash(batchId, { parcel: _openParcel ? _openParcel.address : null, filter: batchState.filtered, sort: { col: batchState.sortCol, dir: batchState.sortDir } }));
   } catch(e) { console.error('Load results error:', e); toast('Could not load batch'); goTo('landing'); }
 }
 
@@ -5135,6 +5170,32 @@ function _openResultByAddress(addr) {
     const tr = document.getElementById('trow-' + idx);
     if (tr) tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, 250);
+}
+
+// Same address->index lookup as _openResultByAddress, but for restoring a
+// parcel from a deep-linked URL (renderBatchResults()'s tail, once
+// _currentDisplayed is populated) rather than a live single-address search.
+// A stale/deleted address (parcel no longer in this batch) is a silent
+// no-op — the batch still opens normally with nothing selected.
+function _restoreParcelFromHash(address) {
+  const idx = _currentDisplayed.findIndex(r => (r.address || '') === address);
+  if (idx === -1) return;
+  const page = Math.floor(idx / _rowsPerPage) + 1;
+  if (page !== _currentPage) { _currentPage = page; renderPage(); }
+  openDetailPanel(idx, null);
+  openStoryView();
+}
+
+// Called from loadBatchResults(), deliberately AFTER its goTo('dashboard')
+// call — goTo() unconditionally closes any open detail panel as its first
+// line, which would immediately undo a restore attempted any earlier.
+function _consumePendingHashRestore() {
+  if (!_pendingHashRestore) return;
+  const restore = _pendingHashRestore;
+  _pendingHashRestore = null;
+  if (restore.segments[1] === 'parcel' && restore.segments[2]) {
+    _restoreParcelFromHash(restore.segments[2]);
+  }
 }
 
 function updateStreamProgress(completed, total) {
@@ -5788,6 +5849,12 @@ function renderBatchResults() {
   _loadSidebarBatches();
   _updateSidebarPick();
   _refreshTable();
+  // Parcel restore (see _pendingHashRestore) deliberately does NOT happen
+  // here even though this is where _currentDisplayed first becomes ready —
+  // loadBatchResults() still has to call goTo('dashboard') after this
+  // function returns, and goTo() unconditionally calls closeDetailPanel()
+  // as its first line, which would immediately undo a restore done here.
+  // loadBatchResults() consumes _pendingHashRestore itself, after goTo().
 }
 
 function updateSidebarActive(verdict) {
@@ -6015,6 +6082,9 @@ function openDetailPanel(absIdx, event) {
   const r = _currentDisplayed[absIdx];
   if (!r) return;
   _openParcel = r; _openParcelIdx = absIdx;
+  if (_currentBatchId && _baseHash(window.location.hash) === '#dashboard') {
+    _syncHash(_buildResultsHash(_currentBatchId, { parcel: r.address, filter: batchState.filtered, sort: { col: batchState.sortCol, dir: batchState.sortDir } }));
+  }
   document.querySelectorAll('.res-trow.panel-selected').forEach(el => el.classList.remove('panel-selected'));
   document.querySelectorAll('.res-trow.row-active').forEach(el => el.classList.remove('row-active'));
   const row = document.getElementById('trow-' + absIdx);
@@ -6174,7 +6244,14 @@ function openDetailPanel(absIdx, event) {
   setTimeout(() => { if (window._parcelMap) window._parcelMap.invalidateSize(); }, 700);
 }
 
-function closeDetailPanel() {
+// skipHashSync: router() passes true — at that call site the hash has
+// already changed to a new destination the router is still in the middle
+// of dispatching, so syncing from here (based on state that hasn't caught
+// up yet) would overwrite the very hash the router is about to read.
+// Every other caller (UI close actions, goTo(), renderBatchResults()'s own
+// reset) wants the sync, since _currentBatchId there is still consistent
+// with whatever's on screen.
+function closeDetailPanel(skipHashSync) {
   closeMapModal();
   if (typeof closeStoryView === 'function') closeStoryView();
   const _h = document.getElementById('dpExpandHandle');
@@ -6195,6 +6272,9 @@ function closeDetailPanel() {
   _openParcel = null; _openParcelIdx = -1;
   document.querySelectorAll('.res-trow.panel-selected').forEach(el => el.classList.remove('panel-selected'));
   document.querySelectorAll('.res-trow.row-active').forEach(el => el.classList.remove('row-active'));
+  if (!skipHashSync && _currentBatchId && _baseHash(window.location.hash) === '#dashboard') {
+    _syncHash(_buildResultsHash(_currentBatchId, { filter: batchState.filtered, sort: { col: batchState.sortCol, dir: batchState.sortDir } }));
+  }
 }
 
 function nextParcel() {
