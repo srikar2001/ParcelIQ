@@ -5076,7 +5076,7 @@ async function rescreenParcel(newAddress, originalAddress) {
     if (currentSession?.access_token) _rpHdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
     const resp = await fetch(API + '/api/batch', {
       method: 'POST', headers: _rpHdrs,
-      body: JSON.stringify({ parcels: [{ address: newAddress }], state: 'FL' }),
+      body: JSON.stringify({ parcels: [{ address: newAddress }], state: 'FL', cache_bust: true }),
     });
     if (!resp.ok) throw new Error('Server error ' + resp.status);
     const data = await resp.json();
@@ -6157,7 +6157,7 @@ async function rescreenRow(event, idx) {
     const resp = await fetch(API + '/api/batch/stream', {
       method: 'POST',
       headers: _rowHdrs,
-      body: JSON.stringify({ parcels: [{ address: original.address }], state: 'FL' }),
+      body: JSON.stringify({ parcels: [{ address: original.address }], state: 'FL', cache_bust: true }),
     });
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
@@ -6191,13 +6191,62 @@ async function rescreenRow(event, idx) {
   finally { btn.classList.remove('spinning'); }
 }
 
+// Re-screening 2+ parcels used to fire one sequential /api/batch/stream call
+// PER PARCEL (or, for rescreenAll, one giant SSE connection for the whole
+// list) — no concurrency at all, which is why 20 parcels took ~20 minutes:
+// the exact problem the queue path was built to solve for new batches. This
+// routes every multi-parcel re-screen through that same /api/batch/queue +
+// poll path, with cache_bust so re-screens actually fetch fresh data instead
+// of serving back the 24h cache.
+async function _runRescreenViaQueue(addresses, { onProgress, signal } = {}) {
+  const hdrs = { 'Content-Type': 'application/json' };
+  if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
+  const startResp = await fetch(API + '/api/batch/queue', {
+    method: 'POST', headers: hdrs, signal,
+    body: JSON.stringify({ parcels: addresses.map(a => ({ address: a })), state: 'FL', cache_bust: true }),
+  });
+  if (!startResp.ok) throw new Error('Could not start re-screen (server error ' + startResp.status + ')');
+  const { job_id, total } = await startResp.json();
+  let seen = 0;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  while (true) {
+    await sleep(1500);
+    if (signal?.aborted) { const e = new Error('Aborted'); e.name = 'AbortError'; throw e; }
+    let st;
+    try {
+      const sr = await fetch(API + '/api/batch/status/' + job_id + '?since=' + seen, { signal });
+      if (!sr.ok) continue;
+      st = await sr.json();
+    } catch(e) {
+      if (e.name === 'AbortError') throw e;
+      continue;
+    }
+    const fresh = st.results || [];
+    for (const r of fresh) {
+      const bIdx = batchState.results.findIndex(x => x.address === r.address);
+      const original = bIdx !== -1 ? { ...batchState.results[bIdx] } : { address: r.address };
+      if (bIdx !== -1) batchState.results[bIdx] = { ...r, _rescreened: true, _rescreened_at: new Date().toISOString() };
+      seen++;
+      if (onProgress) onProgress(seen, total, r, original);
+    }
+    if (st.status === 'complete') break;
+    if (st.status === 'error') {
+      if (seen === 0) throw new Error('Re-screen failed on the server.');
+      break;
+    }
+  }
+  return seen;
+}
+
 // ── RE-SCREEN SELECTED
 async function rescreenSelected() {
   const indices = [..._selectedRows].sort((a, b) => a - b);
   if (!indices.length) return;
-  if (!(await checkWeeklyLimit(indices.length))) return;
+  const addrs = indices.map(i => _currentDisplayed[i]).filter(Boolean).map(r => r.address);
+  if (!addrs.length) return;
+  if (!(await checkWeeklyLimit(addrs.length))) return;
   _rescreenAborted = false;
-  let _selAbort = null;
+  const abortCtrl = new AbortController();
   const btn      = document.getElementById('rescreenSelBtn');
   const progWrap = document.getElementById('bulkProgress');
   const progBar  = document.getElementById('bulkProgressBar');
@@ -6205,10 +6254,10 @@ async function rescreenSelected() {
   if (btn) {
     btn.disabled = false;
     btn.textContent = '⏹ Stop';
-    btn.onclick = () => { _rescreenAborted = true; if (_selAbort) _selAbort.abort(); };
+    btn.onclick = () => { _rescreenAborted = true; abortCtrl.abort(); };
   }
   if (progWrap) progWrap.style.display = 'flex';
-  const total = indices.length;
+  const total = addrs.length;
   let done = 0;
   const setProgress = () => {
     const pct = total ? Math.round((done / total) * 100) : 0;
@@ -6217,43 +6266,18 @@ async function rescreenSelected() {
   };
   setProgress();
   try {
-    for (const idx of indices) {
-      if (_rescreenAborted) break;
-      const r = _currentDisplayed[idx];
-      if (!r) { done++; setProgress(); continue; }
-      const bIdx = batchState.results.findIndex(res => res.address === r.address);
-      try {
-        _selAbort = new AbortController();
-        const _selHdrs = { 'Content-Type': 'application/json' };
-        if (currentSession?.access_token) _selHdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
-        const resp = await fetch(API + '/api/batch/stream', {
-          method: 'POST',
-          headers: _selHdrs,
-          signal: _selAbort.signal,
-          body: JSON.stringify({ parcels: [{ address: r.address }], state: 'FL' }),
-        });
-        const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buf = '';
-        while (true) {
-          const { done: d, value } = await reader.read(); if (d) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split('\n'); buf = lines.pop();
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const ev = JSON.parse(line.slice(6));
-            if (ev.type === 'complete' && ev.results?.[0] && bIdx !== -1)
-              batchState.results[bIdx] = { ...ev.results[0], _rescreened: true, _rescreened_at: new Date().toISOString() };
-          }
-        }
-        _saveRescreenToSupa(r, bIdx !== -1 ? batchState.results[bIdx] : null);
-      } catch(e) {
-        if (_rescreenAborted) break;
-      }
-      done++;
-      setProgress();
-      _refreshTable();
-    }
+    done = await _runRescreenViaQueue(addrs, {
+      signal: abortCtrl.signal,
+      onProgress: (seen, t, nr, original) => {
+        done = seen;
+        setProgress();
+        _refreshTable();
+        _saveRescreenToSupa(original, nr);
+      },
+    });
+  } catch(e) {
+    if (!(e && e.name === 'AbortError')) toast('Re-screen error: ' + (e.message || e), 5000);
   } finally {
-    _selAbort = null;
     if (btn) { btn.disabled = false; btn.textContent = '↻ Re-screen'; btn.onclick = rescreenSelected; }
     if (progWrap) progWrap.style.display = 'none';
     if (progBar)  progBar.style.width = '0%';
@@ -6294,40 +6318,17 @@ async function rescreenAll() {
 
   let done = 0;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession?.access_token) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
-    const resp = await fetch(API + '/api/batch/stream', {
-      method: 'POST', headers,
+    done = await _runRescreenViaQueue(rescreenable.map(r => r.address), {
       signal: abortCtrl.signal,
-      body: JSON.stringify({ parcels: rescreenable.map(r => ({ address: r.address })), state: 'FL' }),
+      onProgress: (seen, t, nr, original) => {
+        done = seen;
+        if (btn) btn.textContent = '⏹ ' + done + '/' + total;
+        _refreshTable();
+        _saveRescreenToSupa(original, nr);
+      },
     });
-    if (!resp.ok) throw new Error('Server error ' + resp.status);
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder(); let buf = '';
-    while (true) {
-      const { done: d, value } = await reader.read(); if (d) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split('\n'); buf = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        let ev; try { ev = JSON.parse(line.slice(6)); } catch(e) { continue; }
-        if (ev.type === 'progress' && ev.latest) {
-          done++;
-          const nr = ev.latest;
-          const bIdx = batchState.results.findIndex(x => x.address === nr.address);
-          if (bIdx !== -1) batchState.results[bIdx] = { ...nr, _rescreened: true, _rescreened_at: new Date().toISOString() };
-          if (btn) btn.textContent = '⏹ ' + done + '/' + total;
-          _refreshTable();
-        } else if (ev.type === 'complete') {
-          for (const nr of (ev.results || [])) {
-            const bIdx = batchState.results.findIndex(x => x.address === nr.address);
-            if (bIdx !== -1) _saveRescreenToSupa(batchState.results[bIdx], batchState.results[bIdx]);
-          }
-        }
-      }
-    }
   } catch(e) {
-    if (!_rescreenAborted) toast('Re-screen error: ' + (e.message || e), 5000);
+    if (!(e && e.name === 'AbortError')) toast('Re-screen error: ' + (e.message || e), 5000);
   } finally {
     if (btn) { delete btn.dataset.running; btn.disabled = false; btn.textContent = '↻ Re-run All'; btn.onclick = rescreenAll; }
   }

@@ -239,6 +239,7 @@ class BatchRequest(BaseModel):
     parcels: list[ParcelInput]
     state: str = "FL"
     name: Optional[str] = None  # display name, echoed back so processing and save agree
+    cache_bust: bool = False  # re-screens set this — the whole point is fresh data, not the 24h cache
 
 
 async def _safe(factory, default, sem, timeout: float = _API_TIMEOUT, retry_if=None, name: str = ""):
@@ -315,14 +316,15 @@ async def _collect_all(lat: float, lng: float) -> tuple:
     return flood, wetlands, habitat, epa, roads, parcel_data, waterways, elevation, soil, evac, powerlines, easement
 
 
-async def _process_parcel(parcel: ParcelInput) -> dict:
+async def _process_parcel(parcel: ParcelInput, skip_cache: bool = False) -> dict:
     address = parcel.address
 
-    # Check cache first (Task 28)
-    cached = await get_cached_result(address)
-    if cached:
-        cached["cached"] = True
-        return cached
+    # Check cache first (Task 28) — re-screens set skip_cache to force fresh data
+    if not skip_cache:
+        cached = await get_cached_result(address)
+        if cached:
+            cached["cached"] = True
+            return cached
 
     geo = await geocode(address)
     if geo.get("status") != "ok":
@@ -330,18 +332,19 @@ async def _process_parcel(parcel: ParcelInput) -> dict:
 
     lat, lng = geo["lat"], geo["lng"]
     out = await _screen_coordinate(address, geo, lat, lng)
-    # Save to cache (fire and forget)
+    # Save to cache (fire and forget) — refreshes the cache even on a re-screen
     asyncio.create_task(save_cached_result(address, out))
     return out
 
 
-async def _process_parcel_pregeocoded(parcel: ParcelInput, geo: dict) -> dict:
+async def _process_parcel_pregeocoded(parcel: ParcelInput, geo: dict, skip_cache: bool = False) -> dict:
     """Like _process_parcel but skips geocoding — uses pre-fetched geo dict."""
     address = parcel.address
-    cached = await get_cached_result(address)
-    if cached:
-        cached["cached"] = True
-        return cached
+    if not skip_cache:
+        cached = await get_cached_result(address)
+        if cached:
+            cached["cached"] = True
+            return cached
 
     lat, lng = geo["lat"], geo["lng"]
     out = await _screen_coordinate(address, geo, lat, lng)
@@ -436,18 +439,18 @@ async def _screen_coordinate(address: str, geo: dict, lat: float, lng: float) ->
     }
 
 
-async def _process_parcel_safe(parcel: ParcelInput) -> dict:
+async def _process_parcel_safe(parcel: ParcelInput, skip_cache: bool = False) -> dict:
     try:
-        return await asyncio.wait_for(_process_parcel(parcel), timeout=_PARCEL_TIMEOUT)
+        return await asyncio.wait_for(_process_parcel(parcel, skip_cache), timeout=_PARCEL_TIMEOUT)
     except asyncio.TimeoutError:
         return _timeout_result(parcel.address)
     except Exception as e:
         return _error_result(parcel.address, str(e))
 
 
-async def _process_parcel_pregeocoded_safe(parcel: ParcelInput, geo: dict, timeout: float = _PARCEL_TIMEOUT) -> dict:
+async def _process_parcel_pregeocoded_safe(parcel: ParcelInput, geo: dict, timeout: float = _PARCEL_TIMEOUT, skip_cache: bool = False) -> dict:
     try:
-        return await asyncio.wait_for(_process_parcel_pregeocoded(parcel, geo), timeout=timeout)
+        return await asyncio.wait_for(_process_parcel_pregeocoded(parcel, geo, skip_cache), timeout=timeout)
     except asyncio.TimeoutError:
         return _timeout_result(parcel.address)
     except Exception as e:
@@ -591,7 +594,7 @@ async def batch_screen_stream(
             for i in range(0, len(geocoded_parcels), BATCH_SIZE):
                 chunk = geocoded_parcels[i:i + BATCH_SIZE]
                 chunk_results = await asyncio.gather(
-                    *[_process_parcel_pregeocoded_safe(p, geo) for p, geo in chunk]
+                    *[_process_parcel_pregeocoded_safe(p, geo, skip_cache=request.cache_bust) for p, geo in chunk]
                 )
                 for result in chunk_results:
                     all_results.append(result)
@@ -639,7 +642,7 @@ async def batch_screen(
     for i in range(0, len(parcels), BATCH_SIZE):
         chunk = parcels[i : i + BATCH_SIZE]
         chunk_results = await asyncio.gather(
-            *[_process_parcel_safe(p) for p in chunk]
+            *[_process_parcel_safe(p, request.cache_bust) for p in chunk]
         )
         all_results.extend(chunk_results)
 
@@ -658,7 +661,7 @@ async def batch_screen(
 # results must be written progressively — per parcel, throttled — not only at
 # the end. (The old per-chunk/no-results updates meant a 100-parcel batch
 # showed nothing for its entire runtime.)
-async def _process_batch_background(job_id: str, parcels: list) -> None:
+async def _process_batch_background(job_id: str, parcels: list, skip_cache: bool = False) -> None:
     import time as _time
     accumulated: list = []
     last_flush = 0.0
@@ -693,7 +696,7 @@ async def _process_batch_background(job_id: str, parcels: list) -> None:
         # hosts idle at each chunk boundary (convoy effect). The generous
         # timeout covers time spent queued behind the per-host limits.
         queue_timeout = max(_PARCEL_TIMEOUT, 30.0 * len(geocoded_parcels))
-        tasks = [asyncio.create_task(_process_parcel_pregeocoded_safe(p, geo, timeout=queue_timeout))
+        tasks = [asyncio.create_task(_process_parcel_pregeocoded_safe(p, geo, timeout=queue_timeout, skip_cache=skip_cache))
                  for p, geo in geocoded_parcels]
         for fut in asyncio.as_completed(tasks):
             accumulated.append(await fut)
@@ -715,7 +718,7 @@ async def batch_queue(
         return denied
     job_id = str(uuid4())
     await _job_create(job_id, len(request.parcels), request.name)
-    asyncio.create_task(_process_batch_background(job_id, request.parcels))
+    asyncio.create_task(_process_batch_background(job_id, request.parcels, request.cache_bust))
     return {"job_id": job_id, "total": len(request.parcels)}
 
 
