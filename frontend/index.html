@@ -2666,6 +2666,27 @@ const HASH_MAP = {
 };
 
 const batchState = { results: [], filtered: 'all', elapsed: 0, name: '', sortCol: null, sortDir: 'desc' };
+
+// Clears every batch-scoped field back to a clean slate — used when the
+// batch currently loaded gets deleted out from under the viewer. Without
+// this, batchState.results kept the deleted batch's rows in memory, so the
+// next navigation to #dashboard rendered a batch that no longer exists in
+// the database (or errored trying to act on it) instead of showing nothing.
+function resetBatchState() {
+  closeDetailPanel(); // also tears down the story view if it's open
+  batchState.results = [];
+  batchState.name = '';
+  batchState.filtered = 'all';
+  batchState.elapsed = 0;
+  batchState.completedAt = null;
+  batchState.runId = null;
+  batchState.sortCol = null;
+  batchState.sortDir = 'desc';
+  _currentBatchId = null;
+  _currentPage = 1;
+  currentBatchResults = [];
+  try { sessionStorage.removeItem('piq-last-batch'); } catch(e) {}
+}
 const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings']);
 
 const FLAG_DEFS = [
@@ -4085,9 +4106,11 @@ async function deleteBatch(id) {
     await sb.from('parcel_results').delete().eq('batch_id', id).eq('user_id', currentUser.id);
     await sb.from('batches').delete().eq('id', id).eq('user_id', currentUser.id);
     try { sessionStorage.removeItem('piq-res-' + id); sessionStorage.removeItem('piq-batches'); } catch(e) {}
+    const wasCurrent = id === _currentBatchId;
+    if (wasCurrent) resetBatchState(); // clears results/name/id — the batch we're viewing no longer exists
     loadPastBatches();
     _refreshSidebarIfOpen();
-    if (id === _currentBatchId) window.location.hash = '#landing';
+    if (wasCurrent) window.location.hash = '#landing';
     toast('Batch deleted');
   } catch(e) { toast('Could not delete batch'); }
 }
@@ -4336,7 +4359,15 @@ async function loadBatchResults(batchId) {
         .eq('batch_id', batchId).eq('user_id', currentUser.id)
         .order('score', { ascending: true }),
     ]);
-    if (!batch) { toast('Batch not found'); goTo('landing'); return; }
+    if (!batch) {
+      // Stale pointer (e.g. this batch was deleted from another tab, or
+      // refreshed after deletion) — clear it so future navigation doesn't
+      // keep retrying the same nonexistent batch.
+      resetBatchState();
+      toast('Batch not found');
+      goTo('landing');
+      return;
+    }
     if (!results || results.length === 0) {
       // Batch exists in DB but parcel_results are gone or were never saved (silent insert failure)
       const tbody = document.getElementById('resTableBody');
@@ -5699,7 +5730,10 @@ function renderTable(results, offset) {
   const tbody = document.getElementById('resTableBody');
   if (!tbody) return;
   if (!results.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--t3)">No results match this filter.</td></tr>';
+    const msg = batchState.results.length
+      ? 'No results match this filter.'
+      : 'No batch selected — upload addresses to get started.';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--t3)">' + msg + '</td></tr>';
     return;
   }
   tbody.innerHTML = results.map((r, i) => {
