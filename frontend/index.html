@@ -542,7 +542,7 @@ body.on-results .detail-panel{top:0}
 .res-trow:hover{background:var(--card-h)}
 .res-trow.expanded{background:var(--card-h)}
 .res-trow td{padding:11px 14px;vertical-align:middle}
-.tbl-parcel{font-size:13px;font-weight:600;color:var(--t1);max-width:200px}
+.tbl-parcel{font-size:13px;font-weight:600;color:var(--t1);max-width:200px;position:relative}
 .tbl-apn{font-size:11px;color:var(--t3);font-weight:400;margin-top:2px}
 .tbl-score-cell{font-size:18px;font-weight:800;white-space:nowrap}
 .tbl-flags-cell{max-width:200px;vertical-align:top;padding-top:10px!important}
@@ -558,6 +558,10 @@ body.on-results .detail-panel{top:0}
 .sig-pill-m{background:var(--card-h);color:var(--t3);border:1px solid var(--b)}
 .tbl-addr-street{font-size:13px;font-weight:600;color:var(--t1)}
 .tbl-addr-city{font-size:11px;color:var(--t3);margin-top:2px}
+.tbl-addr-link{cursor:pointer}
+.tbl-addr-link:hover{text-decoration:underline}
+.tbl-hover-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding:0 12px;font-size:10px;font-weight:600;color:var(--t2);background:var(--card-h);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;pointer-events:none;transition:opacity .15s}
+.res-trow:hover .tbl-hover-hint{opacity:1}
 .tbl-county{font-size:12px;color:var(--t2);white-space:nowrap}
 .tbl-size{font-size:12px;color:var(--t2);white-space:nowrap}
 .tbl-size-amber{color:var(--amber)}
@@ -5674,14 +5678,19 @@ function renderTable(results, offset) {
     const rescreenBtn = (!isOutside && !isError)
       ? '<button class="rescreen-icon" onclick="rescreenRow(event,' + absIdx + ')" title="Re-screen with fresh data">↻</button>'
       : '';
+    const addrClickable = !isOutside && !isError;
+    const streetHtml = addrClickable
+      ? '<span class="tbl-addr-link" onclick="event.stopPropagation();openDetailPanel(' + absIdx + ',null);openStoryView()" title="Open Deal Review">' + escHtml(street) + '</span>'
+      : escHtml(street);
     const addrHtml = '<div style="display:flex;align-items:center;gap:8px">' +
       '<div style="flex:1">' +
-        '<div class="tbl-addr-street">' + escHtml(street) + starBtn + noteIcon +
+        '<div class="tbl-addr-street">' + streetHtml + starBtn + noteIcon +
           (isEst ? ' <span class="tag-est" style="font-size:9px;padding:1px 5px">~est</span>' : '') + '</div>' +
         (city && !isOutside ? '<div class="tbl-addr-city">' + escHtml(city) + ', FL</div>' : '') +
       '</div>' +
       rescreenBtn +
-    '</div>';
+    '</div>' +
+    (addrClickable ? '<span class="tbl-hover-hint">Click address for Deal Review · Click row for Quick Preview</span>' : '');
     const county = (!isOutside && !isError) ? ((r.parcel_info || {}).county || extractCounty(r.address || '')) : '';
     let sizeHtml = '';
     if (!isOutside && !isError) {
