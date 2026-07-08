@@ -411,12 +411,13 @@ body.on-results .detail-panel{top:0}
 .tb-right{font-size:13px;color:var(--t2);text-align:right}
 .res-filter-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 .res-search-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.res-search-box{position:relative;flex:1;max-width:520px}
-.res-search-input{width:100%;font-size:12.5px;padding:8px 30px 8px 30px;border:1px solid var(--b);border-radius:var(--rs);background:var(--bg);color:var(--t1);outline:none}
+.res-search-box{position:relative;flex:1;display:flex}
+.res-search-input{flex:1;min-width:0;font-size:14px;padding:12px 34px 12px 14px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
 .res-search-input:focus{border-color:var(--bh)}
-.res-search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.55;pointer-events:none}
-.res-search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:2px 4px;line-height:1}
+.res-search-clear{position:absolute;right:56px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:2px 4px;line-height:1}
 .res-search-clear:hover{color:var(--t1)}
+.res-search-btn{flex-shrink:0;width:50px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.res-search-btn:hover{background:var(--gd)}
 .res-search-count{font-size:11.5px;color:var(--t3);white-space:nowrap}
 .filter-pills{display:flex;gap:6px;flex-wrap:wrap}
 .sumchip{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:6px 14px;border-radius:var(--rp);border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s}
@@ -1996,9 +1997,9 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="af-chips" id="activeFilterChips" style="display:none"></div>
       <div class="res-search-row">
         <div class="res-search-box">
-          <span class="res-search-icon">🔍</span>
           <input type="text" id="tableSearchInput" class="res-search-input" placeholder="Search address or APN..." oninput="_tableSearchInput(this.value)">
           <button class="res-search-clear" id="tableSearchClear" style="display:none" onclick="_tableSearchClear()" title="Clear search">✕</button>
+          <button class="res-search-btn" title="Search" onclick="document.getElementById('tableSearchInput').focus()">🔍</button>
         </div>
         <span class="res-search-count" id="tableSearchCount" style="display:none"></span>
       </div>
