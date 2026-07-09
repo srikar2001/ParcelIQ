@@ -2766,10 +2766,6 @@ function _buildResultsHash(batchId, opts) {
   return h;
 }
 
-function _buildDashHash(mode) {
-  return mode === 'single' ? '#dashboard?mode=single' : '#dashboard';
-}
-
 // Admin route is intentionally unguessable (see HASH_MAP comment below) —
 // sub-tabs must stay nested under that same obscure prefix, never '#admin/...'.
 function _buildAdminHash(tab) {
@@ -2788,6 +2784,11 @@ const _SETT_SECTION_TOKENS = {
 function _buildSettingsHash(domId) {
   const token = _SETT_SECTION_TOKENS[domId];
   return token ? '#settings/' + token : '#settings';
+}
+// Reverse lookup for restore — derived from _SETT_SECTION_TOKENS itself so
+// the two directions can't drift out of sync.
+function _settSectionDomId(token) {
+  return Object.keys(_SETT_SECTION_TOKENS).find(k => _SETT_SECTION_TOKENS[k] === token) || null;
 }
 
 // Single chokepoint for every "keep the URL in sync with in-page sub-state"
@@ -3041,6 +3042,15 @@ async function router() {
     updateLpNav();
   }
   showScreen(HASH_MAP[hash] || 'page-landing');
+  // Settings section restore must run after showScreen() above — scrolling
+  // to a section inside a still-hidden (display:none) page is a no-op in
+  // most browsers, so this can't live in the '#settings' branch earlier,
+  // which runs before the page is actually made visible.
+  if (hash === '#settings') {
+    const token = _parseSubHash(rawHash).segments[0];
+    const domId = token && _settSectionDomId(token);
+    if (domId) scrollSettSection(domId);
+  }
 }
 
 window.addEventListener('hashchange', router);
@@ -7520,6 +7530,9 @@ function processUploadedFile(file) {
 function scrollSettSection(id) {
   const el = document.getElementById(id);
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (_baseHash(window.location.hash) === '#settings') {
+    _syncHash(_buildSettingsHash(id));
+  }
 }
 
 function _splitFullName(full) {
