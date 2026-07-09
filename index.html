@@ -8510,7 +8510,10 @@ async function _guardAdminRoute() {
 
 async function loadAdminPage() {
   _admEngagementLoaded = false;
-  admSwitchTab('overview');
+  // Read the tab from the hash (e.g. '#_sys_c9f2a/engagement') so a deep
+  // link doesn't render the right tab for an instant only to have this
+  // call reset it back to overview.
+  admSwitchTab(_parseSubHash(window.location.hash).segments[0] || 'overview');
   const statsEl = document.getElementById('admStats');
   if (statsEl) statsEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">Loading…</div>';
   try {
@@ -8696,6 +8699,9 @@ function admSwitchTab(tab) {
   if (tab === 'engagement' && !_admEngagementLoaded) {
     _admEngagementLoaded = true;
     loadEngagementTab();
+  }
+  if (_baseHash(window.location.hash) === '#_sys_c9f2a') {
+    _syncHash(_buildAdminHash(tab));
   }
 }
 
