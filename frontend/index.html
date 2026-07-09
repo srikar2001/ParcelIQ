@@ -4873,6 +4873,7 @@ async function _executeBatch(lines, estimatedSet) {
   if (_procLabelEl) _procLabelEl.textContent = 'Screening ' + flLines.length + ' parcel' + (flLines.length !== 1 ? 's' : '') + '…';
   const _procEtaEl = document.getElementById('procEta');
   if (_procEtaEl) _procEtaEl.textContent = '~' + formatDuration(_estLow) + '–' + formatDuration(_estHigh);
+  _resetEtaTracker();
   updateProgress(0, flLines.length, null);
 
   // Gentle reassurance at 25s with no results (rural parcels queue behind
@@ -5234,6 +5235,40 @@ function updateStatCards() {
   setEl('resCountSuffix', batchState.name ? '· ' + total + (total === 1 ? ' parcel' : ' parcels') : '');
 }
 
+// Rolling-window throughput tracker for ETA estimates. A naive
+// "elapsed-since-batch-start / parcels-seen-so-far" average stays anchored
+// to the slow startup (batch geocoding runs as one blocking call before any
+// parcel processing begins) long after the real per-parcel rate speeds up
+// once concurrent processing kicks in — that mismatch is what produced
+// ETAs like "34 min remaining" for a batch that finished in 1. Tracking
+// only the last ~20s of samples means the estimate reflects CURRENT
+// throughput, not the whole run's average. Must be reset at the start of
+// every batch run (_resetEtaTracker) — this used to be window._screenStart,
+// a global that was set once per page load and never cleared, so any batch
+// after the first one in a session measured "elapsed" from the wrong start
+// point entirely.
+let _etaHistory = [];
+function _resetEtaTracker() { _etaHistory = []; }
+function _estimateRemainingSeconds(seen, total) {
+  const now = Date.now();
+  // Some callers (the queue poll loop, then updateProgress() a moment
+  // later) call this twice per tick with the same `seen` — only push once
+  // per distinct value, or the window would fill up 2x faster than real
+  // poll cycles and cover a shorter span than intended.
+  const last = _etaHistory[_etaHistory.length - 1];
+  if (!last || last.seen !== seen) _etaHistory.push({ t: now, seen });
+  while (_etaHistory.length > 1 && (now - _etaHistory[0].t > 20000 || _etaHistory.length > 8)) {
+    _etaHistory.shift();
+  }
+  if (seen < 2 || _etaHistory.length < 2) return null;
+  const oldest = _etaHistory[0];
+  const dt = (now - oldest.t) / 1000;
+  const dSeen = seen - oldest.seen;
+  if (dt <= 0.5 || dSeen <= 0) return null;
+  const rate = dt / dSeen; // seconds per parcel, recent throughput only
+  return Math.max(0, Math.round(rate * (total - seen)));
+}
+
 function updateProgress(completed, total, latestAddress) {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -5248,9 +5283,11 @@ function updateProgress(completed, total, latestAddress) {
     ringCircle.style.strokeDashoffset = circ * (1 - pct / 100);
   }
 
-  // Ring center: show percentage
+  // Ring center: show percentage — blank (not a stuck "0%") while genuinely
+  // indeterminate, since a static number next to a spinning ring reads as
+  // broken rather than as "still working."
   const pctEl = document.querySelector('.rpct');
-  if (pctEl) pctEl.textContent = pct + '%';
+  if (pctEl) pctEl.textContent = completed > 0 ? pct + '%' : '';
 
   // Title: real count
   const titleEl = document.querySelector('.proc-title');
@@ -5280,14 +5317,12 @@ function updateProgress(completed, total, latestAddress) {
   const srcEl = document.querySelector('.proc-src');
   if (srcEl && latestAddress) srcEl.textContent = latestAddress;
 
-  // ETA after first parcel
-  if (!window._screenStart) window._screenStart = Date.now();
+  // ETA — windowed/recent throughput (see _estimateRemainingSeconds), not
+  // a since-batch-start average.
   if (completed > 0 && completed < total) {
-    const elapsed = (Date.now() - window._screenStart) / 1000;
-    const rate = completed / elapsed;
-    const eta = Math.round((total - completed) / rate);
+    const remaining = _estimateRemainingSeconds(completed, total);
     const etaEl = document.querySelector('.proc-eta');
-    if (etaEl) etaEl.textContent = '~' + formatDuration(eta) + ' remaining';
+    if (etaEl) etaEl.textContent = remaining != null ? '~' + formatDuration(remaining) + ' remaining' : 'estimating…';
   }
 
   // Progress dots
@@ -7236,6 +7271,7 @@ async function _runQueueBatch(flLines, outsideResults) {
   const _setProc = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   _setProc('procCount', 'Geocoding ' + flLines.length + ' addresses…');
   _setProc('batchProcLabel', 'Screening ' + flLines.length + ' parcels…');
+  _resetEtaTracker();
   updateProgress(0, flLines.length, null);
 
   const hdrs = { 'Content-Type': 'application/json' };
@@ -7279,11 +7315,15 @@ async function _runQueueBatch(flLines, outsideResults) {
       else { _refreshTable(); }
       updateStatCards();
     }
-    // Progress + throughput ETA recalculated on EVERY poll, stall note after 20s quiet
-    const elapsed = (Date.now() - t0) / 1000;
-    const rate = seen > 0 ? elapsed / seen : 0;
-    const remaining = rate > 0 ? Math.max(0, Math.round(rate * (total - seen))) : 0;
-    const remStr = remaining > 0 ? '~' + formatDuration(remaining) + ' remaining' : (seen >= total ? 'finishing up…' : 'estimating…');
+    // Progress + throughput ETA recalculated on EVERY poll via the shared
+    // windowed tracker (see _estimateRemainingSeconds), stall note after
+    // 20s quiet. This used to compute its own separate "elapsed-since-t0 /
+    // seen" average AND write it into #procEta, right before
+    // updateProgress() below computed a *different* (also since-start)
+    // number and silently overwrote it in the same element — the two
+    // never agreed, and both were wrong the same way.
+    const remainingSecs = _estimateRemainingSeconds(seen, total);
+    const remStr = remainingSecs != null ? '~' + formatDuration(remainingSecs) + ' remaining' : (seen >= total ? 'finishing up…' : 'estimating…');
     const stalled = Date.now() - lastNewAt > 20000 ? ' · taking a bit longer than usual, still working…' : '';
     if (navigated) {
       updateStreamProgress(seen, total);
@@ -7291,8 +7331,8 @@ async function _runQueueBatch(flLines, outsideResults) {
       if (metaEl) metaEl.textContent = 'Screening · ' + seen + ' of ' + total + ' · ' + remStr + stalled;
     } else {
       _setProc('procCount', seen > 0 ? seen + ' of ' + total + ' screened' : 'Geocoding ' + total + ' addresses…');
-      _setProc('procEta', (seen > 0 ? remStr : '') + stalled);
-      updateProgress(seen, total, null);
+      updateProgress(seen, total, null); // also sets #procEta via the same tracker
+      if (stalled) { const etaEl = document.getElementById('procEta'); if (etaEl) etaEl.textContent += stalled; }
     }
 
     if (st.status === 'complete') break;
