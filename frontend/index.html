@@ -690,30 +690,54 @@ body.on-results .detail-panel{top:0}
 .sv-header{flex-shrink:0;background:var(--bg);border-bottom:1px solid var(--b);padding:12px 24px;display:flex;align-items:center;gap:14px}
 .sv-back{background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:13px;font-weight:600;padding:7px 14px;cursor:pointer;white-space:nowrap}
 .sv-back:hover{color:var(--t1);border-color:var(--bh)}
+.sv-section-label{font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--green);margin-bottom:2px}
 .sv-addr{font-size:17px;font-weight:800;color:var(--t1);letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sv-apn{font-family:monospace;font-size:11px;color:var(--t3);margin-top:1px}
 .sv-navbtns{margin-left:auto;display:flex;gap:6px}
-.sv-body{display:grid;grid-template-columns:60% 40%;gap:0;flex:1;min-height:0}
 .sv-col-left{overflow-y:auto;padding:18px 24px;border-right:1px solid var(--b);min-height:0}
-.sv-col-right{overflow-y:auto;padding:10px 20px;min-height:0}
-@media(max-width:900px){.sv-body{grid-template-columns:1fr;overflow-y:auto}.sv-col-left,.sv-col-right{overflow-y:visible;border-right:none}}
-.sv-verdict-block{border:1px solid var(--b);border-top:3px solid var(--vc,var(--b));border-radius:14px;padding:12px 16px;margin-bottom:8px;background:var(--card);box-shadow:0 4px 20px rgba(0,0,0,.1)}
-.sv-verdict-row{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:6px}
-.sv-verdict-word{font-size:34px;font-weight:900;letter-spacing:-.02em;line-height:1}
-.sv-score{font-size:15px;color:var(--t2)}.sv-score b{font-size:23px;color:var(--t1)}
-.sv-conf{font-size:12px;color:var(--t3)}
-.sv-jump{position:relative;flex-shrink:0;width:150px}
-.sv-jump-input{width:100%;font-size:12px;padding:6px 9px;border:1px solid var(--b);border-radius:var(--rs);background:var(--bg);color:var(--t1);outline:none}
+.sv-col-right{overflow-y:auto;padding:18px 24px;min-height:0}
+/* Full-width single-panel tabs (Facts, What's Next) need extra side padding
+   the narrower 40%-column .sv-col-right doesn't — otherwise the prev/next
+   nav arrows (position:absolute at the story view's own edges) sit right
+   on top of edge content like the first fact's label. */
+.sv-tab-full{overflow-y:auto;padding:18px 56px;min-height:0;height:100%}
+.sv-checks-grid{display:grid;grid-template-columns:60% 40%;gap:0;height:100%;min-height:0}
+@media(max-width:900px){.sv-checks-grid{grid-template-columns:1fr;overflow-y:auto;height:auto}.sv-col-left,.sv-col-right{overflow-y:visible;border-right:none}}
+
+/* Hero verdict bar — the single most important fact on the page, so it
+   gets full width and top billing instead of competing for space in a
+   side column alongside everything else. */
+.sv-hero{flex-shrink:0;margin:16px 24px 0;padding:16px 20px;border-radius:14px;background:var(--card);border:1px solid var(--b);border-left:4px solid var(--vc,var(--b))}
+.sv-hero-top{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;margin-bottom:8px}
+.sv-hero-verdict{font-size:30px;font-weight:900;letter-spacing:-.02em;line-height:1;color:var(--vc)}
+.sv-hero-score{font-size:14px;color:var(--t2)}
+.sv-hero-score b{font-size:19px;color:var(--t1)}
+.sv-hero-conf{font-size:12px;color:var(--t3);margin-left:auto}
+.sv-hero-warn{font-size:12px;color:var(--amber);margin-bottom:6px}
+.sv-hero-reason{font-size:13.5px;line-height:1.55;color:var(--t1);margin:0 0 10px}
+.sv-hero-next{display:flex;gap:10px;align-items:flex-start;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);border-radius:10px;padding:9px 14px}
+.sv-hero-next .lbl{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--green);white-space:nowrap;padding-top:3px}
+.sv-hero-next .txt{font-size:12.5px;color:var(--t1);line-height:1.5}
+
+/* Tabs — progressive disclosure so Map/Checks, Parcel Facts, and What's
+   Next don't all compete for attention at once (everything is still one
+   click away, nothing removed). */
+.sv-tabbar{flex-shrink:0;display:flex;gap:4px;margin:14px 24px 0;border-bottom:1px solid var(--b)}
+.sv-tabbtn{background:none;border:none;padding:9px 14px;font-size:13px;font-weight:700;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s}
+.sv-tabbtn:hover{color:var(--t1)}
+.sv-tabbtn.on{color:var(--green);border-bottom-color:var(--green)}
+.sv-tabpanels{flex:1;min-height:0}
+.sv-tabpanel{height:100%;min-height:0}
+.sv-empty-tab{padding:24px;color:var(--t3);font-size:13px;text-align:center}
+
+.sv-jump-box{position:relative;flex-shrink:0;display:flex;width:180px}
+.sv-jump-input{flex:1;min-width:0;font-size:12px;padding:7px 8px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
 .sv-jump-input:focus{border-color:var(--bh)}
+.sv-jump-btn{flex-shrink:0;width:30px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .sv-jump-dropdown{position:absolute;top:calc(100% + 4px);left:0;width:280px;max-height:280px;overflow-y:auto;background:var(--card);border:1px solid var(--b);border-radius:var(--rs);box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:1300}
 .sv-jump-item{padding:8px 12px;font-size:12.5px;color:var(--t1);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sv-jump-item:hover{background:var(--card-h)}
 .sv-jump-empty{padding:10px 12px;font-size:12px;color:var(--t3)}
-.sv-conf-warn{font-size:12px;color:var(--amber);margin-top:6px}
-.sv-reason{font-size:13.5px;line-height:1.5;color:var(--t1);margin:0 0 10px}
-.sv-next{display:flex;gap:10px;align-items:flex-start;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);border-radius:10px;padding:9px 14px}
-.sv-next-lbl{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--green);white-space:nowrap;padding-top:3px}
-.sv-next-txt{font-size:12.5px;color:var(--t1);line-height:1.5}
 .sv-sec-title{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin:0 0 6px}
 .sv-map-wrap{height:min(50vh,420px);min-height:280px;border-radius:14px;overflow:hidden;border:1px solid var(--b);margin-bottom:8px;position:relative}
 .sv-map-controls{display:flex;gap:6px;margin-bottom:16px}
@@ -9122,9 +9146,20 @@ const _SV_CAT_ICONS = {
 };
 function _svCatIcon(name) { return _SV_CAT_ICONS[name] || '📋'; }
 
+// Which Story View tab is showing — persists across parcels (paging via
+// storyNav shouldn't bounce you back to the map every time) and resets to
+// 'checks' only when Story View fully closes (see closeStoryView()).
+let _svActiveTab = 'checks';
+
 function renderStoryView(r) {
   const sv = document.getElementById('storyView');
   if (!sv || !r) return;
+  // Tear down any previous parcel's map unconditionally — it's about to be
+  // replaced by fresh markup below regardless of which tab is active, and
+  // leaving a stale Leaflet instance pointed at a now-detached DOM node
+  // was a latent leak once map init became conditional on the active tab.
+  if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
+
   const pi = r.parcel_info || {};
   const ev = effectiveVerdict(r);
   const vColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
@@ -9157,6 +9192,9 @@ function renderStoryView(r) {
   if (pi.land_use_code != null) fact('Land Use', escHtml(getLandUseCategory(pi.land_use_code)));
   if (pi.county) fact('County', escHtml(pi.county));
 
+  const tab = (key, label) => '<button class="sv-tabbtn' + (_svActiveTab === key ? ' on' : '') + '" data-tab="' + key + '" onclick="_svSwitchTab(\'' + key + '\')">' + label + '</button>';
+  const panelStyle = key => 'display:' + (_svActiveTab === key ? '' : 'none');
+
   sv.innerHTML =
     '<button class="sv-navfab sv-navfab-prev" onclick="storyNav(-1)" title="Previous parcel">‹</button>' +
     '<button class="sv-navfab sv-navfab-next" onclick="storyNav(1)" title="Next parcel">›</button>' +
@@ -9164,64 +9202,96 @@ function renderStoryView(r) {
       '<div class="sv-header">' +
         '<button class="sv-back" onclick="closeStoryView()">← Back to Results</button>' +
         '<div style="min-width:0;flex:1">' +
+          '<div class="sv-section-label">Deal Review</div>' +
           '<div class="sv-addr">' + escHtml(r.address || '') + '</div>' +
           (apn ? '<div class="sv-apn">APN ' + escHtml(apn) + '</div>' : '') +
         '</div>' +
-        '<div class="sv-jump">' +
+        '<div class="sv-jump-box">' +
           '<input type="text" id="svJumpInput" class="sv-jump-input" placeholder="Jump to parcel..." oninput="_svJumpInput(this.value)" onkeydown="if(event.key===\'Escape\')_svJumpClose()" onblur="setTimeout(_svJumpClose,150)">' +
+          '<button class="sv-jump-btn" title="Search" onclick="document.getElementById(\'svJumpInput\').focus()">' + _PNAV_SEARCH_ICON + '</button>' +
           '<div class="sv-jump-dropdown" id="svJumpDropdown" style="display:none"></div>' +
         '</div>' +
-        '<span class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
-        (r.score != null ? '<span style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '') +
-        (conf != null ? '<span class="sv-conf" style="flex-shrink:0">Confidence: ' + conf + '%</span>' : '') +
       '</div>' +
 
-      '<div class="sv-body">' +
-        '<div class="sv-col-left">' +
-          '<div class="sv-sec-title">🗺️ Parcel Map</div>' +
-          '<div class="sv-map-wrap"><div id="svMap" style="position:absolute;inset:0"></div></div>' +
-          '<div class="sv-map-controls">' +
-            '<button class="map-toggle active" data-svlayer="parcel" onclick="svToggleLayer(this)">Parcel</button>' +
-            '<button class="map-toggle" data-svlayer="flood" onclick="svToggleLayer(this)">Flood zones</button>' +
-            '<button class="map-toggle" data-svlayer="wetlands" onclick="svToggleLayer(this)">Wetlands</button>' +
-            '<button class="map-toggle" data-svlayer="satellite" onclick="svToggleSat(this)">Satellite</button>' +
-          '</div>' +
+      '<div class="sv-hero" style="--vc:' + vColor + '">' +
+        '<div class="sv-hero-top">' +
+          '<span class="sv-hero-verdict">' + escHtml(ev) + '</span>' +
+          (r.score != null ? '<span class="sv-hero-score">Score <b>' + r.score + '</b> / 100</span>' : '') +
+          (conf != null ? '<span class="sv-hero-conf">Confidence ' + conf + '%</span>' : '') +
+        '</div>' +
+        (conf != null && conf < 70 ? '<div class="sv-hero-warn">Some data sources were unavailable. Verify manually before proceeding.</div>' : '') +
+        '<p class="sv-hero-reason">' + escHtml(_svMainReason(r)) + '</p>' +
+        '<div class="sv-hero-next"><span class="lbl">Next step</span><span class="txt">' + escHtml(_svNextStep(r)) + '</span></div>' +
+      '</div>' +
 
-          '<div class="sv-sec-title">🔍 What Each Check Found</div>' +
-          '<div class="sv-cats">' + catsHtml + '</div>' +
+      '<div class="sv-tabbar">' +
+        tab('checks', '🗺️ Map &amp; Checks') + tab('facts', '📋 Parcel Facts') + tab('next', '🚀 What’s Next') +
+      '</div>' +
+
+      '<div class="sv-tabpanels">' +
+        '<div class="sv-tabpanel" data-tab="checks" style="' + panelStyle('checks') + '">' +
+          '<div class="sv-checks-grid">' +
+            '<div class="sv-col-left">' +
+              '<div class="sv-sec-title">🗺️ Parcel Map</div>' +
+              '<div class="sv-map-wrap"><div id="svMap" style="position:absolute;inset:0"></div></div>' +
+              '<div class="sv-map-controls">' +
+                '<button class="map-toggle active" data-svlayer="parcel" onclick="svToggleLayer(this)">Parcel</button>' +
+                '<button class="map-toggle" data-svlayer="flood" onclick="svToggleLayer(this)">Flood zones</button>' +
+                '<button class="map-toggle" data-svlayer="wetlands" onclick="svToggleLayer(this)">Wetlands</button>' +
+                '<button class="map-toggle" data-svlayer="satellite" onclick="svToggleSat(this)">Satellite</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="sv-col-right">' +
+              '<div class="sv-sec-title">🔍 What Each Check Found</div>' +
+              '<div class="sv-cats">' + catsHtml + '</div>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
 
-        '<div class="sv-col-right">' +
-          '<div class="sv-verdict-block" style="--vc:' + vColor + '">' +
-            '<div class="sv-verdict-row">' +
-              '<span class="sv-verdict-word" style="color:' + vColor + '">' + escHtml(ev) + '</span>' +
-              (r.score != null ? '<span class="sv-score">Score <b>' + r.score + '</b> / 100</span>' : '') +
-            '</div>' +
-            (conf != null && conf < 70 ? '<div class="sv-conf-warn">Some data sources were unavailable. Verify manually before proceeding.</div>' : '') +
-            '<p class="sv-reason">' + escHtml(_svMainReason(r)) + '</p>' +
-            '<div class="sv-next"><span class="sv-next-lbl">Next step</span><span class="sv-next-txt">' + escHtml(_svNextStep(r)) + '</span></div>' +
+        '<div class="sv-tabpanel" data-tab="facts" style="' + panelStyle('facts') + '">' +
+          '<div class="sv-tab-full">' +
+            (facts.length ? '<div class="sv-facts">' + facts.join('') + '</div>' : '<div class="sv-empty-tab">No additional parcel facts available.</div>') +
           '</div>' +
+        '</div>' +
 
-          (facts.length ? '<div class="sv-sec-title">📋 Parcel Facts</div><div class="sv-facts">' + facts.join('') + '</div>' : '') +
-
-          '<div class="sv-sec-title">🚀 What’s Next on ParceliQ</div>' +
-          '<div class="sv-soon">' +
-            '<div class="sv-soon-card">' +
-              '<span class="sv-soon-badge">🔒 Coming Soon</span>' +
-              '<div class="sv-soon-title">📊 Nearby Comps</div>' +
-              '<div class="sv-soon-desc">See what similar vacant lots nearby actually sold for.</div>' +
-            '</div>' +
-            '<div class="sv-soon-card">' +
-              '<span class="sv-soon-badge">🔒 Coming Soon</span>' +
-              '<div class="sv-soon-title">📞 Skip Tracing</div>' +
-              '<div class="sv-soon-desc">Get the owner’s phone and email in one click.</div>' +
+        '<div class="sv-tabpanel" data-tab="next" style="' + panelStyle('next') + '">' +
+          '<div class="sv-tab-full">' +
+            '<div class="sv-soon">' +
+              '<div class="sv-soon-card">' +
+                '<span class="sv-soon-badge">🔒 Coming Soon</span>' +
+                '<div class="sv-soon-title">📊 Nearby Comps</div>' +
+                '<div class="sv-soon-desc">See what similar vacant lots nearby actually sold for.</div>' +
+              '</div>' +
+              '<div class="sv-soon-card">' +
+                '<span class="sv-soon-badge">🔒 Coming Soon</span>' +
+                '<div class="sv-soon-title">📞 Skip Tracing</div>' +
+                '<div class="sv-soon-desc">Get the owner’s phone and email in one click.</div>' +
+              '</div>' +
             '</div>' +
           '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
 
-  _svInitMap(r);
+  // Leaflet needs its container to actually be visible (non-zero size) to
+  // size itself correctly — only initialize it now if the checks tab (the
+  // one holding #svMap) is the one actually showing. If the user is on a
+  // different tab, _svSwitchTab() lazily initializes it the moment they
+  // switch to checks.
+  if (_svActiveTab === 'checks') _svInitMap(r);
+}
+
+// Cheap show/hide between tabs — does NOT re-render (avoids re-fetching map
+// tiles or losing scroll position within a panel) except for the map, which
+// has its own lifecycle requirements (see comment above).
+function _svSwitchTab(tab) {
+  _svActiveTab = tab;
+  document.querySelectorAll('#storyView .sv-tabbtn').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  document.querySelectorAll('#storyView .sv-tabpanel').forEach(p => { p.style.display = p.dataset.tab === tab ? '' : 'none'; });
+  if (tab === 'checks') {
+    if (_svMap) setTimeout(() => { if (_svMap) _svMap.invalidateSize(); }, 50);
+    else if (_openParcel) _svInitMap(_openParcel);
+  }
 }
 
 function _svInitMap(r) {
@@ -9522,6 +9592,7 @@ function closeStoryView() {
   _positionExpandHandle();
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
   _restoreSidebar();
+  _svActiveTab = 'checks'; // next time Story View opens fresh, start on Map & Checks
   if (_currentBatchId && _baseHash(window.location.hash) === '#dashboard') {
     _syncHash(_buildResultsHash(_currentBatchId, { parcel: _openParcel ? _openParcel.address : null, filter: batchState.filtered, sort: { col: batchState.sortCol, dir: batchState.sortDir } }));
   }
