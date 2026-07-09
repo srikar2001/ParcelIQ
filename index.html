@@ -296,25 +296,25 @@ body.on-results .detail-panel{top:0}
 .rsb-count{font-size:11px;font-weight:700;background:var(--bg);padding:1px 7px;border-radius:var(--rp);color:var(--t3)}
 /* Batch parcel navigator — replaces the sidebar while the story view is open */
 .pnav-wrap{display:flex;flex-direction:column;height:100%;min-height:0;gap:12px}
-.pnav-links{display:flex;flex-direction:column;gap:6px}
-.pnav-links a{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer}
-.pnav-links a:hover{color:var(--t1)}
+.pnav-links{display:flex;flex-direction:column;gap:2px}
+.pnav-links a{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:7px 8px;border-radius:var(--rs);transition:all .15s;margin:0 -8px}
+.pnav-links a:hover{color:var(--t1);background:var(--card-h)}
 .pnav-title{border-bottom:1px solid var(--b);padding-bottom:12px}
 .pnav-name{font-size:15px;font-weight:800;color:var(--t1);letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pnav-count{font-size:11.5px;color:var(--t3);margin-top:2px}
 .pnav-tabs{display:flex;gap:4px}
 .pnav-tab{flex:1;text-align:center;font-size:10.5px;font-weight:700;padding:6px 2px;border-radius:var(--rs);border:1px solid var(--b);background:none;color:var(--t2);cursor:pointer;white-space:nowrap}
 .pnav-tab.on{background:var(--gbg);border-color:var(--green);color:var(--green)}
-.pnav-search{width:100%;font-size:12px;padding:7px 9px;border:1px solid var(--b);border-radius:var(--rs);background:var(--bg);color:var(--t1);outline:none}
+.pnav-search-box{position:relative;display:flex}
+.pnav-search{flex:1;min-width:0;font-size:12px;padding:9px 10px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
 .pnav-search:focus{border-color:var(--bh)}
+.pnav-search-btn{flex-shrink:0;width:34px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .pnav-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:0 -6px}
-.pnav-row{padding:7px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;min-height:52px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.pnav-row{padding:8px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;min-height:48px;display:flex;flex-direction:column;justify-content:center;gap:3px}
 .pnav-row:hover{background:var(--card-h)}
 .pnav-row-active{border-left-color:var(--green);background:var(--card-h)}
-.pnav-row-addr{font-size:12.5px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pnav-row-meta{display:flex;align-items:center;gap:8px}
-.pnav-badge{font-size:9px;padding:1px 6px}
-.pnav-row-score{font-size:11px;font-weight:700;color:var(--t2)}
+.pnav-row-addr{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pnav-row-score{font-size:11px;font-weight:600;color:var(--t3)}
 .rsb-time-val{font-size:15px;font-weight:700;color:var(--green);letter-spacing:-.01em}
 .rsb-time-sub{font-size:11px;color:var(--t3)}
 #sidebarBatchList::-webkit-scrollbar{width:4px}
@@ -947,7 +947,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .lp-nav-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .lp-mode-btn{background:none;border:1px solid #1E2130;border-radius:8px;padding:5px 9px;cursor:pointer;font-size:15px;line-height:1;color:var(--t2);transition:border-color .15s}
 .lp-mode-btn:hover{border-color:#374151}
-.lp-btn-primary{background:#22C55E;color:#fff;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s,transform .1s}
+.lp-btn-primary{background:#22C55E;color:#000;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s,transform .1s}
 .lp-btn-primary:hover{background:#16A34A}
 .lp-btn-outline{background:transparent;color:#F1F5F9;font-weight:600;border:1px solid #1E2130;border-radius:10px;cursor:pointer;transition:border-color .15s}
 .lp-btn-outline:hover{border-color:#374151}
@@ -993,7 +993,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .lp-file-ok-change{font-size:12px;color:var(--t2);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .lp-file-ok-change:hover{color:#F1F5F9}
 .lp-state-sel{width:100%;padding:10px 14px;background:#0D1016;border:1px solid #1E2130;border-radius:8px;color:#F1F5F9;font-size:14px;margin:12px 0;cursor:pointer;outline:none}
-.lp-analyze-btn{width:100%;padding:14px;background:#22C55E;color:#fff;font-size:16px;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:10px}
+.lp-analyze-btn{width:100%;padding:14px;background:#22C55E;color:#000;font-size:16px;font-weight:700;border:none;border-radius:10px;cursor:pointer;transition:background .15s;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:10px}
 .lp-analyze-btn:hover{background:#16A34A}
 .lp-analyze-btn:disabled{opacity:.7;cursor:not-allowed}
 @keyframes _piq-spin{to{transform:rotate(360deg)}}
@@ -2762,6 +2762,16 @@ function _buildResultsHash(batchId, opts) {
   const q = [];
   if (opts.filter && opts.filter.toLowerCase() !== 'all') q.push('filter=' + encodeURIComponent(opts.filter.toLowerCase()));
   if (opts.sort && opts.sort.col) q.push('sort=' + encodeURIComponent(opts.sort.col + '-' + (opts.sort.dir || 'desc')));
+  // Full-screen Story View is read live from the DOM rather than threaded
+  // through every caller's opts — every existing call site (openDetailPanel,
+  // closeDetailPanel, filterResults, sortBy, loadBatchResults) already
+  // passes the open parcel; whether THAT parcel is showing in the quick
+  // preview panel or the full Story View is a separate, already-live fact
+  // at the moment any of them runs.
+  if (opts.parcel) {
+    const sv = document.getElementById('storyView');
+    if (sv && sv.classList.contains('open')) q.push('view=full');
+  }
   if (q.length) h += '?' + q.join('&');
   return h;
 }
@@ -3405,7 +3415,7 @@ async function loadSharedBatch(token) {
       <div style='display:flex;gap:10px;align-items:center'>
         <span style='font-size:13px;color:var(--t2)'>Shared results (view only)</span>
         <button onclick='window.location.hash="#signup"'
-          style='background:#22C55E;color:#fff;border:none;padding:7px 14px;
+          style='background:#22C55E;color:#000;border:none;padding:7px 14px;
           border-radius:99px;cursor:pointer;font-weight:600;font-size:13px'>
           Create free account
         </button>
@@ -3510,7 +3520,7 @@ function renderSharedResults(results, container) {
       <div style="font-size:18px;font-weight:700;margin-bottom:8px">Screen your own parcels, free</div>
       <div style="font-size:13px;color:var(--t2);margin-bottom:16px">Florida statewide · Kill / Pursue in seconds</div>
       <button onclick='window.location.hash="#signup"'
-        style='background:#22C55E;color:#fff;border:none;padding:11px 28px;border-radius:99px;cursor:pointer;font-weight:700;font-size:15px'>
+        style='background:#22C55E;color:#000;border:none;padding:11px 28px;border-radius:99px;cursor:pointer;font-weight:700;font-size:15px'>
         Create free account →
       </button>
     </div>
@@ -5178,6 +5188,12 @@ function _openResultByAddress(addr) {
     const page = Math.floor(idx / _rowsPerPage) + 1;
     if (page !== _currentPage) { _currentPage = page; renderPage(); }
     openDetailPanel(idx, null);
+    // If Story View is already open (e.g. adding a parcel while viewing
+    // another one's Deal Review), refresh it to the new parcel — otherwise
+    // openDetailPanel() alone updates the panel/table behind the overlay
+    // and the user never actually sees anything change ("not taking me there").
+    const sv = document.getElementById('storyView');
+    if (sv && sv.classList.contains('open')) openStoryView();
     const tr = document.getElementById('trow-' + idx);
     if (tr) tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, 250);
@@ -5188,13 +5204,16 @@ function _openResultByAddress(addr) {
 // _currentDisplayed is populated) rather than a live single-address search.
 // A stale/deleted address (parcel no longer in this batch) is a silent
 // no-op — the batch still opens normally with nothing selected.
-function _restoreParcelFromHash(address) {
+function _restoreParcelFromHash(address, openFull) {
   const idx = _currentDisplayed.findIndex(r => (r.address || '') === address);
   if (idx === -1) return;
   const page = Math.floor(idx / _rowsPerPage) + 1;
   if (page !== _currentPage) { _currentPage = page; renderPage(); }
   openDetailPanel(idx, null);
-  openStoryView();
+  // Only reopen full Story View if the URL actually said so (?view=full) —
+  // a link copied while in the quick-preview panel should restore to the
+  // quick-preview panel, not always jump straight to the full Deal Review.
+  if (openFull) openStoryView();
 }
 
 // Called from loadBatchResults(), deliberately AFTER its goTo('dashboard')
@@ -5205,7 +5224,7 @@ function _consumePendingHashRestore() {
   const restore = _pendingHashRestore;
   _pendingHashRestore = null;
   if (restore.segments[1] === 'parcel' && restore.segments[2]) {
-    _restoreParcelFromHash(restore.segments[2]);
+    _restoreParcelFromHash(restore.segments[2], restore.params.view === 'full');
   }
 }
 
@@ -9219,7 +9238,7 @@ function _buildParcelNavigator() {
   sidebar.innerHTML =
     '<div class="pnav-wrap">' +
       '<div class="pnav-links">' +
-        '<a onclick="goTo(\'landing\')">← All Batches</a>' +
+        '<a onclick="goTo(\'dashboard\')">← All Batches</a>' +
         '<a onclick="closeStoryView()">← Back to Results</a>' +
       '</div>' +
       '<div class="pnav-title">' +
@@ -9227,7 +9246,10 @@ function _buildParcelNavigator() {
         '<div class="pnav-count">' + results.length + ' parcel' + (results.length !== 1 ? 's' : '') + '</div>' +
       '</div>' +
       '<div class="pnav-tabs">' + tab('all', 'All', results.length) + tab('KILL', 'Kill', kill) + tab('PURSUE', 'Pursue', pursue) + '</div>' +
-      '<input class="pnav-search" id="pnavSearch" placeholder="Search address or APN..." value="' + escHtml(_pnavQuery) + '" oninput="_pnavSetQuery(this.value)">' +
+      '<div class="pnav-search-box">' +
+        '<input class="pnav-search" id="pnavSearch" placeholder="Search address or APN..." value="' + escHtml(_pnavQuery) + '" oninput="_pnavSetQuery(this.value)">' +
+        '<button class="pnav-search-btn" title="Search" onclick="document.getElementById(\'pnavSearch\').focus()">🔍</button>' +
+      '</div>' +
       '<div class="pnav-list" id="pnavList"></div>' +
     '</div>';
   _pnavRenderList();
@@ -9273,12 +9295,12 @@ function _pnavRenderList() {
   list.innerHTML = '';
   filtered.forEach(r => {
     const ev = effectiveVerdict(r);
+    const street = (r.address || '').split(',')[0].trim();
     const row = document.createElement('div');
     row.className = 'pnav-row' + (r === _openParcel ? ' pnav-row-active' : '');
     row.innerHTML =
-      '<div class="pnav-row-addr">' + escHtml(r.address || '') + '</div>' +
-      '<div class="pnav-row-meta"><span class="verdict-badge ' + verdictClass(ev) + ' pnav-badge">' + escHtml(ev) + '</span>' +
-      (r.score != null ? '<span class="pnav-row-score">' + r.score + '</span>' : '') + '</div>';
+      '<div class="pnav-row-addr" style="color:' + verdictColor(ev) + '">' + escHtml(street) + '</div>' +
+      (r.score != null ? '<div class="pnav-row-score">Score ' + r.score + '</div>' : '');
     row.addEventListener('click', function() { _pnavOpenParcel(r); });
     list.appendChild(row);
   });
@@ -9362,6 +9384,9 @@ function openStoryView() {
   // so it kept floating over the story view after the panel above was hidden.
   _positionExpandHandle();
   _buildParcelNavigator();
+  if (_currentBatchId && _baseHash(window.location.hash) === '#dashboard') {
+    _syncHash(_buildResultsHash(_currentBatchId, { parcel: _openParcel ? _openParcel.address : null, filter: batchState.filtered, sort: { col: batchState.sortCol, dir: batchState.sortDir } }));
+  }
 }
 
 function closeStoryView() {
@@ -9375,6 +9400,9 @@ function closeStoryView() {
   _positionExpandHandle();
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
   _restoreSidebar();
+  if (_currentBatchId && _baseHash(window.location.hash) === '#dashboard') {
+    _syncHash(_buildResultsHash(_currentBatchId, { parcel: _openParcel ? _openParcel.address : null, filter: batchState.filtered, sort: { col: batchState.sortCol, dir: batchState.sortDir } }));
+  }
 }
 
 function storyNav(dir) {
