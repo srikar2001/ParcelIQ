@@ -295,11 +295,16 @@ body.on-results .detail-panel{top:0}
 .rsb-pursue.active{color:var(--green)}
 .rsb-count{font-size:11px;font-weight:700;background:var(--bg);padding:1px 7px;border-radius:var(--rp);color:var(--t3)}
 /* Batch parcel navigator — replaces the sidebar while the story view is open */
-.pnav-wrap{display:flex;flex-direction:column;height:100%;min-height:0;gap:12px}
-.pnav-links{display:flex;flex-direction:column;gap:2px}
-.pnav-links a{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:7px 8px;border-radius:var(--rs);transition:all .15s;margin:0 -8px}
-.pnav-links a:hover{color:var(--t1);background:var(--card-h)}
-.pnav-title{border-bottom:1px solid var(--b);padding-bottom:12px}
+.pnav-wrap{display:flex;flex-direction:column;height:100%;min-height:0;gap:10px}
+.pnav-logo{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--t1);padding-bottom:2px;display:flex;align-items:center;gap:6px}
+.pnav-logo .iq{color:var(--green)}
+.pnav-back-link{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:7px 8px;border-radius:var(--rs);transition:all .15s;margin:0 -8px;display:block}
+.pnav-back-link:hover{color:var(--t1);background:var(--card-h)}
+.pnav-crumb{font-size:11.5px;color:var(--t3);display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:0 2px}
+.pnav-crumb a{color:var(--t2);cursor:pointer;font-weight:600}
+.pnav-crumb a:hover{color:var(--green)}
+.pnav-crumb span.cur{color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+.pnav-title{border-bottom:1px solid var(--b);padding-bottom:10px}
 .pnav-name{font-size:15px;font-weight:800;color:var(--t1);letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pnav-count{font-size:11.5px;color:var(--t3);margin-top:2px}
 .pnav-tabs{display:flex;gap:4px}
@@ -308,12 +313,21 @@ body.on-results .detail-panel{top:0}
 .pnav-search-box{position:relative;display:flex}
 .pnav-search{flex:1;min-width:0;font-size:12px;padding:9px 10px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
 .pnav-search:focus{border-color:var(--bh)}
-.pnav-search-btn{flex-shrink:0;width:34px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pnav-search-btn{flex-shrink:0;width:34px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .pnav-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:0 -6px}
-.pnav-row{padding:8px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;min-height:48px;display:flex;flex-direction:column;justify-content:center;gap:3px}
+.pnav-row{padding:9px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;min-height:52px;display:flex;flex-direction:column;justify-content:center;gap:4px}
 .pnav-row:hover{background:var(--card-h)}
 .pnav-row-active{border-left-color:var(--green);background:var(--card-h)}
-.pnav-row-addr{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pnav-batch-row{padding:10px;border-radius:var(--rs);cursor:pointer;display:flex;flex-direction:column;gap:3px;border:1px solid transparent}
+.pnav-batch-row:hover{background:var(--card-h)}
+.pnav-batch-row.active{background:var(--gbg);border-color:rgba(34,197,94,.3)}
+.pnav-batch-row-name{font-size:13px;font-weight:700;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pnav-batch-row-meta{font-size:11px;color:var(--t3);display:flex;gap:8px}
+.pnav-batch-row-meta .k{color:var(--red)}
+.pnav-batch-row-meta .p{color:var(--green)}
+.pnav-alllink{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:8px;border-radius:var(--rs);transition:all .15s;text-align:center;border:1px solid var(--b);display:block}
+.pnav-alllink:hover{color:var(--t1);background:var(--card-h);border-color:var(--bh)}
+.pnav-row-addr{font-size:13px;line-height:1.5;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 0}
 .pnav-row-score{font-size:11px;font-weight:600;color:var(--t3)}
 .rsb-time-val{font-size:15px;font-weight:700;color:var(--green);letter-spacing:-.01em}
 .rsb-time-sub{font-size:11px;color:var(--t3)}
@@ -647,7 +661,7 @@ body.on-results .detail-panel{top:0}
 .res-table-col.panel-open{max-width:55%}
 .detail-panel{width:45%;min-width:340px;max-width:480px;background:var(--card);border-left:1px solid var(--b);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s ease;position:fixed;right:0;top:58px;bottom:0;overflow-y:auto;z-index:100;border-radius:12px 0 0 12px;box-shadow:-4px 0 16px rgba(0,0,0,.15)}
 .detail-panel.open{transform:translateX(0)}
-.dp-preview-label{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);padding:12px 18px 0}
+.dp-preview-label{font-size:14px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--t2);padding:14px 18px 0}
 .dp-header{padding:16px 18px 14px;border-bottom:1px solid var(--b);display:flex;flex-direction:column;gap:6px}
 .dp-addr{flex:1;min-width:0}
 .dp-street{font-size:14px;font-weight:700;color:var(--t1);line-height:1.3}
@@ -1873,11 +1887,6 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="7,1 8.8,5.2 13.4,5.5 10,8.5 11.1,13 7,10.5 2.9,13 4,8.5 0.6,5.5 5.2,5.2"/></svg>
         My Picks <span id="sidebarPickCount" style="display:none;background:var(--amber);color:#000;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:auto"></span>
       </div>
-      <!-- Overview nav -->
-      <div class="rsb-nav-item" onclick="openOverviewFromNav()">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="5.5" height="5.5" rx="1"/><rect x="7.5" y="1" width="5.5" height="5.5" rx="1"/><rect x="1" y="7.5" width="5.5" height="5.5" rx="1"/><rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1"/></svg>
-        Deal Review
-      </div>
       </div>
       <!-- Recents (always open) -->
       <div class="rsb-grp-lbl" id="rsbPrevHdr">Recents</div>
@@ -1952,6 +1961,14 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <button class="sumchip kill" onclick="filterResults('KILL',this)">Kill</button>
           <button class="sumchip pursue" onclick="filterResults('PURSUE',this)">Pursue</button>
         </div>
+        <div class="res-search-row" style="margin:0;flex:1;min-width:200px;max-width:360px">
+          <div class="res-search-box">
+            <input type="text" id="tableSearchInput" class="res-search-input" placeholder="Search address or APN..." oninput="_tableSearchInput(this.value)">
+            <button class="res-search-clear" id="tableSearchClear" style="display:none" onclick="_tableSearchClear()" title="Clear search">✕</button>
+            <button class="res-search-btn" title="Search" onclick="document.getElementById('tableSearchInput').focus()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+          </div>
+          <span class="res-search-count" id="tableSearchCount" style="display:none"></span>
+        </div>
         <div style="position:relative">
           <button class="btn-o btn-sm filter-panel-btn" id="filterPanelBtn" onclick="toggleFilterPanel()">▼ Filters <span id="activeFilterCount" style="display:none;background:var(--green);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:2px">0</span></button>
           <div id="filterPanel" class="fp-panel" style="display:none">
@@ -1995,14 +2012,6 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         </div>
       </div>
       <div class="af-chips" id="activeFilterChips" style="display:none"></div>
-      <div class="res-search-row">
-        <div class="res-search-box">
-          <input type="text" id="tableSearchInput" class="res-search-input" placeholder="Search address or APN..." oninput="_tableSearchInput(this.value)">
-          <button class="res-search-clear" id="tableSearchClear" style="display:none" onclick="_tableSearchClear()" title="Clear search">✕</button>
-          <button class="res-search-btn" title="Search" onclick="document.getElementById('tableSearchInput').focus()">🔍</button>
-        </div>
-        <span class="res-search-count" id="tableSearchCount" style="display:none"></span>
-      </div>
       <div class="limit-banner" id="resLimitBanner"></div>
       <div class="nonfl-banner" id="nonflBanner"></div>
       <div class="res-table-wrap" id="resTableWrap">
@@ -3114,7 +3123,7 @@ function updateLpNav() {
     const name = (userProfile?.full_name || currentUser.email || '').split(/[\s@]/)[0] || 'Account';
     el.innerHTML =
       '<span style="font-size:13px;color:#F1F5F9;margin-right:4px">Hi, ' + name + '</span>' +
-      '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="window.location.hash=\'#dashboard\'">Dashboard</button>' +
+      '<button class="lp-btn-primary" style="padding:7px 16px;font-size:13px" onclick="window.location.hash=\'#dashboard\'">Dashboard →</button>' +
       '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="doSignout()">Sign out</button>';
   } else {
     el.innerHTML =
@@ -5205,8 +5214,18 @@ function _openResultByAddress(addr) {
 // A stale/deleted address (parcel no longer in this batch) is a silent
 // no-op — the batch still opens normally with nothing selected.
 function _restoreParcelFromHash(address, openFull) {
-  const idx = _currentDisplayed.findIndex(r => (r.address || '') === address);
-  if (idx === -1) return;
+  const norm = s => (s || '').trim().toLowerCase();
+  let idx = _currentDisplayed.findIndex(r => (r.address || '') === address);
+  // Exact match first; fall back to a normalized (trimmed/case-insensitive)
+  // match — minor formatting differences (extra whitespace, casing) between
+  // what got URL-encoded and what's stored would otherwise fail a strict
+  // === and silently do nothing, which looks identical to "the URL restore
+  // is just broken" from the outside.
+  if (idx === -1) idx = _currentDisplayed.findIndex(r => norm(r.address) === norm(address));
+  if (idx === -1) {
+    toast('Could not reopen that parcel — it may have been filtered out or removed.');
+    return;
+  }
   const page = Math.floor(idx / _rowsPerPage) + 1;
   if (page !== _currentPage) { _currentPage = page; renderPage(); }
   openDetailPanel(idx, null);
@@ -8424,15 +8443,6 @@ function showPicksPage() {
   renderPicksList();
 }
 
-function openOverviewFromNav() {
-  if (!_openParcel) {
-    toast('Select a parcel from your batch to see its Deal Review.');
-    return;
-  }
-  if (window.location.hash !== '#dashboard') window.location.hash = '#dashboard';
-  openStoryView();
-}
-
 function renderPicksList() {
   const wrap = document.getElementById('picksListWrap');
   const sub  = document.getElementById('picksSubtitle');
@@ -9226,31 +9236,46 @@ function svToggleSat(btn) {
 let _savedSidebarHTML = null;
 let _pnavFilter = 'all';
 let _pnavQuery = '';
+let _pnavMode = 'parcels'; // 'parcels' | 'batches'
+const _PNAV_SEARCH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
 
 function _buildParcelNavigator() {
   const sidebar = document.getElementById('resSidebar');
   if (!sidebar) return;
   if (_savedSidebarHTML === null) _savedSidebarHTML = sidebar.innerHTML;
+  const bname = escHtml(batchState.name || 'Batch');
+  const header =
+    '<div class="pnav-logo">Parcel<span class="iq">iQ</span></div>' +
+    '<a class="pnav-back-link" onclick="closeStoryView()">← Back to Results</a>' +
+    '<div class="pnav-crumb"><a onclick="_pnavShowAllBatches()">Batches</a><span>›</span><span class="cur" title="' + bname + '">' + bname + '</span></div>';
+
+  if (_pnavMode === 'batches') {
+    sidebar.innerHTML =
+      '<div class="pnav-wrap">' + header +
+        '<div class="pnav-title"><div class="pnav-name">All Batches</div></div>' +
+        '<div class="pnav-list" id="pnavBatchList"><div style="padding:16px 10px;font-size:12px;color:var(--t3);text-align:center">Loading…</div></div>' +
+        '<a class="pnav-alllink" onclick="_pnavExitBatchList()">← Back to ' + bname + '</a>' +
+      '</div>';
+    _pnavRenderBatchList();
+    return;
+  }
+
   const results = batchState.results || [];
   let kill = 0, pursue = 0;
   results.forEach(r => { const v = effectiveVerdict(r); if (v === 'KILL') kill++; else if (v === 'PURSUE') pursue++; });
   const tab = (v, label, n) => '<button class="pnav-tab' + (_pnavFilter === v ? ' on' : '') + '" data-v="' + v + '" onclick="_pnavSetFilter(\'' + v + '\')">' + label + ' ' + n + '</button>';
   sidebar.innerHTML =
-    '<div class="pnav-wrap">' +
-      '<div class="pnav-links">' +
-        '<a onclick="goTo(\'dashboard\')">← All Batches</a>' +
-        '<a onclick="closeStoryView()">← Back to Results</a>' +
-      '</div>' +
+    '<div class="pnav-wrap">' + header +
       '<div class="pnav-title">' +
-        '<div class="pnav-name">' + escHtml(batchState.name || 'Batch') + '</div>' +
         '<div class="pnav-count">' + results.length + ' parcel' + (results.length !== 1 ? 's' : '') + '</div>' +
       '</div>' +
       '<div class="pnav-tabs">' + tab('all', 'All', results.length) + tab('KILL', 'Kill', kill) + tab('PURSUE', 'Pursue', pursue) + '</div>' +
       '<div class="pnav-search-box">' +
         '<input class="pnav-search" id="pnavSearch" placeholder="Search address or APN..." value="' + escHtml(_pnavQuery) + '" oninput="_pnavSetQuery(this.value)">' +
-        '<button class="pnav-search-btn" title="Search" onclick="document.getElementById(\'pnavSearch\').focus()">🔍</button>' +
+        '<button class="pnav-search-btn" title="Search" onclick="document.getElementById(\'pnavSearch\').focus()">' + _PNAV_SEARCH_ICON + '</button>' +
       '</div>' +
       '<div class="pnav-list" id="pnavList"></div>' +
+      '<a class="pnav-alllink" onclick="_pnavShowAllBatches()">← All Batches</a>' +
     '</div>';
   _pnavRenderList();
 }
@@ -9260,6 +9285,73 @@ function _restoreSidebar() {
   if (sidebar && _savedSidebarHTML !== null) {
     sidebar.innerHTML = _savedSidebarHTML;
     _savedSidebarHTML = null;
+  }
+  // Next time Story View opens fresh, start on the parcel list — not
+  // wherever the batch picker happened to be left.
+  _pnavMode = 'parcels';
+}
+
+// ── "All Batches" picker — switches the sidebar to a batch list so you can
+// jump to a different batch's parcels without leaving Story View, per the
+// "Batches > Address > full screen" browsing model.
+function _pnavShowAllBatches() {
+  _pnavMode = 'batches';
+  _buildParcelNavigator();
+}
+
+function _pnavExitBatchList() {
+  _pnavMode = 'parcels';
+  _buildParcelNavigator();
+}
+
+async function _pnavRenderBatchList() {
+  const list = document.getElementById('pnavBatchList');
+  if (!list) return;
+  let batches = null;
+  try {
+    const cached = sessionStorage.getItem('piq-batches');
+    if (cached) batches = JSON.parse(cached);
+  } catch(e) {}
+  if (!batches && sb && currentUser) {
+    try {
+      const { data } = await sb.from('batches').select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false }).limit(20);
+      batches = data || [];
+      if (batches.length) { try { sessionStorage.setItem('piq-batches', JSON.stringify(batches)); } catch(e) {} }
+    } catch(e) { batches = []; }
+  }
+  batches = batches || [];
+  if (_pnavMode !== 'batches') return; // navigated away while this was loading
+  if (!batches.length) {
+    list.innerHTML = '<div style="padding:16px 10px;font-size:12px;color:var(--t3);text-align:center">No batches yet.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  batches.forEach(b => {
+    const name = b.name || 'Batch · ' + new Date(b.created_at).toLocaleDateString();
+    const row = document.createElement('div');
+    row.className = 'pnav-batch-row' + (b.id === _currentBatchId ? ' active' : '');
+    row.innerHTML =
+      '<div class="pnav-batch-row-name">' + escHtml(name) + '</div>' +
+      '<div class="pnav-batch-row-meta">' + (b.total != null ? '<span>' + b.total + ' parcels</span>' : '') + '</div>';
+    row.addEventListener('click', function() { _pnavSelectBatch(b.id); });
+    list.appendChild(row);
+  });
+}
+
+async function _pnavSelectBatch(batchId) {
+  if (batchId === _currentBatchId) { _pnavMode = 'parcels'; _buildParcelNavigator(); return; }
+  await loadBatchResults(batchId);
+  // loadBatchResults() -> renderBatchResults() closes Story View as part of
+  // its normal "fresh batch" reset (via closeDetailPanel -> closeStoryView).
+  // Re-open it here so picking a batch from the full-screen picker keeps
+  // you inside the full-screen experience instead of dropping you back to
+  // the plain results table.
+  _pnavMode = 'parcels';
+  if (_currentDisplayed.length) {
+    openDetailPanel(0, null);
+    openStoryView();
   }
 }
 
@@ -9413,6 +9505,13 @@ function storyNav(dir) {
   openDetailPanel(next, null);
   const sv = document.getElementById('storyView');
   if (sv && sv.classList.contains('open') && _openParcel) {
+    // openDetailPanel() above unconditionally re-shows the quick-preview
+    // panel (panel.style.display = '') as part of its normal behavior. The
+    // panel is position:fixed, so once shown it floats visibly on top of
+    // Story View regardless of z-order in the document — it must be hidden
+    // again immediately, the same way openStoryView() itself hides it.
+    const panel = document.getElementById('detailPanel');
+    if (panel) panel.style.display = 'none';
     renderStoryView(_openParcel);
     document.querySelectorAll('#storyView .sv-col-left,#storyView .sv-col-right').forEach(c => c.scrollTop = 0);
     _pnavRenderList();
