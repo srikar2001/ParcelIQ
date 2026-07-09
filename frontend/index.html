@@ -5647,6 +5647,9 @@ function sortBy(col) {
   }
   updateSortButtons();
   _refreshTable();
+  if (_currentBatchId && _baseHash(window.location.hash) === '#dashboard') {
+    _syncHash(_buildResultsHash(_currentBatchId, { parcel: _openParcel ? _openParcel.address : null, filter: batchState.filtered, sort: { col: batchState.sortCol, dir: batchState.sortDir } }));
+  }
 }
 
 function updateSortButtons() {
@@ -5841,6 +5844,27 @@ function renderBatchResults() {
   _activeFilters.clear();
   _selectedRows.clear();
   batchState.sortCol = null; batchState.sortDir = 'desc';
+  // Deep-link filter/sort restore — overrides the defaults just set above.
+  // Safe to do here (unlike the parcel segment of the same _pendingHashRestore,
+  // consumed later by _consumePendingHashRestore): filter/sort don't touch
+  // _openParcel, so they aren't vulnerable to goTo()'s closeDetailPanel()
+  // undoing them the way an early parcel restore was.
+  if (_pendingHashRestore && _pendingHashRestore.params) {
+    const p = _pendingHashRestore.params;
+    if (p.sort) {
+      const dashIdx = p.sort.lastIndexOf('-');
+      if (dashIdx > 0) {
+        batchState.sortCol = p.sort.slice(0, dashIdx);
+        batchState.sortDir = p.sort.slice(dashIdx + 1);
+      }
+    }
+    if (p.filter) {
+      // filterResults() itself calls _refreshTable() — a harmless redundant
+      // render here, since this function's own _refreshTable() call below
+      // will immediately re-run with (by then) fully-restored state anyway.
+      filterResults(p.filter.toLowerCase() === 'all' ? 'all' : p.filter.toUpperCase(), null);
+    }
+  }
   updateSortButtons();
   closeDetailPanel();
   renderFlagFilters();
@@ -6725,6 +6749,9 @@ function filterResults(verdict, btn) {
   // _activeFilters intentionally NOT cleared — panel filters stay active alongside verdict chips
   updateSidebarActive(verdict);
   _refreshTable();
+  if (_currentBatchId && _baseHash(window.location.hash) === '#dashboard') {
+    _syncHash(_buildResultsHash(_currentBatchId, { parcel: _openParcel ? _openParcel.address : null, filter: batchState.filtered, sort: { col: batchState.sortCol, dir: batchState.sortDir } }));
+  }
 }
 
 // ── MAP VIEW (Task 26)
