@@ -154,13 +154,13 @@ _FLOOD_DEFAULT     = {"zone": "UNKNOWN", "sfha": False, "source": "FEMA NFHL"}
 _WETLANDS_DEFAULT  = {"wetland_on_parcel": False, "wetland_nearby": False, "wetland_type": None, "wetland_code": None, "source": "USFWS NWI"}
 _HABITAT_DEFAULT   = {"habitat_found": False, "species": [], "source": "USFWS Critical Habitat"}
 _EPA_DEFAULT       = {"contamination_found": False, "sites": [], "source": "EPA ECHO Superfund"}
-_ROADS_DEFAULT     = {"road_found": None, "road_surface": "error", "road_type": None, "road_name": None, "road_distance_m": None, "road_private": None, "source": "US Census TIGER"}
+_ROADS_DEFAULT     = {"road_found": None, "road_surface": "error", "road_type": None, "road_name": None, "road_distance_m": None, "road_private": None, "road_nearest_lat": None, "road_nearest_lng": None, "source": "US Census TIGER"}
 _PARCEL_DEFAULT    = {"found": False, "source": "FL DOR Cadastral", "geometry": []}
-_WATERWAYS_DEFAULT = {"waterway_nearby": False, "waterway_type": None, "source": "OpenStreetMap"}
+_WATERWAYS_DEFAULT = {"waterway_nearby": False, "waterway_type": None, "waterway_nearest_lat": None, "waterway_nearest_lng": None, "source": "OpenStreetMap"}
 _ELEVATION_DEFAULT = {"elevation_ft": None, "source": "USGS National Elevation Dataset"}
 _SOIL_DEFAULT      = {"soil_drainage": None, "soil_name": None, "septic_suitable": None, "source": "USDA Web Soil Survey"}
 _EVAC_DEFAULT      = {"evac_zone": None, "evac_risk": None, "source": "FL Division of Emergency Management"}
-_POWERLINES_DEFAULT = {"powerline_nearby": None, "powerline_distance": None, "source": "OpenStreetMap"}
+_POWERLINES_DEFAULT = {"powerline_nearby": None, "powerline_distance": None, "powerline_nearest_lat": None, "powerline_nearest_lng": None, "source": "OpenStreetMap"}
 _EASEMENT_DEFAULT  = {"easement_found": False, "easement_type": None, "source": "USDA NRCS"}
 
 _JOBS_TABLE = "batch_jobs"
@@ -417,6 +417,8 @@ async def _screen_coordinate(address: str, geo: dict, lat: float, lng: float) ->
             "base_flood_elevation_ft": flood.get("base_flood_elevation_ft"),
             "powerline_nearby": powerlines.get("powerline_nearby"),
             "powerline_distance": powerlines.get("powerline_distance"),
+            "powerline_nearest_lat": powerlines.get("powerline_nearest_lat"),
+            "powerline_nearest_lng": powerlines.get("powerline_nearest_lng"),
             "easement_found": easement.get("easement_found"),
             "easement_type": easement.get("easement_type"),
             "wetland_type": wetlands.get("wetland_type"),
@@ -428,8 +430,12 @@ async def _screen_coordinate(address: str, geo: dict, lat: float, lng: float) ->
             "road_name": roads.get("road_name"),
             "road_distance_m": roads.get("road_distance_m"),
             "road_private": roads.get("road_private"),
+            "road_nearest_lat": roads.get("road_nearest_lat"),
+            "road_nearest_lng": roads.get("road_nearest_lng"),
             "waterway_type": waterways.get("waterway_type"),
             "waterway_distance": waterways.get("distance_approx"),
+            "waterway_nearest_lat": waterways.get("waterway_nearest_lat"),
+            "waterway_nearest_lng": waterways.get("waterway_nearest_lng"),
         },
         "_lat": lat,
         "_lng": lng,

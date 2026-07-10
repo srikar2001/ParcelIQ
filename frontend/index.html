@@ -715,6 +715,13 @@ body.on-results .detail-panel{top:0}
 .sv-map-pill2{display:inline-flex;align-items:center;gap:7px;background:#FBEEDD;color:#3A2E22;font-size:12px;font-weight:700;padding:6px 12px 6px 10px;border-radius:20px;border:none;box-shadow:0 3px 10px rgba(0,0,0,.4);cursor:pointer;text-align:left;line-height:1.15;transition:transform .12s}
 .sv-map-pill2:hover{transform:translateX(2px)}
 .sv-map-pill2 .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sv-map-pill2.active{outline:2px solid #fff;outline-offset:1px}
+
+/* Permanent parcel-acreage label + "show on map" line/radius annotation
+   labels — plain floating tags, not Leaflet's default tooltip bubble. */
+.sv-map-acres-label{background:rgba(0,0,0,.6)!important;border:none!important;box-shadow:none!important;color:#fff!important;font-size:12px;font-weight:800;padding:2px 9px!important;border-radius:7px}
+.sv-map-acres-label::before{display:none!important}
+.sv-map-linelabel{background:rgba(0,0,0,.8);color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:7px;white-space:nowrap;transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,.45)}
 
 .sv-data-panel{width:420px;flex-shrink:0;overflow-y:auto;padding:20px;background:var(--card);border-left:1px solid var(--b)}
 @media(max-width:900px){.sv-main{flex-direction:column;overflow-y:auto}.sv-map-zone{height:min(50vh,420px);flex:none}.sv-data-panel{width:auto;border-left:none;border-top:1px solid var(--b)}}
@@ -8923,6 +8930,10 @@ function _admRenderEngagement(d) {
 // ══════════ FULL-SCREEN PARCEL STORY VIEW (Stage 13) ══════════
 let _svMap = null;
 const _svLayers = {};
+// The one "show this on the map" annotation currently drawn from a pill
+// click (a real line+label, a radius circle, or null) — always cleared
+// before drawing the next one so annotations never stack up.
+let _svAnnotationLayer = null;
 
 function _svCap(t) { t = String(t || ''); return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
 
@@ -9320,6 +9331,115 @@ function svJumpToCheck(catName) {
   target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+function _svClearAnnotation() {
+  if (_svAnnotationLayer && _svMap) {
+    const layers = Array.isArray(_svAnnotationLayer) ? _svAnnotationLayer : [_svAnnotationLayer];
+    layers.forEach(l => { try { _svMap.removeLayer(l); } catch(e) {} });
+  }
+  _svAnnotationLayer = null;
+}
+
+// A real line from the parcel to an actual measured point (nearest road
+// vertex, nearest powerline/waterway vertex) — only ever called with real
+// coordinates a collector measured, never a guessed direction.
+function _svDrawLineTo(originLat, originLng, destLat, destLng, label, color) {
+  if (!_svMap) return;
+  _svClearAnnotation();
+  const line = L.polyline([[originLat, originLng], [destLat, destLng]], { color: color, weight: 3, dashArray: '6,6' }).addTo(_svMap);
+  const dest = L.circleMarker([destLat, destLng], { radius: 6, color: color, weight: 2, fillColor: color, fillOpacity: 0.9 }).addTo(_svMap);
+  const mid = [(originLat + destLat) / 2, (originLng + destLng) / 2];
+  const labelMarker = L.marker(mid, {
+    icon: L.divIcon({ className: 'sv-map-linelabel', html: escHtml(label), iconSize: [0, 0] }),
+    interactive: false,
+  }).addTo(_svMap);
+  _svAnnotationLayer = [line, dest, labelMarker];
+  try { _svMap.fitBounds(line.getBounds(), { padding: [60, 60], maxZoom: 18 }); } catch(e) {}
+}
+
+// No exact point exists (only a "within Xm" bucket from a count-only
+// query) — an honest radius ring instead of a fabricated direction.
+function _svDrawRadius(originLat, originLng, radiusM, label, color) {
+  if (!_svMap) return;
+  _svClearAnnotation();
+  const circle = L.circle([originLat, originLng], { radius: radiusM, color: color, weight: 3, dashArray: '5,8', fillOpacity: 0.07 }).addTo(_svMap);
+  const labelMarker = L.marker([originLat + radiusM / 111320, originLng], {
+    icon: L.divIcon({ className: 'sv-map-linelabel', html: escHtml(label), iconSize: [0, 0] }),
+    interactive: false,
+  }).addTo(_svMap);
+  _svAnnotationLayer = [circle, labelMarker];
+  try { _svMap.fitBounds(circle.getBounds(), { padding: [40, 40], maxZoom: 17 }); } catch(e) {}
+}
+
+// Evac zone / soil are parcel-wide properties, not an external point — the
+// only real thing to point at on the map is the parcel itself, so this
+// briefly highlights its real boundary rather than drawing a fake marker.
+function _svPulseParcel() {
+  const parcel = _svLayers['parcel'];
+  if (!parcel || !parcel.setStyle) return;
+  parcel.setStyle({ color: '#FBBF24', weight: 6 });
+  setTimeout(() => { try { parcel.setStyle({ color: '#38BDF8', weight: 3 }); } catch(e) {} }, 900);
+}
+
+function _svPulseComps() {
+  const comps = _svLayers['comps'];
+  if (!comps || !comps.length) return;
+  comps.forEach(m => {
+    try {
+      const el = m.getElement && m.getElement();
+      if (!el) return;
+      el.style.transition = 'transform .3s';
+      el.style.transform = 'scale(1.7)';
+      setTimeout(() => { el.style.transform = 'scale(1)'; }, 500);
+    } catch(e) {}
+  });
+}
+
+// Pill click entry point — draws whatever REAL thing exists on the map for
+// that category (a measured line, a radius when only a bucket is known, a
+// toggle of the real flood/wetland overlay, or a parcel-boundary pulse when
+// there's no external point at all) and syncs the matching check row.
+function svShowOnMap(kind) {
+  if (!_svMap || !_openParcel) return;
+  const r = _openParcel;
+  const pi = r.parcel_info || {};
+  const lat = r._lat, lng = r._lng;
+  if (lat == null || lng == null) return;
+
+  if (kind === 'road') {
+    if (pi.road_nearest_lat != null && pi.road_nearest_lng != null) {
+      const label = pi.road_distance_m != null ? pi.road_distance_m + 'm to road' : 'Nearest road';
+      _svDrawLineTo(lat, lng, pi.road_nearest_lat, pi.road_nearest_lng, label, _svDistColor(pi.road_distance_m));
+    }
+    svJumpToCheck('Road Access');
+  } else if (kind === 'power') {
+    if (pi.powerline_nearest_lat != null && pi.powerline_nearest_lng != null) {
+      _svDrawLineTo(lat, lng, pi.powerline_nearest_lat, pi.powerline_nearest_lng, (pi.powerline_distance || 'Power line'), _svDistColor(_svParseDistM(pi.powerline_distance)));
+    } else if (pi.powerline_distance) {
+      const radiusM = _svParseDistM(pi.powerline_distance) || 500;
+      _svDrawRadius(lat, lng, radiusM, 'Power somewhere within ' + pi.powerline_distance, _svDistColor(radiusM));
+    }
+    svJumpToCheck('Power & Utilities');
+  } else if (kind === 'flood') {
+    const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="flood"]');
+    if (btn && !btn.classList.contains('active')) svToggleLayer(btn);
+    svJumpToCheck('Flood Risk');
+  } else if (kind === 'wetlands') {
+    const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="wetlands"]');
+    if (btn && !btn.classList.contains('active')) svToggleLayer(btn);
+    svJumpToCheck('Wetlands');
+  } else if (kind === 'evac') {
+    _svPulseParcel();
+    svJumpToCheck('Hurricane Evacuation');
+  } else if (kind === 'soil') {
+    _svPulseParcel();
+    svJumpToCheck('Soil & Septic');
+  } else if (kind === 'comps') {
+    _svPulseComps();
+    const card = document.getElementById('svCompsCard');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
 // Deterministic pseudo-random offset so placeholder pins land in the same
 // spot on every re-render of the same parcel instead of jumping around —
 // seeded from the address/APN, not Math.random().
@@ -9339,6 +9459,7 @@ function _svInitMap(r) {
   if (!mapDiv || typeof L === 'undefined') return;
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
   Object.keys(_svLayers).forEach(k => delete _svLayers[k]);
+  _svAnnotationLayer = null;
   const pi = r.parcel_info || {};
   const lat = r._lat || 28.0, lng = r._lng || -81.5;
   _svMap = L.map('svMap', { zoomControl: false }).setView([lat, lng], 15);
@@ -9346,12 +9467,19 @@ function _svInitMap(r) {
   _svLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_svMap);
   _svLayers['_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri', maxZoom: 19 });
   const coords = extractPolygonCoords(pi.geometry);
+  // Acreage label drawn directly on the parcel, real county acreage data —
+  // not a fake/estimated figure, the same value shown in Parcel Facts.
+  const svAcreage = getAcreage(r);
+  const acreLabel = svAcreage != null ? svAcreage + ' ac' : null;
   if (coords && coords.length > 2) {
     const poly = L.polygon(coords, { color: '#38BDF8', weight: 3, fillColor: '#38BDF8', fillOpacity: 0.15 }).addTo(_svMap);
     _svLayers['parcel'] = poly;
+    if (acreLabel) poly.bindTooltip(acreLabel, { permanent: true, direction: 'center', className: 'sv-map-acres-label' });
     try { _svMap.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 17 }); } catch(e) {}
   } else {
-    _svLayers['parcel'] = L.circleMarker([lat, lng], { radius: 14, color: '#38BDF8', weight: 2, fillColor: '#38BDF8', fillOpacity: 0.25 }).addTo(_svMap);
+    const marker = L.circleMarker([lat, lng], { radius: 14, color: '#38BDF8', weight: 2, fillColor: '#38BDF8', fillOpacity: 0.25 }).addTo(_svMap);
+    _svLayers['parcel'] = marker;
+    if (acreLabel) marker.bindTooltip(acreLabel, { permanent: true, direction: 'top', offset: [0, -10], className: 'sv-map-acres-label' });
   }
   // Flood/wetlands created but NOT added to the map — off by default, only
   // shown once their button is toggled on.
@@ -9417,24 +9545,24 @@ function _svMapOverlayHtml(r) {
   const fz = getFloodText(r);
   if (fz && fz !== '—') {
     const risky = /AE|AO|AH|\bA\b|VE|\bV\b/i.test(fz) && !/zone x/i.test(fz);
-    pill(risky ? 'var(--red)' : 'var(--green)', fz.replace(/^Flood\s*/i, '') + ' flood', "svJumpToCheck('Flood Risk')");
+    pill(risky ? 'var(--red)' : 'var(--green)', fz.replace(/^Flood\s*/i, '') + ' flood', "svShowOnMap('flood')");
   }
   if (pi.wetland_type) {
     const onParcel = (r.flags || []).some(f => /wetlands confirmed|wetlands on parcel/i.test(f));
-    pill(onParcel ? 'var(--red)' : 'var(--amber)', _svCap(pi.wetland_type) + ' wetland', "svJumpToCheck('Wetlands')");
+    pill(onParcel ? 'var(--red)' : 'var(--amber)', _svCap(pi.wetland_type) + ' wetland', "svShowOnMap('wetlands')");
   }
   if (pi.road_distance_m != null) {
-    pill(_svDistColor(pi.road_distance_m), 'Road ~' + pi.road_distance_m + 'm away', "svJumpToCheck('Road Access')");
+    pill(_svDistColor(pi.road_distance_m), 'Road ~' + pi.road_distance_m + 'm away', "svShowOnMap('road')");
   }
   if (pi.powerline_distance) {
-    pill(_svDistColor(_svParseDistM(pi.powerline_distance)), 'Power ~' + pi.powerline_distance, "svJumpToCheck('Power & Utilities')");
+    pill(_svDistColor(_svParseDistM(pi.powerline_distance)), 'Power ~' + pi.powerline_distance, "svShowOnMap('power')");
   }
-  pill('var(--blue,#38BDF8)', '3 comps nearby', "document.getElementById('svCompsCard').scrollIntoView({behavior:'smooth',block:'center'})");
+  pill('var(--blue,#38BDF8)', '3 comps nearby', "svShowOnMap('comps')");
   if (pi.evac_zone) {
-    pill(/^[AB]$/i.test(pi.evac_zone) ? 'var(--red)' : 'var(--amber)', 'Zone ' + pi.evac_zone + ' evac', "svJumpToCheck('Hurricane Evacuation')");
+    pill(/^[AB]$/i.test(pi.evac_zone) ? 'var(--red)' : 'var(--amber)', 'Zone ' + pi.evac_zone + ' evac', "svShowOnMap('evac')");
   }
   if (pi.soil_drainage) {
-    pill(pi.septic_suitable === false ? 'var(--red)' : 'var(--green)', _svCap(pi.soil_drainage), "svJumpToCheck('Soil & Septic')");
+    pill(pi.septic_suitable === false ? 'var(--red)' : 'var(--green)', _svCap(pi.soil_drainage), "svShowOnMap('soil')");
   }
   return pills.join('');
 }

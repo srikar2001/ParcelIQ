@@ -33,9 +33,11 @@ _PRIVATE = {"S1740", "S1750"}
 
 ERROR = {"road_found": None, "road_surface": "error", "road_type": None,
          "road_name": None, "road_distance_m": None, "road_private": None,
+         "road_nearest_lat": None, "road_nearest_lng": None,
          "source": "US Census TIGER"}
 NONE_FOUND = {"road_found": False, "road_surface": "none", "road_type": None,
               "road_name": None, "road_distance_m": None, "road_private": None,
+              "road_nearest_lat": None, "road_nearest_lng": None,
               "source": "US Census TIGER"}
 
 
@@ -45,16 +47,25 @@ def _dist_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return math.hypot(dlat, dlng)
 
 
-def _min_distance(lat: float, lng: float, paths: list) -> float | None:
+def _min_distance(lat: float, lng: float, paths: list) -> tuple[float, float, float] | None:
+    """Returns (distance_m, nearest_lat, nearest_lng) for the closest vertex
+    across all paths, or None if no path has a usable point. The frontend
+    draws a real line to this point, so it must be an actual road vertex —
+    not an interpolated or approximate position."""
     best = None
+    best_pt = None
     for path in paths or []:
         for pt in path:
             if len(pt) < 2:
                 continue
-            d = _dist_m(lat, lng, pt[1], pt[0])  # ArcGIS paths are [x=lng, y=lat]
+            plng, plat = pt[0], pt[1]  # ArcGIS paths are [x=lng, y=lat]
+            d = _dist_m(lat, lng, plat, plng)
             if best is None or d < best:
                 best = d
-    return best
+                best_pt = (plat, plng)
+    if best is None or best_pt is None:
+        return None
+    return best, best_pt[0], best_pt[1]
 
 
 async def get_road_access(lat: float, lng: float) -> dict:
@@ -88,11 +99,12 @@ async def get_road_access(lat: float, lng: float) -> dict:
                 for f in feats:
                     attrs = f.get("attributes", {})
                     mtfcc = attrs.get("MTFCC") or ""
-                    dist = _min_distance(lat, lng, (f.get("geometry") or {}).get("paths"))
-                    scored.append((mtfcc in _PRIVATE, dist if dist is not None else 1e9, mtfcc, attrs.get("NAME")))
+                    result = _min_distance(lat, lng, (f.get("geometry") or {}).get("paths"))
+                    dist, nlat, nlng = result if result is not None else (1e9, None, None)
+                    scored.append((mtfcc in _PRIVATE, dist, nlat, nlng, mtfcc, attrs.get("NAME")))
                 # Prefer public roads over private drives, then nearest
                 scored.sort(key=lambda t: (t[0], t[1]))
-                is_private, dist, mtfcc, name = scored[0]
+                is_private, dist, nlat, nlng, mtfcc, name = scored[0]
                 road_type, surface = _MTFCC.get(mtfcc, ("road", "unknown"))
                 return {
                     "road_found": True,
@@ -101,6 +113,8 @@ async def get_road_access(lat: float, lng: float) -> dict:
                     "road_name": (name or "").strip() or None,
                     "road_distance_m": round(dist) if dist < 1e9 else None,
                     "road_private": bool(is_private),
+                    "road_nearest_lat": nlat if dist < 1e9 else None,
+                    "road_nearest_lng": nlng if dist < 1e9 else None,
                     "source": "US Census TIGER",
                 }
         return dict(NONE_FOUND)
