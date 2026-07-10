@@ -694,42 +694,6 @@ body.on-results .detail-panel{top:0}
 .sv-addr{font-size:17px;font-weight:800;color:var(--t1);letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sv-apn{font-family:monospace;font-size:11px;color:var(--t3);margin-top:1px}
 .sv-navbtns{margin-left:auto;display:flex;gap:6px}
-.sv-col-left{overflow-y:auto;padding:18px 24px;border-right:1px solid var(--b);min-height:0}
-.sv-col-right{overflow-y:auto;padding:18px 24px;min-height:0}
-/* Full-width single-panel tabs (Facts, What's Next) need extra side padding
-   the narrower 40%-column .sv-col-right doesn't — otherwise the prev/next
-   nav arrows (position:absolute at the story view's own edges) sit right
-   on top of edge content like the first fact's label. */
-.sv-tab-full{overflow-y:auto;padding:18px 56px;min-height:0;height:100%}
-.sv-checks-grid{display:grid;grid-template-columns:60% 40%;gap:0;height:100%;min-height:0}
-@media(max-width:900px){.sv-checks-grid{grid-template-columns:1fr;overflow-y:auto;height:auto}.sv-col-left,.sv-col-right{overflow-y:visible;border-right:none}}
-
-/* Hero verdict bar — the single most important fact on the page, so it
-   gets full width and top billing instead of competing for space in a
-   side column alongside everything else. */
-.sv-hero{flex-shrink:0;margin:16px 24px 0;padding:16px 20px;border-radius:14px;background:var(--card);border:1px solid var(--b);border-left:4px solid var(--vc,var(--b))}
-.sv-hero-top{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;margin-bottom:8px}
-.sv-hero-verdict{font-size:30px;font-weight:900;letter-spacing:-.02em;line-height:1;color:var(--vc)}
-.sv-hero-score{font-size:14px;color:var(--t2)}
-.sv-hero-score b{font-size:19px;color:var(--t1)}
-.sv-hero-conf{font-size:12px;color:var(--t3);margin-left:auto}
-.sv-hero-warn{font-size:12px;color:var(--amber);margin-bottom:6px}
-.sv-hero-reason{font-size:13.5px;line-height:1.55;color:var(--t1);margin:0 0 10px}
-.sv-hero-next{display:flex;gap:10px;align-items:flex-start;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);border-radius:10px;padding:9px 14px}
-.sv-hero-next .lbl{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--green);white-space:nowrap;padding-top:3px}
-.sv-hero-next .txt{font-size:12.5px;color:var(--t1);line-height:1.5}
-
-/* Tabs — progressive disclosure so Map/Checks, Parcel Facts, and What's
-   Next don't all compete for attention at once (everything is still one
-   click away, nothing removed). */
-.sv-tabbar{flex-shrink:0;display:flex;gap:4px;margin:14px 24px 0;border-bottom:1px solid var(--b)}
-.sv-tabbtn{background:none;border:none;padding:9px 14px;font-size:13px;font-weight:700;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s}
-.sv-tabbtn:hover{color:var(--t1)}
-.sv-tabbtn.on{color:var(--green);border-bottom-color:var(--green)}
-.sv-tabpanels{flex:1;min-height:0}
-.sv-tabpanel{height:100%;min-height:0}
-.sv-empty-tab{padding:24px;color:var(--t3);font-size:13px;text-align:center}
-
 .sv-jump-box{position:relative;flex-shrink:0;display:flex;width:180px}
 .sv-jump-input{flex:1;min-width:0;font-size:12px;padding:7px 8px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
 .sv-jump-input:focus{border-color:var(--bh)}
@@ -739,26 +703,69 @@ body.on-results .detail-panel{top:0}
 .sv-jump-item:hover{background:var(--card-h)}
 .sv-jump-empty{padding:10px 12px;font-size:12px;color:var(--t3)}
 .sv-sec-title{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin:0 0 6px}
-.sv-map-wrap{height:min(50vh,420px);min-height:280px;border-radius:14px;overflow:hidden;border:1px solid var(--b);margin-bottom:8px;position:relative}
-.sv-map-controls{display:flex;gap:6px;margin-bottom:16px}
-.sv-cats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media(max-width:600px){.sv-cats{grid-template-columns:1fr}}
-.sv-cat{border:1px solid var(--b);border-radius:10px;padding:10px 12px;background:var(--card)}
-.sv-cat-head{display:flex;align-items:center;gap:7px;margin-bottom:6px}
-.sv-cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.sv-cat-icon{font-size:14px;flex-shrink:0;line-height:1}
-.sv-cat-name{font-size:12.5px;font-weight:700;color:var(--t1);letter-spacing:.01em}
-.sv-cat-status{margin-left:auto;font-size:9px;font-weight:800;letter-spacing:.6px;padding:2px 7px;border-radius:99px;flex-shrink:0}
-.sv-cat-txt{font-size:12px;line-height:1.5;color:var(--t2);display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.sv-facts{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:6px}
-.sv-fact-lbl{font-size:10px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--t3);margin-bottom:2px}
-.sv-fact-val{font-size:12.5px;font-weight:600;color:var(--t1);line-height:1.3}
-.sv-fact-sub{font-size:10.5px;color:var(--t3);margin-top:1px}
-.sv-soon{display:flex;flex-direction:column;gap:6px}
-.sv-soon-card{position:relative;border:1px solid var(--b);border-radius:12px;padding:9px 14px;background:var(--card)}
-.sv-soon-badge{font-size:10px;font-weight:700;letter-spacing:.6px;background:var(--card-h);border:1px solid var(--bh);color:var(--t2);border-radius:99px;padding:2px 8px;display:inline-block;margin-bottom:5px}
-.sv-soon-title{font-size:13.5px;font-weight:700;color:var(--t1);margin-bottom:2px}
-.sv-soon-desc{font-size:12.5px;color:var(--t2);line-height:1.55}
+
+/* Zone 2 — map (hero, fills all available height) + data panel, side by side */
+.sv-main{flex:1;min-height:0;display:flex}
+.sv-map-zone{flex:1;min-width:0;position:relative;overflow:hidden}
+.sv-map-btns{position:absolute;top:10px;left:10px;z-index:400;display:flex;flex-wrap:wrap;gap:4px;max-width:calc(100% - 20px)}
+.sv-map-btn{padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:none;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:all .15s}
+.sv-map-btn.active{background:var(--green);color:#000}
+.sv-map-btn:not(.active){background:rgba(0,0,0,.6);color:#fff}
+.sv-map-bottom{position:absolute;bottom:0;left:0;right:0;z-index:400;background:rgba(0,0,0,.65);padding:6px 10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.sv-map-pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px}
+
+.sv-data-panel{width:360px;flex-shrink:0;overflow-y:auto;padding:20px;background:var(--card);border-left:1px solid var(--b)}
+@media(max-width:900px){.sv-main{flex-direction:column;overflow-y:auto}.sv-map-zone{height:min(50vh,420px);flex:none}.sv-data-panel{width:auto;border-left:none;border-top:1px solid var(--b)}}
+
+/* Section A — verdict block */
+.sv-hero{padding:14px 16px;border-radius:14px;background:var(--bg);border:1px solid var(--b);border-left:4px solid var(--vc,var(--b));margin-bottom:18px}
+.sv-hero-top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+.sv-hero-verdict{font-size:32px;font-weight:900;letter-spacing:-.02em;line-height:1;color:var(--vc)}
+.sv-hero-score{font-size:14px;color:var(--t2)}
+.sv-hero-conf{font-size:10.5px;color:var(--t3);display:block;margin-bottom:6px}
+.sv-hero-warn{font-size:12px;color:var(--amber);margin-bottom:6px}
+.sv-hero-reason{font-size:13px;line-height:1.6;color:var(--t1);margin:0 0 10px}
+.sv-hero-next{display:flex;gap:10px;align-items:flex-start;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);border-radius:10px;padding:9px 14px}
+.sv-hero-next .lbl{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--green);white-space:nowrap;padding-top:3px}
+.sv-hero-next .txt{font-size:12.5px;color:var(--t1);line-height:1.5}
+
+/* Section B — owner */
+.sv-owner-name{font-size:15px;font-weight:700;color:var(--t1)}
+.sv-owner-name.empty{color:var(--t3);font-weight:600}
+.sv-owner-sub{font-size:10px;color:var(--t3);margin-top:1px}
+.sv-owner-mail{font-size:11px;color:var(--t2);margin-top:4px}
+.sv-owner-contact{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.sv-owner-contact-row{font-size:12px;color:var(--t3);font-style:italic;display:flex;gap:6px;align-items:center}
+
+/* Section C — parcel facts */
+.sv-fact-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-bottom:6px}
+.sv-fact-item .sv-fact-lbl{font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--t3);margin-bottom:2px}
+.sv-fact-item .sv-fact-val{font-size:13px;font-weight:600;color:var(--t1);line-height:1.3}
+.sv-fact-item .sv-fact-sub{font-size:10px;color:var(--t3);margin-top:1px}
+
+/* Section D — checks, compact click-to-expand rows (not a native <details>
+   dropdown — a plain div toggled by JS, per explicit earlier feedback that
+   check text should read as deliberately designed, not a browser-native
+   disclosure widget) */
+.sv-checks-filter{display:flex;gap:4px;margin-bottom:10px}
+.sv-checks-filter button{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--b);background:none;cursor:pointer;color:var(--t2);transition:all .12s}
+.sv-checks-filter button.active{background:var(--green);border-color:var(--green);color:#000}
+.sv-cat-row{display:flex;align-items:center;gap:8px;padding:8px 6px;border-radius:8px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--b)}
+.sv-cat-row:hover{background:var(--card-h)}
+.sv-cat-row .sv-cat-icon{font-size:14px;flex-shrink:0;line-height:1}
+.sv-cat-row .sv-cat-name{font-size:12.5px;font-weight:700;color:var(--t1);letter-spacing:.01em}
+.sv-cat-row .sv-cat-status{margin-left:auto;font-size:9px;font-weight:800;letter-spacing:.6px;padding:2px 7px;border-radius:99px;flex-shrink:0}
+.sv-cat-chevron{flex-shrink:0;font-size:10px;color:var(--t3);transition:transform .15s;margin-left:2px}
+.sv-cat-desc{font-size:12px;line-height:1.55;color:var(--t2);padding:6px 6px 10px 30px}
+
+/* Section E — coming soon */
+.sv-soon-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+@media(max-width:500px){.sv-soon-row{grid-template-columns:1fr}}
+.sv-soon-card2{border:1px solid var(--b);border-radius:10px;padding:12px;background:var(--card-h);position:relative}
+.sv-soon-badge2{position:absolute;top:8px;right:8px;font-size:10px;background:var(--b);color:var(--t2);padding:2px 6px;border-radius:10px}
+.sv-soon-card2 .sv-soon-title{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:3px;padding-right:50px}
+.sv-soon-card2 .sv-soon-desc{font-size:11.5px;color:var(--t2);line-height:1.5}
+.sv-soon-card2 .sv-soon-note{font-size:10px;color:var(--t3);margin-top:4px}
 .dp-sec-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
 .dp-flag-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(42,45,58,.5);font-size:12px}
 .dp-flag-row:last-child{border-bottom:none}
@@ -9154,10 +9161,9 @@ let _svActiveTab = 'checks';
 function renderStoryView(r) {
   const sv = document.getElementById('storyView');
   if (!sv || !r) return;
-  // Tear down any previous parcel's map unconditionally — it's about to be
-  // replaced by fresh markup below regardless of which tab is active, and
-  // leaving a stale Leaflet instance pointed at a now-detached DOM node
-  // was a latent leak once map init became conditional on the active tab.
+  // Tear down any previous parcel's map unconditionally before replacing
+  // the markup below — leaving a stale Leaflet instance pointed at a
+  // now-detached DOM node is a leak.
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
 
   const pi = r.parcel_info || {};
@@ -9165,35 +9171,53 @@ function renderStoryView(r) {
   const vColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
   const conf = pi.confidence_pct;
   const cats = _svCategoryVerdicts(r);
+  const apn = pi.parcel_id || pi.apn;
 
+  // Section D — check rows: compact, always visible; description text only
+  // shown once a row is clicked (svToggleDesc), not a native <details>
+  // dropdown.
   const catsHtml = cats.map(c => {
     const st = _SV_STATUS[c.status] || _SV_STATUS['DATA UNAVAILABLE'];
-    return '<div class="sv-cat">' +
-      '<div class="sv-cat-head">' +
-      '<span class="sv-cat-icon">' + _svCatIcon(c.name) + '</span>' +
-      '<span class="sv-cat-dot" style="background:' + st.color + '"></span>' +
-      '<span class="sv-cat-name">' + escHtml(c.name) + '</span>' +
-      '<span class="sv-cat-status" style="color:' + st.color + ';background:' + st.bg + '">' + st.label + '</span>' +
+    return '<div class="sv-cat-row" data-status="' + c.status + '" onclick="svToggleDesc(this)">' +
+        '<span class="sv-cat-icon">' + _svCatIcon(c.name) + '</span>' +
+        '<span class="sv-cat-name">' + escHtml(c.name) + '</span>' +
+        '<span class="sv-cat-status" style="color:' + st.color + ';background:' + st.bg + '">' + st.label + '</span>' +
+        '<span class="sv-cat-chevron">▾</span>' +
       '</div>' +
-      '<div class="sv-cat-txt" title="' + escHtml(c.txt) + '">' + escHtml(c.txt) + '</div>' +
-      '</div>';
+      '<div class="sv-cat-desc" style="display:none">' + escHtml(c.txt) + '</div>';
   }).join('');
 
-  // Parcel facts — same hide-if-empty + translate rules as the panel
+  // Section C — parcel facts, real fields only, hide-if-empty throughout.
   const facts = [];
-  const fact = (lbl, val, sub) => facts.push('<div><div class="sv-fact-lbl">' + escHtml(lbl) + '</div><div class="sv-fact-val">' + val + '</div>' + (sub ? '<div class="sv-fact-sub">' + escHtml(sub) + '</div>' : '') + '</div>');
-  if (pi.owner && pi.owner !== 'N/A') fact('Owner', escHtml(pi.owner), 'as of county tax roll');
-  const apn = pi.parcel_id || pi.apn;
-  if (apn) fact('APN', '<span style="font-family:monospace;font-size:12px">' + escHtml(apn) + '</span>');
-  const av = pi.assessed_value != null ? pi.assessed_value : pi.just_value;
-  if (av != null && av > 0) fact('Assessed Value', escHtml(fmt$(av)), 'County tax estimate, not market value');
+  const fact = (lbl, val, sub) => facts.push('<div class="sv-fact-item"><div class="sv-fact-lbl">' + escHtml(lbl) + '</div><div class="sv-fact-val">' + val + '</div>' + (sub ? '<div class="sv-fact-sub">' + escHtml(sub) + '</div>' : '') + '</div>');
+  if (apn) fact('APN', '<span style="font-family:monospace">' + escHtml(apn) + '</span>');
   const svAc = getAcreage(r);
   if (svAc != null) fact('Acreage', escHtml(svAc + ' ac'));
-  if (pi.land_use_code != null) fact('Land Use', escHtml(getLandUseCategory(pi.land_use_code)));
   if (pi.county) fact('County', escHtml(pi.county));
+  if (pi.land_use_code != null) fact('Land Use', escHtml(getLandUseCategory(pi.land_use_code)));
+  const av = pi.assessed_value != null ? pi.assessed_value : pi.just_value;
+  if (av != null && av > 0) fact('Assessed Value', escHtml(fmt$(av)), 'County estimate, not market value');
+  if (pi.land_value != null && pi.land_value > 1000 && av != null && av > 0 && Math.abs(pi.land_value - av) / av > 0.2) {
+    fact('Land Value', escHtml(fmt$(pi.land_value)));
+  }
+  if (pi.last_sale_price != null && pi.last_sale_price > 0 && pi.last_sale_year != null) {
+    fact('Last Sale', escHtml(fmt$(pi.last_sale_price) + ' (' + pi.last_sale_year + ')'), pi.sale_price_likely_market_value === false ? 'Likely non-market transfer' : null);
+  }
+  if (pi.elevation_ft != null) fact('Elevation', escHtml(pi.elevation_ft + ' ft'));
+  const fz = getFloodText(r);
+  if (fz && fz !== '—') fact('Flood Zone', escHtml(fz));
+  if (pi.soil_drainage) fact('Soil', escHtml(_svCap(pi.soil_drainage) + (pi.septic_suitable === true ? ' — septic feasible' : pi.septic_suitable === false ? ' — septic not feasible' : '')));
+  if (pi.evac_zone) fact('Evac Zone', escHtml(pi.evac_zone)); else fact('Evac Zone', 'Not in evac zone');
+  if (pi.road_distance_m != null) {
+    fact('Road Access', escHtml((pi.road_type ? _svCap(pi.road_type) : 'Road') + ' ' + pi.road_distance_m + 'm' + (pi.road_name ? ' (' + pi.road_name + ')' : '')));
+  }
+  if (pi.powerline_distance) fact('Power', escHtml(pi.powerline_distance));
+  if (pi.wetland_type) fact('Wetland Type', escHtml(_svCap(pi.wetland_type)));
+  if (pi.habitat_species && pi.habitat_species.length) fact('Habitat', escHtml(pi.habitat_species.slice(0, 2).join(', ')));
 
-  const tab = (key, label) => '<button class="sv-tabbtn' + (_svActiveTab === key ? ' on' : '') + '" data-tab="' + key + '" onclick="_svSwitchTab(\'' + key + '\')">' + label + '</button>';
-  const panelStyle = key => 'display:' + (_svActiveTab === key ? '' : 'none');
+  // Owner name / mailing address
+  const hasOwner = pi.owner && pi.owner !== 'N/A';
+  const mailsElsewhere = pi.owner_mailing_address && pi.owner_mailing_address.trim() && !(r.address || '').toLowerCase().includes(pi.owner_mailing_address.trim().toLowerCase().split(',')[0]);
 
   sv.innerHTML =
     '<button class="sv-navfab sv-navfab-prev" onclick="storyNav(-1)" title="Previous parcel">‹</button>' +
@@ -9211,87 +9235,86 @@ function renderStoryView(r) {
           '<button class="sv-jump-btn" title="Search" onclick="document.getElementById(\'svJumpInput\').focus()">' + _PNAV_SEARCH_ICON + '</button>' +
           '<div class="sv-jump-dropdown" id="svJumpDropdown" style="display:none"></div>' +
         '</div>' +
+        '<span class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
+        (r.score != null ? '<span style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '') +
       '</div>' +
 
-      '<div class="sv-hero" style="--vc:' + vColor + '">' +
-        '<div class="sv-hero-top">' +
-          '<span class="sv-hero-verdict">' + escHtml(ev) + '</span>' +
-          (r.score != null ? '<span class="sv-hero-score">Score <b>' + r.score + '</b> / 100</span>' : '') +
-          (conf != null ? '<span class="sv-hero-conf">Confidence ' + conf + '%</span>' : '') +
-        '</div>' +
-        (conf != null && conf < 70 ? '<div class="sv-hero-warn">Some data sources were unavailable. Verify manually before proceeding.</div>' : '') +
-        '<p class="sv-hero-reason">' + escHtml(_svMainReason(r)) + '</p>' +
-        '<div class="sv-hero-next"><span class="lbl">Next step</span><span class="txt">' + escHtml(_svNextStep(r)) + '</span></div>' +
-      '</div>' +
-
-      '<div class="sv-tabbar">' +
-        tab('checks', '🗺️ Map &amp; Checks') + tab('facts', '📋 Parcel Facts') + tab('next', '🚀 What’s Next') +
-      '</div>' +
-
-      '<div class="sv-tabpanels">' +
-        '<div class="sv-tabpanel" data-tab="checks" style="' + panelStyle('checks') + '">' +
-          '<div class="sv-checks-grid">' +
-            '<div class="sv-col-left">' +
-              '<div class="sv-sec-title">🗺️ Parcel Map</div>' +
-              '<div class="sv-map-wrap"><div id="svMap" style="position:absolute;inset:0"></div></div>' +
-              '<div class="sv-map-controls">' +
-                '<button class="map-toggle active" data-svlayer="parcel" onclick="svToggleLayer(this)">Parcel</button>' +
-                '<button class="map-toggle" data-svlayer="flood" onclick="svToggleLayer(this)">Flood zones</button>' +
-                '<button class="map-toggle" data-svlayer="wetlands" onclick="svToggleLayer(this)">Wetlands</button>' +
-                '<button class="map-toggle" data-svlayer="satellite" onclick="svToggleSat(this)">Satellite</button>' +
-              '</div>' +
-            '</div>' +
-            '<div class="sv-col-right">' +
-              '<div class="sv-sec-title">🔍 What Each Check Found</div>' +
-              '<div class="sv-cats">' + catsHtml + '</div>' +
-            '</div>' +
+      '<div class="sv-main">' +
+        '<div class="sv-map-zone">' +
+          '<div id="svMap" style="position:absolute;inset:0"></div>' +
+          '<div class="sv-map-btns">' +
+            '<button class="sv-map-btn active" data-svlayer="parcel" onclick="svToggleLayer(this)">Parcel</button>' +
+            '<button class="sv-map-btn" data-svlayer="flood" onclick="svToggleLayer(this)">Flood Zones</button>' +
+            '<button class="sv-map-btn" data-svlayer="wetlands" onclick="svToggleLayer(this)">Wetlands</button>' +
+            '<button class="sv-map-btn" data-svlayer="satellite" onclick="svToggleLayer(this)">Satellite</button>' +
           '</div>' +
+          '<div class="sv-map-bottom" id="svMapBottom"></div>' +
         '</div>' +
 
-        '<div class="sv-tabpanel" data-tab="facts" style="' + panelStyle('facts') + '">' +
-          '<div class="sv-tab-full">' +
-            (facts.length ? '<div class="sv-facts">' + facts.join('') + '</div>' : '<div class="sv-empty-tab">No additional parcel facts available.</div>') +
+        '<div class="sv-data-panel">' +
+          '<div class="sv-hero" style="--vc:' + vColor + '">' +
+            '<div class="sv-hero-top">' +
+              '<span class="sv-hero-verdict">' + escHtml(ev) + '</span>' +
+              (r.score != null ? '<span class="sv-hero-score">Score ' + r.score + ' / 100</span>' : '') +
+            '</div>' +
+            (conf != null ? '<span class="sv-hero-conf">Confidence: ' + conf + '%' + (pi.sources_ok != null && pi.sources_total != null ? ' — ' + pi.sources_ok + ' of ' + pi.sources_total + ' checks completed' : '') + '</span>' : '') +
+            (conf != null && conf < 70 ? '<div class="sv-hero-warn">Some data unavailable. Verify before offering.</div>' : '') +
+            '<p class="sv-hero-reason">' + escHtml(_svMainReason(r)) + '</p>' +
+            '<div class="sv-hero-next"><span class="lbl">Next step</span><span class="txt">' + escHtml(_svNextStep(r)) + '</span></div>' +
           '</div>' +
-        '</div>' +
 
-        '<div class="sv-tabpanel" data-tab="next" style="' + panelStyle('next') + '">' +
-          '<div class="sv-tab-full">' +
-            '<div class="sv-soon">' +
-              '<div class="sv-soon-card">' +
-                '<span class="sv-soon-badge">🔒 Coming Soon</span>' +
-                '<div class="sv-soon-title">📊 Nearby Comps</div>' +
-                '<div class="sv-soon-desc">See what similar vacant lots nearby actually sold for.</div>' +
-              '</div>' +
-              '<div class="sv-soon-card">' +
-                '<span class="sv-soon-badge">🔒 Coming Soon</span>' +
-                '<div class="sv-soon-title">📞 Skip Tracing</div>' +
-                '<div class="sv-soon-desc">Get the owner’s phone and email in one click.</div>' +
-              '</div>' +
+          '<div class="sv-sec-title">Owner</div>' +
+          (hasOwner ? '<div class="sv-owner-name">' + escHtml(pi.owner) + '</div>' : '<div class="sv-owner-name empty">Unknown Owner</div>') +
+          '<div class="sv-owner-sub">as of county tax roll</div>' +
+          (mailsElsewhere ? '<div class="sv-owner-mail">Mails to: ' + escHtml(pi.owner_mailing_address) + '</div>' : '') +
+          '<div class="sv-owner-contact">' +
+            '<div class="sv-owner-contact-row">📞 Phone — <em>Coming Soon</em></div>' +
+            '<div class="sv-owner-contact-row">✉️ Email — <em>Coming Soon</em></div>' +
+          '</div>' +
+
+          (facts.length ? '<div class="sv-sec-title" style="margin-top:18px">Parcel Facts</div><div class="sv-fact-grid">' + facts.join('') + '</div>' : '') +
+
+          '<div class="sv-sec-title" style="margin-top:4px">What Each Check Found</div>' +
+          '<div class="sv-checks-filter">' +
+            '<button class="active" data-filter="all" onclick="svFilterChecks(\'all\')">All</button>' +
+            '<button data-filter="risks" onclick="svFilterChecks(\'risks\')">Risks</button>' +
+            '<button data-filter="clear" onclick="svFilterChecks(\'clear\')">Clear</button>' +
+          '</div>' +
+          '<div class="sv-cats">' + catsHtml + '</div>' +
+
+          '<div class="sv-soon-row">' +
+            '<div class="sv-soon-card2">' +
+              '<span class="sv-soon-badge2">🔒</span>' +
+              '<div class="sv-soon-title">📊 Nearby Comps</div>' +
+              '<div class="sv-soon-desc">Compare recent sales nearby. Coming Soon.</div>' +
+              '<div class="sv-soon-note">Comps shown on map as estimated markers</div>' +
+            '</div>' +
+            '<div class="sv-soon-card2">' +
+              '<span class="sv-soon-badge2">🔒</span>' +
+              '<div class="sv-soon-title">📞 Skip Tracing</div>' +
+              '<div class="sv-soon-desc">Find owner contact in one click. Coming Soon.</div>' +
             '</div>' +
           '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
 
-  // Leaflet needs its container to actually be visible (non-zero size) to
-  // size itself correctly — only initialize it now if the checks tab (the
-  // one holding #svMap) is the one actually showing. If the user is on a
-  // different tab, _svSwitchTab() lazily initializes it the moment they
-  // switch to checks.
-  if (_svActiveTab === 'checks') _svInitMap(r);
+  _svInitMap(r);
+  document.getElementById('svMapBottom').innerHTML = _svMapBottomHtml(r);
 }
 
-// Cheap show/hide between tabs — does NOT re-render (avoids re-fetching map
-// tiles or losing scroll position within a panel) except for the map, which
-// has its own lifecycle requirements (see comment above).
-function _svSwitchTab(tab) {
-  _svActiveTab = tab;
-  document.querySelectorAll('#storyView .sv-tabbtn').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  document.querySelectorAll('#storyView .sv-tabpanel').forEach(p => { p.style.display = p.dataset.tab === tab ? '' : 'none'; });
-  if (tab === 'checks') {
-    if (_svMap) setTimeout(() => { if (_svMap) _svMap.invalidateSize(); }, 50);
-    else if (_openParcel) _svInitMap(_openParcel);
-  }
+// Deterministic pseudo-random offset so placeholder pins land in the same
+// spot on every re-render of the same parcel instead of jumping around —
+// seeded from the address/APN, not Math.random().
+function _svSeedOffset(seedStr, index) {
+  let seed = 0;
+  const s = String(seedStr || '');
+  for (let i = 0; i < Math.min(4, s.length); i++) seed += s.charCodeAt(i) * (i + 1);
+  seed += index * 97;
+  const frac = Math.abs(Math.sin(seed)) % 1;
+  const mag = 0.003 + frac * (0.015 - 0.003);
+  const angle = (seed % 360) * Math.PI / 180;
+  return { dLat: mag * Math.cos(angle), dLng: mag * Math.sin(angle) };
 }
 
 function _svInitMap(r) {
@@ -9299,11 +9322,13 @@ function _svInitMap(r) {
   if (!mapDiv || typeof L === 'undefined') return;
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
   Object.keys(_svLayers).forEach(k => delete _svLayers[k]);
+  const pi = r.parcel_info || {};
   const lat = r._lat || 28.0, lng = r._lng || -81.5;
-  _svMap = L.map('svMap', { zoomControl: true }).setView([lat, lng], 15);
+  _svMap = L.map('svMap', { zoomControl: false }).setView([lat, lng], 15);
+  L.control.zoom({ position: 'topright' }).addTo(_svMap);
   _svLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_svMap);
   _svLayers['_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri', maxZoom: 19 });
-  const coords = extractPolygonCoords(r.parcel_info?.geometry);
+  const coords = extractPolygonCoords(pi.geometry);
   if (coords && coords.length > 2) {
     const poly = L.polygon(coords, { color: '#38BDF8', weight: 3, fillColor: '#38BDF8', fillOpacity: 0.15 }).addTo(_svMap);
     _svLayers['parcel'] = poly;
@@ -9311,23 +9336,116 @@ function _svInitMap(r) {
   } else {
     _svLayers['parcel'] = L.circleMarker([lat, lng], { radius: 14, color: '#38BDF8', weight: 2, fillColor: '#38BDF8', fillOpacity: 0.25 }).addTo(_svMap);
   }
+  // Flood/wetlands created but NOT added to the map — off by default, only
+  // shown once their button is toggled on.
   _svLayers['flood']    = _makeFemaLayer(0.5);
   _svLayers['wetlands'] = _makeWetlandsLayer(0.5);
+
+  // Comps + skip-tracing placeholder pins — always visible, not toggled by
+  // any button, deterministically placed near the parcel from a seed so
+  // they don't jump between renders of the same parcel.
+  const seed = (r.address || '') + (pi.parcel_id || '');
+  const blur = m => { try { const el = m.getElement && m.getElement(); if (el) el.style.filter = 'blur(1.5px)'; } catch(e) {} };
+  const comps = [];
+  for (let i = 0; i < 3; i++) {
+    const off = _svSeedOffset(seed, i);
+    const m = L.circleMarker([lat + off.dLat, lng + off.dLng], { color: '#f59e0b', weight: 2, radius: 7, fillColor: '#f59e0b', fillOpacity: 0.8 });
+    m.bindPopup('Nearby Comp (Coming Soon)');
+    m.addTo(_svMap);
+    blur(m);
+    comps.push(m);
+  }
+  _svLayers['comps'] = comps;
+  const stOff = _svSeedOffset(seed, 3);
+  const stMarker = L.circleMarker([lat + stOff.dLat, lng + stOff.dLng], { color: '#a855f7', weight: 2, radius: 7, fillColor: '#a855f7', fillOpacity: 0.8 });
+  stMarker.bindPopup('Owner Contact (Coming Soon)');
+  stMarker.addTo(_svMap);
+  blur(stMarker);
+  _svLayers['skipTrace'] = stMarker;
+
   setTimeout(() => { if (_svMap) _svMap.invalidateSize(); }, 250);
 }
 
+// Approximate meters from strings like "< 500m" / "< 1 mile" — the backend
+// reports these as human-readable ranges, not bare numbers, for every
+// distance field except road_distance_m. Used only to pick a pill color;
+// the label itself always shows the real string, never a parsed number.
+function _svParseDistM(s) {
+  if (!s) return null;
+  if (/mile/i.test(s)) return 1609;
+  const m = String(s).match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+function _svDistColor(distM) {
+  if (distM == null) return 'var(--t3)';
+  if (distM < 50) return 'var(--green)';
+  if (distM < 150) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function _svMapBottomHtml(r) {
+  const pi = r.parcel_info || {};
+  const pills = [];
+  if (pi.road_distance_m != null) {
+    const c = _svDistColor(pi.road_distance_m);
+    pills.push('<span class="sv-map-pill" style="background:' + c + ';color:#000">🛣 Road ' + pi.road_distance_m + 'm</span>');
+  }
+  if (pi.powerline_distance) {
+    const c = _svDistColor(_svParseDistM(pi.powerline_distance));
+    pills.push('<span class="sv-map-pill" style="background:' + c + ';color:#000">⚡ Power ' + escHtml(pi.powerline_distance) + '</span>');
+  }
+  if (pi.waterway_distance) {
+    const c = _svDistColor(_svParseDistM(pi.waterway_distance));
+    pills.push('<span class="sv-map-pill" style="background:' + c + ';color:#000">🌊 Waterway ' + escHtml(pi.waterway_distance) + '</span>');
+  }
+  if (pi.wetland_type) {
+    const onParcel = (r.flags || []).some(f => /wetlands confirmed|wetlands on parcel/i.test(f));
+    pills.push('<span class="sv-map-pill" style="background:' + (onParcel ? 'var(--red)' : 'var(--green)') + ';color:#000">🌿 ' + escHtml(_svCap(pi.wetland_type)) + '</span>');
+  }
+  return pills.join('');
+}
+
+// Layer toggle for the map-overlay pill buttons (Parcel/Flood/Wetlands
+// always-on-map; Satellite swaps the base tile layer instead of adding one).
 function svToggleLayer(btn) {
   const key = btn.dataset.svlayer;
-  if (!_svMap || !_svLayers[key]) return;
+  if (!_svMap) return;
+  if (key === 'satellite') {
+    const satOn = btn.classList.contains('active');
+    if (satOn) { _svMap.removeLayer(_svLayers['_sat']); _svLayers['_osm'].addTo(_svMap); btn.classList.remove('active'); }
+    else { _svMap.removeLayer(_svLayers['_osm']); _svLayers['_sat'].addTo(_svMap); btn.classList.add('active'); }
+    return;
+  }
+  if (!_svLayers[key]) return;
   if (_svMap.hasLayer(_svLayers[key])) { _svMap.removeLayer(_svLayers[key]); btn.classList.remove('active'); }
   else { _svMap.addLayer(_svLayers[key]); btn.classList.add('active'); }
 }
-let _svSatOn = false;
-function svToggleSat(btn) {
-  if (!_svMap) return;
-  _svSatOn = !_svSatOn;
-  if (_svSatOn) { _svMap.removeLayer(_svLayers['_osm']); _svLayers['_sat'].addTo(_svMap); btn.classList.add('active'); }
-  else { _svMap.removeLayer(_svLayers['_sat']); _svLayers['_osm'].addTo(_svMap); btn.classList.remove('active'); }
+
+// All / Risks / Clear filter for the check rows — pure display toggling,
+// no re-render (keeps whatever descriptions are currently expanded open).
+function svFilterChecks(filter) {
+  document.querySelectorAll('#storyView .sv-checks-filter button').forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
+  document.querySelectorAll('#storyView .sv-cat-row').forEach(row => {
+    const status = row.dataset.status;
+    let show = true;
+    if (filter === 'risks') show = status === 'RISK' || status === 'CAUTION';
+    else if (filter === 'clear') show = status === 'CLEAR';
+    row.style.display = show ? '' : 'none';
+    const desc = row.nextElementSibling;
+    if (desc && desc.classList.contains('sv-cat-desc') && !show) desc.style.display = 'none';
+  });
+}
+
+// Click a check row to reveal its description — not a native <details>
+// dropdown (deliberately, per earlier feedback that check text should
+// always read as part of the designed layout, not a browser-native widget).
+function svToggleDesc(row) {
+  const desc = row.nextElementSibling;
+  if (!desc || !desc.classList.contains('sv-cat-desc')) return;
+  const isOpen = desc.style.display !== 'none';
+  desc.style.display = isOpen ? 'none' : '';
+  const chevron = row.querySelector('.sv-cat-chevron');
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
 }
 
 // ── Batch parcel navigator: replaces the app sidebar while the story view is
@@ -9508,7 +9626,7 @@ function _pnavOpenParcel(r) {
     _openParcelIdx = -1;
   }
   renderStoryView(r);
-  document.querySelectorAll('#storyView .sv-col-left,#storyView .sv-col-right').forEach(c => c.scrollTop = 0);
+  document.querySelectorAll('#storyView .sv-map-zone,#storyView .sv-data-panel').forEach(c => c.scrollTop = 0);
   _pnavRenderList();
 }
 
@@ -9562,7 +9680,7 @@ function openStoryView() {
       'Re-screen it (↻ on the row) and try again.</div></div>';
   }
   sv.classList.add('open');
-  document.querySelectorAll('#storyView .sv-col-left,#storyView .sv-col-right').forEach(c => c.scrollTop = 0);
+  document.querySelectorAll('#storyView .sv-map-zone,#storyView .sv-data-panel').forEach(c => c.scrollTop = 0);
   const main = document.querySelector('#page-results .res-main');
   if (main) main.style.display = 'none';
   // The detail panel is a fixed-position element outside the results-page
@@ -9614,7 +9732,7 @@ function storyNav(dir) {
     const panel = document.getElementById('detailPanel');
     if (panel) panel.style.display = 'none';
     renderStoryView(_openParcel);
-    document.querySelectorAll('#storyView .sv-col-left,#storyView .sv-col-right').forEach(c => c.scrollTop = 0);
+    document.querySelectorAll('#storyView .sv-map-zone,#storyView .sv-data-panel').forEach(c => c.scrollTop = 0);
     _pnavRenderList();
   }
 }
