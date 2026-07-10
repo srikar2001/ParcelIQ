@@ -711,10 +711,12 @@ body.on-results .detail-panel{top:0}
 .sv-map-btn{padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:none;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:all .15s}
 .sv-map-btn.active{background:var(--green);color:#000}
 .sv-map-btn:not(.active){background:rgba(0,0,0,.6);color:#fff}
-.sv-map-bottom{position:absolute;bottom:0;left:0;right:0;z-index:400;background:rgba(0,0,0,.65);padding:6px 10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.sv-map-pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px}
+.sv-map-overlay{position:absolute;top:52px;left:10px;z-index:400;display:flex;flex-direction:column;align-items:flex-start;gap:6px;max-width:min(220px,calc(100% - 20px))}
+.sv-map-pill2{display:inline-flex;align-items:center;gap:7px;background:#FBEEDD;color:#3A2E22;font-size:12px;font-weight:700;padding:6px 12px 6px 10px;border-radius:20px;border:none;box-shadow:0 3px 10px rgba(0,0,0,.4);cursor:pointer;text-align:left;line-height:1.15;transition:transform .12s}
+.sv-map-pill2:hover{transform:translateX(2px)}
+.sv-map-pill2 .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 
-.sv-data-panel{width:360px;flex-shrink:0;overflow-y:auto;padding:20px;background:var(--card);border-left:1px solid var(--b)}
+.sv-data-panel{width:420px;flex-shrink:0;overflow-y:auto;padding:20px;background:var(--card);border-left:1px solid var(--b)}
 @media(max-width:900px){.sv-main{flex-direction:column;overflow-y:auto}.sv-map-zone{height:min(50vh,420px);flex:none}.sv-data-panel{width:auto;border-left:none;border-top:1px solid var(--b)}}
 
 /* Section A — verdict block */
@@ -9178,13 +9180,17 @@ function renderStoryView(r) {
   // dropdown.
   const catsHtml = cats.map(c => {
     const st = _SV_STATUS[c.status] || _SV_STATUS['DATA UNAVAILABLE'];
-    return '<div class="sv-cat-row" data-status="' + c.status + '" onclick="svToggleDesc(this)">' +
+    // RISK rows start expanded so the parcel's most important findings are
+    // visible without a click — cuts down on scroll-then-click-then-scroll
+    // to discover what's actually wrong with a KILL parcel.
+    const openByDefault = c.status === 'RISK';
+    return '<div class="sv-cat-row" data-status="' + c.status + '" data-cat="' + escHtml(c.name) + '" onclick="svToggleDesc(this)">' +
         '<span class="sv-cat-icon">' + _svCatIcon(c.name) + '</span>' +
         '<span class="sv-cat-name">' + escHtml(c.name) + '</span>' +
         '<span class="sv-cat-status" style="color:' + st.color + ';background:' + st.bg + '">' + st.label + '</span>' +
-        '<span class="sv-cat-chevron">▾</span>' +
+        '<span class="sv-cat-chevron" style="' + (openByDefault ? 'transform:rotate(180deg)' : '') + '">▾</span>' +
       '</div>' +
-      '<div class="sv-cat-desc" style="display:none">' + escHtml(c.txt) + '</div>';
+      '<div class="sv-cat-desc" style="display:' + (openByDefault ? '' : 'none') + '">' + escHtml(c.txt) + '</div>';
   }).join('');
 
   // Section C — parcel facts, real fields only, hide-if-empty throughout.
@@ -9248,7 +9254,7 @@ function renderStoryView(r) {
             '<button class="sv-map-btn" data-svlayer="wetlands" onclick="svToggleLayer(this)">Wetlands</button>' +
             '<button class="sv-map-btn" data-svlayer="satellite" onclick="svToggleLayer(this)">Satellite</button>' +
           '</div>' +
-          '<div class="sv-map-bottom" id="svMapBottom"></div>' +
+          '<div class="sv-map-overlay" id="svMapOverlay"></div>' +
         '</div>' +
 
         '<div class="sv-data-panel">' +
@@ -9283,7 +9289,7 @@ function renderStoryView(r) {
           '<div class="sv-cats">' + catsHtml + '</div>' +
 
           '<div class="sv-soon-row">' +
-            '<div class="sv-soon-card2">' +
+            '<div class="sv-soon-card2" id="svCompsCard">' +
               '<span class="sv-soon-badge2">🔒</span>' +
               '<div class="sv-soon-title">📊 Nearby Comps</div>' +
               '<div class="sv-soon-desc">Compare recent sales nearby. Coming Soon.</div>' +
@@ -9300,7 +9306,18 @@ function renderStoryView(r) {
     '</div>';
 
   _svInitMap(r);
-  document.getElementById('svMapBottom').innerHTML = _svMapBottomHtml(r);
+  document.getElementById('svMapOverlay').innerHTML = _svMapOverlayHtml(r);
+}
+
+// Click a map-overlay pill to jump straight to its matching check row in
+// the data panel — expanding it if it's collapsed, then scrolling to it.
+function svJumpToCheck(catName) {
+  let target = null;
+  document.querySelectorAll('#storyView .sv-cat-row').forEach(row => { if (row.dataset.cat === catName) target = row; });
+  if (!target) return;
+  const desc = target.nextElementSibling;
+  if (desc && desc.classList.contains('sv-cat-desc') && desc.style.display === 'none') svToggleDesc(target);
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // Deterministic pseudo-random offset so placeholder pins land in the same
@@ -9383,24 +9400,41 @@ function _svDistColor(distM) {
   return 'var(--red)';
 }
 
-function _svMapBottomHtml(r) {
+// Floating map-overlay pills — real data, one per check category, styled as
+// light/cream chips (not theme-dark) so they read clearly over map imagery
+// in both dark and light site themes. Each is clickable: it jumps to and
+// expands the matching check row in the data panel, so the map and the
+// checks list stay tied together instead of being two disconnected views.
+function _svMapOverlayHtml(r) {
   const pi = r.parcel_info || {};
   const pills = [];
-  if (pi.road_distance_m != null) {
-    const c = _svDistColor(pi.road_distance_m);
-    pills.push('<span class="sv-map-pill" style="background:' + c + ';color:#000">🛣 Road ' + pi.road_distance_m + 'm</span>');
-  }
-  if (pi.powerline_distance) {
-    const c = _svDistColor(_svParseDistM(pi.powerline_distance));
-    pills.push('<span class="sv-map-pill" style="background:' + c + ';color:#000">⚡ Power ' + escHtml(pi.powerline_distance) + '</span>');
-  }
-  if (pi.waterway_distance) {
-    const c = _svDistColor(_svParseDistM(pi.waterway_distance));
-    pills.push('<span class="sv-map-pill" style="background:' + c + ';color:#000">🌊 Waterway ' + escHtml(pi.waterway_distance) + '</span>');
+  const pill = (color, label, onclick) => pills.push(
+    '<button class="sv-map-pill2" onclick="' + onclick + '">' +
+      '<span class="dot" style="background:' + color + '"></span>' + escHtml(label) +
+    '</button>'
+  );
+
+  const fz = getFloodText(r);
+  if (fz && fz !== '—') {
+    const risky = /AE|AO|AH|\bA\b|VE|\bV\b/i.test(fz) && !/zone x/i.test(fz);
+    pill(risky ? 'var(--red)' : 'var(--green)', fz.replace(/^Flood\s*/i, '') + ' flood', "svJumpToCheck('Flood Risk')");
   }
   if (pi.wetland_type) {
     const onParcel = (r.flags || []).some(f => /wetlands confirmed|wetlands on parcel/i.test(f));
-    pills.push('<span class="sv-map-pill" style="background:' + (onParcel ? 'var(--red)' : 'var(--green)') + ';color:#000">🌿 ' + escHtml(_svCap(pi.wetland_type)) + '</span>');
+    pill(onParcel ? 'var(--red)' : 'var(--amber)', _svCap(pi.wetland_type) + ' wetland', "svJumpToCheck('Wetlands')");
+  }
+  if (pi.road_distance_m != null) {
+    pill(_svDistColor(pi.road_distance_m), 'Road ~' + pi.road_distance_m + 'm away', "svJumpToCheck('Road Access')");
+  }
+  if (pi.powerline_distance) {
+    pill(_svDistColor(_svParseDistM(pi.powerline_distance)), 'Power ~' + pi.powerline_distance, "svJumpToCheck('Power & Utilities')");
+  }
+  pill('var(--blue,#38BDF8)', '3 comps nearby', "document.getElementById('svCompsCard').scrollIntoView({behavior:'smooth',block:'center'})");
+  if (pi.evac_zone) {
+    pill(/^[AB]$/i.test(pi.evac_zone) ? 'var(--red)' : 'var(--amber)', 'Zone ' + pi.evac_zone + ' evac', "svJumpToCheck('Hurricane Evacuation')");
+  }
+  if (pi.soil_drainage) {
+    pill(pi.septic_suitable === false ? 'var(--red)' : 'var(--green)', _svCap(pi.soil_drainage), "svJumpToCheck('Soil & Septic')");
   }
   return pills.join('');
 }
