@@ -302,17 +302,21 @@ body.on-results .detail-panel{top:0}
 .pnav-title{border-bottom:1px solid var(--b);padding-bottom:10px}
 .pnav-name{font-size:15px;font-weight:800;color:var(--t1);letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pnav-count{font-size:11.5px;color:var(--t3);margin-top:2px}
-.pnav-tabs{display:flex;gap:4px}
-.pnav-tab{flex:1;text-align:center;font-size:10.5px;font-weight:700;padding:6px 2px;border-radius:var(--rs);border:1px solid var(--b);background:none;color:var(--t2);cursor:pointer;white-space:nowrap}
+.pnav-toolbar{display:flex;align-items:center;gap:6px}
+.pnav-tabs{display:flex;gap:4px;flex:1;min-width:0}
+.pnav-tab{flex:1;min-width:0;text-align:center;font-size:10px;font-weight:700;padding:6px 1px;border-radius:var(--rs);border:1px solid var(--b);background:none;color:var(--t2);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pnav-tab.on{background:var(--gbg);border-color:var(--green);color:var(--green)}
 .pnav-tab[data-v="KILL"]{color:var(--red)}
 .pnav-tab[data-v="KILL"].on{background:var(--rbg);border-color:var(--red);color:var(--red)}
 .pnav-tab[data-v="PURSUE"]{color:var(--green)}
 .pnav-tab[data-v="PURSUE"].on{background:var(--gbg);border-color:var(--green);color:var(--green)}
-.pnav-search-box{position:relative;display:flex}
-.pnav-search{flex:1;min-width:0;font-size:12px;padding:9px 10px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
+/* Moved beside the filter tabs (was its own full-width row below them) —
+   fixed-width and compact since the sidebar has ~208px of usable content
+   width total to share across search + all three tabs. */
+.pnav-search-box{position:relative;display:flex;flex-shrink:0;width:44px}
+.pnav-search{flex:1;min-width:0;font-size:11px;padding:6px 0 6px 4px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
 .pnav-search:focus{border-color:var(--bh)}
-.pnav-search-btn{flex-shrink:0;width:34px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pnav-search-btn{flex-shrink:0;width:26px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .pnav-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:0 -6px}
 .pnav-row{padding:10px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--b)}
 .pnav-row:last-child{border-bottom:none}
@@ -9764,10 +9768,12 @@ function _buildParcelNavigator() {
       '<div class="pnav-title">' +
         '<div class="pnav-count">' + results.length + ' parcel' + (results.length !== 1 ? 's' : '') + '</div>' +
       '</div>' +
-      '<div class="pnav-tabs">' + tab('all', 'All', results.length) + tab('KILL', 'Kill', kill) + tab('PURSUE', 'Pursue', pursue) + '</div>' +
-      '<div class="pnav-search-box">' +
-        '<input class="pnav-search" id="pnavSearch" placeholder="Search address or APN..." value="' + escHtml(_pnavQuery) + '" oninput="_pnavSetQuery(this.value)">' +
-        '<button class="pnav-search-btn" title="Search" onclick="document.getElementById(\'pnavSearch\').focus()">' + _PNAV_SEARCH_ICON + '</button>' +
+      '<div class="pnav-toolbar">' +
+        '<div class="pnav-search-box">' +
+          '<input class="pnav-search" id="pnavSearch" placeholder="Search…" title="Search address or APN" value="' + escHtml(_pnavQuery) + '" oninput="_pnavSetQuery(this.value)">' +
+          '<button class="pnav-search-btn" title="Search address or APN" onclick="document.getElementById(\'pnavSearch\').focus()">' + _PNAV_SEARCH_ICON + '</button>' +
+        '</div>' +
+        '<div class="pnav-tabs">' + tab('all', 'All', results.length) + tab('KILL', 'Kill', kill) + tab('PURSUE', 'Pursue', pursue) + '</div>' +
       '</div>' +
       '<div class="pnav-list" id="pnavList"></div>' +
       '<a class="pnav-alllink" onclick="_pnavShowAllBatches()">← All Batches</a>' +
