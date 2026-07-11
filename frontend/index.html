@@ -698,6 +698,9 @@ body.on-results .detail-panel{top:0}
 .sv-section-label{font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--green);margin-bottom:3px}
 .sv-addr{font-size:27px;font-weight:800;color:var(--t1);letter-spacing:-.02em;line-height:1.15;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sv-apn{font-family:monospace;font-size:12px;color:var(--t3);margin-top:3px}
+.sv-rescreen-btn{flex-shrink:0;font-size:12px;font-weight:700;color:var(--t2);background:none;border:1px solid var(--b);border-radius:var(--rs);padding:6px 12px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.sv-rescreen-btn:hover{color:var(--t1);border-color:var(--bh)}
+.sv-rescreen-btn:disabled{opacity:.5;cursor:default}
 .sv-navbtns{margin-left:auto;display:flex;gap:6px}
 .sv-jump-box{position:relative;flex-shrink:0;display:flex;width:180px}
 .sv-jump-input{flex:1;min-width:0;font-size:12px;padding:7px 8px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
@@ -6545,6 +6548,42 @@ async function rescreenFromPanel() {
   } finally { if (btn) { btn.disabled=false; btn.textContent='↻ Re-screen'; } }
 }
 
+// Same re-screen action as rescreenFromPanel(), but for the Deal Review
+// (story view) header button — refreshes the story view's own render
+// instead of the quick-preview panel, and never touches #detailPanel
+// (which must stay hidden while the story view is open).
+async function rescreenFromStoryView() {
+  if (!_openParcel) return;
+  if (!(await checkWeeklyLimit(1))) return;
+  const btn = document.getElementById('svRescreenBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Screening…'; }
+  try {
+    const hdrs = { 'Content-Type': 'application/json' };
+    if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
+    const resp = await fetch(API + '/api/batch', { method:'POST', headers:hdrs, body:JSON.stringify({ parcels:[{ address:_openParcel.address }], state:'FL' }) });
+    if (!resp.ok) throw new Error('Server error ' + resp.status);
+    const data = await resp.json();
+    const nr = data.results?.[0]; if (!nr) throw new Error('No result');
+    const origRow = _openParcel;                    // capture before overwrite
+    nr._note = origRow._note; nr._note_updated_at = origRow._note_updated_at;
+    const bIdx = batchState.results.findIndex(r => r.address === origRow.address);
+    if (bIdx !== -1) batchState.results[bIdx] = nr;
+    if (_openParcelIdx >= 0 && _openParcelIdx < _currentDisplayed.length) _currentDisplayed[_openParcelIdx] = nr;
+    _openParcel = nr;
+    renderStoryView(nr);
+    _pnavRenderList();
+    toast('Parcel re-screened with fresh data');
+    await _saveRescreenToSupa(origRow, nr);
+  } catch(e) {
+    toast('Re-screen failed: ' + e.message);
+    // renderStoryView() only runs on the success path above, so on failure
+    // the original (now stale) button is still in the DOM and needs its
+    // own state reset here — the success path already gets a fresh one.
+    const btn2 = document.getElementById('svRescreenBtn');
+    if (btn2) { btn2.disabled = false; btn2.textContent = '↻ Re-screen'; }
+  }
+}
+
 // ── RE-SCREEN ROW (Task 07)
 async function _saveRescreenToSupa(origRow, nr) {
   if (!sb || !currentUser || !nr) return;
@@ -9257,7 +9296,10 @@ function renderStoryView(r) {
         '<button class="sv-back icon-only" onclick="closeStoryView()" title="Back to Results">←</button>' +
         '<div style="min-width:0;flex:1">' +
           '<div class="sv-section-label">Deal Review</div>' +
-          '<div class="sv-addr">' + escHtml(r.address || '') + '</div>' +
+          '<div style="display:flex;align-items:center;gap:12px;min-width:0">' +
+            '<div class="sv-addr">' + escHtml(r.address || '') + '</div>' +
+            '<button id="svRescreenBtn" class="sv-rescreen-btn" onclick="rescreenFromStoryView()" title="Re-screen this parcel with fresh data">↻ Re-screen</button>' +
+          '</div>' +
           (apn ? '<div class="sv-apn">APN ' + escHtml(apn) + '</div>' : '') +
         '</div>' +
         '<div class="sv-jump-box">' +
@@ -9802,6 +9844,12 @@ function _pnavOpenParcel(r) {
     _openParcel = r;
     _openParcelIdx = -1;
   }
+  // openDetailPanel() above unconditionally re-shows the quick-preview panel
+  // as part of its normal behavior (see storyNav(), which has the same
+  // issue) — it's position:fixed, so it floats visibly over the story view
+  // regardless of z-order unless hidden again here.
+  const panel = document.getElementById('detailPanel');
+  if (panel) panel.style.display = 'none';
   renderStoryView(r);
   document.querySelectorAll('#storyView .sv-map-zone,#storyView .sv-data-panel').forEach(c => c.scrollTop = 0);
   _pnavRenderList();
