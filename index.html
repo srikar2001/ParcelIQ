@@ -307,12 +307,16 @@ body.on-results .detail-panel{top:0}
 .pnav-tabs{display:flex;gap:4px}
 .pnav-tab{flex:1;text-align:center;font-size:10.5px;font-weight:700;padding:6px 2px;border-radius:var(--rs);border:1px solid var(--b);background:none;color:var(--t2);cursor:pointer;white-space:nowrap}
 .pnav-tab.on{background:var(--gbg);border-color:var(--green);color:var(--green)}
+.pnav-tab[data-v="KILL"]{color:var(--red)}
+.pnav-tab[data-v="KILL"].on{background:var(--rbg);border-color:var(--red);color:var(--red)}
+.pnav-tab[data-v="PURSUE"]{color:var(--green)}
+.pnav-tab[data-v="PURSUE"].on{background:var(--gbg);border-color:var(--green);color:var(--green)}
 .pnav-search-box{position:relative;display:flex}
 .pnav-search{flex:1;min-width:0;font-size:12px;padding:9px 10px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
 .pnav-search:focus{border-color:var(--bh)}
 .pnav-search-btn{flex-shrink:0;width:34px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .pnav-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:0 -6px}
-.pnav-row{padding:11px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;min-height:58px;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.pnav-row{padding:11px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;min-height:58px;display:flex;flex-direction:column;justify-content:flex-start;gap:5px}
 .pnav-row:hover{background:var(--card-h)}
 .pnav-row-active{border-left-color:var(--green);background:var(--card-h)}
 .pnav-batch-row{padding:10px;border-radius:var(--rs);cursor:pointer;display:flex;flex-direction:column;gap:3px;border:1px solid transparent}
@@ -9257,7 +9261,7 @@ function renderStoryView(r) {
           (apn ? '<div class="sv-apn">APN ' + escHtml(apn) + '</div>' : '') +
         '</div>' +
         '<div class="sv-jump-box">' +
-          '<input type="text" id="svJumpInput" class="sv-jump-input" placeholder="Jump to parcel..." oninput="_svJumpInput(this.value)" onkeydown="if(event.key===\'Escape\')_svJumpClose()" onblur="setTimeout(_svJumpClose,150)">' +
+          '<input type="text" id="svJumpInput" class="sv-jump-input" placeholder="Search address or APN..." oninput="_svJumpInput(this.value)" onkeydown="if(event.key===\'Escape\')_svJumpClose()" onblur="setTimeout(_svJumpClose,150)">' +
           '<button class="sv-jump-btn" title="Search" onclick="document.getElementById(\'svJumpInput\').focus()">' + _PNAV_SEARCH_ICON + '</button>' +
           '<div class="sv-jump-dropdown" id="svJumpDropdown" style="display:none"></div>' +
         '</div>' +
