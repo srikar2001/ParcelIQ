@@ -293,7 +293,7 @@ body.on-results .detail-panel{top:0}
 .rsb-count{font-size:11px;font-weight:700;background:var(--bg);padding:1px 7px;border-radius:var(--rp);color:var(--t3)}
 /* Batch parcel navigator — replaces the sidebar while the story view is open */
 .pnav-wrap{display:flex;flex-direction:column;height:100%;min-height:0;gap:10px}
-.pnav-logo{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--t1);padding-bottom:2px;display:flex;align-items:center;gap:6px;cursor:pointer}
+.pnav-logo{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--t1);padding-bottom:2px;display:flex;align-items:center;cursor:pointer}
 .pnav-logo .iq{color:var(--green)}
 .pnav-back-link{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:7px 8px;border-radius:var(--rs);transition:all .15s;margin:0 -8px;display:block}
 .pnav-back-link:hover{color:var(--t1);background:var(--card-h)}
@@ -316,7 +316,8 @@ body.on-results .detail-panel{top:0}
 .pnav-search:focus{border-color:var(--bh)}
 .pnav-search-btn{flex-shrink:0;width:34px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .pnav-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:0 -6px}
-.pnav-row{padding:10px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;display:flex;flex-direction:column;gap:4px}
+.pnav-row{padding:10px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid var(--b)}
+.pnav-row:last-child{border-bottom:none}
 .pnav-row:hover{background:var(--card-h)}
 .pnav-row-active{border-left-color:var(--green);background:var(--card-h)}
 .pnav-batch-row{padding:10px;border-radius:var(--rs);cursor:pointer;display:flex;flex-direction:column;gap:3px;border:1px solid transparent}
@@ -731,7 +732,7 @@ body.on-results .detail-panel{top:0}
 .sv-map-acres-label::before{display:none!important}
 .sv-map-linelabel{background:rgba(0,0,0,.8);color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:7px;white-space:nowrap;transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,.45)}
 
-.sv-data-panel{width:min(42%,560px);min-width:420px;flex-shrink:0;overflow-y:auto;padding:20px 24px 20px 0;background:var(--card)}
+.sv-data-panel{width:min(46%,600px);min-width:420px;flex-shrink:0;overflow-y:auto;padding:20px 24px 20px 0;background:var(--card)}
 @media(max-width:900px){.sv-main{flex-direction:column;overflow-y:auto;padding:10px;gap:10px}.sv-map-zone{height:min(50vh,420px);flex:none}.sv-data-panel{width:auto;padding:16px}}
 
 /* Section A — verdict block */
@@ -6570,15 +6571,19 @@ async function rescreenFromStoryView() {
     if (bIdx !== -1) batchState.results[bIdx] = nr;
     if (_openParcelIdx >= 0 && _openParcelIdx < _currentDisplayed.length) _currentDisplayed[_openParcelIdx] = nr;
     _openParcel = nr;
-    renderStoryView(nr);
+    // Deliberately _svRefreshAfterRescreen(), not renderStoryView() — same
+    // parcel, same location, only the data changed, so this updates the
+    // panel/header in place without tearing down and rebuilding the map.
+    _svRefreshAfterRescreen(nr);
     _pnavRenderList();
     toast('Parcel re-screened with fresh data');
     await _saveRescreenToSupa(origRow, nr);
   } catch(e) {
     toast('Re-screen failed: ' + e.message);
-    // renderStoryView() only runs on the success path above, so on failure
-    // the original (now stale) button is still in the DOM and needs its
-    // own state reset here — the success path already gets a fresh one.
+  } finally {
+    // Unlike renderStoryView(), _svRefreshAfterRescreen() never touches this
+    // button, so its own disabled/"Screening…" state has to be reset here
+    // on every path, not just the error one.
     const btn2 = document.getElementById('svRescreenBtn');
     if (btn2) { btn2.disabled = false; btn2.textContent = '↻ Re-screen'; }
   }
@@ -9225,14 +9230,12 @@ function _svCatIcon(name) { return _SV_CAT_ICONS[name] || '📋'; }
 // 'checks' only when Story View fully closes (see closeStoryView()).
 let _svActiveTab = 'checks';
 
-function renderStoryView(r) {
-  const sv = document.getElementById('storyView');
-  if (!sv || !r) return;
-  // Tear down any previous parcel's map unconditionally before replacing
-  // the markup below — leaving a stale Leaflet instance pointed at a
-  // now-detached DOM node is a leak.
-  if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
-
+// Section C/D/Owner/Coming-Soon — everything inside .sv-data-panel, split
+// out from renderStoryView() so a re-screen (same parcel, same map/location,
+// only the data changed) can refresh just this instead of tearing down and
+// rebuilding the whole Leaflet map, which was the slow part of re-screening
+// from this page. See _svRefreshAfterRescreen().
+function _svDataPanelHtml(r) {
   const pi = r.parcel_info || {};
   const ev = effectiveVerdict(r);
   const vColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
@@ -9290,6 +9293,66 @@ function renderStoryView(r) {
   const hasOwner = pi.owner && pi.owner !== 'N/A';
   const mailsElsewhere = pi.owner_mailing_address && pi.owner_mailing_address.trim() && !(r.address || '').toLowerCase().includes(pi.owner_mailing_address.trim().toLowerCase().split(',')[0]);
 
+  return (
+    '<div class="sv-hero" style="--vc:' + vColor + '">' +
+      '<div class="sv-hero-top">' +
+        '<span class="sv-hero-verdict">' + escHtml(ev) + '</span>' +
+        (r.score != null ? '<span class="sv-hero-score">Score ' + r.score + ' / 100</span>' : '') +
+      '</div>' +
+      (conf != null ? '<span class="sv-hero-conf">Confidence: ' + conf + '%' + (pi.sources_ok != null && pi.sources_total != null ? ' — ' + pi.sources_ok + ' of ' + pi.sources_total + ' checks completed' : '') + '</span>' : '') +
+      (conf != null && conf < 70 ? '<div class="sv-hero-warn">Some data unavailable. Verify before offering.</div>' : '') +
+      '<p class="sv-hero-reason">' + escHtml(_svMainReason(r)) + '</p>' +
+      '<div class="sv-hero-next"><span class="lbl">Next step</span><span class="txt">' + escHtml(_svNextStep(r)) + '</span></div>' +
+    '</div>' +
+
+    '<div class="sv-sec-title">Owner</div>' +
+    (hasOwner ? '<div class="sv-owner-name">' + escHtml(pi.owner) + '</div>' : '<div class="sv-owner-name empty">Unknown Owner</div>') +
+    '<div class="sv-owner-sub">as of county tax roll</div>' +
+    (mailsElsewhere ? '<div class="sv-owner-mail">Mails to: ' + escHtml(pi.owner_mailing_address) + '</div>' : '') +
+    '<div class="sv-owner-contact">' +
+      '<div class="sv-owner-contact-row">📞 Phone — <em>Coming Soon</em></div>' +
+      '<div class="sv-owner-contact-row">✉️ Email — <em>Coming Soon</em></div>' +
+    '</div>' +
+
+    (facts.length ? '<div class="sv-sec-title" style="margin-top:18px">Parcel Facts</div><div class="sv-fact-grid">' + facts.join('') + '</div>' : '') +
+
+    '<div class="sv-sec-title" style="margin-top:4px">What Each Check Found</div>' +
+    '<div class="sv-checks-filter">' +
+      '<button class="active" data-filter="all" onclick="svFilterChecks(\'all\')">All</button>' +
+      '<button data-filter="risks" onclick="svFilterChecks(\'risks\')">Risks</button>' +
+      '<button data-filter="clear" onclick="svFilterChecks(\'clear\')">Clear</button>' +
+    '</div>' +
+    '<div class="sv-cats">' + catsHtml + '</div>' +
+
+    '<div class="sv-soon-row">' +
+      '<div class="sv-soon-card2" id="svCompsCard">' +
+        '<span class="sv-soon-badge2">🔒</span>' +
+        '<div class="sv-soon-title">📊 Nearby Comps</div>' +
+        '<div class="sv-soon-desc">Compare recent sales nearby. Coming Soon.</div>' +
+        '<div class="sv-soon-note">Comps shown on map as estimated markers</div>' +
+      '</div>' +
+      '<div class="sv-soon-card2">' +
+        '<span class="sv-soon-badge2">🔒</span>' +
+        '<div class="sv-soon-title">📞 Skip Tracing</div>' +
+        '<div class="sv-soon-desc">Find owner contact in one click. Coming Soon.</div>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function renderStoryView(r) {
+  const sv = document.getElementById('storyView');
+  if (!sv || !r) return;
+  // Tear down any previous parcel's map unconditionally before replacing
+  // the markup below — leaving a stale Leaflet instance pointed at a
+  // now-detached DOM node is a leak.
+  if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
+
+  const pi = r.parcel_info || {};
+  const ev = effectiveVerdict(r);
+  const vColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
+  const apn = pi.parcel_id || pi.apn;
+
   sv.innerHTML =
     '<div class="sv-wrap">' +
       '<div class="sv-header">' +
@@ -9307,8 +9370,8 @@ function renderStoryView(r) {
           '<button class="sv-jump-btn" title="Search" onclick="document.getElementById(\'svJumpInput\').focus()">' + _PNAV_SEARCH_ICON + '</button>' +
           '<div class="sv-jump-dropdown" id="svJumpDropdown" style="display:none"></div>' +
         '</div>' +
-        '<span class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
-        (r.score != null ? '<span style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '') +
+        '<span id="svVerdictBadge" class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
+        (r.score != null ? '<span id="svScoreNum" style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '<span id="svScoreNum" style="flex-shrink:0"></span>') +
       '</div>' +
 
       '<div class="sv-main">' +
@@ -9325,56 +9388,31 @@ function renderStoryView(r) {
           '<button class="sv-navfab sv-navfab-next" onclick="storyNav(1)" title="Next parcel">›</button>' +
         '</div>' +
 
-        '<div class="sv-data-panel">' +
-          '<div class="sv-hero" style="--vc:' + vColor + '">' +
-            '<div class="sv-hero-top">' +
-              '<span class="sv-hero-verdict">' + escHtml(ev) + '</span>' +
-              (r.score != null ? '<span class="sv-hero-score">Score ' + r.score + ' / 100</span>' : '') +
-            '</div>' +
-            (conf != null ? '<span class="sv-hero-conf">Confidence: ' + conf + '%' + (pi.sources_ok != null && pi.sources_total != null ? ' — ' + pi.sources_ok + ' of ' + pi.sources_total + ' checks completed' : '') + '</span>' : '') +
-            (conf != null && conf < 70 ? '<div class="sv-hero-warn">Some data unavailable. Verify before offering.</div>' : '') +
-            '<p class="sv-hero-reason">' + escHtml(_svMainReason(r)) + '</p>' +
-            '<div class="sv-hero-next"><span class="lbl">Next step</span><span class="txt">' + escHtml(_svNextStep(r)) + '</span></div>' +
-          '</div>' +
-
-          '<div class="sv-sec-title">Owner</div>' +
-          (hasOwner ? '<div class="sv-owner-name">' + escHtml(pi.owner) + '</div>' : '<div class="sv-owner-name empty">Unknown Owner</div>') +
-          '<div class="sv-owner-sub">as of county tax roll</div>' +
-          (mailsElsewhere ? '<div class="sv-owner-mail">Mails to: ' + escHtml(pi.owner_mailing_address) + '</div>' : '') +
-          '<div class="sv-owner-contact">' +
-            '<div class="sv-owner-contact-row">📞 Phone — <em>Coming Soon</em></div>' +
-            '<div class="sv-owner-contact-row">✉️ Email — <em>Coming Soon</em></div>' +
-          '</div>' +
-
-          (facts.length ? '<div class="sv-sec-title" style="margin-top:18px">Parcel Facts</div><div class="sv-fact-grid">' + facts.join('') + '</div>' : '') +
-
-          '<div class="sv-sec-title" style="margin-top:4px">What Each Check Found</div>' +
-          '<div class="sv-checks-filter">' +
-            '<button class="active" data-filter="all" onclick="svFilterChecks(\'all\')">All</button>' +
-            '<button data-filter="risks" onclick="svFilterChecks(\'risks\')">Risks</button>' +
-            '<button data-filter="clear" onclick="svFilterChecks(\'clear\')">Clear</button>' +
-          '</div>' +
-          '<div class="sv-cats">' + catsHtml + '</div>' +
-
-          '<div class="sv-soon-row">' +
-            '<div class="sv-soon-card2" id="svCompsCard">' +
-              '<span class="sv-soon-badge2">🔒</span>' +
-              '<div class="sv-soon-title">📊 Nearby Comps</div>' +
-              '<div class="sv-soon-desc">Compare recent sales nearby. Coming Soon.</div>' +
-              '<div class="sv-soon-note">Comps shown on map as estimated markers</div>' +
-            '</div>' +
-            '<div class="sv-soon-card2">' +
-              '<span class="sv-soon-badge2">🔒</span>' +
-              '<div class="sv-soon-title">📞 Skip Tracing</div>' +
-              '<div class="sv-soon-desc">Find owner contact in one click. Coming Soon.</div>' +
-            '</div>' +
-          '</div>' +
-        '</div>' +
+        '<div class="sv-data-panel" id="svDataPanel">' + _svDataPanelHtml(r) + '</div>' +
       '</div>' +
     '</div>';
 
   _svInitMap(r);
   document.getElementById('svMapOverlay').innerHTML = _svMapOverlayHtml(r);
+}
+
+// Re-screen refresh: same parcel, same location, only the scoring/checks
+// data changed — updates the data panel, header verdict/score, and map
+// overlay pills in place, but deliberately does NOT call renderStoryView()
+// or _svInitMap(), since tearing down and rebuilding the whole Leaflet map
+// (base tiles, parcel polygon, comps pins) on every re-screen was the
+// slow, unnecessary part of this action.
+function _svRefreshAfterRescreen(r) {
+  const panel = document.getElementById('svDataPanel');
+  if (panel) panel.innerHTML = _svDataPanelHtml(r);
+  const ev = effectiveVerdict(r);
+  const vColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
+  const badge = document.getElementById('svVerdictBadge');
+  if (badge) { badge.className = 'verdict-badge ' + verdictClass(ev); badge.textContent = ev; }
+  const scoreEl = document.getElementById('svScoreNum');
+  if (scoreEl) { scoreEl.style.color = vColor; scoreEl.textContent = r.score != null ? String(r.score) : ''; }
+  const overlay = document.getElementById('svMapOverlay');
+  if (overlay) overlay.innerHTML = _svMapOverlayHtml(r);
 }
 
 // Click a map-overlay pill to jump straight to its matching check row in
@@ -9682,7 +9720,7 @@ function _buildParcelNavigator() {
   if (_savedSidebarHTML === null) _savedSidebarHTML = sidebar.innerHTML;
   const bname = escHtml(batchState.name || 'Batch');
   const header =
-    '<div class="pnav-logo" onclick="window.location.hash=\'#landing\'">Parcel<span class="iq">iQ</span></div>' +
+    '<div class="pnav-logo" onclick="window.location.reload()">Parcel<span class="iq">iQ</span></div>' +
     '<a class="pnav-back-link" onclick="closeStoryView()">← Back to Results</a>' +
     '<div class="pnav-crumb"><a onclick="_pnavShowAllBatches()">Batches</a><span>›</span><span class="cur" title="' + bname + '">' + bname + '</span></div>';
 
