@@ -687,13 +687,13 @@ body.on-results .detail-panel{top:0}
 #storyView.open{display:flex;flex-direction:column;animation:svFadeIn .22s ease}
 @keyframes svFadeIn{from{opacity:0;transform:scale(.99)}to{opacity:1;transform:scale(1)}}
 .sv-wrap{display:flex;flex-direction:column;height:100%;min-height:0}
-.sv-header{flex-shrink:0;background:var(--bg);border-bottom:1px solid var(--b);padding:12px 24px;display:flex;align-items:center;gap:14px}
+.sv-header{flex-shrink:0;background:var(--bg);border-bottom:1px solid var(--b);padding:18px 24px;display:flex;align-items:center;gap:16px}
 .sv-back{background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:13px;font-weight:600;padding:7px 14px;cursor:pointer;white-space:nowrap}
 .sv-back:hover{color:var(--t1);border-color:var(--bh)}
 .sv-back.icon-only{padding:7px 12px;font-size:16px;line-height:1}
-.sv-section-label{font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--green);margin-bottom:2px}
-.sv-addr{font-size:17px;font-weight:800;color:var(--t1);letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sv-apn{font-family:monospace;font-size:11px;color:var(--t3);margin-top:1px}
+.sv-section-label{font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--green);margin-bottom:3px}
+.sv-addr{font-size:27px;font-weight:800;color:var(--t1);letter-spacing:-.02em;line-height:1.15;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-apn{font-family:monospace;font-size:12px;color:var(--t3);margin-top:3px}
 .sv-navbtns{margin-left:auto;display:flex;gap:6px}
 .sv-jump-box{position:relative;flex-shrink:0;display:flex;width:180px}
 .sv-jump-input{flex:1;min-width:0;font-size:12px;padding:7px 8px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
@@ -706,8 +706,8 @@ body.on-results .detail-panel{top:0}
 .sv-sec-title{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin:0 0 6px}
 
 /* Zone 2 — map (hero, fills all available height) + data panel, side by side */
-.sv-main{flex:1;min-height:0;display:flex}
-.sv-map-zone{flex:1;min-width:0;position:relative;overflow:hidden}
+.sv-main{flex:1;min-height:0;display:flex;gap:14px;padding:14px 0 14px 14px}
+.sv-map-zone{flex:1;min-width:0;position:relative;overflow:hidden;border-radius:16px;border:1px solid var(--b);box-shadow:0 6px 24px rgba(0,0,0,.28)}
 .sv-map-btns{position:absolute;top:10px;left:10px;z-index:400;display:flex;flex-wrap:wrap;gap:4px;max-width:calc(100% - 20px)}
 .sv-map-btn{padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:none;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:all .15s}
 .sv-map-btn.active{background:var(--green);color:#000}
@@ -724,8 +724,8 @@ body.on-results .detail-panel{top:0}
 .sv-map-acres-label::before{display:none!important}
 .sv-map-linelabel{background:rgba(0,0,0,.8);color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:7px;white-space:nowrap;transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,.45)}
 
-.sv-data-panel{width:min(42%,560px);min-width:420px;flex-shrink:0;overflow-y:auto;padding:20px;background:var(--card);border-left:1px solid var(--b)}
-@media(max-width:900px){.sv-main{flex-direction:column;overflow-y:auto}.sv-map-zone{height:min(50vh,420px);flex:none}.sv-data-panel{width:auto;border-left:none;border-top:1px solid var(--b)}}
+.sv-data-panel{width:min(42%,560px);min-width:420px;flex-shrink:0;overflow-y:auto;padding:20px 24px 20px 0;background:var(--card)}
+@media(max-width:900px){.sv-main{flex-direction:column;overflow-y:auto;padding:10px;gap:10px}.sv-map-zone{height:min(50vh,420px);flex:none}.sv-data-panel{width:auto;padding:16px}}
 
 /* Section A — verdict block */
 .sv-hero{padding:14px 16px;border-radius:14px;background:var(--bg);border:1px solid var(--b);border-left:4px solid var(--vc,var(--b));margin-bottom:18px}
@@ -3053,6 +3053,10 @@ async function router() {
     if (sub.segments[0] && currentSession) {
       showScreen('page-results');
       showResultsLoading();
+      // A deep link straight to a parcel's full Deal Review should look
+      // like it's loading a Deal Review from the first frame, not the
+      // results table — see _showStoryViewLoadingShell().
+      if (sub.segments[1] === 'parcel' && sub.params.view === 'full') _showStoryViewLoadingShell();
       _pendingHashRestore = sub;
       loadBatchResults(sub.segments[0]);
       return;
@@ -5261,6 +5265,12 @@ function _restoreParcelFromHash(address, openFull) {
   // is just broken" from the outside.
   if (idx === -1) idx = _currentDisplayed.findIndex(r => norm(r.address) === norm(address));
   if (idx === -1) {
+    // _showStoryViewLoadingShell() may have already opened the story view
+    // in anticipation of this restore succeeding — undo that so the user
+    // lands on the (now-populated) results table instead of a permanently
+    // stuck "Loading your parcel…" shell.
+    const sv = document.getElementById('storyView');
+    if (sv && sv.classList.contains('open')) closeStoryView();
     toast('Could not reopen that parcel — it may have been filtered out or removed.');
     return;
   }
@@ -9826,6 +9836,27 @@ function _svJumpClose() {
   const input = document.getElementById('svJumpInput');
   if (dd) { dd.style.display = 'none'; dd.innerHTML = ''; }
   if (input) input.value = '';
+}
+
+// Shown the instant router() sees a '?view=full' deep link, before the
+// batch has even finished loading — without this, a reload always flashes
+// the bare results table first (loadBatchResults is necessarily async, even
+// on the fast cached path), which reads as "reload kicked me back to
+// results" even though the real parcel restore was already in flight.
+// openStoryView() overwrites this with the real content once data is ready.
+function _showStoryViewLoadingShell() {
+  const sv = document.getElementById('storyView');
+  if (!sv) return;
+  sv.innerHTML =
+    '<div class="sv-wrap" style="align-items:center;justify-content:center">' +
+      '<div style="text-align:center;color:var(--t2)">' +
+        '<div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--green);margin-bottom:10px">Deal Review</div>' +
+        '<div style="font-size:14px">Loading your parcel…</div>' +
+      '</div>' +
+    '</div>';
+  sv.classList.add('open');
+  const main = document.querySelector('#page-results .res-main');
+  if (main) main.style.display = 'none';
 }
 
 function openStoryView() {
