@@ -293,7 +293,7 @@ body.on-results .detail-panel{top:0}
 .rsb-count{font-size:11px;font-weight:700;background:var(--bg);padding:1px 7px;border-radius:var(--rp);color:var(--t3)}
 /* Batch parcel navigator — replaces the sidebar while the story view is open */
 .pnav-wrap{display:flex;flex-direction:column;height:100%;min-height:0;gap:10px}
-.pnav-logo{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--t1);padding-bottom:2px;display:flex;align-items:center;gap:6px}
+.pnav-logo{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--t1);padding-bottom:2px;display:flex;align-items:center;gap:6px;cursor:pointer}
 .pnav-logo .iq{color:var(--green)}
 .pnav-back-link{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:7px 8px;border-radius:var(--rs);transition:all .15s;margin:0 -8px;display:block}
 .pnav-back-link:hover{color:var(--t1);background:var(--card-h)}
@@ -316,7 +316,7 @@ body.on-results .detail-panel{top:0}
 .pnav-search:focus{border-color:var(--bh)}
 .pnav-search-btn{flex-shrink:0;width:34px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .pnav-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:0 -6px}
-.pnav-row{padding:11px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;min-height:58px;display:flex;flex-direction:column;justify-content:flex-start;gap:5px}
+.pnav-row{padding:10px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;display:flex;flex-direction:column;gap:4px}
 .pnav-row:hover{background:var(--card-h)}
 .pnav-row-active{border-left-color:var(--green);background:var(--card-h)}
 .pnav-batch-row{padding:10px;border-radius:var(--rs);cursor:pointer;display:flex;flex-direction:column;gap:3px;border:1px solid transparent}
@@ -328,8 +328,8 @@ body.on-results .detail-panel{top:0}
 .pnav-batch-row-meta .p{color:var(--green)}
 .pnav-alllink{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:8px;border-radius:var(--rs);transition:all .15s;text-align:center;border:1px solid var(--b);display:block}
 .pnav-alllink:hover{color:var(--t1);background:var(--card-h);border-color:var(--bh)}
-.pnav-row-addr{font-size:13px;line-height:1.8;font-weight:600;white-space:nowrap;overflow-x:hidden;overflow-y:visible;text-overflow:ellipsis;padding:2px 0}
-.pnav-row-score{font-size:11px;font-weight:600;color:var(--t3)}
+.pnav-row-addr{font-size:13px;line-height:22px;height:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.pnav-row-score{font-size:11px;line-height:16px;height:16px;font-weight:600;color:var(--t3)}
 .rsb-time-val{font-size:15px;font-weight:700;color:var(--green);letter-spacing:-.01em}
 .rsb-time-sub{font-size:11px;color:var(--t3)}
 #sidebarBatchList::-webkit-scrollbar{width:4px}
@@ -9640,7 +9640,7 @@ function _buildParcelNavigator() {
   if (_savedSidebarHTML === null) _savedSidebarHTML = sidebar.innerHTML;
   const bname = escHtml(batchState.name || 'Batch');
   const header =
-    '<div class="pnav-logo">Parcel<span class="iq">iQ</span></div>' +
+    '<div class="pnav-logo" onclick="window.location.hash=\'#landing\'">Parcel<span class="iq">iQ</span></div>' +
     '<a class="pnav-back-link" onclick="closeStoryView()">← Back to Results</a>' +
     '<div class="pnav-crumb"><a onclick="_pnavShowAllBatches()">Batches</a><span>›</span><span class="cur" title="' + bname + '">' + bname + '</span></div>';
 
