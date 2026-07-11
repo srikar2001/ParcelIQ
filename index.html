@@ -731,6 +731,7 @@ body.on-results .detail-panel{top:0}
 .sv-map-acres-label{background:rgba(0,0,0,.6)!important;border:none!important;box-shadow:none!important;color:#fff!important;font-size:12px;font-weight:800;padding:2px 9px!important;border-radius:7px}
 .sv-map-acres-label::before{display:none!important}
 .sv-map-linelabel{background:rgba(0,0,0,.8);color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:7px;white-space:nowrap;transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,.45)}
+.sv-map-pin{background:transparent!important;border:none!important;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
 
 .sv-data-panel{width:min(46%,600px);min-width:420px;flex-shrink:0;overflow-y:auto;padding:20px 24px 20px 0;background:var(--card)}
 @media(max-width:900px){.sv-main{flex-direction:column;overflow-y:auto;padding:10px;gap:10px}.sv-map-zone{height:min(50vh,420px);flex:none}.sv-data-panel{width:auto;padding:16px}}
@@ -9355,12 +9356,19 @@ function renderStoryView(r) {
   const ev = effectiveVerdict(r);
   const vColor = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
   const apn = pi.parcel_id || pi.apn;
+  // storyNav() re-renders this whole header on every parcel switch — if the
+  // sidebar is already collapsed at that moment, the re-open button must
+  // start visible too, or collapsing it once would make it unreachable
+  // (open button reset to hidden, close button stuck inside the
+  // now-unreachable collapsed sidebar) the moment you navigate to another parcel.
+  const existingSidebar = document.getElementById('resSidebar');
+  const sidebarCurrentlyHidden = !!(existingSidebar && existingSidebar.classList.contains('rsb-hidden'));
 
   sv.innerHTML =
     '<div class="sv-wrap">' +
       '<div class="sv-header">' +
         '<button class="sv-back icon-only" onclick="closeStoryView()" title="Back to Results">←</button>' +
-        '<button id="svSidebarToggle" class="sv-back icon-only" onclick="_svToggleSidebar()" title="Hide sidebar"><svg width="16" height="14" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>' +
+        '<button id="svSidebarOpenBtn" class="sv-back icon-only" onclick="_svToggleSidebar()" title="Show sidebar" style="display:' + (sidebarCurrentlyHidden ? 'inline-flex' : 'none') + '"><svg width="16" height="14" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>' +
         '<div style="min-width:0;flex:1">' +
           '<div class="sv-section-label">Deal Review</div>' +
           '<div style="display:flex;align-items:center;gap:12px;min-width:0">' +
@@ -9438,6 +9446,39 @@ function _svClearAnnotation() {
   _svAnnotationLayer = null;
 }
 
+// Every filter click re-frames around the SAME stable anchor — the
+// parcel's own bounds, plus whatever extra point(s) this filter is
+// pointing at — instead of each filter fitting bounds off just the thing
+// it drew. That used to snap the camera to a different zoom level for
+// every filter (a short line zooms in tight, a toggled flood layer zooms
+// out); anchoring on the parcel every time keeps switching filters feeling
+// like a pan/zoom, not a jump.
+function _svFitToParcelAnd(extraPoints) {
+  if (!_svMap) return;
+  try {
+    const pts = [];
+    const parcel = _svLayers['parcel'];
+    if (parcel && parcel.getBounds) {
+      const b = parcel.getBounds();
+      pts.push(b.getNorthEast(), b.getSouthWest());
+    } else if (_openParcel) {
+      pts.push([_openParcel._lat, _openParcel._lng]);
+    }
+    (extraPoints || []).forEach(p => { if (p) pts.push(p); });
+    if (!pts.length) return;
+    _svMap.fitBounds(L.latLngBounds(pts), { padding: [50, 50], maxZoom: 17 });
+  } catch(e) {}
+}
+
+// A small colored dot ahead of the label text — the same visual language
+// the map-overlay pills already use for severity — so a standalone label
+// still reads as good/caution/risk at a glance instead of plain text.
+function _svLabelHtml(label, color) {
+  return '<span style="display:inline-flex;align-items:center;gap:6px">' +
+    '<span style="width:7px;height:7px;border-radius:50%;background:' + color + ';flex-shrink:0"></span>' +
+    escHtml(label) + '</span>';
+}
+
 // A real line from the parcel to an actual measured point (nearest road
 // vertex, nearest powerline/waterway vertex) — only ever called with real
 // coordinates a collector measured, never a guessed direction.
@@ -9448,30 +9489,22 @@ function _svDrawLineTo(originLat, originLng, destLat, destLng, label, color) {
   const dest = L.circleMarker([destLat, destLng], { radius: 6, color: color, weight: 2, fillColor: color, fillOpacity: 0.9 }).addTo(_svMap);
   const mid = [(originLat + destLat) / 2, (originLng + destLng) / 2];
   const labelMarker = L.marker(mid, {
-    icon: L.divIcon({ className: 'sv-map-linelabel', html: escHtml(label), iconSize: [0, 0] }),
+    icon: L.divIcon({ className: 'sv-map-linelabel', html: _svLabelHtml(label, color), iconSize: [0, 0] }),
     interactive: false,
   }).addTo(_svMap);
   _svAnnotationLayer = [line, dest, labelMarker];
-  try { _svMap.fitBounds(line.getBounds(), { padding: [60, 60], maxZoom: 18 }); } catch(e) {}
-}
-
-// No exact point exists (only a "within Xm" bucket from a count-only
-// query) — an honest radius ring instead of a fabricated direction.
-function _svDrawRadius(originLat, originLng, radiusM, label, color) {
-  if (!_svMap) return;
-  _svClearAnnotation();
-  const circle = L.circle([originLat, originLng], { radius: radiusM, color: color, weight: 3, dashArray: '5,8', fillOpacity: 0.07 }).addTo(_svMap);
-  const labelMarker = L.marker([originLat + radiusM / 111320, originLng], {
-    icon: L.divIcon({ className: 'sv-map-linelabel', html: escHtml(label), iconSize: [0, 0] }),
-    interactive: false,
-  }).addTo(_svMap);
-  _svAnnotationLayer = [circle, labelMarker];
-  try { _svMap.fitBounds(circle.getBounds(), { padding: [40, 40], maxZoom: 17 }); } catch(e) {}
+  _svFitToParcelAnd([[destLat, destLng]]);
 }
 
 // Evac zone / soil are parcel-wide properties, not an external point — the
 // only real thing to point at on the map is the parcel itself, so this
 // briefly highlights its real boundary rather than drawing a fake marker.
+// Also reused for road/power when a distance is known but not the exact
+// point (see svShowOnMap below): a radius circle for that case used to be
+// centered on the parcel's own centroid, which for a large parcel can
+// render entirely inside its own boundary and read as "the road is inside
+// my property." A label next to the pulsed parcel says the same honest
+// "distance known, direction not" thing without that misleading geometry.
 function _svPulseParcel() {
   const parcel = _svLayers['parcel'];
   if (!parcel || !parcel.setStyle) return;
@@ -9481,16 +9514,17 @@ function _svPulseParcel() {
 
 // Companion to the pulse above — a real-data label pinned just south of
 // the parcel (offset so it doesn't collide with the permanent acreage
-// label at the parcel's own center), for properties like evac zone / soil
-// that describe the whole parcel rather than an external point.
+// label at the parcel's own center), for properties that describe the
+// whole parcel or a bucketed distance rather than an exact external point.
 function _svDrawLabel(originLat, originLng, label, color) {
   if (!_svMap) return;
   _svClearAnnotation();
   const labelMarker = L.marker([originLat - 45 / 111320, originLng], {
-    icon: L.divIcon({ className: 'sv-map-linelabel', html: escHtml(label), iconSize: [0, 0] }),
+    icon: L.divIcon({ className: 'sv-map-linelabel', html: _svLabelHtml(label, color), iconSize: [0, 0] }),
     interactive: false,
   }).addTo(_svMap);
   _svAnnotationLayer = [labelMarker];
+  _svFitToParcelAnd([]);
 }
 
 function _svPulseComps() {
@@ -9517,17 +9551,42 @@ function _svSetActivePill(kind) {
   });
 }
 
+// Plain-language soil/septic read for the map — technical NRCS drainage
+// terms like "excessively drained" are real classifications (kept as-is in
+// Parcel Facts, where a precise term belongs) but unclear at a glance;
+// septic feasibility is the thing that actually matters and is already the
+// plain-language framing used elsewhere in this app for the same field.
+function _svSoilLabel(pi) {
+  if (pi.septic_suitable === true) return 'Good drainage · septic feasible';
+  if (pi.septic_suitable === false) return 'Poor drainage · septic may not be feasible';
+  return pi.soil_drainage ? _svCap(pi.soil_drainage) + ' soil' : 'Soil';
+}
+
 // Pill click entry point — draws whatever REAL thing exists on the map for
-// that category (a measured line, a radius when only a bucket is known, a
-// toggle of the real flood/wetland overlay, or a parcel-boundary
-// pulse+label when there's no external point at all). Map filters are
-// map-only: this never touches the data panel's scroll position.
+// that category (a measured line, a parcel pulse+label when only a bucket
+// distance or a parcel-wide property is known, or a toggle of the real
+// flood/wetland overlay). Map filters are map-only: this never touches the
+// data panel's scroll position. Clicking the pill that's already active
+// undoes it instead of redrawing the same thing.
 function svShowOnMap(kind) {
   if (!_svMap || !_openParcel) return;
   const r = _openParcel;
   const pi = r.parcel_info || {};
   const lat = r._lat, lng = r._lng;
   if (lat == null || lng == null) return;
+
+  if (kind === _svActiveMapFilter) {
+    _svClearAnnotation();
+    if (kind === 'flood' || kind === 'wetlands') {
+      const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="' + kind + '"]');
+      if (btn && btn.classList.contains('active')) svToggleLayer(btn);
+    } else if (kind === 'comps') {
+      const comps = _svLayers['comps'];
+      if (comps && comps.length) { try { comps[0].closePopup(); } catch(e) {} }
+    }
+    _svSetActivePill(null);
+    return;
+  }
   _svSetActivePill(kind);
 
   if (kind === 'road') {
@@ -9539,37 +9598,41 @@ function svShowOnMap(kind) {
       // screened before nearest-point coordinates started being saved.
       // Same honest fallback as power's bucket case, plus a hint since a
       // re-screen would upgrade this to a real line.
-      _svDrawRadius(lat, lng, pi.road_distance_m, pi.road_distance_m + 'm to road (approx.)', _svDistColor(pi.road_distance_m));
+      _svPulseParcel();
+      _svDrawLabel(lat, lng, '~' + pi.road_distance_m + 'm to nearest road (exact spot unknown)', _svDistColor(pi.road_distance_m));
       toast('Exact road position not available for this screening — re-screen for a precise line.');
     }
   } else if (kind === 'power') {
     if (pi.powerline_nearest_lat != null && pi.powerline_nearest_lng != null) {
       _svDrawLineTo(lat, lng, pi.powerline_nearest_lat, pi.powerline_nearest_lng, (pi.powerline_distance || 'Power line'), _svDistColor(_svParseDistM(pi.powerline_distance)));
     } else if (pi.powerline_distance) {
-      const radiusM = _svParseDistM(pi.powerline_distance) || 500;
-      _svDrawRadius(lat, lng, radiusM, 'Power somewhere within ' + pi.powerline_distance, _svDistColor(radiusM));
+      _svPulseParcel();
+      _svDrawLabel(lat, lng, 'Power line ~' + pi.powerline_distance + ' away (exact spot unknown)', _svDistColor(_svParseDistM(pi.powerline_distance)));
     }
   } else if (kind === 'flood') {
     _svClearAnnotation();
     const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="flood"]');
     if (btn && !btn.classList.contains('active')) svToggleLayer(btn);
-    try { _svMap.fitBounds(_svLayers['parcel'].getBounds ? _svLayers['parcel'].getBounds() : _svMap.getBounds(), { maxZoom: 16 }); } catch(e) {}
+    _svFitToParcelAnd([]);
   } else if (kind === 'wetlands') {
     _svClearAnnotation();
     const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="wetlands"]');
     if (btn && !btn.classList.contains('active')) svToggleLayer(btn);
-    try { _svMap.fitBounds(_svLayers['parcel'].getBounds ? _svLayers['parcel'].getBounds() : _svMap.getBounds(), { maxZoom: 16 }); } catch(e) {}
+    _svFitToParcelAnd([]);
   } else if (kind === 'evac') {
     _svPulseParcel();
     _svDrawLabel(lat, lng, pi.evac_zone ? 'Zone ' + pi.evac_zone + ' evac' : 'Evacuation zone', /^[AB]$/i.test(pi.evac_zone || '') ? '#EF4444' : '#F59E0B');
   } else if (kind === 'soil') {
     _svPulseParcel();
-    _svDrawLabel(lat, lng, pi.soil_drainage ? _svCap(pi.soil_drainage) + ' soil' : 'Soil', pi.septic_suitable === false ? '#EF4444' : '#22C55E');
+    _svDrawLabel(lat, lng, _svSoilLabel(pi), pi.septic_suitable === false ? '#EF4444' : '#22C55E');
   } else if (kind === 'comps') {
     _svClearAnnotation();
     _svPulseComps();
     const comps = _svLayers['comps'];
-    if (comps && comps.length) { try { comps[0].openPopup(); } catch(e) {} }
+    if (comps && comps.length) {
+      try { comps[0].openPopup(); } catch(e) {}
+      _svFitToParcelAnd(comps.map(m => m.getLatLng()));
+    }
   }
 }
 
@@ -9597,6 +9660,22 @@ function _svSeedFrac(seedStr, index) {
   for (let i = 0; i < Math.min(4, s.length); i++) seed += s.charCodeAt(i) * (i + 1);
   seed += index * 97;
   return Math.abs(Math.sin(seed)) % 1;
+}
+
+// A proper map-pin icon (not a plain circle) for placeholder pins — used
+// for comps and the skip-trace contact marker. iconAnchor points at the
+// pin's bottom tip, the actual lat/lng it marks.
+function _svPinIcon(color) {
+  return L.divIcon({
+    className: 'sv-map-pin',
+    html: '<svg width="26" height="34" viewBox="0 0 26 34" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M13 0C5.8 0 0 5.8 0 13c0 9.5 13 21 13 21s13-11.5 13-21C26 5.8 20.2 0 13 0z" fill="' + color + '" stroke="rgba(0,0,0,.4)" stroke-width="1.5"/>' +
+      '<circle cx="13" cy="12.5" r="4.5" fill="#fff"/>' +
+    '</svg>',
+    iconSize: [26, 34],
+    iconAnchor: [13, 34],
+    popupAnchor: [0, -32],
+  });
 }
 
 function _svInitMap(r) {
@@ -9635,28 +9714,31 @@ function _svInitMap(r) {
   // Comps + skip-tracing placeholder pins — always visible, not toggled by
   // any button, deterministically placed near the parcel from a seed so
   // they don't jump between renders of the same parcel. Explicitly a
-  // placeholder (no real comps data source exists yet) — 3-5 pins and a
-  // realistic-looking asking price, both seeded so the same parcel always
-  // shows the same fake numbers instead of reshuffling on every render.
+  // placeholder (no real comps data source exists yet) — 3-5 pins, priced
+  // off THIS parcel's own real land/assessed value (falling back to a
+  // generic range only when the parcel has no value data at all) so the
+  // numbers look like plausible comps for this property instead of an
+  // arbitrary fixed range, seeded so the same parcel always shows the same
+  // fake numbers instead of reshuffling on every render.
   const seed = (r.address || '') + (pi.parcel_id || '');
-  const blur = m => { try { const el = m.getElement && m.getElement(); if (el) el.style.filter = 'blur(1.5px)'; } catch(e) {} };
+  const baseValue = pi.land_value != null ? pi.land_value : (pi.assessed_value != null ? pi.assessed_value : pi.just_value);
   const compCount = 3 + Math.floor(_svSeedFrac(seed, 100) * 3); // 3-5
   const comps = [];
   for (let i = 0; i < compCount; i++) {
     const off = _svSeedOffset(seed, i);
-    const price = Math.round((12000 + _svSeedFrac(seed, 200 + i) * 83000) / 500) * 500;
-    const m = L.circleMarker([lat + off.dLat, lng + off.dLng], { color: '#f59e0b', weight: 2, radius: 7, fillColor: '#f59e0b', fillOpacity: 0.8 });
+    const price = baseValue != null && baseValue > 0
+      ? Math.round((baseValue * (0.7 + _svSeedFrac(seed, 200 + i) * 0.6)) / 500) * 500  // this parcel's value, ±30%
+      : Math.round((12000 + _svSeedFrac(seed, 200 + i) * 83000) / 500) * 500;            // no value on file — generic range
+    const m = L.marker([lat + off.dLat, lng + off.dLng], { icon: _svPinIcon('#f59e0b') });
     m.bindPopup('<b>' + fmt$(price) + '</b> · est. asking price<br>Nearby Comp — Coming Soon');
     m.addTo(_svMap);
-    blur(m);
     comps.push(m);
   }
   _svLayers['comps'] = comps;
   const stOff = _svSeedOffset(seed, 10);
-  const stMarker = L.circleMarker([lat + stOff.dLat, lng + stOff.dLng], { color: '#a855f7', weight: 2, radius: 7, fillColor: '#a855f7', fillOpacity: 0.8 });
+  const stMarker = L.marker([lat + stOff.dLat, lng + stOff.dLng], { icon: _svPinIcon('#a855f7') });
   stMarker.bindPopup('Owner Contact (Coming Soon)');
   stMarker.addTo(_svMap);
-  blur(stMarker);
   _svLayers['skipTrace'] = stMarker;
 
   setTimeout(() => { if (_svMap) _svMap.invalidateSize(); }, 250);
@@ -9714,7 +9796,7 @@ function _svMapOverlayHtml(r) {
     pill('evac', /^[AB]$/i.test(pi.evac_zone) ? 'var(--red)' : 'var(--amber)', 'Zone ' + pi.evac_zone + ' evac');
   }
   if (pi.soil_drainage) {
-    pill('soil', pi.septic_suitable === false ? 'var(--red)' : 'var(--green)', _svCap(pi.soil_drainage));
+    pill('soil', pi.septic_suitable === false ? 'var(--red)' : 'var(--green)', _svSoilLabel(pi));
   }
   return pills.join('');
 }
@@ -9782,6 +9864,7 @@ function _buildParcelNavigator() {
   const header =
     '<div class="rsb-top" style="border-bottom:1px solid var(--b);padding-bottom:14px">' +
       '<span class="rsb-brand" onclick="window.location.reload()" style="cursor:pointer" title="Reload">Parcel<span style="color:var(--green)">iQ</span></span>' +
+      '<button id="svSidebarToggle" class="rsb-toggle-btn" onclick="_svToggleSidebar()" title="Hide sidebar"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>' +
     '</div>' +
     '<a class="pnav-back-link" onclick="closeStoryView()">← Back to Results</a>' +
     '<div class="pnav-crumb"><a onclick="_pnavShowAllBatches()">Batches</a><span>›</span><span class="cur" title="' + bname + '">' + bname + '</span></div>';
@@ -9839,6 +9922,11 @@ function _restoreSidebar() {
     sidebar.innerHTML = _savedSidebarHTML;
     _savedSidebarHTML = null;
   }
+  // A sidebar collapsed via _svToggleSidebar() while inside Deal Review is
+  // Deal-Review-only state — don't leave the regular results sidebar
+  // collapsed too after returning (rsb-hidden lives on #resSidebar itself,
+  // which innerHTML replacement above doesn't touch).
+  if (sidebar) sidebar.classList.remove('rsb-hidden');
   // Next time Story View opens fresh, start on the parcel list — not
   // wherever the batch picker happened to be left.
   _pnavMode = 'parcels';
@@ -10029,17 +10117,26 @@ function _showStoryViewLoadingShell() {
 
 // Collapses/expands the parcel-navigator sidebar while Deal Review is open.
 // Reuses the same .rsb-hidden class the regular results sidebar collapse
-// uses (so the width/opacity transition is identical either way) — but
-// NOT toggleResultsSidebar()/#sidebarOpenBtn directly, since that button
-// lives inside .res-header, which sits behind the full-screen story view
-// and would be unreachable to re-open the sidebar from in here.
+// uses (so the width/opacity transition is identical either way). The
+// close control (#svSidebarToggle) lives ON the sidebar itself, next to the
+// ParcelIQ brand — but .rsb-hidden sets the whole sidebar to width:0 and
+// pointer-events:none, so that button becomes unreachable the moment it's
+// clicked. A second, small re-open button (#svSidebarOpenBtn) lives in the
+// Deal Review header instead — hidden until the collapse transition
+// finishes, exactly mirroring how #sidebarOpenBtn/toggleResultsSidebar()
+// handle the same problem on the regular results page.
 function _svToggleSidebar() {
   const sidebar = document.getElementById('resSidebar');
-  const btn = document.getElementById('svSidebarToggle');
+  const openBtn = document.getElementById('svSidebarOpenBtn');
   if (!sidebar) return;
-  const willHide = !sidebar.classList.contains('rsb-hidden');
-  sidebar.classList.toggle('rsb-hidden');
-  if (btn) btn.title = willHide ? 'Show sidebar' : 'Hide sidebar';
+  const isClosing = !sidebar.classList.contains('rsb-hidden');
+  if (isClosing) {
+    sidebar.classList.add('rsb-hidden');
+    if (openBtn) setTimeout(() => { openBtn.style.display = 'inline-flex'; }, 260);
+  } else {
+    if (openBtn) openBtn.style.display = 'none';
+    sidebar.classList.remove('rsb-hidden');
+  }
 }
 
 function openStoryView() {
@@ -10052,7 +10149,7 @@ function openStoryView() {
     console.error('Story render error:', e);
     sv.innerHTML = '<div class="sv-wrap"><div class="sv-header">' +
       '<button class="sv-back icon-only" onclick="closeStoryView()" title="Back to Results">←</button>' +
-      '<button id="svSidebarToggle" class="sv-back icon-only" onclick="_svToggleSidebar()" title="Hide sidebar"><svg width="16" height="14" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>' +
+      '<button id="svSidebarOpenBtn" class="sv-back icon-only" onclick="_svToggleSidebar()" title="Show sidebar" style="display:none"><svg width="16" height="14" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>' +
       '<div class="sv-addr">' + escHtml(_openParcel.address || '') + '</div></div>' +
       '<div style="padding:40px 0;color:var(--t2);font-size:14px">Could not build the Deal Review for this parcel. Its data may be from an older screening. ' +
       'Re-screen it (↻ on the row) and try again.</div></div>';
