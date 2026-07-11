@@ -328,9 +328,13 @@ body.on-results .detail-panel{top:0}
 .pnav-alllink{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:8px;border-radius:var(--rs);transition:all .15s;text-align:center;border:1px solid var(--b);display:block}
 .pnav-alllink:hover{color:var(--t1);background:var(--card-h);border-color:var(--bh)}
 .pnav-row-addr{font-size:13px;line-height:22px;height:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;min-width:0;flex:1}
-.pnav-row-score{flex-shrink:0;width:27px;height:27px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid;line-height:1}
-.pnav-row-score.v-kill{color:var(--red);border-color:var(--red);background:var(--rbg)}
-.pnav-row-score.v-pursue{color:var(--green);border-color:var(--green);background:var(--gbg)}
+/* A soft filled pill, not a bordered circle — the address text is already
+   verdict-colored, so a heavy circled badge next to it read as redundant
+   and too busy. A plain unstyled number read as not clear enough. A filled
+   pill (no border) sits between the two. */
+.pnav-row-score{flex-shrink:0;min-width:26px;height:20px;padding:0 7px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;line-height:1}
+.pnav-row-score.v-kill{color:var(--red);background:var(--rbg)}
+.pnav-row-score.v-pursue{color:var(--green);background:var(--gbg)}
 .rsb-time-val{font-size:15px;font-weight:700;color:var(--green);letter-spacing:-.01em}
 .rsb-time-sub{font-size:11px;color:var(--t3)}
 #sidebarBatchList::-webkit-scrollbar{width:4px}
@@ -9477,15 +9481,27 @@ function _svFitToParcelAnd(extraPoints) {
   } catch(e) {}
 }
 
+// The 4 cardinal extreme points of a circle — passed to _svFitToParcelAnd
+// so its bounds union includes the whole circle (e.g. a 1-mile radius),
+// not just its center point.
+function _svCirclePoints(lat, lng, radiusM) {
+  const dLat = radiusM / 111320;
+  const dLng = radiusM / (111320 * Math.cos(lat * Math.PI / 180));
+  return [[lat + dLat, lng], [lat - dLat, lng], [lat, lng + dLng], [lat, lng - dLng]];
+}
+
 // A colored dot ahead of the label text — the same visual language the
 // map-overlay pills already use for severity — so a standalone label still
 // reads as good/caution/risk at a glance instead of plain text. A white
 // ring keeps the dot a clearly visible circle against any color it's
-// rendered on top of (the label's own dark background included).
+// rendered on top of (the label's own dark background included). A risk
+// (red) label also gets a warning icon — a colored dot alone didn't read
+// as an actual warning at a glance.
 function _svLabelHtml(label, color) {
+  const warn = color === '#EF4444' ? '⚠️ ' : '';
   return '<span style="display:inline-flex;align-items:center;gap:7px">' +
     '<span style="width:11px;height:11px;border-radius:50%;background:' + color + ';box-shadow:0 0 0 2px rgba(255,255,255,.9);flex-shrink:0"></span>' +
-    escHtml(label) + '</span>';
+    warn + escHtml(label) + '</span>';
 }
 
 // A real line from the parcel to an actual measured point (nearest road
@@ -9505,18 +9521,32 @@ function _svDrawLineTo(originLat, originLng, destLat, destLng, label, color) {
   _svFitToParcelAnd([[destLat, destLng]]);
 }
 
-// Evac zone / soil are parcel-wide properties, not an external point — the
-// only real thing to point at on the map is the parcel itself, so this
-// highlights its real boundary rather than drawing a fake marker. Also
-// reused for road/power when a distance is known but not the exact point
-// (see svShowOnMap below): a radius circle for that case used to be
-// centered on the parcel's own centroid, which for a large parcel can
-// render entirely inside its own boundary and read as "the road is inside
-// my property." A label next to the highlighted parcel says the same
-// honest "distance known, direction not" thing without that misleading
-// geometry. The highlight stays on (no auto-revert timer) for as long as
-// this filter is the active one — a highlight that fades on its own right
-// as you look at it reads as "nothing happened."
+// No exact point exists (only a distance/bucket, e.g. "> 1 mile") — an
+// honest radius ring around the parcel's own reference point instead of a
+// fabricated direction, plus a label with the real number. road_distance_m
+// / powerline_distance are measured from the parcel's own centroid, so for
+// a large parcel this ring can genuinely sit partly or fully inside its own
+// boundary — that reflects the real data (direction unknown, only distance
+// from that one point), not a rendering error.
+function _svDrawRadiusLabel(originLat, originLng, radiusM, label, color) {
+  if (!_svMap) return;
+  _svClearAnnotation();
+  const circle = L.circle([originLat, originLng], { radius: radiusM, color: color, weight: 3, dashArray: '5,8', fillOpacity: 0.08 }).addTo(_svMap);
+  const labelMarker = L.marker([originLat + radiusM / 111320, originLng], {
+    icon: L.divIcon({ className: 'sv-map-linelabel', html: _svLabelHtml(label, color), iconSize: [0, 0] }),
+    interactive: false,
+  }).addTo(_svMap);
+  _svAnnotationLayer = [circle, labelMarker];
+  _svFitToParcelAnd(_svCirclePoints(originLat, originLng, radiusM));
+}
+
+// Evac zone / soil / habitat / elevation / contamination / easement are
+// parcel-wide properties, not an external point — the only real thing to
+// point at on the map is the parcel itself, so this highlights its real
+// boundary rather than drawing a fake marker. The highlight stays on (no
+// auto-revert timer) for as long as this filter is the active one — a
+// highlight that fades on its own right as you look at it reads as
+// "nothing happened."
 function _svPulseParcel() {
   const parcel = _svLayers['parcel'];
   if (!parcel || !parcel.setStyle) return;
@@ -9584,8 +9614,11 @@ function svShowOnMap(kind) {
       const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="' + kind + '"]');
       if (btn && btn.classList.contains('active')) svToggleLayer(btn);
     } else if (kind === 'comps') {
+      // Comps are off by default (see _svInitMap) and only added to the map
+      // when this pill is active — toggling off must remove them again, not
+      // just close the popup, or they'd stay visible with no way to hide them.
       const comps = _svLayers['comps'];
-      if (comps && comps.length) { try { comps[0].closePopup(); } catch(e) {} }
+      if (comps && comps.length) { comps.forEach(m => { try { _svMap.removeLayer(m); } catch(e) {} }); }
     }
     _svSetActivePill(null);
     return;
@@ -9603,19 +9636,18 @@ function svShowOnMap(kind) {
       _svDrawLineTo(lat, lng, pi.road_nearest_lat, pi.road_nearest_lng, label, _svDistColor(pi.road_distance_m));
     } else if (pi.road_distance_m != null) {
       // Distance is known but not the exact point — this parcel was likely
-      // screened before nearest-point coordinates started being saved.
-      // Same honest fallback as power's bucket case, plus a hint since a
+      // screened before nearest-point coordinates started being saved. Same
+      // honest fallback as power's bucket case, plus a hint since a
       // re-screen would upgrade this to a real line.
-      _svPulseParcel();
-      _svDrawLabel(lat, lng, '~' + pi.road_distance_m + 'm to nearest road (exact spot unknown)', _svDistColor(pi.road_distance_m));
+      _svDrawRadiusLabel(lat, lng, pi.road_distance_m, '~' + pi.road_distance_m + 'm to nearest road', _svDistColor(pi.road_distance_m));
       toast('Exact road position not available for this screening — re-screen for a precise line.');
     }
   } else if (kind === 'power') {
     if (pi.powerline_nearest_lat != null && pi.powerline_nearest_lng != null) {
       _svDrawLineTo(lat, lng, pi.powerline_nearest_lat, pi.powerline_nearest_lng, (pi.powerline_distance || 'Power line'), _svDistColor(_svParseDistM(pi.powerline_distance)));
     } else if (pi.powerline_distance) {
-      _svPulseParcel();
-      _svDrawLabel(lat, lng, 'Power line ~' + pi.powerline_distance + ' away (exact spot unknown)', _svDistColor(_svParseDistM(pi.powerline_distance)));
+      const radiusM = _svParseDistM(pi.powerline_distance) || 500;
+      _svDrawRadiusLabel(lat, lng, radiusM, 'Power ~' + pi.powerline_distance + ' away', _svDistColor(radiusM));
     }
   } else if (kind === 'flood') {
     _svClearAnnotation();
@@ -9633,16 +9665,30 @@ function svShowOnMap(kind) {
   } else if (kind === 'soil') {
     _svPulseParcel();
     _svDrawLabel(lat, lng, _svSoilLabel(pi), pi.septic_suitable === false ? '#EF4444' : '#22C55E');
+  } else if (kind === 'habitat') {
+    _svPulseParcel();
+    _svDrawLabel(lat, lng, 'Critical habitat: ' + _svCap((pi.habitat_species || []).slice(0, 2).join(', ')), '#EF4444');
+  } else if (kind === 'elevation') {
+    _svPulseParcel();
+    _svDrawLabel(lat, lng, pi.elevation_ft + ' ft elevation', pi.elevation_ft < 5 ? '#F59E0B' : '#22C55E');
+  } else if (kind === 'contamination') {
+    _svPulseParcel();
+    _svDrawLabel(lat, lng, 'Contamination records nearby', '#EF4444');
+  } else if (kind === 'easement') {
+    _svPulseParcel();
+    _svDrawLabel(lat, lng, pi.easement_type ? _svCap(pi.easement_type) : 'Conservation easement', '#EF4444');
   } else if (kind === 'comps') {
-    // Comps are placeholder pins scattered near the parcel — zooming out to
-    // fit all of them (and the parcel) made the map jump out much further
-    // than the other filters, and a scale-up-then-back-down pulse read as
-    // "they briefly appeared then disappeared." Keep the current framing
-    // and just surface the nearest comp's popup — a persistent, unambiguous
-    // "here's a comp" instead of a transient animation.
+    // Comps are off by default and only added to the map (not just
+    // popped-open) when this pill is clicked — they used to always be on
+    // the map, which read as an unrequested default and, for a large
+    // parcel, could place a "nearby comparable property" pin inside the
+    // user's own parcel (see _svCompOffset for the outside-parcel guarantee).
     _svClearAnnotation();
     const comps = _svLayers['comps'];
-    if (comps && comps.length) { try { comps[0].openPopup(); } catch(e) {} }
+    if (comps && comps.length) {
+      comps.forEach(m => { try { m.addTo(_svMap); } catch(e) {} });
+      try { comps[0].openPopup(); } catch(e) {}
+    }
   }
 }
 
@@ -9673,6 +9719,42 @@ function _svSeedFrac(seedStr, index) {
   for (let i = 0; i < Math.min(4, s.length); i++) seed += s.charCodeAt(i) * (i + 1);
   seed += index * 97;
   return Math.abs(Math.sin(seed)) % 1;
+}
+
+// Worst-case centroid-to-vertex distance across the parcel's own polygon
+// (or a small default when there's no polygon, just a circleMarker) — the
+// minimum clearance a comp pin must add on top of to guarantee it lands
+// outside the parcel's own boundary, not just outside an arbitrary fixed
+// radius that a large parcel could still swallow.
+function _svParcelClearanceM(coords, lat, lng) {
+  if (!coords || coords.length < 3) return 60;
+  let maxD = 0;
+  coords.forEach(pt => {
+    const dLat = (pt[0] - lat) * 111320;
+    const dLng = (pt[1] - lng) * 111320 * Math.cos(lat * Math.PI / 180);
+    const d = Math.hypot(dLat, dLng);
+    if (d > maxD) maxD = d;
+  });
+  return maxD;
+}
+
+// Deterministic pseudo-random offset for comp pins — always clears the
+// parcel's own extent (plus a seeded margin for variety) so a comp never
+// lands inside a large parcel's own boundary, which wouldn't make sense
+// for a "nearby comparable property." Seeded from the address/APN, not
+// Math.random(), so the same parcel always shows the same fake placement.
+function _svCompOffset(seedStr, index, lat, clearanceM) {
+  let seed = 0;
+  const s = String(seedStr || '');
+  for (let i = 0; i < Math.min(4, s.length); i++) seed += s.charCodeAt(i) * (i + 1);
+  seed += index * 97;
+  const frac = Math.abs(Math.sin(seed)) % 1;
+  const magM = clearanceM + 60 + frac * 180;
+  const angle = (seed % 360) * Math.PI / 180;
+  return {
+    dLat: (magM / 111320) * Math.cos(angle),
+    dLng: (magM / (111320 * Math.cos(lat * Math.PI / 180))) * Math.sin(angle),
+  };
 }
 
 // A proper map-pin icon (not a plain circle) for placeholder pins — used
@@ -9724,27 +9806,30 @@ function _svInitMap(r) {
   _svLayers['flood']    = _makeFemaLayer(0.5);
   _svLayers['wetlands'] = _makeWetlandsLayer(0.5);
 
-  // Comps + skip-tracing placeholder pins — always visible, not toggled by
-  // any button, deterministically placed near the parcel from a seed so
-  // they don't jump between renders of the same parcel. Explicitly a
-  // placeholder (no real comps data source exists yet) — 3-5 pins, priced
-  // off THIS parcel's own real land/assessed value (falling back to a
-  // generic range only when the parcel has no value data at all) so the
-  // numbers look like plausible comps for this property instead of an
-  // arbitrary fixed range, seeded so the same parcel always shows the same
-  // fake numbers instead of reshuffling on every render.
+  // Comps placeholder pins — deterministically placed outside the parcel
+  // from a seed so they don't jump between renders of the same parcel, and
+  // built here but NOT added to the map: they're off by default, only
+  // shown once the comps filter pill is clicked (see svShowOnMap). A
+  // "nearby comparable property" inside the parcel's own boundary wouldn't
+  // make sense, so _svCompOffset always clears this parcel's own extent.
+  // Explicitly a placeholder (no real comps data source exists yet) — 3-5
+  // pins, priced off THIS parcel's own real land/assessed value (falling
+  // back to a generic range only when the parcel has no value data at all)
+  // so the numbers look like plausible comps for this property instead of
+  // an arbitrary fixed range, seeded so the same parcel always shows the
+  // same fake numbers instead of reshuffling on every render.
   const seed = (r.address || '') + (pi.parcel_id || '');
   const baseValue = pi.land_value != null ? pi.land_value : (pi.assessed_value != null ? pi.assessed_value : pi.just_value);
+  const clearanceM = _svParcelClearanceM(coords, lat, lng);
   const compCount = 3 + Math.floor(_svSeedFrac(seed, 100) * 3); // 3-5
   const comps = [];
   for (let i = 0; i < compCount; i++) {
-    const off = _svSeedOffset(seed, i);
+    const off = _svCompOffset(seed, i, lat, clearanceM);
     const price = baseValue != null && baseValue > 0
       ? Math.round((baseValue * (0.7 + _svSeedFrac(seed, 200 + i) * 0.6)) / 500) * 500  // this parcel's value, ±30%
       : Math.round((12000 + _svSeedFrac(seed, 200 + i) * 83000) / 500) * 500;            // no value on file — generic range
     const m = L.marker([lat + off.dLat, lng + off.dLng], { icon: _svPinIcon('#f59e0b') });
     m.bindPopup('<b>' + fmt$(price) + '</b> · est. asking price<br>Nearby Comp — Coming Soon');
-    m.addTo(_svMap);
     comps.push(m);
   }
   _svLayers['comps'] = comps;
@@ -9813,6 +9898,18 @@ function _svMapOverlayHtml(r) {
   }
   if (pi.soil_drainage) {
     pill('soil', pi.septic_suitable === false ? 'var(--red)' : 'var(--green)', _svSoilLabel(pi));
+  }
+  if (pi.habitat_species && pi.habitat_species.length) {
+    pill('habitat', 'var(--red)', 'Critical habitat');
+  }
+  if (pi.elevation_ft != null) {
+    pill('elevation', pi.elevation_ft < 5 ? 'var(--amber)' : 'var(--green)', pi.elevation_ft + ' ft elevation');
+  }
+  if (pi.contamination_sites && pi.contamination_sites.length) {
+    pill('contamination', 'var(--red)', 'Contamination nearby');
+  }
+  if (pi.easement_found) {
+    pill('easement', 'var(--red)', _svCap(pi.easement_type || 'Conservation easement'));
   }
   return pills.join('');
 }
@@ -9884,12 +9981,12 @@ function _buildParcelNavigator() {
   const header =
     '<div class="rsb-top" style="border-bottom:1px solid var(--b);padding-bottom:14px">' +
       '<div style="display:flex;align-items:center;gap:6px">' +
-        '<button id="rsbModeToggle" class="rsb-toggle-btn" onclick="toggleMode()" title="Toggle theme" style="font-size:14px;padding:3px 5px;line-height:1"><span id="rsbModeIcon">' + themeIcon + '</span></button>' +
         '<span class="rsb-brand" onclick="window.location.reload()" style="cursor:pointer" title="Reload">Parcel<span style="color:var(--green)">iQ</span></span>' +
+        '<button id="rsbModeToggle" class="rsb-toggle-btn" onclick="toggleMode()" title="Toggle theme" style="font-size:14px;padding:3px 5px;line-height:1"><span id="rsbModeIcon">' + themeIcon + '</span></button>' +
       '</div>' +
       '<button id="svSidebarToggle" class="rsb-toggle-btn" onclick="_svToggleSidebar()" title="Hide sidebar"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>' +
     '</div>' +
-    '<a class="pnav-back-link" onclick="closeStoryView()">← Back to Results</a>' +
+    '<a class="pnav-back-link" onclick="_pnavShowAllBatches()">← All Batches</a>' +
     '<div class="pnav-crumb"><a onclick="_pnavShowAllBatches()">Batches</a><span>›</span><span class="cur" title="' + bname + '">' + bname + '</span></div>';
 
   // Same account chip (classes, avatar-letter/name fallback logic) as the
@@ -9933,7 +10030,7 @@ function _buildParcelNavigator() {
         '<button class="pnav-search-btn" title="Search" onclick="document.getElementById(\'pnavSearch\').focus()">' + _PNAV_SEARCH_ICON + '</button>' +
       '</div>' +
       '<div class="pnav-list" id="pnavList"></div>' +
-      '<a class="pnav-alllink" onclick="_pnavShowAllBatches()">← All Batches</a>' +
+      '<a class="pnav-alllink" onclick="closeStoryView()">← Back to Results</a>' +
       accountChip +
     '</div>';
   _pnavRenderList();
