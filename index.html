@@ -293,11 +293,9 @@ body.on-results .detail-panel{top:0}
 .rsb-count{font-size:11px;font-weight:700;background:var(--bg);padding:1px 7px;border-radius:var(--rp);color:var(--t3)}
 /* Batch parcel navigator — replaces the sidebar while the story view is open */
 .pnav-wrap{display:flex;flex-direction:column;height:100%;min-height:0;gap:10px}
-.pnav-logo{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--t1);padding-bottom:2px;display:flex;align-items:center;cursor:pointer}
-.pnav-logo .iq{color:var(--green)}
 .pnav-back-link{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:7px 8px;border-radius:var(--rs);transition:all .15s;margin:0 -8px;display:block}
 .pnav-back-link:hover{color:var(--t1);background:var(--card-h)}
-.pnav-crumb{font-size:11.5px;color:var(--t3);display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:0 2px}
+.pnav-crumb{font-size:13px;color:var(--t3);display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:0 2px}
 .pnav-crumb a{color:var(--t2);cursor:pointer;font-weight:600}
 .pnav-crumb a:hover{color:var(--green)}
 .pnav-crumb span.cur{color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
@@ -316,7 +314,7 @@ body.on-results .detail-panel{top:0}
 .pnav-search:focus{border-color:var(--bh)}
 .pnav-search-btn{flex-shrink:0;width:34px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .pnav-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:0 -6px}
-.pnav-row{padding:10px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid var(--b)}
+.pnav-row{padding:10px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--b)}
 .pnav-row:last-child{border-bottom:none}
 .pnav-row:hover{background:var(--card-h)}
 .pnav-row-active{border-left-color:var(--green);background:var(--card-h)}
@@ -329,8 +327,10 @@ body.on-results .detail-panel{top:0}
 .pnav-batch-row-meta .p{color:var(--green)}
 .pnav-alllink{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:8px;border-radius:var(--rs);transition:all .15s;text-align:center;border:1px solid var(--b);display:block}
 .pnav-alllink:hover{color:var(--t1);background:var(--card-h);border-color:var(--bh)}
-.pnav-row-addr{font-size:13px;line-height:22px;height:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-.pnav-row-score{font-size:11px;line-height:16px;height:16px;font-weight:600;color:var(--t3)}
+.pnav-row-addr{font-size:13px;line-height:22px;height:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;min-width:0;flex:1}
+.pnav-row-score{flex-shrink:0;width:27px;height:27px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid;line-height:1}
+.pnav-row-score.v-kill{color:var(--red);border-color:var(--red);background:var(--rbg)}
+.pnav-row-score.v-pursue{color:var(--green);border-color:var(--green);background:var(--gbg)}
 .rsb-time-val{font-size:15px;font-weight:700;color:var(--green);letter-spacing:-.01em}
 .rsb-time-sub{font-size:11px;color:var(--t3)}
 #sidebarBatchList::-webkit-scrollbar{width:4px}
@@ -703,10 +703,10 @@ body.on-results .detail-panel{top:0}
 .sv-rescreen-btn:hover{color:var(--t1);border-color:var(--bh)}
 .sv-rescreen-btn:disabled{opacity:.5;cursor:default}
 .sv-navbtns{margin-left:auto;display:flex;gap:6px}
-.sv-jump-box{position:relative;flex-shrink:0;display:flex;width:180px}
-.sv-jump-input{flex:1;min-width:0;font-size:12px;padding:7px 8px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
+.sv-jump-box{position:relative;flex-shrink:0;display:flex;width:340px}
+.sv-jump-input{flex:1;min-width:0;font-size:14px;padding:11px 14px;border:1px solid var(--b);border-right:none;border-radius:var(--rs) 0 0 var(--rs);background:var(--bg);color:var(--t1);outline:none}
 .sv-jump-input:focus{border-color:var(--bh)}
-.sv-jump-btn{flex-shrink:0;width:30px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sv-jump-btn{flex-shrink:0;width:38px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .sv-jump-dropdown{position:absolute;top:calc(100% + 4px);left:0;width:280px;max-height:280px;overflow-y:auto;background:var(--card);border:1px solid var(--b);border-radius:var(--rs);box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:1300}
 .sv-jump-item{padding:8px 12px;font-size:12.5px;color:var(--t1);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sv-jump-item:hover{background:var(--card-h)}
@@ -1915,7 +1915,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <aside class="res-sidebar" id="resSidebar">
       <!-- Brand + toggle -->
       <div class="rsb-top">
-        <span class="rsb-brand" onclick="goTo('landing')" style="cursor:pointer" title="Go to home">Parcel<span style="color:var(--green)">iQ</span></span>
+        <span class="rsb-brand" onclick="window.location.reload()" style="cursor:pointer" title="Reload">Parcel<span style="color:var(--green)">iQ</span></span>
         <div style="display:flex;align-items:center;gap:4px">
           <span class="fl-pill" style="font-size:10px;padding:2px 7px;letter-spacing:.4px">FL Beta</span>
           <button id="rsbModeToggle" class="rsb-toggle-btn" onclick="toggleMode()" title="Toggle theme" style="font-size:14px;padding:3px 5px;line-height:1"><span id="rsbModeIcon">☀️</span></button>
@@ -9719,10 +9719,29 @@ function _buildParcelNavigator() {
   if (!sidebar) return;
   if (_savedSidebarHTML === null) _savedSidebarHTML = sidebar.innerHTML;
   const bname = escHtml(batchState.name || 'Batch');
+  // Same brand block (class, size, divider) as the regular sidebar's
+  // .rsb-top/.rsb-brand — reusing the classes outright instead of a
+  // parallel .pnav-logo keeps the two sidebars from drifting apart again.
   const header =
-    '<div class="pnav-logo" onclick="window.location.reload()">Parcel<span class="iq">iQ</span></div>' +
+    '<div class="rsb-top" style="border-bottom:1px solid var(--b);padding-bottom:14px">' +
+      '<span class="rsb-brand" onclick="window.location.reload()" style="cursor:pointer" title="Reload">Parcel<span style="color:var(--green)">iQ</span></span>' +
+    '</div>' +
     '<a class="pnav-back-link" onclick="closeStoryView()">← Back to Results</a>' +
     '<div class="pnav-crumb"><a onclick="_pnavShowAllBatches()">Batches</a><span>›</span><span class="cur" title="' + bname + '">' + bname + '</span></div>';
+
+  // Same account chip (classes, avatar-letter/name fallback logic) as the
+  // regular sidebar's .rsb-profile — built fresh from the live userProfile
+  // each time rather than relying on a separate update call afterward.
+  const _pName = userProfile ? (userProfile.full_name || (userProfile.email ? userProfile.email.split('@')[0] : null)) : null;
+  const _pInitial = userProfile ? (userProfile.full_name || userProfile.email || '?').charAt(0).toUpperCase() : '?';
+  const accountChip =
+    '<div class="rsb-profile" style="border-top:1px solid var(--b);padding-top:12px;margin-top:2px">' +
+      '<div class="rsb-profile-av">' + escHtml(_pInitial) + '</div>' +
+      '<div class="rsb-profile-info"><div class="rsb-profile-name">' + escHtml(_pName || '—') + '</div></div>' +
+      '<div class="rsb-profile-acts">' +
+        '<button class="rsb-pac" onclick="doSignout()" title="Sign out" style="color:var(--red)"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6 2.5H3A1.5 1.5 0 0 0 1.5 4v7A1.5 1.5 0 0 0 3 12.5h3"/><path d="M10 10.5l3-3-3-3"/><line x1="13" y1="7.5" x2="6" y2="7.5"/></svg></button>' +
+      '</div>' +
+    '</div>';
 
   if (_pnavMode === 'batches') {
     sidebar.innerHTML =
@@ -9730,6 +9749,7 @@ function _buildParcelNavigator() {
         '<div class="pnav-title"><div class="pnav-name">All Batches</div></div>' +
         '<div class="pnav-list" id="pnavBatchList"><div style="padding:16px 10px;font-size:12px;color:var(--t3);text-align:center">Loading…</div></div>' +
         '<a class="pnav-alllink" onclick="_pnavExitBatchList()">← Back to ' + bname + '</a>' +
+        accountChip +
       '</div>';
     _pnavRenderBatchList();
     return;
@@ -9751,6 +9771,7 @@ function _buildParcelNavigator() {
       '</div>' +
       '<div class="pnav-list" id="pnavList"></div>' +
       '<a class="pnav-alllink" onclick="_pnavShowAllBatches()">← All Batches</a>' +
+      accountChip +
     '</div>';
   _pnavRenderList();
 }
@@ -9867,7 +9888,7 @@ function _pnavRenderList() {
     row.className = 'pnav-row' + (r === _openParcel ? ' pnav-row-active' : '');
     row.innerHTML =
       '<div class="pnav-row-addr" style="color:' + verdictColor(ev) + '">' + escHtml(street) + '</div>' +
-      (r.score != null ? '<div class="pnav-row-score">Score ' + r.score + '</div>' : '');
+      (r.score != null ? '<div class="pnav-row-score ' + (ev === 'KILL' ? 'v-kill' : 'v-pursue') + '">' + r.score + '</div>' : '');
     row.addEventListener('click', function() { _pnavOpenParcel(r); });
     list.appendChild(row);
   });
