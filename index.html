@@ -2606,6 +2606,10 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       </div>
       <button onclick="history.back()" style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">← Back to Dashboard</button>
     </div>
+    <div id="picksTabs" style="display:flex;gap:6px;margin-bottom:16px">
+      <button id="picksTabParcels" onclick="_picksSetMode('parcels')" style="font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">Parcels</button>
+      <button id="picksTabBatches" onclick="_picksSetMode('batches')" style="font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">Batches</button>
+    </div>
     <div id="picksListWrap"></div>
   </div>
 </div>
@@ -5946,14 +5950,27 @@ function loadSbUsage() {
 }
 
 // ── RENDER RESULTS (FIX 4)
+// Stores {address, batchId, batchName} per pick, not bare addresses — the
+// old bare-address format could only ever describe picks in whichever
+// batch happens to be loaded right now, and every save from a DIFFERENT
+// batch silently overwrote (lost) every other batch's picks entirely.
+// Only this batch's own entries are replaced on each save; every other
+// batch's entries are read back and kept untouched.
 function _savePicks() {
-  const picks = batchState.results.filter(r => r._starred).map(r => r.address);
-  localStorage.setItem('piq-picks', JSON.stringify(picks));
+  let existing = [];
+  try { existing = JSON.parse(localStorage.getItem('piq-picks') || '[]'); } catch(e) {}
+  const others = existing.filter(p => (typeof p === 'object' && p) ? p.batchId !== _currentBatchId : true);
+  const mine = batchState.results.filter(r => r._starred).map(r => ({ address: r.address, batchId: _currentBatchId, batchName: batchState.name || 'Batch' }));
+  localStorage.setItem('piq-picks', JSON.stringify(others.concat(mine)));
 }
 function _restorePicks() {
-  const saved = new Set(JSON.parse(localStorage.getItem('piq-picks') || '[]'));
-  if (!saved.size) return;
-  batchState.results.forEach(r => { if (saved.has(r.address)) r._starred = true; });
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem('piq-picks') || '[]'); } catch(e) {}
+  if (!saved.length) return;
+  // Backward-compat with the old bare-address-string format.
+  const addrSet = new Set(saved.map(p => typeof p === 'string' ? p : p.address));
+  if (!addrSet.size) return;
+  batchState.results.forEach(r => { if (addrSet.has(r.address)) r._starred = true; });
 }
 
 function renderBatchResults() {
@@ -6545,6 +6562,7 @@ async function rescreenFromPanel() {
     const nr = data.results?.[0]; if (!nr) throw new Error('No result');
     const origRow = _openParcel;                    // capture before overwrite
     nr._note = origRow._note; nr._note_updated_at = origRow._note_updated_at;
+    nr._starred = origRow._starred; // a re-screen refreshes data, not user annotations like notes/picks
     const bIdx = batchState.results.findIndex(r => r.address === origRow.address);
     if (bIdx !== -1) batchState.results[bIdx] = nr;
     if (_openParcelIdx >= 0 && _openParcelIdx < _currentDisplayed.length) _currentDisplayed[_openParcelIdx] = nr;
@@ -6577,6 +6595,7 @@ async function rescreenFromStoryView() {
     const nr = data.results?.[0]; if (!nr) throw new Error('No result');
     const origRow = _openParcel;                    // capture before overwrite
     nr._note = origRow._note; nr._note_updated_at = origRow._note_updated_at;
+    nr._starred = origRow._starred; // a re-screen refreshes data, not user annotations like notes/picks
     const bIdx = batchState.results.findIndex(r => r.address === origRow.address);
     if (bIdx !== -1) batchState.results[bIdx] = nr;
     if (_openParcelIdx >= 0 && _openParcelIdx < _currentDisplayed.length) _currentDisplayed[_openParcelIdx] = nr;
@@ -6588,6 +6607,19 @@ async function rescreenFromStoryView() {
     _pnavRenderList();
     toast('Parcel re-screened with fresh data');
     await _saveRescreenToSupa(origRow, nr);
+    // Same usage-counting + audit-row pattern as rescreenSelected()/rescreenAll()
+    // — without this, a re-screen from Deal Review passed checkWeeklyLimit()
+    // but was never actually counted against it anywhere (not the in-memory
+    // counter, not the sidebar usage bar, not the [Re-screen] audit batch row).
+    _weeklyUsed = (_weeklyUsed || 0) + 1;
+    const usageEl = document.getElementById('sbUsageCount');
+    const usageFill = document.getElementById('sbUsageFill');
+    if (usageEl) usageEl.textContent = _weeklyUsed;
+    if (usageFill) usageFill.style.width = Math.min(Math.round(_weeklyUsed / _dailyLimit * 100), 100) + '%';
+    if (sb && currentUser) {
+      sb.from('batches').insert({ user_id: currentUser.id, name: '[Re-screen]', total: 1, created_at: new Date().toISOString() })
+        .then(() => loadSbUsage()).catch(() => {});
+    }
   } catch(e) {
     toast('Re-screen failed: ' + e.message);
   } finally {
@@ -8576,10 +8608,72 @@ function _updateSidebarPick() {
   badge.style.display = count ? 'inline' : 'none';
 }
 
+let _picksMode = 'parcels'; // 'parcels' | 'batches'
+
 function showPicksPage() {
   history.pushState({ from: 'results' }, '', window.location.pathname + window.location.search + '#picks');
   showScreen('page-picks');
-  renderPicksList();
+  _picksSetMode('parcels');
+}
+
+// Parcels tab shows picks in whichever batch is CURRENTLY loaded (full row
+// data — score, verdict, flood zone, etc. — is only available for that
+// batch); Batches tab shows every batch that has at least one pick,
+// sourced from the cross-batch localStorage list, so picks made in a batch
+// you've since navigated away from aren't just invisible.
+function _picksSetMode(mode) {
+  _picksMode = mode;
+  const tp = document.getElementById('picksTabParcels');
+  const tb = document.getElementById('picksTabBatches');
+  [[tp, 'parcels'], [tb, 'batches']].forEach(([btn, m]) => {
+    if (!btn) return;
+    const on = _picksMode === m;
+    btn.style.background = on ? 'var(--green)' : 'var(--card-h)';
+    btn.style.color = on ? '#04140a' : 'var(--t2)';
+    btn.style.borderColor = on ? 'var(--green)' : 'var(--b)';
+  });
+  if (mode === 'batches') renderPicksBatchList(); else renderPicksList();
+}
+
+function renderPicksBatchList() {
+  const wrap = document.getElementById('picksListWrap');
+  const sub  = document.getElementById('picksSubtitle');
+  if (!wrap) return;
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem('piq-picks') || '[]'); } catch(e) {}
+  const byBatch = new Map();
+  saved.forEach(p => {
+    if (typeof p !== 'object' || !p || !p.batchId) return; // skip legacy bare-address entries — no batch to group them under
+    const cur = byBatch.get(p.batchId) || { name: p.batchName || 'Batch', count: 0 };
+    cur.count++;
+    byBatch.set(p.batchId, cur);
+  });
+  const batches = Array.from(byBatch.entries());
+  if (sub) sub.textContent = batches.length ? batches.length + ' batch' + (batches.length > 1 ? 'es' : '') + ' with picks' : 'Parcels you\'ve picked from compare';
+  if (!batches.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--t3)">'
+      + '<div style="font-size:32px;margin-bottom:12px">⭐</div>'
+      + '<div style="font-size:15px;font-weight:600;color:var(--t2);margin-bottom:6px">No picks yet</div>'
+      + '<div style="font-size:13px">Star a parcel from its Deal Review or Compare to see its batch here.</div>'
+      + '</div>';
+    return;
+  }
+  wrap.innerHTML = batches.map(([batchId, info]) => {
+    const safeId = batchId.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return '<div onclick="_picksOpenBatch(\'' + safeId + '\')" style="background:var(--card);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:10px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:border-color .12s" onmouseenter="this.style.borderColor=\'var(--bh)\'" onmouseleave="this.style.borderColor=\'var(--b)\'">'
+      + '<div style="font-size:14px;font-weight:700;color:var(--t1)">' + escHtml(info.name) + '</div>'
+      + '<div style="font-size:12px;color:var(--t3);flex-shrink:0">' + info.count + ' pick' + (info.count > 1 ? 's' : '') + ' →</div>'
+      + '</div>';
+  }).join('');
+}
+
+// Loads the chosen batch (if not already loaded), then switches back to the
+// Parcels tab, which will show that batch's own picks now that its results
+// are the ones loaded into batchState.
+async function _picksOpenBatch(batchId) {
+  if (batchId !== _currentBatchId) { await loadBatchResults(batchId); }
+  showScreen('page-picks');
+  _picksSetMode('parcels');
 }
 
 function renderPicksList() {
@@ -8587,12 +8681,13 @@ function renderPicksList() {
   const sub  = document.getElementById('picksSubtitle');
   if (!wrap) return;
   const picks = batchState.results.filter(r => r._starred);
-  if (sub) sub.textContent = picks.length ? picks.length + ' parcel' + (picks.length > 1 ? 's' : '') + ' picked' : 'Parcels you\'ve picked from compare';
+  const batchLabel = batchState.name ? ' in ' + batchState.name : '';
+  if (sub) sub.textContent = picks.length ? picks.length + ' parcel' + (picks.length > 1 ? 's' : '') + ' picked' + batchLabel : 'Parcels you\'ve picked from compare';
   if (!picks.length) {
     wrap.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--t3)">'
       + '<div style="font-size:32px;margin-bottom:12px">⭐</div>'
-      + '<div style="font-size:15px;font-weight:600;color:var(--t2);margin-bottom:6px">No picks yet</div>'
-      + '<div style="font-size:13px">Open Compare from the results table, then click ⭐ Pick this on any parcel.</div>'
+      + '<div style="font-size:15px;font-weight:600;color:var(--t2);margin-bottom:6px">No picks in this batch</div>'
+      + '<div style="font-size:13px">Star a parcel from Deal Review, the results table, or Compare to add it here.</div>'
       + '</div>';
     return;
   }
@@ -8662,6 +8757,15 @@ function _toggleStar(absIdx, event) {
     dpStar.textContent = isNow ? '⭐' : '☆';
     dpStar.title = isNow ? 'Remove from My Picks' : 'Add to My Picks';
     dpStar.style.color = isNow ? 'var(--amber)' : 'var(--t3)';
+  }
+  // refresh Deal Review's own star button (same _openParcel state, separate
+  // DOM node — Deal Review isn't necessarily the panel that triggered this)
+  const svStar = document.getElementById('svStarBtn');
+  if (svStar && _openParcel && _openParcel.address === r.address) {
+    _openParcel._starred = isNow;
+    svStar.textContent = isNow ? '⭐' : '☆';
+    svStar.title = isNow ? 'Remove from My Picks' : 'Add to My Picks';
+    svStar.style.color = isNow ? 'var(--amber)' : 'var(--t3)';
   }
   toast(isNow ? '⭐ Added to My Picks' : 'Removed from My Picks');
 }
@@ -9001,11 +9105,26 @@ let _svMap = null;
 const _svLayers = {};
 // The one "show this on the map" annotation currently drawn from a pill
 // click (a real line+label, a radius circle, or null) — always cleared
-// before drawing the next one so annotations never stack up.
+// before drawing the next one so annotations never stack up. road / power /
+// evac / soil / habitat / elevation / contamination / easement share this
+// single slot (only one of them can point at the parcel at a time); flood,
+// wetlands, and comps are independent map layers with their own on/off
+// state that this slot never touches.
 let _svAnnotationLayer = null;
-// Which pill kind ('road','power','flood',...) is the currently-shown
-// annotation, so the matching pill can render as visibly active/selected.
-let _svActiveMapFilter = null;
+// Every pill kind ('road','power','flood',...) whose thing is CURRENTLY
+// visible on the map — a Set, not a single value, so a pill stays bold as
+// long as its own thing is showing, independent of whichever OTHER pill
+// was clicked most recently (flood/wetlands/comps can all coexist with
+// each other and with whichever shared-slot annotation is active).
+let _svActiveFilters = new Set();
+// road/power/evac/soil/habitat/elevation/contamination/easement all draw
+// into the single _svAnnotationLayer slot above — clicking one clears
+// whichever other one of these was previously active. flood/wetlands/comps
+// are deliberately excluded: they're independent layers, not part of this group.
+const _SV_SHARED_SLOT_KINDS = new Set(['road', 'power', 'evac', 'soil', 'habitat', 'elevation', 'contamination', 'easement']);
+// Which of the shared-slot kinds pulse the parcel boundary (vs. draw a
+// line/circle to an external point, which is visual signal enough on its own).
+const _SV_PULSE_KINDS = new Set(['evac', 'soil', 'habitat', 'elevation', 'contamination', 'easement']);
 
 function _svCap(t) { t = String(t || ''); return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
 
@@ -9382,9 +9501,12 @@ function renderStoryView(r) {
         '<button id="svSidebarOpenBtn" class="sv-back icon-only" onclick="_svToggleSidebar()" title="Show sidebar" style="display:' + (sidebarCurrentlyHidden ? 'inline-flex' : 'none') + '"><svg width="16" height="14" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>' +
         '<div style="min-width:0;flex:1">' +
           '<div class="sv-section-label">Deal Review</div>' +
-          '<div style="display:flex;align-items:center;gap:12px;min-width:0">' +
+          '<div style="display:flex;align-items:center;gap:10px;min-width:0">' +
             '<div class="sv-addr">' + escHtml(r.address || '') + '</div>' +
+            '<span id="svVerdictBadge" class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
+            (r.score != null ? '<span id="svScoreNum" style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '<span id="svScoreNum" style="flex-shrink:0"></span>') +
             '<button id="svRescreenBtn" class="sv-rescreen-btn" onclick="rescreenFromStoryView()" title="Re-screen this parcel with fresh data">↻ Re-screen</button>' +
+            '<button id="svStarBtn" onclick="_toggleStarFromPanel()" title="' + (r._starred ? 'Remove from My Picks' : 'Add to My Picks') + '" style="background:none;border:none;font-size:20px;cursor:pointer;padding:0 2px;color:' + (r._starred ? 'var(--amber)' : 'var(--t3)') + ';line-height:1;flex-shrink:0;transition:color .12s">' + (r._starred ? '⭐' : '☆') + '</button>' +
           '</div>' +
           (apn ? '<div class="sv-apn">APN ' + escHtml(apn) + '</div>' : '') +
         '</div>' +
@@ -9393,8 +9515,6 @@ function renderStoryView(r) {
           '<button class="sv-jump-btn" title="Search" onclick="document.getElementById(\'svJumpInput\').focus()">' + _PNAV_SEARCH_ICON + '</button>' +
           '<div class="sv-jump-dropdown" id="svJumpDropdown" style="display:none"></div>' +
         '</div>' +
-        '<span id="svVerdictBadge" class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
-        (r.score != null ? '<span id="svScoreNum" style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '<span id="svScoreNum" style="flex-shrink:0"></span>') +
       '</div>' +
 
       '<div class="sv-main">' +
@@ -9506,18 +9626,23 @@ function _svLabelHtml(label, color) {
 
 // A real line from the parcel to an actual measured point (nearest road
 // vertex, nearest powerline/waterway vertex) — only ever called with real
-// coordinates a collector measured, never a guessed direction.
+// coordinates a collector measured, never a guessed direction. A white
+// casing line under the colored one keeps it visible against any basemap
+// color/zoom level — a thin dashed line alone could all but disappear at
+// some zoom levels, reading as "just a floating point with no visible
+// connection back to the parcel."
 function _svDrawLineTo(originLat, originLng, destLat, destLng, label, color) {
   if (!_svMap) return;
   _svClearAnnotation();
-  const line = L.polyline([[originLat, originLng], [destLat, destLng]], { color: color, weight: 3, dashArray: '6,6' }).addTo(_svMap);
-  const dest = L.circleMarker([destLat, destLng], { radius: 6, color: color, weight: 2, fillColor: color, fillOpacity: 0.9 }).addTo(_svMap);
+  const casing = L.polyline([[originLat, originLng], [destLat, destLng]], { color: '#fff', weight: 7, opacity: 0.9 }).addTo(_svMap);
+  const line = L.polyline([[originLat, originLng], [destLat, destLng]], { color: color, weight: 4, dashArray: '2,7' }).addTo(_svMap);
+  const dest = L.circleMarker([destLat, destLng], { radius: 7, color: '#fff', weight: 2, fillColor: color, fillOpacity: 1 }).addTo(_svMap);
   const mid = [(originLat + destLat) / 2, (originLng + destLng) / 2];
   const labelMarker = L.marker(mid, {
     icon: L.divIcon({ className: 'sv-map-linelabel', html: _svLabelHtml(label, color), iconSize: [0, 0] }),
     interactive: false,
   }).addTo(_svMap);
-  _svAnnotationLayer = [line, dest, labelMarker];
+  _svAnnotationLayer = [casing, line, dest, labelMarker];
   _svFitToParcelAnd([[destLat, destLng]]);
 }
 
@@ -9546,11 +9671,14 @@ function _svDrawRadiusLabel(originLat, originLng, radiusM, label, color) {
 // boundary rather than drawing a fake marker. The highlight stays on (no
 // auto-revert timer) for as long as this filter is the active one — a
 // highlight that fades on its own right as you look at it reads as
-// "nothing happened."
-function _svPulseParcel() {
+// "nothing happened." Color matches the same severity color as the label
+// (red/amber/green) instead of always a flat yellow — a neutral finding
+// (e.g. "moderately drained") pulsing the same alarming yellow as a real
+// risk made the highlight feel arbitrary rather than meaningful.
+function _svPulseParcel(color) {
   const parcel = _svLayers['parcel'];
   if (!parcel || !parcel.setStyle) return;
-  parcel.setStyle({ color: '#FBBF24', weight: 6 });
+  parcel.setStyle({ color: color || '#FBBF24', weight: 6 });
 }
 function _svUnpulseParcel() {
   const parcel = _svLayers['parcel'];
@@ -9573,13 +9701,69 @@ function _svDrawLabel(originLat, originLng, label, color) {
   _svFitToParcelAnd([]);
 }
 
-// Marks which pill is the currently-active map filter, both in state and
-// on the pill buttons themselves, so there's always clear visual feedback
-// for which filter is currently shown on the map.
-function _svSetActivePill(kind) {
-  _svActiveMapFilter = kind;
+// Rough keyword match from a species common name to a representative
+// emoji — purely a visual affordance (an emoji pin reads faster than a
+// text list at a glance), the real name is still shown alongside it.
+function _svSpeciesEmoji(name) {
+  const n = String(name || '').toLowerCase();
+  if (/tortoise|turtle/.test(n)) return '🐢';
+  if (/eagle|hawk|jay|woodpecker|stork|crane|owl|sparrow|heron|bird/.test(n)) return '🦅';
+  if (/snake|indigo/.test(n)) return '🐍';
+  if (/panther|cat|cougar|lynx|bobcat/.test(n)) return '🐆';
+  if (/bear/.test(n)) return '🐻';
+  if (/fox/.test(n)) return '🦊';
+  if (/deer/.test(n)) return '🦌';
+  if (/frog|toad/.test(n)) return '🐸';
+  if (/fish|sturgeon|darter|shiner|bass/.test(n)) return '🐟';
+  if (/mussel|shell|pigtoe|clam|snail/.test(n)) return '🐚';
+  if (/manatee/.test(n)) return '🐋';
+  if (/bat\b/.test(n)) return '🦇';
+  if (/butterfly|moth/.test(n)) return '🦋';
+  if (/bee|wasp/.test(n)) return '🐝';
+  return '🦎';
+}
+
+// Critical habitat species shown as their own emoji-labeled markers
+// scattered near the parcel (habitat designations describe the parcel's
+// own area, so unlike comps these are meant to read as "on/around this
+// parcel", not as a separate nearby property) instead of one generic text
+// label — species are visually distinct animals, not interchangeable text.
+function _svDrawHabitatMarkers(originLat, originLng, species) {
+  if (!_svMap) return;
+  _svClearAnnotation();
+  const layers = [];
+  (species || []).slice(0, 4).forEach((name, i) => {
+    const off = _svSeedOffset(String(name) + originLat, i);
+    const marker = L.marker([originLat + off.dLat, originLng + off.dLng], {
+      icon: L.divIcon({ className: 'sv-map-linelabel', html: _svLabelHtml(_svSpeciesEmoji(name) + ' ' + _svCap(name), '#EF4444'), iconSize: [0, 0] }),
+      interactive: false,
+    }).addTo(_svMap);
+    layers.push(marker);
+  });
+  _svAnnotationLayer = layers;
+  _svFitToParcelAnd([]);
+}
+
+// Elevation on a flat 2D map can't show real relief, so instead of a bare
+// number this frames it as a plain-language terrain tier (with a matching
+// emoji) using the same low/caution/clear thresholds as the Elevation &
+// Drainage check itself, so the map and the check list never disagree.
+function _svElevationTier(ft) {
+  if (ft < 2)  return { emoji: '🌊', label: 'Very low ground', color: '#EF4444' };
+  if (ft < 5)  return { emoji: '⚠️', label: 'Low ground', color: '#F59E0B' };
+  return { emoji: '⛰️', label: 'High ground', color: '#22C55E' };
+}
+
+// Marks which pill kinds are CURRENTLY visible on the map, both in state
+// and on the pill buttons themselves — a Set (see _svActiveFilters above),
+// not a single value, so flood/wetlands/comps stay bold while an unrelated
+// shared-slot filter (road/evac/soil/...) is toggled, instead of every
+// click un-bolding every OTHER pill regardless of whether its own thing is
+// still actually showing.
+function _svSetActivePill(kind, active) {
+  if (active) _svActiveFilters.add(kind); else _svActiveFilters.delete(kind);
   document.querySelectorAll('#storyView .sv-map-pill2').forEach(p => {
-    p.classList.toggle('active', p.dataset.kind === kind);
+    p.classList.toggle('active', _svActiveFilters.has(p.dataset.kind));
   });
 }
 
@@ -9594,12 +9778,28 @@ function _svSoilLabel(pi) {
   return pi.soil_drainage ? _svCap(pi.soil_drainage) + ' soil' : 'Soil';
 }
 
+// Matches the same 3-way CLEAR/RISK/CAUTION read the "Soil & Septic" check
+// row already uses — septic_suitable === true is genuinely good (green),
+// === false is genuinely bad (red), but plenty of parcels only have a
+// drainage classification with no definite septic verdict either way. That
+// used to fall through to green by default, overclaiming "good" for a
+// finding that's actually just uncertain — it gets its own amber/caution
+// color and pulse instead, distinct from an actual clean result.
+function _svSoilColor(pi) {
+  if (pi.septic_suitable === true) return '#22C55E';
+  if (pi.septic_suitable === false) return '#EF4444';
+  return '#F59E0B';
+}
+
 // Pill click entry point — draws whatever REAL thing exists on the map for
 // that category (a measured line, a parcel pulse+label when only a bucket
 // distance or a parcel-wide property is known, or a toggle of the real
 // flood/wetland overlay). Map filters are map-only: this never touches the
-// data panel's scroll position. Clicking the pill that's already active
-// undoes it instead of redrawing the same thing.
+// data panel's scroll position. Filters are multi-select: flood, wetlands,
+// comps, and whichever ONE shared-slot filter (road/power/evac/soil/
+// habitat/elevation/contamination/easement) is active can all be visible
+// at once — clicking a pill that's already active undoes just that pill's
+// own thing, leaving every other active pill untouched.
 function svShowOnMap(kind) {
   if (!_svMap || !_openParcel) return;
   const r = _openParcel;
@@ -9607,9 +9807,8 @@ function svShowOnMap(kind) {
   const lat = r._lat, lng = r._lng;
   if (lat == null || lng == null) return;
 
-  if (kind === _svActiveMapFilter) {
-    _svClearAnnotation();
-    _svUnpulseParcel();
+  if (_svActiveFilters.has(kind)) {
+    // TOGGLE OFF — only this pill's own thing goes away.
     if (kind === 'flood' || kind === 'wetlands') {
       const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="' + kind + '"]');
       if (btn && btn.classList.contains('active')) svToggleLayer(btn);
@@ -9619,16 +9818,29 @@ function svShowOnMap(kind) {
       // just close the popup, or they'd stay visible with no way to hide them.
       const comps = _svLayers['comps'];
       if (comps && comps.length) { comps.forEach(m => { try { _svMap.removeLayer(m); } catch(e) {} }); }
+    } else if (_SV_SHARED_SLOT_KINDS.has(kind)) {
+      _svClearAnnotation();
+      _svUnpulseParcel();
+      // road/power can zoom the map out to fit a far-off point or a wide
+      // radius circle — undoing them must zoom back in, not leave the view
+      // stranded at whatever it zoomed out to.
+      if (kind === 'road' || kind === 'power') _svFitToParcelAnd([]);
     }
-    _svSetActivePill(null);
+    _svSetActivePill(kind, false);
     return;
   }
-  _svSetActivePill(kind);
-  // Reset the parcel border to its normal color before dispatching — a
-  // filter that pulses it will re-apply the highlight right below (in the
-  // same tick, so there's no visible flicker), and a filter that doesn't
-  // won't leave a stale highlight from whatever was active before it.
-  _svUnpulseParcel();
+
+  // TOGGLE ON
+  if (_SV_SHARED_SLOT_KINDS.has(kind)) {
+    // Only one shared-slot annotation can point at the parcel at a time —
+    // clear + un-bold whichever OTHER shared-slot kind was active. This
+    // never touches flood/wetlands/comps: they're independent layers with
+    // their own on/off state, not part of this group.
+    _SV_SHARED_SLOT_KINDS.forEach(other => { if (other !== kind && _svActiveFilters.has(other)) _svSetActivePill(other, false); });
+    _svClearAnnotation();
+    _svUnpulseParcel();
+  }
+  _svSetActivePill(kind, true);
 
   if (kind === 'road') {
     if (pi.road_nearest_lat != null && pi.road_nearest_lng != null) {
@@ -9650,32 +9862,33 @@ function svShowOnMap(kind) {
       _svDrawRadiusLabel(lat, lng, radiusM, 'Power ~' + pi.powerline_distance + ' away', _svDistColor(radiusM));
     }
   } else if (kind === 'flood') {
-    _svClearAnnotation();
     const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="flood"]');
     if (btn && !btn.classList.contains('active')) svToggleLayer(btn);
     _svFitToParcelAnd([]);
   } else if (kind === 'wetlands') {
-    _svClearAnnotation();
     const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="wetlands"]');
     if (btn && !btn.classList.contains('active')) svToggleLayer(btn);
     _svFitToParcelAnd([]);
   } else if (kind === 'evac') {
-    _svPulseParcel();
-    _svDrawLabel(lat, lng, pi.evac_zone ? 'Zone ' + pi.evac_zone + ' evac' : 'Evacuation zone', /^[AB]$/i.test(pi.evac_zone || '') ? '#EF4444' : '#F59E0B');
+    const color = /^[AB]$/i.test(pi.evac_zone || '') ? '#EF4444' : '#F59E0B';
+    _svPulseParcel(color);
+    _svDrawLabel(lat, lng, pi.evac_zone ? 'Zone ' + pi.evac_zone + ' evac' : 'Evacuation zone', color);
   } else if (kind === 'soil') {
-    _svPulseParcel();
-    _svDrawLabel(lat, lng, _svSoilLabel(pi), pi.septic_suitable === false ? '#EF4444' : '#22C55E');
+    const color = _svSoilColor(pi);
+    _svPulseParcel(color);
+    _svDrawLabel(lat, lng, _svSoilLabel(pi), color);
   } else if (kind === 'habitat') {
-    _svPulseParcel();
-    _svDrawLabel(lat, lng, 'Critical habitat: ' + _svCap((pi.habitat_species || []).slice(0, 2).join(', ')), '#EF4444');
+    _svPulseParcel('#EF4444');
+    _svDrawHabitatMarkers(lat, lng, pi.habitat_species || []);
   } else if (kind === 'elevation') {
-    _svPulseParcel();
-    _svDrawLabel(lat, lng, pi.elevation_ft + ' ft elevation', pi.elevation_ft < 5 ? '#F59E0B' : '#22C55E');
+    const tier = _svElevationTier(pi.elevation_ft);
+    _svPulseParcel(tier.color);
+    _svDrawLabel(lat, lng, tier.emoji + ' ' + tier.label + ' — ' + pi.elevation_ft + ' ft', tier.color);
   } else if (kind === 'contamination') {
-    _svPulseParcel();
+    _svPulseParcel('#EF4444');
     _svDrawLabel(lat, lng, 'Contamination records nearby', '#EF4444');
   } else if (kind === 'easement') {
-    _svPulseParcel();
+    _svPulseParcel('#EF4444');
     _svDrawLabel(lat, lng, pi.easement_type ? _svCap(pi.easement_type) : 'Conservation easement', '#EF4444');
   } else if (kind === 'comps') {
     // Comps are off by default and only added to the map (not just
@@ -9683,7 +9896,6 @@ function svShowOnMap(kind) {
     // the map, which read as an unrequested default and, for a large
     // parcel, could place a "nearby comparable property" pin inside the
     // user's own parcel (see _svCompOffset for the outside-parcel guarantee).
-    _svClearAnnotation();
     const comps = _svLayers['comps'];
     if (comps && comps.length) {
       comps.forEach(m => { try { m.addTo(_svMap); } catch(e) {} });
@@ -9779,7 +9991,7 @@ function _svInitMap(r) {
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
   Object.keys(_svLayers).forEach(k => delete _svLayers[k]);
   _svAnnotationLayer = null;
-  _svActiveMapFilter = null;
+  _svActiveFilters = new Set();
   const pi = r.parcel_info || {};
   const lat = r._lat || 28.0, lng = r._lng || -81.5;
   _svMap = L.map('svMap', { zoomControl: false }).setView([lat, lng], 15);
@@ -9813,13 +10025,19 @@ function _svInitMap(r) {
   // "nearby comparable property" inside the parcel's own boundary wouldn't
   // make sense, so _svCompOffset always clears this parcel's own extent.
   // Explicitly a placeholder (no real comps data source exists yet) — 3-5
-  // pins, priced off THIS parcel's own real land/assessed value (falling
-  // back to a generic range only when the parcel has no value data at all)
-  // so the numbers look like plausible comps for this property instead of
-  // an arbitrary fixed range, seeded so the same parcel always shows the
-  // same fake numbers instead of reshuffling on every render.
+  // pins, priced off THIS parcel's own real assessed value (falling back to
+  // land_value only when assessed/just value are unavailable, then to a
+  // generic range only when there's no value data at all) so the numbers
+  // look like plausible comps for this property instead of an arbitrary
+  // fixed range. assessed_value is preferred over land_value: land_value is
+  // often a much smaller sub-component (bare land only, excluding any
+  // structure) that can be a fraction of what's actually shown as the
+  // property's value elsewhere in this panel, which read as "unrealistic"
+  // comp prices even though the code was technically using real data.
+  // Seeded so the same parcel always shows the same fake numbers instead of
+  // reshuffling on every render.
   const seed = (r.address || '') + (pi.parcel_id || '');
-  const baseValue = pi.land_value != null ? pi.land_value : (pi.assessed_value != null ? pi.assessed_value : pi.just_value);
+  const baseValue = pi.assessed_value != null ? pi.assessed_value : (pi.just_value != null ? pi.just_value : pi.land_value);
   const clearanceM = _svParcelClearanceM(coords, lat, lng);
   const compCount = 3 + Math.floor(_svSeedFrac(seed, 100) * 3); // 3-5
   const comps = [];
@@ -9871,7 +10089,7 @@ function _svMapOverlayHtml(r) {
   const pi = r.parcel_info || {};
   const pills = [];
   const pill = (kind, color, label) => pills.push(
-    '<button class="sv-map-pill2' + (_svActiveMapFilter === kind ? ' active' : '') + '" data-kind="' + kind + '" onclick="svShowOnMap(\'' + kind + '\')">' +
+    '<button class="sv-map-pill2' + (_svActiveFilters.has(kind) ? ' active' : '') + '" data-kind="' + kind + '" onclick="svShowOnMap(\'' + kind + '\')">' +
       '<span class="dot" style="background:' + color + '"></span>' + escHtml(label) +
     '</button>'
   );
@@ -9891,19 +10109,18 @@ function _svMapOverlayHtml(r) {
   if (pi.powerline_distance) {
     pill('power', _svDistColor(_svParseDistM(pi.powerline_distance)), 'Power ~' + pi.powerline_distance);
   }
-  const compCount = (_svLayers['comps'] && _svLayers['comps'].length) || 3;
-  pill('comps', 'var(--blue,#38BDF8)', compCount + ' comps nearby');
   if (pi.evac_zone) {
     pill('evac', /^[AB]$/i.test(pi.evac_zone) ? 'var(--red)' : 'var(--amber)', 'Zone ' + pi.evac_zone + ' evac');
   }
   if (pi.soil_drainage) {
-    pill('soil', pi.septic_suitable === false ? 'var(--red)' : 'var(--green)', _svSoilLabel(pi));
+    pill('soil', pi.septic_suitable === true ? 'var(--green)' : pi.septic_suitable === false ? 'var(--red)' : 'var(--amber)', _svSoilLabel(pi));
   }
   if (pi.habitat_species && pi.habitat_species.length) {
     pill('habitat', 'var(--red)', 'Critical habitat');
   }
   if (pi.elevation_ft != null) {
-    pill('elevation', pi.elevation_ft < 5 ? 'var(--amber)' : 'var(--green)', pi.elevation_ft + ' ft elevation');
+    const tier = _svElevationTier(pi.elevation_ft);
+    pill('elevation', tier.color === '#EF4444' ? 'var(--red)' : tier.color === '#F59E0B' ? 'var(--amber)' : 'var(--green)', tier.emoji + ' ' + pi.elevation_ft + ' ft');
   }
   if (pi.contamination_sites && pi.contamination_sites.length) {
     pill('contamination', 'var(--red)', 'Contamination nearby');
@@ -9911,6 +10128,10 @@ function _svMapOverlayHtml(r) {
   if (pi.easement_found) {
     pill('easement', 'var(--red)', _svCap(pi.easement_type || 'Conservation easement'));
   }
+  // Comps last, always — kept separate from the data-driven checks above so
+  // it doesn't shuffle position as other pills come and go for different parcels.
+  const compCount = (_svLayers['comps'] && _svLayers['comps'].length) || 3;
+  pill('comps', 'var(--blue,#38BDF8)', compCount + ' comps nearby');
   return pills.join('');
 }
 
@@ -10008,7 +10229,12 @@ function _buildParcelNavigator() {
       '<div class="pnav-wrap">' + header +
         '<div class="pnav-title"><div class="pnav-name">All Batches</div></div>' +
         '<div class="pnav-list" id="pnavBatchList"><div style="padding:16px 10px;font-size:12px;color:var(--t3);text-align:center">Loading…</div></div>' +
-        '<a class="pnav-alllink" onclick="_pnavExitBatchList()">← Back to ' + bname + '</a>' +
+        // Same "Back to Results" exit as parcels mode, not a separate
+        // "back to current batch" action — that's redundant with clicking
+        // the current batch's own (highlighted) row in the list above, and
+        // having a DIFFERENT-looking "back" link per mode read as "stuck
+        // in All Batches" since neither one visibly led to the results page.
+        '<a class="pnav-alllink" onclick="closeStoryView()">← Back to Results</a>' +
         accountChip +
       '</div>';
     _pnavRenderBatchList();
@@ -10057,11 +10283,6 @@ function _restoreSidebar() {
 // "Batches > Address > full screen" browsing model.
 function _pnavShowAllBatches() {
   _pnavMode = 'batches';
-  _buildParcelNavigator();
-}
-
-function _pnavExitBatchList() {
-  _pnavMode = 'parcels';
   _buildParcelNavigator();
 }
 
