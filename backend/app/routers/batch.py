@@ -270,13 +270,21 @@ async def _safe(factory, default, sem, timeout: float = _API_TIMEOUT, retry_if=N
 async def _osm_best_effort(lat: float, lng: float) -> dict:
     """Waterways + powerlines are nice-to-have signals (-5 score weight max).
     Overpass is the only rate-limited-to-2 host left; when it's congested a
-    parcel must NOT wait minutes for it — cap the queue wait and shed load."""
+    parcel must NOT wait minutes for it — cap the queue wait and shed load.
+
+    _collect_all() gathers every collector in parallel and only returns once
+    the SLOWEST one finishes, so this cap effectively sets a floor on every
+    screen/re-screen's total latency. The previous caps (90s queue wait +
+    60s fetch = up to 150s) directly contradicted the "not minutes" comment
+    above and were the dominant cause of screens feeling slow — every other
+    collector's worst case tops out around 50s. 20s+25s keeps this from
+    being the long pole while still giving Overpass a real chance to answer."""
     try:
-        await asyncio.wait_for(_SEM_OVERPASS.acquire(), timeout=90.0)
+        await asyncio.wait_for(_SEM_OVERPASS.acquire(), timeout=20.0)
     except asyncio.TimeoutError:
         return dict(_OSM_BUNDLE_ERROR)
     try:
-        return await asyncio.wait_for(get_osm_bundle(lat, lng), timeout=60.0)
+        return await asyncio.wait_for(get_osm_bundle(lat, lng), timeout=25.0)
     except Exception:
         return dict(_OSM_BUNDLE_ERROR)
     finally:
