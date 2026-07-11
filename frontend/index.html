@@ -312,7 +312,7 @@ body.on-results .detail-panel{top:0}
 .pnav-search:focus{border-color:var(--bh)}
 .pnav-search-btn{flex-shrink:0;width:34px;border:none;border-radius:0 var(--rs) var(--rs) 0;background:var(--green);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .pnav-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:0 -6px}
-.pnav-row{padding:9px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;min-height:52px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.pnav-row{padding:11px 10px;border-radius:var(--rs);cursor:pointer;border-left:3px solid transparent;min-height:58px;display:flex;flex-direction:column;justify-content:center;gap:5px}
 .pnav-row:hover{background:var(--card-h)}
 .pnav-row-active{border-left-color:var(--green);background:var(--card-h)}
 .pnav-batch-row{padding:10px;border-radius:var(--rs);cursor:pointer;display:flex;flex-direction:column;gap:3px;border:1px solid transparent}
@@ -324,7 +324,7 @@ body.on-results .detail-panel{top:0}
 .pnav-batch-row-meta .p{color:var(--green)}
 .pnav-alllink{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:8px;border-radius:var(--rs);transition:all .15s;text-align:center;border:1px solid var(--b);display:block}
 .pnav-alllink:hover{color:var(--t1);background:var(--card-h);border-color:var(--bh)}
-.pnav-row-addr{font-size:13px;line-height:1.5;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 0}
+.pnav-row-addr{font-size:13px;line-height:1.8;font-weight:600;white-space:nowrap;overflow-x:hidden;overflow-y:visible;text-overflow:ellipsis;padding:2px 0}
 .pnav-row-score{font-size:11px;font-weight:600;color:var(--t3)}
 .rsb-time-val{font-size:15px;font-weight:700;color:var(--green);letter-spacing:-.01em}
 .rsb-time-sub{font-size:11px;color:var(--t3)}
@@ -706,7 +706,7 @@ body.on-results .detail-panel{top:0}
 .sv-sec-title{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin:0 0 6px}
 
 /* Zone 2 — map (hero, fills all available height) + data panel, side by side */
-.sv-main{flex:1;min-height:0;display:flex;gap:14px;padding:14px 0 14px 14px}
+.sv-main{flex:1;min-height:0;display:flex;gap:16px;padding:18px 0 18px 20px}
 .sv-map-zone{flex:1;min-width:0;position:relative;overflow:hidden;border-radius:16px;border:1px solid var(--b);box-shadow:0 6px 24px rgba(0,0,0,.28)}
 .sv-map-btns{position:absolute;top:10px;left:10px;z-index:400;display:flex;flex-wrap:wrap;gap:4px;max-width:calc(100% - 20px)}
 .sv-map-btn{padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:none;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:all .15s}
@@ -9248,8 +9248,6 @@ function renderStoryView(r) {
   const mailsElsewhere = pi.owner_mailing_address && pi.owner_mailing_address.trim() && !(r.address || '').toLowerCase().includes(pi.owner_mailing_address.trim().toLowerCase().split(',')[0]);
 
   sv.innerHTML =
-    '<button class="sv-navfab sv-navfab-prev" onclick="storyNav(-1)" title="Previous parcel">‹</button>' +
-    '<button class="sv-navfab sv-navfab-next" onclick="storyNav(1)" title="Next parcel">›</button>' +
     '<div class="sv-wrap">' +
       '<div class="sv-header">' +
         '<button class="sv-back icon-only" onclick="closeStoryView()" title="Back to Results">←</button>' +
@@ -9277,6 +9275,8 @@ function renderStoryView(r) {
             '<button class="sv-map-btn" data-svlayer="satellite" onclick="svToggleLayer(this)">Satellite</button>' +
           '</div>' +
           '<div class="sv-map-overlay" id="svMapOverlay"></div>' +
+          '<button class="sv-navfab sv-navfab-prev" onclick="storyNav(-1)" title="Previous parcel">‹</button>' +
+          '<button class="sv-navfab sv-navfab-next" onclick="storyNav(1)" title="Next parcel">›</button>' +
         '</div>' +
 
         '<div class="sv-data-panel">' +
