@@ -690,6 +690,7 @@ body.on-results .detail-panel{top:0}
 .sv-header{flex-shrink:0;background:var(--bg);border-bottom:1px solid var(--b);padding:12px 24px;display:flex;align-items:center;gap:14px}
 .sv-back{background:none;border:1px solid var(--b);border-radius:var(--rp);color:var(--t2);font-size:13px;font-weight:600;padding:7px 14px;cursor:pointer;white-space:nowrap}
 .sv-back:hover{color:var(--t1);border-color:var(--bh)}
+.sv-back.icon-only{padding:7px 12px;font-size:16px;line-height:1}
 .sv-section-label{font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--green);margin-bottom:2px}
 .sv-addr{font-size:17px;font-weight:800;color:var(--t1);letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sv-apn{font-family:monospace;font-size:11px;color:var(--t3);margin-top:1px}
@@ -9241,7 +9242,7 @@ function renderStoryView(r) {
     '<button class="sv-navfab sv-navfab-next" onclick="storyNav(1)" title="Next parcel">›</button>' +
     '<div class="sv-wrap">' +
       '<div class="sv-header">' +
-        '<button class="sv-back" onclick="closeStoryView()">← Back to Results</button>' +
+        '<button class="sv-back icon-only" onclick="closeStoryView()" title="Back to Results">←</button>' +
         '<div style="min-width:0;flex:1">' +
           '<div class="sv-section-label">Deal Review</div>' +
           '<div class="sv-addr">' + escHtml(r.address || '') + '</div>' +
@@ -9836,7 +9837,7 @@ function openStoryView() {
   } catch(e) {
     console.error('Story render error:', e);
     sv.innerHTML = '<div class="sv-wrap"><div class="sv-header">' +
-      '<button class="sv-back" onclick="closeStoryView()">← Back to Results</button>' +
+      '<button class="sv-back icon-only" onclick="closeStoryView()" title="Back to Results">←</button>' +
       '<div class="sv-addr">' + escHtml(_openParcel.address || '') + '</div></div>' +
       '<div style="padding:40px 0;color:var(--t2);font-size:14px">Could not build the Deal Review for this parcel. Its data may be from an older screening. ' +
       'Re-screen it (↻ on the row) and try again.</div></div>';
