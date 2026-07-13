@@ -2606,9 +2606,12 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       </div>
       <button onclick="history.back()" style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">← Back to Dashboard</button>
     </div>
-    <div id="picksTabs" style="display:flex;gap:6px;margin-bottom:16px">
-      <button id="picksTabParcels" onclick="_picksSetMode('parcels')" style="font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">Parcels</button>
-      <button id="picksTabBatches" onclick="_picksSetMode('batches')" style="font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">Batches</button>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+      <div id="picksTabs" style="display:flex;gap:6px">
+        <button id="picksTabParcels" onclick="_picksSetMode('parcels')" style="font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">Parcels</button>
+        <button id="picksTabBatches" onclick="_picksSetMode('batches')" style="font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">Batches</button>
+      </div>
+      <input type="text" id="picksSearchInput" placeholder="Search address or batch..." oninput="_picksSetQuery(this.value)" style="flex:1;min-width:180px;font-family:'Inter',sans-serif;font-size:13px;padding:8px 14px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t1);outline:none">
     </div>
     <div id="picksListWrap"></div>
   </div>
@@ -8609,11 +8612,20 @@ function _updateSidebarPick() {
 }
 
 let _picksMode = 'parcels'; // 'parcels' | 'batches'
+let _picksQuery = '';
 
 function showPicksPage() {
   history.pushState({ from: 'results' }, '', window.location.pathname + window.location.search + '#picks');
   showScreen('page-picks');
+  _picksQuery = '';
+  const inp = document.getElementById('picksSearchInput');
+  if (inp) inp.value = '';
   _picksSetMode('parcels');
+}
+
+function _picksSetQuery(v) {
+  _picksQuery = v || '';
+  if (_picksMode === 'batches') renderPicksBatchList(); else renderPicksList();
 }
 
 // Parcels tab shows picks in whichever batch is CURRENTLY loaded (full row
@@ -8632,6 +8644,8 @@ function _picksSetMode(mode) {
     btn.style.color = on ? '#04140a' : 'var(--t2)';
     btn.style.borderColor = on ? 'var(--green)' : 'var(--b)';
   });
+  const inp = document.getElementById('picksSearchInput');
+  if (inp) inp.placeholder = mode === 'batches' ? 'Search batch name...' : 'Search address...';
   if (mode === 'batches') renderPicksBatchList(); else renderPicksList();
 }
 
@@ -8648,13 +8662,15 @@ function renderPicksBatchList() {
     cur.count++;
     byBatch.set(p.batchId, cur);
   });
-  const batches = Array.from(byBatch.entries());
-  if (sub) sub.textContent = batches.length ? batches.length + ' batch' + (batches.length > 1 ? 'es' : '') + ' with picks' : 'Parcels you\'ve picked from compare';
+  const q = _picksQuery.trim().toLowerCase();
+  let batches = Array.from(byBatch.entries());
+  if (q) batches = batches.filter(([, info]) => info.name.toLowerCase().includes(q));
+  if (sub) sub.textContent = batches.length ? batches.length + ' batch' + (batches.length > 1 ? 'es' : '') + ' with picks' : (q ? 'No matching batches.' : 'Parcels you\'ve picked from compare');
   if (!batches.length) {
     wrap.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--t3)">'
       + '<div style="font-size:32px;margin-bottom:12px">⭐</div>'
-      + '<div style="font-size:15px;font-weight:600;color:var(--t2);margin-bottom:6px">No picks yet</div>'
-      + '<div style="font-size:13px">Star a parcel from its Deal Review or Compare to see its batch here.</div>'
+      + '<div style="font-size:15px;font-weight:600;color:var(--t2);margin-bottom:6px">' + (q ? 'No matching batches' : 'No picks yet') + '</div>'
+      + '<div style="font-size:13px">' + (q ? 'Try a different search.' : 'Star a parcel from its Deal Review or Compare to see its batch here.') + '</div>'
       + '</div>';
     return;
   }
@@ -8680,14 +8696,15 @@ function renderPicksList() {
   const wrap = document.getElementById('picksListWrap');
   const sub  = document.getElementById('picksSubtitle');
   if (!wrap) return;
-  const picks = batchState.results.filter(r => r._starred);
+  const q = _picksQuery.trim().toLowerCase();
+  const picks = batchState.results.filter(r => r._starred && (!q || (r.address || '').toLowerCase().includes(q)));
   const batchLabel = batchState.name ? ' in ' + batchState.name : '';
-  if (sub) sub.textContent = picks.length ? picks.length + ' parcel' + (picks.length > 1 ? 's' : '') + ' picked' + batchLabel : 'Parcels you\'ve picked from compare';
+  if (sub) sub.textContent = picks.length ? picks.length + ' parcel' + (picks.length > 1 ? 's' : '') + ' picked' + batchLabel : (q ? 'No matching picks.' : 'Parcels you\'ve picked from compare');
   if (!picks.length) {
     wrap.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--t3)">'
       + '<div style="font-size:32px;margin-bottom:12px">⭐</div>'
-      + '<div style="font-size:15px;font-weight:600;color:var(--t2);margin-bottom:6px">No picks in this batch</div>'
-      + '<div style="font-size:13px">Star a parcel from Deal Review, the results table, or Compare to add it here.</div>'
+      + '<div style="font-size:15px;font-weight:600;color:var(--t2);margin-bottom:6px">' + (q ? 'No matching picks' : 'No picks in this batch') + '</div>'
+      + '<div style="font-size:13px">' + (q ? 'Try a different search.' : 'Star a parcel from Deal Review, the results table, or Compare to add it here.') + '</div>'
       + '</div>';
     return;
   }
@@ -9610,18 +9627,13 @@ function _svCirclePoints(lat, lng, radiusM) {
   return [[lat + dLat, lng], [lat - dLat, lng], [lat, lng + dLng], [lat, lng - dLng]];
 }
 
-// A colored dot ahead of the label text — the same visual language the
-// map-overlay pills already use for severity — so a standalone label still
-// reads as good/caution/risk at a glance instead of plain text. A white
-// ring keeps the dot a clearly visible circle against any color it's
-// rendered on top of (the label's own dark background included). A risk
-// (red) label also gets a warning icon — a colored dot alone didn't read
-// as an actual warning at a glance.
+// A single colored left-edge accent for severity — a dot AND a warning icon
+// AND the caller's own descriptive emoji (species, elevation tier, ...) all
+// stacked in front of the text was too much competing for a small tag to
+// read cleanly. One color accent + whatever the label text itself says is
+// enough; severity is also already shown via the parcel's own pulse color.
 function _svLabelHtml(label, color) {
-  const warn = color === '#EF4444' ? '⚠️ ' : '';
-  return '<span style="display:inline-flex;align-items:center;gap:7px">' +
-    '<span style="width:11px;height:11px;border-radius:50%;background:' + color + ';box-shadow:0 0 0 2px rgba(255,255,255,.9);flex-shrink:0"></span>' +
-    warn + escHtml(label) + '</span>';
+  return '<span style="border-left:3px solid ' + color + ';padding-left:7px">' + escHtml(label) + '</span>';
 }
 
 // A real line from the parcel to an actual measured point (nearest road
@@ -9723,17 +9735,35 @@ function _svSpeciesEmoji(name) {
   return '🦎';
 }
 
+// A tight cluster around the parcel's own center — much tighter than
+// _svSeedOffset's ~90-330m range. Critical habitat means the species'
+// habitat overlaps THIS parcel, so its markers need to read as "on/right
+// next to it," not scattered blocks away like a separate nearby property.
+function _svHabitatOffset(seedStr, index, lat) {
+  let seed = 0;
+  const s = String(seedStr || '');
+  for (let i = 0; i < Math.min(4, s.length); i++) seed += s.charCodeAt(i) * (i + 1);
+  seed += index * 97;
+  const frac = Math.abs(Math.sin(seed)) % 1;
+  const magM = 15 + frac * 35; // 15-50m from the parcel's own center
+  const angle = (seed % 360) * Math.PI / 180;
+  return {
+    dLat: (magM / 111320) * Math.cos(angle),
+    dLng: (magM / (111320 * Math.cos(lat * Math.PI / 180))) * Math.sin(angle),
+  };
+}
+
 // Critical habitat species shown as their own emoji-labeled markers
-// scattered near the parcel (habitat designations describe the parcel's
-// own area, so unlike comps these are meant to read as "on/around this
-// parcel", not as a separate nearby property) instead of one generic text
+// clustered tight on the parcel (habitat designations describe the
+// parcel's own area, so unlike a separate nearby property these are meant
+// to read as "on/right next to this parcel") instead of one generic text
 // label — species are visually distinct animals, not interchangeable text.
 function _svDrawHabitatMarkers(originLat, originLng, species) {
   if (!_svMap) return;
   _svClearAnnotation();
   const layers = [];
   (species || []).slice(0, 4).forEach((name, i) => {
-    const off = _svSeedOffset(String(name) + originLat, i);
+    const off = _svHabitatOffset(String(name) + originLat, i, originLat);
     const marker = L.marker([originLat + off.dLat, originLng + off.dLng], {
       icon: L.divIcon({ className: 'sv-map-linelabel', html: _svLabelHtml(_svSpeciesEmoji(name) + ' ' + _svCap(name), '#EF4444'), iconSize: [0, 0] }),
       interactive: false,
@@ -9812,12 +9842,6 @@ function svShowOnMap(kind) {
     if (kind === 'flood' || kind === 'wetlands') {
       const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="' + kind + '"]');
       if (btn && btn.classList.contains('active')) svToggleLayer(btn);
-    } else if (kind === 'comps') {
-      // Comps are off by default (see _svInitMap) and only added to the map
-      // when this pill is active — toggling off must remove them again, not
-      // just close the popup, or they'd stay visible with no way to hide them.
-      const comps = _svLayers['comps'];
-      if (comps && comps.length) { comps.forEach(m => { try { _svMap.removeLayer(m); } catch(e) {} }); }
     } else if (_SV_SHARED_SLOT_KINDS.has(kind)) {
       _svClearAnnotation();
       _svUnpulseParcel();
@@ -9883,24 +9907,13 @@ function svShowOnMap(kind) {
   } else if (kind === 'elevation') {
     const tier = _svElevationTier(pi.elevation_ft);
     _svPulseParcel(tier.color);
-    _svDrawLabel(lat, lng, tier.emoji + ' ' + tier.label + ' — ' + pi.elevation_ft + ' ft', tier.color);
+    _svDrawLabel(lat, lng, tier.emoji + ' ' + tier.label + ' (' + pi.elevation_ft + ' ft)', tier.color);
   } else if (kind === 'contamination') {
     _svPulseParcel('#EF4444');
     _svDrawLabel(lat, lng, 'Contamination records nearby', '#EF4444');
   } else if (kind === 'easement') {
     _svPulseParcel('#EF4444');
     _svDrawLabel(lat, lng, pi.easement_type ? _svCap(pi.easement_type) : 'Conservation easement', '#EF4444');
-  } else if (kind === 'comps') {
-    // Comps are off by default and only added to the map (not just
-    // popped-open) when this pill is clicked — they used to always be on
-    // the map, which read as an unrequested default and, for a large
-    // parcel, could place a "nearby comparable property" pin inside the
-    // user's own parcel (see _svCompOffset for the outside-parcel guarantee).
-    const comps = _svLayers['comps'];
-    if (comps && comps.length) {
-      comps.forEach(m => { try { m.addTo(_svMap); } catch(e) {} });
-      try { comps[0].openPopup(); } catch(e) {}
-    }
   }
 }
 
@@ -9933,45 +9946,9 @@ function _svSeedFrac(seedStr, index) {
   return Math.abs(Math.sin(seed)) % 1;
 }
 
-// Worst-case centroid-to-vertex distance across the parcel's own polygon
-// (or a small default when there's no polygon, just a circleMarker) — the
-// minimum clearance a comp pin must add on top of to guarantee it lands
-// outside the parcel's own boundary, not just outside an arbitrary fixed
-// radius that a large parcel could still swallow.
-function _svParcelClearanceM(coords, lat, lng) {
-  if (!coords || coords.length < 3) return 60;
-  let maxD = 0;
-  coords.forEach(pt => {
-    const dLat = (pt[0] - lat) * 111320;
-    const dLng = (pt[1] - lng) * 111320 * Math.cos(lat * Math.PI / 180);
-    const d = Math.hypot(dLat, dLng);
-    if (d > maxD) maxD = d;
-  });
-  return maxD;
-}
-
-// Deterministic pseudo-random offset for comp pins — always clears the
-// parcel's own extent (plus a seeded margin for variety) so a comp never
-// lands inside a large parcel's own boundary, which wouldn't make sense
-// for a "nearby comparable property." Seeded from the address/APN, not
-// Math.random(), so the same parcel always shows the same fake placement.
-function _svCompOffset(seedStr, index, lat, clearanceM) {
-  let seed = 0;
-  const s = String(seedStr || '');
-  for (let i = 0; i < Math.min(4, s.length); i++) seed += s.charCodeAt(i) * (i + 1);
-  seed += index * 97;
-  const frac = Math.abs(Math.sin(seed)) % 1;
-  const magM = clearanceM + 60 + frac * 180;
-  const angle = (seed % 360) * Math.PI / 180;
-  return {
-    dLat: (magM / 111320) * Math.cos(angle),
-    dLng: (magM / (111320 * Math.cos(lat * Math.PI / 180))) * Math.sin(angle),
-  };
-}
-
-// A proper map-pin icon (not a plain circle) for placeholder pins — used
-// for comps and the skip-trace contact marker. iconAnchor points at the
-// pin's bottom tip, the actual lat/lng it marks.
+// A proper map-pin icon (not a plain circle) — used for the skip-trace
+// contact marker. iconAnchor points at the pin's bottom tip, the actual
+// lat/lng it marks.
 function _svPinIcon(color) {
   return L.divIcon({
     className: 'sv-map-pin',
@@ -10018,39 +9995,7 @@ function _svInitMap(r) {
   _svLayers['flood']    = _makeFemaLayer(0.5);
   _svLayers['wetlands'] = _makeWetlandsLayer(0.5);
 
-  // Comps placeholder pins — deterministically placed outside the parcel
-  // from a seed so they don't jump between renders of the same parcel, and
-  // built here but NOT added to the map: they're off by default, only
-  // shown once the comps filter pill is clicked (see svShowOnMap). A
-  // "nearby comparable property" inside the parcel's own boundary wouldn't
-  // make sense, so _svCompOffset always clears this parcel's own extent.
-  // Explicitly a placeholder (no real comps data source exists yet) — 3-5
-  // pins, priced off THIS parcel's own real assessed value (falling back to
-  // land_value only when assessed/just value are unavailable, then to a
-  // generic range only when there's no value data at all) so the numbers
-  // look like plausible comps for this property instead of an arbitrary
-  // fixed range. assessed_value is preferred over land_value: land_value is
-  // often a much smaller sub-component (bare land only, excluding any
-  // structure) that can be a fraction of what's actually shown as the
-  // property's value elsewhere in this panel, which read as "unrealistic"
-  // comp prices even though the code was technically using real data.
-  // Seeded so the same parcel always shows the same fake numbers instead of
-  // reshuffling on every render.
   const seed = (r.address || '') + (pi.parcel_id || '');
-  const baseValue = pi.assessed_value != null ? pi.assessed_value : (pi.just_value != null ? pi.just_value : pi.land_value);
-  const clearanceM = _svParcelClearanceM(coords, lat, lng);
-  const compCount = 3 + Math.floor(_svSeedFrac(seed, 100) * 3); // 3-5
-  const comps = [];
-  for (let i = 0; i < compCount; i++) {
-    const off = _svCompOffset(seed, i, lat, clearanceM);
-    const price = baseValue != null && baseValue > 0
-      ? Math.round((baseValue * (0.7 + _svSeedFrac(seed, 200 + i) * 0.6)) / 500) * 500  // this parcel's value, ±30%
-      : Math.round((12000 + _svSeedFrac(seed, 200 + i) * 83000) / 500) * 500;            // no value on file — generic range
-    const m = L.marker([lat + off.dLat, lng + off.dLng], { icon: _svPinIcon('#f59e0b') });
-    m.bindPopup('<b>' + fmt$(price) + '</b> · est. asking price<br>Nearby Comp — Coming Soon');
-    comps.push(m);
-  }
-  _svLayers['comps'] = comps;
   const stOff = _svSeedOffset(seed, 10);
   const stMarker = L.marker([lat + stOff.dLat, lng + stOff.dLng], { icon: _svPinIcon('#a855f7') });
   stMarker.bindPopup('Owner Contact (Coming Soon)');
@@ -10128,10 +10073,6 @@ function _svMapOverlayHtml(r) {
   if (pi.easement_found) {
     pill('easement', 'var(--red)', _svCap(pi.easement_type || 'Conservation easement'));
   }
-  // Comps last, always — kept separate from the data-driven checks above so
-  // it doesn't shuffle position as other pills come and go for different parcels.
-  const compCount = (_svLayers['comps'] && _svLayers['comps'].length) || 3;
-  pill('comps', 'var(--blue,#38BDF8)', compCount + ' comps nearby');
   return pills.join('');
 }
 
@@ -10333,7 +10274,14 @@ async function _pnavSelectBatch(batchId) {
   _pnavMode = 'parcels';
   if (_currentDisplayed.length) {
     openDetailPanel(0, null);
-    openStoryView();
+    openStoryView(); // rebuilds the sidebar out of 'batches' mode as a side effect
+  } else {
+    // The new batch has nothing to open Deal Review for, but the sidebar
+    // still needs to leave 'batches' mode — openStoryView() above is what
+    // normally does that rebuild, so without it the sidebar was left
+    // stuck showing the All Batches list even though _pnavMode had already
+    // been flipped back to 'parcels' in memory.
+    _buildParcelNavigator();
   }
 }
 
@@ -10374,7 +10322,10 @@ function _pnavRenderList() {
     row.className = 'pnav-row' + (r === _openParcel ? ' pnav-row-active' : '');
     row.innerHTML =
       '<div class="pnav-row-addr" style="color:' + verdictColor(ev) + '">' + escHtml(street) + '</div>' +
-      (r.score != null ? '<div class="pnav-row-score ' + (ev === 'KILL' ? 'v-kill' : 'v-pursue') + '">' + r.score + '</div>' : '');
+      '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">' +
+        (r._starred ? '<span title="Picked" style="color:var(--amber);font-size:13px;line-height:1">⭐</span>' : '') +
+        (r.score != null ? '<div class="pnav-row-score ' + (ev === 'KILL' ? 'v-kill' : 'v-pursue') + '">' + r.score + '</div>' : '') +
+      '</div>';
     row.addEventListener('click', function() { _pnavOpenParcel(r); });
     list.appendChild(row);
   });
@@ -10521,8 +10472,10 @@ function closeStoryView() {
   sv.classList.remove('open');
   const main = document.querySelector('#page-results .res-main');
   if (main) main.style.display = '';
-  const panel = document.getElementById('detailPanel');
-  if (panel && _openParcel) panel.style.display = '';
+  // Deliberately does NOT re-show the quick-preview detail panel here — it's
+  // hidden while Deal Review is open (see openStoryView()), and closing back
+  // to the plain results table should land on the table itself, not pop the
+  // panel back open for whichever parcel you were just viewing.
   _positionExpandHandle();
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
   _restoreSidebar();
