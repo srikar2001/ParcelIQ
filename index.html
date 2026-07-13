@@ -734,7 +734,7 @@ body.on-results .detail-panel{top:0}
    labels — plain floating tags, not Leaflet's default tooltip bubble. */
 .sv-map-acres-label{background:rgba(0,0,0,.6)!important;border:none!important;box-shadow:none!important;color:#fff!important;font-size:12px;font-weight:800;padding:2px 9px!important;border-radius:7px}
 .sv-map-acres-label::before{display:none!important}
-.sv-map-linelabel{background:rgba(0,0,0,.8);color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:7px;white-space:nowrap;transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,.45)}
+.sv-map-linelabel{background:rgba(0,0,0,.88);color:#fff;font-size:14px;font-weight:800;padding:5px 12px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-50%);box-shadow:0 2px 10px rgba(0,0,0,.55)}
 .sv-map-pin{background:transparent!important;border:none!important;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
 
 .sv-data-panel{width:min(46%,600px);min-width:420px;flex-shrink:0;overflow-y:auto;padding:20px 24px 20px 0;background:var(--card)}
@@ -9120,28 +9120,34 @@ function _admRenderEngagement(d) {
 // ══════════ FULL-SCREEN PARCEL STORY VIEW (Stage 13) ══════════
 let _svMap = null;
 const _svLayers = {};
-// The one "show this on the map" annotation currently drawn from a pill
-// click (a real line+label, a radius circle, or null) — always cleared
-// before drawing the next one so annotations never stack up. road / power /
-// evac / soil / habitat / elevation / contamination / easement share this
-// single slot (only one of them can point at the parcel at a time); flood,
-// wetlands, and comps are independent map layers with their own on/off
-// state that this slot never touches.
-let _svAnnotationLayer = null;
+// Every kind's "show this on the map" annotation, keyed by kind — each
+// filter owns its own layers now, so toggling one off (or on) never
+// touches any other filter's annotation. Used to share one slot across
+// road/power/evac/soil/habitat/elevation/contamination/easement, clearing
+// whichever one was active whenever a different one was clicked — that
+// made "undo" feel like it undid everything else too, since only the
+// LAST-clicked filter was ever actually visible.
+let _svAnnotationLayers = {};
 // Every pill kind ('road','power','flood',...) whose thing is CURRENTLY
 // visible on the map — a Set, not a single value, so a pill stays bold as
 // long as its own thing is showing, independent of whichever OTHER pill
-// was clicked most recently (flood/wetlands/comps can all coexist with
-// each other and with whichever shared-slot annotation is active).
+// was clicked most recently. Every filter is independent now.
 let _svActiveFilters = new Set();
-// road/power/evac/soil/habitat/elevation/contamination/easement all draw
-// into the single _svAnnotationLayer slot above — clicking one clears
-// whichever other one of these was previously active. flood/wetlands/comps
-// are deliberately excluded: they're independent layers, not part of this group.
-const _SV_SHARED_SLOT_KINDS = new Set(['road', 'power', 'evac', 'soil', 'habitat', 'elevation', 'contamination', 'easement']);
-// Which of the shared-slot kinds pulse the parcel boundary (vs. draw a
-// line/circle to an external point, which is visual signal enough on its own).
+// Which kinds pulse the parcel boundary (vs. draw a line/circle to an
+// external point, which is visual signal enough on its own). Multiple of
+// these can be active at once, so the pulse shows whichever is the WORST
+// (most severe) color among them — see _svRecomputeParcelPulse().
 const _SV_PULSE_KINDS = new Set(['evac', 'soil', 'habitat', 'elevation', 'contamination', 'easement']);
+// color -> severity rank, used by _svRecomputeParcelPulse() to pick the
+// worst color among every currently-active pulse kind.
+const _SV_SEVERITY_RANK = { '#EF4444': 3, '#F59E0B': 2, '#22C55E': 1 };
+// kind -> its current pulse color, for every currently-active pulse kind.
+let _svPulseColors = {};
+// kind -> extra lat/lng point(s) that filter's annotation is pointing at
+// (a line destination, a radius circle's extent) — unioned together so
+// the map frames every currently-active external-point filter at once,
+// not just whichever was clicked most recently.
+let _svAnnotationExtraPoints = {};
 
 function _svCap(t) { t = String(t || ''); return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
 
@@ -9586,12 +9592,16 @@ function svJumpToCheck(catName) {
   target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-function _svClearAnnotation() {
-  if (_svAnnotationLayer && _svMap) {
-    const layers = Array.isArray(_svAnnotationLayer) ? _svAnnotationLayer : [_svAnnotationLayer];
-    layers.forEach(l => { try { _svMap.removeLayer(l); } catch(e) {} });
+// Clears ONE kind's own annotation layers, leaving every other currently
+// active filter's layers completely untouched — each kind owns its own
+// entry in _svAnnotationLayers now, there's no shared slot to step on.
+function _svClearAnnotation(kind) {
+  const layers = _svAnnotationLayers[kind];
+  if (layers && _svMap) {
+    (Array.isArray(layers) ? layers : [layers]).forEach(l => { try { _svMap.removeLayer(l); } catch(e) {} });
   }
-  _svAnnotationLayer = null;
+  delete _svAnnotationLayers[kind];
+  delete _svAnnotationExtraPoints[kind];
 }
 
 // Every filter click re-frames around the SAME stable anchor — the
@@ -9618,6 +9628,18 @@ function _svFitToParcelAnd(extraPoints) {
   } catch(e) {}
 }
 
+// Re-frames the map around the parcel plus EVERY currently-active
+// external-point filter's extra points, not just whichever one was
+// clicked most recently — with multiple filters independently active at
+// once, undoing or adding just one shouldn't discard the others' framing.
+function _svRecomputeMapFit() {
+  const pts = [];
+  Object.keys(_svAnnotationExtraPoints).forEach(kind => {
+    (_svAnnotationExtraPoints[kind] || []).forEach(p => pts.push(p));
+  });
+  _svFitToParcelAnd(pts);
+}
+
 // The 4 cardinal extreme points of a circle — passed to _svFitToParcelAnd
 // so its bounds union includes the whole circle (e.g. a 1-mile radius),
 // not just its center point.
@@ -9632,8 +9654,10 @@ function _svCirclePoints(lat, lng, radiusM) {
 // stacked in front of the text was too much competing for a small tag to
 // read cleanly. One color accent + whatever the label text itself says is
 // enough; severity is also already shown via the parcel's own pulse color.
-function _svLabelHtml(label, color) {
-  return '<span style="border-left:3px solid ' + color + ';padding-left:7px">' + escHtml(label) + '</span>';
+// fontSize is overridable — habitat's emoji need to read clearly at a
+// glance, bigger than a plain text label needs to be.
+function _svLabelHtml(label, color, fontSize) {
+  return '<span style="border-left:4px solid ' + color + ';padding-left:8px;font-size:' + (fontSize || 14) + 'px">' + escHtml(label) + '</span>';
 }
 
 // A real line from the parcel to an actual measured point (nearest road
@@ -9642,10 +9666,11 @@ function _svLabelHtml(label, color) {
 // casing line under the colored one keeps it visible against any basemap
 // color/zoom level — a thin dashed line alone could all but disappear at
 // some zoom levels, reading as "just a floating point with no visible
-// connection back to the parcel."
-function _svDrawLineTo(originLat, originLng, destLat, destLng, label, color) {
+// connection back to the parcel." Owns its own kind-keyed annotation slot
+// so drawing/undoing it never touches any other active filter.
+function _svDrawLineTo(kind, originLat, originLng, destLat, destLng, label, color) {
   if (!_svMap) return;
-  _svClearAnnotation();
+  _svClearAnnotation(kind);
   const casing = L.polyline([[originLat, originLng], [destLat, destLng]], { color: '#fff', weight: 7, opacity: 0.9 }).addTo(_svMap);
   const line = L.polyline([[originLat, originLng], [destLat, destLng]], { color: color, weight: 4, dashArray: '2,7' }).addTo(_svMap);
   const dest = L.circleMarker([destLat, destLng], { radius: 7, color: '#fff', weight: 2, fillColor: color, fillOpacity: 1 }).addTo(_svMap);
@@ -9654,8 +9679,9 @@ function _svDrawLineTo(originLat, originLng, destLat, destLng, label, color) {
     icon: L.divIcon({ className: 'sv-map-linelabel', html: _svLabelHtml(label, color), iconSize: [0, 0] }),
     interactive: false,
   }).addTo(_svMap);
-  _svAnnotationLayer = [casing, line, dest, labelMarker];
-  _svFitToParcelAnd([[destLat, destLng]]);
+  _svAnnotationLayers[kind] = [casing, line, dest, labelMarker];
+  _svAnnotationExtraPoints[kind] = [[destLat, destLng]];
+  _svRecomputeMapFit();
 }
 
 // No exact point exists (only a distance/bucket, e.g. "> 1 mile") — an
@@ -9664,17 +9690,19 @@ function _svDrawLineTo(originLat, originLng, destLat, destLng, label, color) {
 // / powerline_distance are measured from the parcel's own centroid, so for
 // a large parcel this ring can genuinely sit partly or fully inside its own
 // boundary — that reflects the real data (direction unknown, only distance
-// from that one point), not a rendering error.
-function _svDrawRadiusLabel(originLat, originLng, radiusM, label, color) {
+// from that one point), not a rendering error. Owns its own kind-keyed
+// annotation slot so drawing/undoing it never touches any other active filter.
+function _svDrawRadiusLabel(kind, originLat, originLng, radiusM, label, color) {
   if (!_svMap) return;
-  _svClearAnnotation();
+  _svClearAnnotation(kind);
   const circle = L.circle([originLat, originLng], { radius: radiusM, color: color, weight: 3, dashArray: '5,8', fillOpacity: 0.08 }).addTo(_svMap);
   const labelMarker = L.marker([originLat + radiusM / 111320, originLng], {
     icon: L.divIcon({ className: 'sv-map-linelabel', html: _svLabelHtml(label, color), iconSize: [0, 0] }),
     interactive: false,
   }).addTo(_svMap);
-  _svAnnotationLayer = [circle, labelMarker];
-  _svFitToParcelAnd(_svCirclePoints(originLat, originLng, radiusM));
+  _svAnnotationLayers[kind] = [circle, labelMarker];
+  _svAnnotationExtraPoints[kind] = _svCirclePoints(originLat, originLng, radiusM);
+  _svRecomputeMapFit();
 }
 
 // Evac zone / soil / habitat / elevation / contamination / easement are
@@ -9698,19 +9726,55 @@ function _svUnpulseParcel() {
   parcel.setStyle({ color: '#38BDF8', weight: 3 });
 }
 
-// Companion to the pulse above — a real-data label pinned just south of
-// the parcel (offset so it doesn't collide with the permanent acreage
-// label at the parcel's own center), for properties that describe the
-// whole parcel or a bucketed distance rather than an exact external point.
-function _svDrawLabel(originLat, originLng, label, color) {
+// Several pulse-kinds (evac, soil, habitat, ...) can be active
+// simultaneously now — the parcel border shows whichever ONE color is the
+// most severe among them (red beats amber beats green) rather than just
+// whatever was clicked last, so undoing a red one can reveal an amber one
+// still underneath instead of snapping straight back to plain blue.
+function _svRecomputeParcelPulse() {
+  let worst = null, worstRank = 0;
+  Object.keys(_svPulseColors).forEach(k => {
+    const rank = _SV_SEVERITY_RANK[_svPulseColors[k]] || 1;
+    if (rank > worstRank) { worst = _svPulseColors[k]; worstRank = rank; }
+  });
+  if (worst) _svPulseParcel(worst); else _svUnpulseParcel();
+}
+
+// Parcel-wide-property labels (evac/soil/elevation/contamination/
+// easement) can all be active at once now — stacked in a fixed vertical
+// order south of the parcel instead of all landing on the exact same spot
+// and overlapping into an unreadable pile.
+const _SV_LABEL_STACK_ORDER = ['evac', 'soil', 'elevation', 'contamination', 'easement'];
+function _svRestackLabels() {
+  if (!_svMap || !_openParcel) return;
+  const lat = _openParcel._lat, lng = _openParcel._lng;
+  if (lat == null || lng == null) return;
+  let row = 0;
+  _SV_LABEL_STACK_ORDER.forEach(kind => {
+    const layers = _svAnnotationLayers[kind];
+    if (!layers || !layers[0]) return;
+    const offsetM = 45 + row * 34;
+    try { layers[0].setLatLng([lat - offsetM / 111320, lng]); } catch(e) {}
+    row++;
+  });
+}
+
+// Companion to the pulse above — a real-data label pinned south of the
+// parcel (offset so it doesn't collide with the permanent acreage label
+// at the parcel's own center), for properties that describe the whole
+// parcel or a bucketed distance rather than an exact external point. Owns
+// its own kind-keyed annotation slot so drawing/undoing it never touches
+// any other active filter.
+function _svDrawLabel(kind, originLat, originLng, label, color) {
   if (!_svMap) return;
-  _svClearAnnotation();
+  _svClearAnnotation(kind);
   const labelMarker = L.marker([originLat - 45 / 111320, originLng], {
     icon: L.divIcon({ className: 'sv-map-linelabel', html: _svLabelHtml(label, color), iconSize: [0, 0] }),
     interactive: false,
   }).addTo(_svMap);
-  _svAnnotationLayer = [labelMarker];
-  _svFitToParcelAnd([]);
+  _svAnnotationLayers[kind] = [labelMarker];
+  _svRestackLabels();
+  _svRecomputeMapFit();
 }
 
 // Rough keyword match from a species common name to a representative
@@ -9758,20 +9822,23 @@ function _svHabitatOffset(seedStr, index, lat) {
 // parcel's own area, so unlike a separate nearby property these are meant
 // to read as "on/right next to this parcel") instead of one generic text
 // label — species are visually distinct animals, not interchangeable text.
+// A bigger font than the default label — the species emoji is the whole
+// point of this filter and needs to actually read at a glance, not just
+// be technically present at a size nobody can make out on the map.
 function _svDrawHabitatMarkers(originLat, originLng, species) {
   if (!_svMap) return;
-  _svClearAnnotation();
+  _svClearAnnotation('habitat');
   const layers = [];
   (species || []).slice(0, 4).forEach((name, i) => {
     const off = _svHabitatOffset(String(name) + originLat, i, originLat);
     const marker = L.marker([originLat + off.dLat, originLng + off.dLng], {
-      icon: L.divIcon({ className: 'sv-map-linelabel', html: _svLabelHtml(_svSpeciesEmoji(name) + ' ' + _svCap(name), '#EF4444'), iconSize: [0, 0] }),
+      icon: L.divIcon({ className: 'sv-map-linelabel', html: _svLabelHtml(_svSpeciesEmoji(name) + ' ' + _svCap(name), '#EF4444', 17), iconSize: [0, 0] }),
       interactive: false,
     }).addTo(_svMap);
     layers.push(marker);
   });
-  _svAnnotationLayer = layers;
-  _svFitToParcelAnd([]);
+  _svAnnotationLayers['habitat'] = layers;
+  _svRecomputeMapFit();
 }
 
 // Elevation on a flat 2D map can't show real relief, so instead of a bare
@@ -9838,52 +9905,52 @@ function svShowOnMap(kind) {
   if (lat == null || lng == null) return;
 
   if (_svActiveFilters.has(kind)) {
-    // TOGGLE OFF — only this pill's own thing goes away.
+    // TOGGLE OFF — every kind owns its own annotation slot, so this only
+    // ever removes THIS kind's own thing. Every other currently-active
+    // filter (including other shared-topic kinds like road/power/evac/...)
+    // is completely untouched.
     if (kind === 'flood' || kind === 'wetlands') {
       const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="' + kind + '"]');
       if (btn && btn.classList.contains('active')) svToggleLayer(btn);
-    } else if (_SV_SHARED_SLOT_KINDS.has(kind)) {
-      _svClearAnnotation();
-      _svUnpulseParcel();
-      // road/power can zoom the map out to fit a far-off point or a wide
-      // radius circle — undoing them must zoom back in, not leave the view
-      // stranded at whatever it zoomed out to.
-      if (kind === 'road' || kind === 'power') _svFitToParcelAnd([]);
+    } else {
+      _svClearAnnotation(kind);
+      if (_SV_PULSE_KINDS.has(kind)) {
+        delete _svPulseColors[kind];
+        _svRecomputeParcelPulse();
+        _svRestackLabels();
+      }
+      // Re-frames around whatever external-point filters are STILL active
+      // (if road and power were both on and only power is undone, the view
+      // still fits road's line) instead of snapping back to parcel-only or
+      // staying stranded at whatever the undone filter had zoomed to.
+      _svRecomputeMapFit();
     }
     _svSetActivePill(kind, false);
     return;
   }
 
-  // TOGGLE ON
-  if (_SV_SHARED_SLOT_KINDS.has(kind)) {
-    // Only one shared-slot annotation can point at the parcel at a time —
-    // clear + un-bold whichever OTHER shared-slot kind was active. This
-    // never touches flood/wetlands/comps: they're independent layers with
-    // their own on/off state, not part of this group.
-    _SV_SHARED_SLOT_KINDS.forEach(other => { if (other !== kind && _svActiveFilters.has(other)) _svSetActivePill(other, false); });
-    _svClearAnnotation();
-    _svUnpulseParcel();
-  }
+  // TOGGLE ON — every kind draws into its own slot, so this never clears
+  // or otherwise affects any other currently-active filter.
   _svSetActivePill(kind, true);
 
   if (kind === 'road') {
     if (pi.road_nearest_lat != null && pi.road_nearest_lng != null) {
       const label = pi.road_distance_m != null ? pi.road_distance_m + 'm to road' : 'Nearest road';
-      _svDrawLineTo(lat, lng, pi.road_nearest_lat, pi.road_nearest_lng, label, _svDistColor(pi.road_distance_m));
+      _svDrawLineTo('road', lat, lng, pi.road_nearest_lat, pi.road_nearest_lng, label, _svDistColor(pi.road_distance_m));
     } else if (pi.road_distance_m != null) {
       // Distance is known but not the exact point — this parcel was likely
       // screened before nearest-point coordinates started being saved. Same
       // honest fallback as power's bucket case, plus a hint since a
       // re-screen would upgrade this to a real line.
-      _svDrawRadiusLabel(lat, lng, pi.road_distance_m, '~' + pi.road_distance_m + 'm to nearest road', _svDistColor(pi.road_distance_m));
+      _svDrawRadiusLabel('road', lat, lng, pi.road_distance_m, '~' + pi.road_distance_m + 'm to nearest road', _svDistColor(pi.road_distance_m));
       toast('Exact road position not available for this screening — re-screen for a precise line.');
     }
   } else if (kind === 'power') {
     if (pi.powerline_nearest_lat != null && pi.powerline_nearest_lng != null) {
-      _svDrawLineTo(lat, lng, pi.powerline_nearest_lat, pi.powerline_nearest_lng, (pi.powerline_distance || 'Power line'), _svDistColor(_svParseDistM(pi.powerline_distance)));
+      _svDrawLineTo('power', lat, lng, pi.powerline_nearest_lat, pi.powerline_nearest_lng, (pi.powerline_distance || 'Power line'), _svDistColor(_svParseDistM(pi.powerline_distance)));
     } else if (pi.powerline_distance) {
       const radiusM = _svParseDistM(pi.powerline_distance) || 500;
-      _svDrawRadiusLabel(lat, lng, radiusM, 'Power ~' + pi.powerline_distance + ' away', _svDistColor(radiusM));
+      _svDrawRadiusLabel('power', lat, lng, radiusM, 'Power ~' + pi.powerline_distance + ' away', _svDistColor(radiusM));
     }
   } else if (kind === 'flood') {
     const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="flood"]');
@@ -9895,25 +9962,31 @@ function svShowOnMap(kind) {
     _svFitToParcelAnd([]);
   } else if (kind === 'evac') {
     const color = /^[AB]$/i.test(pi.evac_zone || '') ? '#EF4444' : '#F59E0B';
-    _svPulseParcel(color);
-    _svDrawLabel(lat, lng, pi.evac_zone ? 'Zone ' + pi.evac_zone + ' evac' : 'Evacuation zone', color);
+    _svPulseColors['evac'] = color;
+    _svRecomputeParcelPulse();
+    _svDrawLabel('evac', lat, lng, pi.evac_zone ? 'Zone ' + pi.evac_zone + ' evac' : 'Evacuation zone', color);
   } else if (kind === 'soil') {
     const color = _svSoilColor(pi);
-    _svPulseParcel(color);
-    _svDrawLabel(lat, lng, _svSoilLabel(pi), color);
+    _svPulseColors['soil'] = color;
+    _svRecomputeParcelPulse();
+    _svDrawLabel('soil', lat, lng, _svSoilLabel(pi), color);
   } else if (kind === 'habitat') {
-    _svPulseParcel('#EF4444');
+    _svPulseColors['habitat'] = '#EF4444';
+    _svRecomputeParcelPulse();
     _svDrawHabitatMarkers(lat, lng, pi.habitat_species || []);
   } else if (kind === 'elevation') {
     const tier = _svElevationTier(pi.elevation_ft);
-    _svPulseParcel(tier.color);
-    _svDrawLabel(lat, lng, tier.emoji + ' ' + tier.label + ' (' + pi.elevation_ft + ' ft)', tier.color);
+    _svPulseColors['elevation'] = tier.color;
+    _svRecomputeParcelPulse();
+    _svDrawLabel('elevation', lat, lng, tier.emoji + ' ' + tier.label + ' (' + pi.elevation_ft + ' ft)', tier.color);
   } else if (kind === 'contamination') {
-    _svPulseParcel('#EF4444');
-    _svDrawLabel(lat, lng, 'Contamination records nearby', '#EF4444');
+    _svPulseColors['contamination'] = '#EF4444';
+    _svRecomputeParcelPulse();
+    _svDrawLabel('contamination', lat, lng, 'Contamination records nearby', '#EF4444');
   } else if (kind === 'easement') {
-    _svPulseParcel('#EF4444');
-    _svDrawLabel(lat, lng, pi.easement_type ? _svCap(pi.easement_type) : 'Conservation easement', '#EF4444');
+    _svPulseColors['easement'] = '#EF4444';
+    _svRecomputeParcelPulse();
+    _svDrawLabel('easement', lat, lng, pi.easement_type ? _svCap(pi.easement_type) : 'Conservation easement', '#EF4444');
   }
 }
 
@@ -9967,7 +10040,9 @@ function _svInitMap(r) {
   if (!mapDiv || typeof L === 'undefined') return;
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
   Object.keys(_svLayers).forEach(k => delete _svLayers[k]);
-  _svAnnotationLayer = null;
+  _svAnnotationLayers = {};
+  _svAnnotationExtraPoints = {};
+  _svPulseColors = {};
   _svActiveFilters = new Set();
   const pi = r.parcel_info || {};
   const lat = r._lat || 28.0, lng = r._lng || -81.5;
@@ -10435,6 +10510,14 @@ function openStoryView() {
   if (!_openParcel) { toast('Open a parcel first, then view its Deal Review'); return; }
   const sv = document.getElementById('storyView');
   if (!sv) return;
+  // Deal Review always opens on the parcel list, never stranded on the All
+  // Batches picker from a previous session — without this, any path that
+  // reaches openStoryView() while _pnavMode was left as 'batches' (e.g. a
+  // batch switch that took a different route than _pnavSelectBatch's own
+  // reset) rendered a sidebar with no #pnavList element at all, which
+  // silently no-ops every future _pnavRenderList() call (storyNav's
+  // prev/next arrows) and reads as the sidebar being permanently stuck.
+  _pnavMode = 'parcels';
   try {
     renderStoryView(_openParcel);
   } catch(e) {
