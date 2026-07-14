@@ -4987,6 +4987,15 @@ async function _executeBatch(lines, estimatedSet) {
   if (_procEtaEl) _procEtaEl.textContent = '~' + formatDuration(_estLow) + '–' + formatDuration(_estHigh);
   _resetEtaTracker();
   updateProgress(0, flLines.length, null);
+  // _simulatedIndeterminatePct() only climbs when updateProgress() is
+  // actually called again — the SSE path below just awaits reader.read()
+  // with nothing else running until the server's first chunk arrives, so
+  // without a timer re-invoking it, the ring/percentage sat frozen at the
+  // literal 0% this first call produced for however long geocoding + the
+  // first parcel took, reading as stuck/frozen rather than "still working".
+  let _simTickTimer = setInterval(() => {
+    if (batchState.results.length === outsideResults.length) updateProgress(0, flLines.length, null);
+  }, 400);
 
   // Gentle reassurance at 25s with no results (rural parcels queue behind
   // rate-limited sources); a real error state only after 90s of nothing.
@@ -5065,6 +5074,7 @@ async function _executeBatch(lines, estimatedSet) {
         } else if (ev.type === 'progress' && ev.latest) {
           clearTimeout(_firstResultTimer);
           clearTimeout(_reassureTimer);
+          clearInterval(_simTickTimer);
           batchState.results.push({
             ...ev.latest,
             _estimated: _estimatedAddresses.has((ev.latest.address || '').toLowerCase()),
@@ -5151,6 +5161,7 @@ async function _executeBatch(lines, estimatedSet) {
     clearTimeout(_firstResultTimer);
     clearTimeout(_reassureTimer);
     clearInterval(_resMetaTimer); _resMetaTimer = null;
+    clearInterval(_simTickTimer);
     batchState._streaming = false;
     _batchInProgress = false;
     const btn2 = document.getElementById('runBatchBtn');
