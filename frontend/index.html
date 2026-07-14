@@ -293,14 +293,13 @@ body.on-results .detail-panel{top:0}
 .rsb-count{font-size:11px;font-weight:700;background:var(--bg);padding:1px 7px;border-radius:var(--rp);color:var(--t3)}
 /* Batch parcel navigator — replaces the sidebar while the story view is open */
 .pnav-wrap{display:flex;flex-direction:column;height:100%;min-height:0;gap:10px}
-.pnav-back-link{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:7px 8px;border-radius:var(--rs);transition:all .15s;margin:0 -8px;display:block}
-.pnav-back-link:hover{color:var(--t1);background:var(--card-h)}
-.pnav-crumb{font-size:13px;color:var(--t3);display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:0 2px}
-.pnav-crumb a{color:var(--t2);cursor:pointer;font-weight:600}
-.pnav-crumb a:hover{color:var(--green)}
-.pnav-crumb span.cur{color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+.pnav-back-link{font-size:15px;font-weight:700;color:var(--green);cursor:pointer;padding:7px 8px;border-radius:var(--rs);transition:all .15s;margin:0 -8px;display:block}
+.pnav-back-link:hover{color:var(--gd);background:var(--card-h)}
+.pnav-crumb{font-size:14px;color:var(--t2);display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:0 2px}
+.pnav-crumb a{color:var(--green);cursor:pointer;font-weight:700}
+.pnav-crumb a:hover{color:var(--gd)}
+.pnav-crumb span.cur{color:var(--t1);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
 .pnav-title{border-bottom:1px solid var(--b);padding-bottom:10px}
-.pnav-name{font-size:15px;font-weight:800;color:var(--t1);letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pnav-count{font-size:11.5px;color:var(--t3);margin-top:2px}
 .pnav-tabs{display:flex;gap:4px}
 .pnav-tab{flex:1;text-align:center;font-size:10.5px;font-weight:700;padding:6px 2px;border-radius:var(--rs);border:1px solid var(--b);background:none;color:var(--t2);cursor:pointer;white-space:nowrap}
@@ -318,13 +317,6 @@ body.on-results .detail-panel{top:0}
 .pnav-row:last-child{border-bottom:none}
 .pnav-row:hover{background:var(--card-h)}
 .pnav-row-active{border-left-color:var(--green);background:var(--card-h)}
-.pnav-batch-row{padding:10px;border-radius:var(--rs);cursor:pointer;display:flex;flex-direction:column;gap:3px;border:1px solid transparent}
-.pnav-batch-row:hover{background:var(--card-h)}
-.pnav-batch-row.active{background:var(--gbg);border-color:rgba(34,197,94,.3)}
-.pnav-batch-row-name{font-size:13px;font-weight:700;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pnav-batch-row-meta{font-size:11px;color:var(--t3);display:flex;gap:8px}
-.pnav-batch-row-meta .k{color:var(--red)}
-.pnav-batch-row-meta .p{color:var(--green)}
 .pnav-alllink{font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer;padding:8px;border-radius:var(--rs);transition:all .15s;text-align:center;border:1px solid var(--b);display:block}
 .pnav-alllink:hover{color:var(--t1);background:var(--card-h);border-color:var(--bh)}
 .pnav-row-addr{font-size:13px;line-height:22px;height:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;min-width:0;flex:1}
@@ -590,7 +582,7 @@ body.on-results .detail-panel{top:0}
 .tbl-addr-city{font-size:11px;color:var(--t3);margin-top:2px}
 .tbl-addr-link{cursor:pointer;color:var(--green)}
 .tbl-addr-link:hover{text-decoration:underline}
-.tbl-county{font-size:12px;color:var(--t2);white-space:nowrap}
+.tbl-landuse{font-size:12px;color:var(--t2);white-space:nowrap}
 .tbl-size{font-size:12px;color:var(--t2);white-space:nowrap}
 .tbl-size-amber{color:var(--amber)}
 .tbl-signals{max-width:180px;vertical-align:middle}
@@ -2076,7 +2068,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
             <tr>
               <th style="width:32px"><input type="checkbox" class="row-cb" id="selAllCb" onchange="toggleSelectAll()" style="margin:0"></th>
               <th>ADDRESS <span style="font-size:10px;color:var(--t2);font-weight:400;letter-spacing:0">· hover ↻ to re-run</span></th>
-              <th>COUNTY</th>
+              <th onclick="sortBy('landuse')" style="cursor:pointer"><span class="col-sort-btn" id="sort-landuse">TYPE OF LAND <span class="arrow">↕</span></span></th>
               <th onclick="sortBy('size')" style="cursor:pointer"><span class="col-sort-btn" id="sort-size">SIZE <span class="arrow">↕</span></span></th>
               <th>SIGNALS</th>
               <th onclick="sortBy('score')" style="cursor:pointer"><span class="col-sort-btn" id="sort-score">SCORE <span class="arrow">↕</span></span></th>
@@ -5832,7 +5824,7 @@ function sortBy(col) {
 }
 
 function updateSortButtons() {
-  ['score', 'size', 'decision'].forEach(col => {
+  ['score', 'size', 'decision', 'landuse'].forEach(col => {
     const btn = document.getElementById('sort-' + col);
     if (!btn) return;
     const arrow = btn.querySelector('.arrow');
@@ -5871,6 +5863,15 @@ function _refreshTable() {
       if (sa == null && sb == null) return 0;
       if (sa == null) return 1; if (sb == null) return -1;
       return batchState.sortDir === 'asc' ? sa - sb : sb - sa;
+    });
+  } else if (batchState.sortCol === 'landuse') {
+    sorted = [...batchState.results].sort((a, b) => {
+      const ca = (a.parcel_info || {}).land_use_code, cb = (b.parcel_info || {}).land_use_code;
+      const la = ca != null ? getLandUseCategory(ca) : null, lb = cb != null ? getLandUseCategory(cb) : null;
+      if (la == null && lb == null) return 0;
+      if (la == null) return 1; if (lb == null) return -1;
+      const cmp = la.localeCompare(lb);
+      return batchState.sortDir === 'asc' ? cmp : -cmp;
     });
   } else {
     sorted = defaultSort(batchState.results);
@@ -6181,7 +6182,8 @@ function renderTable(results, offset) {
       '</div>' +
       rescreenBtn +
     '</div>';
-    const county = (!isOutside && !isError) ? ((r.parcel_info || {}).county || extractCounty(r.address || '')) : '';
+    const _rowLuCode = (r.parcel_info || {}).land_use_code;
+    const landType = (!isOutside && !isError && _rowLuCode != null) ? getLandUseCategory(_rowLuCode) : '';
     let sizeHtml = '';
     if (!isOutside && !isError) {
       const acreage = getAcreage(r);
@@ -6215,7 +6217,7 @@ function renderTable(results, offset) {
         '<input type="checkbox" class="row-cb"' + (isSelected ? ' checked' : '') + ' onchange="toggleRowSelect(' + absIdx + ',event)">' +
       '</td>' +
       '<td class="tbl-parcel">' + addrHtml + autoKillChip + rescreenedLabel + '</td>' +
-      '<td class="tbl-county">' + escHtml(county) + '</td>' +
+      '<td class="tbl-landuse">' + escHtml(landType) + '</td>' +
       '<td class="tbl-size">' + sizeHtml + '</td>' +
       '<td class="tbl-signals">' + signalsHtml + '</td>' +
       '<td class="tbl-score-cell"' + (scoreColor ? ' style="color:' + scoreColor + '"' : '') + '>' + escHtml(scoreStr) + '</td>' +
@@ -10200,7 +10202,6 @@ function svToggleDesc(row) {
 let _savedSidebarHTML = null;
 let _pnavFilter = 'all';
 let _pnavQuery = '';
-let _pnavMode = 'parcels'; // 'parcels' | 'batches'
 const _PNAV_SEARCH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
 
 function _buildParcelNavigator() {
@@ -10223,8 +10224,8 @@ function _buildParcelNavigator() {
       '</div>' +
       '<button id="svSidebarToggle" class="rsb-toggle-btn" onclick="_svToggleSidebar()" title="Hide sidebar"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>' +
     '</div>' +
-    '<a class="pnav-back-link" onclick="_pnavShowAllBatches()">← All Batches</a>' +
-    '<div class="pnav-crumb"><a onclick="_pnavShowAllBatches()">Batches</a><span>›</span><span class="cur" title="' + bname + '">' + bname + '</span></div>';
+    '<a class="pnav-back-link" onclick="closeStoryView()">← All Results</a>' +
+    '<div class="pnav-crumb"><a onclick="closeStoryView()">All Results</a><span>›</span><span class="cur" title="' + bname + '">' + bname + '</span></div>';
 
   // Same account chip (classes, avatar-letter/name fallback logic) as the
   // regular sidebar's .rsb-profile — built fresh from the live userProfile
@@ -10239,23 +10240,6 @@ function _buildParcelNavigator() {
         '<button class="rsb-pac" onclick="doSignout()" title="Sign out" style="color:var(--red)"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6 2.5H3A1.5 1.5 0 0 0 1.5 4v7A1.5 1.5 0 0 0 3 12.5h3"/><path d="M10 10.5l3-3-3-3"/><line x1="13" y1="7.5" x2="6" y2="7.5"/></svg></button>' +
       '</div>' +
     '</div>';
-
-  if (_pnavMode === 'batches') {
-    sidebar.innerHTML =
-      '<div class="pnav-wrap">' + header +
-        '<div class="pnav-title"><div class="pnav-name">All Batches</div></div>' +
-        '<div class="pnav-list" id="pnavBatchList"><div style="padding:16px 10px;font-size:12px;color:var(--t3);text-align:center">Loading…</div></div>' +
-        // Same "Back to Results" exit as parcels mode, not a separate
-        // "back to current batch" action — that's redundant with clicking
-        // the current batch's own (highlighted) row in the list above, and
-        // having a DIFFERENT-looking "back" link per mode read as "stuck
-        // in All Batches" since neither one visibly led to the results page.
-        '<a class="pnav-alllink" onclick="closeStoryView()">← Back to Results</a>' +
-        accountChip +
-      '</div>';
-    _pnavRenderBatchList();
-    return;
-  }
 
   const results = batchState.results || [];
   let kill = 0, pursue = 0;
@@ -10289,75 +10273,6 @@ function _restoreSidebar() {
   // collapsed too after returning (rsb-hidden lives on #resSidebar itself,
   // which innerHTML replacement above doesn't touch).
   if (sidebar) sidebar.classList.remove('rsb-hidden');
-  // Next time Story View opens fresh, start on the parcel list — not
-  // wherever the batch picker happened to be left.
-  _pnavMode = 'parcels';
-}
-
-// ── "All Batches" picker — switches the sidebar to a batch list so you can
-// jump to a different batch's parcels without leaving Story View, per the
-// "Batches > Address > full screen" browsing model.
-function _pnavShowAllBatches() {
-  _pnavMode = 'batches';
-  _buildParcelNavigator();
-}
-
-async function _pnavRenderBatchList() {
-  const list = document.getElementById('pnavBatchList');
-  if (!list) return;
-  let batches = null;
-  try {
-    const cached = sessionStorage.getItem('piq-batches');
-    if (cached) batches = JSON.parse(cached);
-  } catch(e) {}
-  if (!batches && sb && currentUser) {
-    try {
-      const { data } = await sb.from('batches').select('*')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false }).limit(20);
-      batches = data || [];
-      if (batches.length) { try { sessionStorage.setItem('piq-batches', JSON.stringify(batches)); } catch(e) {} }
-    } catch(e) { batches = []; }
-  }
-  batches = batches || [];
-  if (_pnavMode !== 'batches') return; // navigated away while this was loading
-  if (!batches.length) {
-    list.innerHTML = '<div style="padding:16px 10px;font-size:12px;color:var(--t3);text-align:center">No batches yet.</div>';
-    return;
-  }
-  list.innerHTML = '';
-  batches.forEach(b => {
-    const name = b.name || 'Batch · ' + new Date(b.created_at).toLocaleDateString();
-    const row = document.createElement('div');
-    row.className = 'pnav-batch-row' + (b.id === _currentBatchId ? ' active' : '');
-    row.innerHTML =
-      '<div class="pnav-batch-row-name">' + escHtml(name) + '</div>' +
-      '<div class="pnav-batch-row-meta">' + (b.total != null ? '<span>' + b.total + ' parcels</span>' : '') + '</div>';
-    row.addEventListener('click', function() { _pnavSelectBatch(b.id); });
-    list.appendChild(row);
-  });
-}
-
-async function _pnavSelectBatch(batchId) {
-  if (batchId === _currentBatchId) { _pnavMode = 'parcels'; _buildParcelNavigator(); return; }
-  await loadBatchResults(batchId);
-  // loadBatchResults() -> renderBatchResults() closes Story View as part of
-  // its normal "fresh batch" reset (via closeDetailPanel -> closeStoryView).
-  // Re-open it here so picking a batch from the full-screen picker keeps
-  // you inside the full-screen experience instead of dropping you back to
-  // the plain results table.
-  _pnavMode = 'parcels';
-  if (_currentDisplayed.length) {
-    openDetailPanel(0, null);
-    openStoryView(); // rebuilds the sidebar out of 'batches' mode as a side effect
-  } else {
-    // The new batch has nothing to open Deal Review for, but the sidebar
-    // still needs to leave 'batches' mode — openStoryView() above is what
-    // normally does that rebuild, so without it the sidebar was left
-    // stuck showing the All Batches list even though _pnavMode had already
-    // been flipped back to 'parcels' in memory.
-    _buildParcelNavigator();
-  }
 }
 
 function _pnavSetFilter(v) {
@@ -10510,14 +10425,6 @@ function openStoryView() {
   if (!_openParcel) { toast('Open a parcel first, then view its Deal Review'); return; }
   const sv = document.getElementById('storyView');
   if (!sv) return;
-  // Deal Review always opens on the parcel list, never stranded on the All
-  // Batches picker from a previous session — without this, any path that
-  // reaches openStoryView() while _pnavMode was left as 'batches' (e.g. a
-  // batch switch that took a different route than _pnavSelectBatch's own
-  // reset) rendered a sidebar with no #pnavList element at all, which
-  // silently no-ops every future _pnavRenderList() call (storyNav's
-  // prev/next arrows) and reads as the sidebar being permanently stuck.
-  _pnavMode = 'parcels';
   try {
     renderStoryView(_openParcel);
   } catch(e) {
