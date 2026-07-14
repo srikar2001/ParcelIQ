@@ -3566,7 +3566,7 @@ function renderSharedResults(results, container) {
     const addrParts = (r.address || '').split(',');
     const street = addrParts[0] || r.address || '';
     const city = addrParts.slice(1).join(',').trim();
-    const county = city.replace(/\s*FL\s*\d*/i,'').trim().replace(/,\s*$/, '');
+    const landType = pi.land_use_code != null ? getLandUseCategory(pi.land_use_code) : 'Unknown';
     const acreage = pi.acreage != null ? (Math.round(pi.acreage * 10) / 10) + ' ac' : '';
     const flags = (r.flags || []).slice(0, 3).map(f =>
       '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;background:' +
@@ -3577,7 +3577,7 @@ function renderSharedResults(results, container) {
     const score = r.score != null ? r.score : '';
     return `<tr style="border-bottom:1px solid #1E2130;cursor:default">
       <td style="padding:10px 12px"><div style="font-weight:500;font-size:13px">${esc(street)}</div><div style="font-size:11px;color:var(--t2)">${esc(city)}</div></td>
-      <td style="padding:10px 12px;font-size:12px;color:var(--t2)">${esc(county)}</td>
+      <td style="padding:10px 12px;font-size:12px;color:var(--t2)">${esc(landType)}</td>
       <td style="padding:10px 12px;font-size:12px;color:var(--t2)">${esc(acreage)}</td>
       <td style="padding:10px 12px">${flags}</td>
       <td style="padding:10px 12px;font-weight:700;color:${vColor(ev)}">${esc(score)}</td>
@@ -3608,7 +3608,7 @@ function renderSharedResults(results, container) {
         <thead>
           <tr style="background:#1E2130;text-align:left">
             <th style="padding:10px 12px;font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Address</th>
-            <th style="padding:10px 12px;font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">County</th>
+            <th style="padding:10px 12px;font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Type of Land</th>
             <th style="padding:10px 12px;font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Size</th>
             <th style="padding:10px 12px;font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Signals</th>
             <th style="padding:10px 12px;font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Score</th>
@@ -10328,7 +10328,7 @@ function _buildParcelNavigator() {
   if (_pnavMode === 'batches') {
     sidebar.innerHTML =
       '<div class="pnav-wrap">' + header +
-        '<div class="pnav-title"><div class="pnav-name">All Batches</div></div>' +
+        '<div class="pnav-title"><div class="pnav-name">Switch batch</div></div>' +
         '<div class="pnav-list" id="pnavBatchList"><div style="padding:16px 10px;font-size:12px;color:var(--t3);text-align:center">Loading…</div></div>' +
         '<a class="pnav-alllink" onclick="closeStoryView()">← All Results</a>' +
         accountChip +
@@ -10419,25 +10419,19 @@ async function _pnavRenderBatchList() {
 }
 
 async function _pnavSelectBatch(batchId) {
-  if (batchId === _currentBatchId) { _pnavMode = 'parcels'; _buildParcelNavigator(); return; }
-  await loadBatchResults(batchId);
-  // loadBatchResults() -> renderBatchResults() closes Story View as part of
-  // its normal "fresh batch" reset (via closeDetailPanel -> closeStoryView).
-  // Re-open it here so picking a batch from the full-screen picker keeps
-  // you inside the full-screen experience instead of dropping you back to
-  // the plain results table.
+  if (batchId !== _currentBatchId) await loadBatchResults(batchId);
+  // Picking a batch from this picker — even the one already open — always
+  // lands on the plain results table, not back into full-screen Deal Review
+  // for whichever parcel happens to be first in that batch. One predictable
+  // destination ("all results, so you can get out") beats the picker
+  // silently funneling you deeper into a single parcel depending on which
+  // row you clicked. loadBatchResults() -> renderBatchResults() already
+  // triggers this via its own "fresh batch" reset (closeDetailPanel() ->
+  // closeStoryView()) for a genuinely different batch; calling it directly
+  // here as well is what makes re-selecting the CURRENTLY open batch behave
+  // the exact same way instead of just returning to the parcel list.
   _pnavMode = 'parcels';
-  if (_currentDisplayed.length) {
-    openDetailPanel(0, null);
-    openStoryView(); // rebuilds the sidebar out of 'batches' mode as a side effect
-  } else {
-    // The new batch has nothing to open Deal Review for, but the sidebar
-    // still needs to leave 'batches' mode — openStoryView() above is what
-    // normally does that rebuild, so without it the sidebar was left
-    // stuck showing the All Batches list even though _pnavMode had already
-    // been flipped back to 'parcels' in memory.
-    _buildParcelNavigator();
-  }
+  closeStoryView();
 }
 
 function _pnavSetFilter(v) {
