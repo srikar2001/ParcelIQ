@@ -10293,16 +10293,27 @@ function _buildParcelNavigator() {
   // (never in the DOM at the same time, since this replaces #resSidebar's
   // contents) so the existing toggleMode() just works without changes.
   const themeIcon = document.documentElement.dataset.theme === 'light' ? '🌙' : '☀️';
-  const header =
+  const topBar =
     '<div class="rsb-top" style="border-bottom:1px solid var(--b);padding-bottom:14px">' +
       '<div style="display:flex;align-items:center;gap:6px">' +
         '<span class="rsb-brand" onclick="window.location.reload()" style="cursor:pointer" title="Reload">Parcel<span style="color:var(--green)">iQ</span></span>' +
         '<button id="rsbModeToggle" class="rsb-toggle-btn" onclick="toggleMode()" title="Toggle theme" style="font-size:14px;padding:3px 5px;line-height:1"><span id="rsbModeIcon">' + themeIcon + '</span></button>' +
       '</div>' +
       '<button id="svSidebarToggle" class="rsb-toggle-btn" onclick="_svToggleSidebar()" title="Hide sidebar"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>' +
-    '</div>' +
-    '<a class="pnav-back-link" onclick="_pnavShowAllBatches()">← All Batches</a>' +
-    '<div class="pnav-crumb"><a onclick="_pnavShowAllBatches()">All Batches</a><span>›</span><span class="cur" title="' + bname + '">' + bname + '</span></div>';
+    '</div>';
+  // The one back-link at the top is contextual, not a fixed label — it
+  // always names where clicking it actually goes. Looking at a parcel
+  // list, that's "All Batches" (go pick a different one); already looking
+  // at the batch list, "All Batches" would go nowhere new, so it becomes
+  // "All Results" (leave Deal Review entirely) instead. A label that never
+  // changed regardless of which screen you were already on read as "this
+  // button doesn't do anything" once you'd already gotten where it says
+  // it goes.
+  const header = _pnavMode === 'batches'
+    ? topBar + '<a class="pnav-back-link" onclick="closeStoryView()">← All Results</a>'
+    : topBar +
+      '<a class="pnav-back-link" onclick="_pnavShowAllBatches()">← All Batches</a>' +
+      '<div class="pnav-crumb"><a onclick="_pnavShowAllBatches()">All Batches</a><span>›</span><span class="cur" title="' + bname + '">' + bname + '</span></div>';
 
   // Same account chip (classes, avatar-letter/name fallback logic) as the
   // regular sidebar's .rsb-profile — built fresh from the live userProfile
@@ -10320,17 +10331,15 @@ function _buildParcelNavigator() {
 
   // Clicking "All Batches" above goes UP one level to a list of every other
   // batch (so you can switch which one you're reviewing without leaving
-  // full-screen Deal Review) — but that list is itself a dead end unless it
-  // also offers a way to go back even further, past the batch picker,
-  // straight to the results table. Both modes below end in the same "All
-  // Results" exit for that reason, not two differently-worded links that
-  // read as two different destinations.
+  // full-screen Deal Review). The single top link (see `header` above)
+  // already turns into "← All Results" the moment you're on THIS screen, so
+  // there's no second, differently-positioned "back" link duplicating it
+  // down here — one button that always names where it goes, not two.
   if (_pnavMode === 'batches') {
     sidebar.innerHTML =
       '<div class="pnav-wrap">' + header +
         '<div class="pnav-title"><div class="pnav-name">Switch batch</div></div>' +
         '<div class="pnav-list" id="pnavBatchList"><div style="padding:16px 10px;font-size:12px;color:var(--t3);text-align:center">Loading…</div></div>' +
-        '<a class="pnav-alllink" onclick="closeStoryView()">← All Results</a>' +
         accountChip +
       '</div>';
     _pnavRenderBatchList();
