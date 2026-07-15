@@ -3074,6 +3074,38 @@ function getDayStart() {
 }
 const getWeekStart = getDayStart; // legacy alias — limit is daily now
 
+// "[Re-screen]" rows in the batches table are usage accounting, not real
+// batches — they exist only so re-screens count against the daily limit
+// (usage is computed by summing batches.total since midnight UTC). They
+// must never show up anywhere batches are LISTED, or every re-screen
+// looks like it created a new batch.
+function _realBatches(list) {
+  return (list || []).filter(b => b.name !== '[Re-screen]');
+}
+
+// Records re-screen usage into ONE consolidated [Re-screen] row per day
+// (bumping its total) instead of inserting a brand-new row per re-screen —
+// the per-re-screen inserts were what kept "creating a new batch" in every
+// batch list, one junk entry per parcel re-screened. The daily sum the
+// limit check reads is identical either way.
+async function _recordRescreenUsage(count) {
+  if (!sb || !currentUser || !count) return;
+  try {
+    const { data: existing } = await sb.from('batches')
+      .select('id,total')
+      .eq('user_id', currentUser.id)
+      .eq('name', '[Re-screen]')
+      .gte('created_at', getDayStart())
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (existing && existing.length) {
+      await sb.from('batches').update({ total: (existing[0].total || 0) + count }).eq('id', existing[0].id);
+    } else {
+      await sb.from('batches').insert({ user_id: currentUser.id, name: '[Re-screen]', total: count, created_at: new Date().toISOString() });
+    }
+  } catch(e) {}
+}
+
 async function _loadUsageLimit() {
   if (!currentSession?.access_token) return;
   try {
@@ -4173,14 +4205,16 @@ async function loadPastBatches() {
   try {
     const cached = sessionStorage.getItem('piq-batches');
     if (cached) {
-      const parsed = JSON.parse(cached);
+      const parsed = _realBatches(JSON.parse(cached));
       if (parsed?.length) { renderPastBatches(parsed); }
     }
   } catch(e) {}
   try {
-    const { data: batches } = await sb.from('batches').select('*')
+    const { data } = await sb.from('batches').select('*')
       .eq('user_id', currentUser.id)
+      .neq('name', '[Re-screen]')
       .order('created_at', { ascending: false }).limit(20);
+    const batches = _realBatches(data);
     if (!batches || batches.length === 0) { showEmptyBatchState(); sessionStorage.removeItem('piq-batches'); return; }
     _recentBatchNames = batches.slice(0, 5).map(b => b.name || '');
     try { sessionStorage.setItem('piq-batches', JSON.stringify(batches)); } catch(e) {}
@@ -4408,13 +4442,15 @@ async function _loadSidebarBatches() {
     try {
       const { data } = await sb.from('batches').select('*')
         .eq('user_id', currentUser.id)
+        .neq('name', '[Re-screen]')
         .order('created_at', { ascending: false }).limit(20);
-      batches = data || [];
+      batches = _realBatches(data);
       if (batches.length) { try { sessionStorage.setItem('piq-batches', JSON.stringify(batches)); } catch(e) {} }
     } catch(e) { batches = []; }
   }
-  if (batches && batches.length) _recentBatchNames = batches.slice(0, 5).map(b => b.name || '');
-  _renderSidebarBatches(batches || []);
+  batches = _realBatches(batches);
+  if (batches.length) _recentBatchNames = batches.slice(0, 5).map(b => b.name || '');
+  _renderSidebarBatches(batches);
   // All-time saved + batch count: show cached values instantly, refresh if stale
   const _TSK = 'piq-ts-cache';
   try {
@@ -4451,6 +4487,10 @@ async function _loadSidebarBatches() {
 function _renderSidebarBatches(batches) {
   const list = document.getElementById('sidebarBatchList');
   if (!list) return;
+  // Callers feed this from several caches (piq-batches-cache in
+  // localStorage predates the [Re-screen] filtering), so re-filter here
+  // rather than trusting every path upstream.
+  batches = _realBatches(batches);
   if (!batches.length) {
     list.innerHTML = '<div style="font-size:12px;color:var(--t3);padding:4px 8px">No batches yet</div>';
     return;
@@ -6594,10 +6634,7 @@ async function rescreenFromStoryView() {
     const usageFill = document.getElementById('sbUsageFill');
     if (usageEl) usageEl.textContent = _weeklyUsed;
     if (usageFill) usageFill.style.width = Math.min(Math.round(_weeklyUsed / _dailyLimit * 100), 100) + '%';
-    if (sb && currentUser) {
-      sb.from('batches').insert({ user_id: currentUser.id, name: '[Re-screen]', total: 1, created_at: new Date().toISOString() })
-        .then(() => loadSbUsage()).catch(() => {});
-    }
+    _recordRescreenUsage(1).then(() => loadSbUsage());
   } catch(e) {
     toast('Re-screen failed: ' + e.message);
   } finally {
@@ -6687,9 +6724,7 @@ async function rescreenRow(event, idx) {
             if (prevNotes !== undefined) batchState.results[bIdx].notes = prevNotes;
           }
           _saveRescreenToSupa(original, nr);
-          if (sb && currentUser) {
-            sb.from('batches').insert({ user_id: currentUser.id, name: '[Re-screen]', total: 1, created_at: new Date().toISOString() }).then(() => _refreshAllUsage()).catch(() => {});
-          }
+          _recordRescreenUsage(1).then(() => _refreshAllUsage());
           _refreshTable();
           toast('Re-screened');
         }
@@ -6796,10 +6831,7 @@ async function rescreenSelected() {
     const usageFill = document.getElementById('sbUsageFill');
     if (usageEl) usageEl.textContent = _weeklyUsed;
     if (usageFill) usageFill.style.width = Math.min(Math.round(_weeklyUsed / _dailyLimit * 100), 100) + '%';
-    if (sb && currentUser) {
-      sb.from('batches').insert({ user_id: currentUser.id, name: '[Re-screen]', total: done, created_at: new Date().toISOString() })
-        .then(() => loadSbUsage()).catch(() => {});
-    }
+    _recordRescreenUsage(done).then(() => loadSbUsage());
   }
   const msg = _rescreenAborted
     ? (done + ' of ' + total + ' re-screened (stopped)')
@@ -6846,10 +6878,7 @@ async function rescreenAll() {
     const usageFill = document.getElementById('sbUsageFill');
     if (usageEl) usageEl.textContent = _weeklyUsed;
     if (usageFill) usageFill.style.width = Math.min(Math.round(_weeklyUsed / _dailyLimit * 100), 100) + '%';
-    if (sb && currentUser) {
-      sb.from('batches').insert({ user_id: currentUser.id, name: '[Re-screen]', total: done, created_at: new Date().toISOString() })
-        .then(() => loadSbUsage()).catch(() => {});
-    }
+    _recordRescreenUsage(done).then(() => loadSbUsage());
   }
   const msg = _rescreenAborted
     ? (done + ' of ' + total + ' re-screened (stopped)')
@@ -10176,12 +10205,13 @@ async function _pnavRenderBatchList() {
     try {
       const { data } = await sb.from('batches').select('*')
         .eq('user_id', currentUser.id)
+        .neq('name', '[Re-screen]')
         .order('created_at', { ascending: false }).limit(20);
-      batches = data || [];
+      batches = _realBatches(data);
       if (batches.length) { try { sessionStorage.setItem('piq-batches', JSON.stringify(batches)); } catch(e) {} }
     } catch(e) { batches = []; }
   }
-  batches = batches || [];
+  batches = _realBatches(batches);
   if (_pnavMode !== 'batches') return; // navigated away while this was loading
   if (!batches.length) {
     list.innerHTML = '<div style="padding:16px 10px;font-size:12px;color:var(--t3);text-align:center">No batches yet.</div>';
