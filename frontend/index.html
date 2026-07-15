@@ -3221,7 +3221,35 @@ async function router() {
     _guardAdminRoute();
     return;
   }
-  if (hash === '#picks' && typeof renderPicksList === 'function') { renderPicksList(); }
+  if (hash === '#picks' && typeof renderPicksList === 'function') {
+    // A reload landing directly on #picks starts with batchState.results
+    // empty — nothing else in this branch loads a batch — so the Parcels
+    // tab (the default) filtered an empty array and every starred parcel
+    // looked like it had silently vanished, even though they were all
+    // still safely in localStorage the whole time. Rehydrate from the same
+    // warm session cache the dashboard itself uses, but WITHOUT
+    // loadBatchResults()'s goTo('dashboard') side effect, which would
+    // hijack navigation off the Picks page entirely.
+    if (!batchState.results.length) {
+      try {
+        const lastBatch = sessionStorage.getItem('piq-last-batch');
+        const cached = lastBatch && sessionStorage.getItem('piq-res-' + lastBatch);
+        if (cached) {
+          const { name, rows, elapsed } = JSON.parse(cached);
+          batchState.results = rows || [];
+          batchState.name = name || '';
+          batchState.elapsed = elapsed || 0;
+          _currentBatchId = lastBatch;
+          _restorePicks();
+        }
+      } catch(e) {}
+    }
+    // Still nothing loaded (no warm cache at all, e.g. a brand new browser
+    // session) — default to the Batches tab, which reads picks straight
+    // from localStorage and works with no batch loaded, instead of
+    // showing the Parcels tab's misleading "no picks" empty state.
+    if (!batchState.results.length) { _picksSetMode('batches'); } else { renderPicksList(); }
+  }
   if (hash === '#landing' || hash === '' || hash === '#') {
     // Landing always loads fresh: reset analyze button, stale paste box
     // contents, and scroll position from a previous visit
@@ -8633,13 +8661,19 @@ async function _picksOpenBatch(batchId) {
   _picksSetMode('parcels');
 }
 
-// One-click jump from the Batches-tab dropdown straight to a specific
-// picked parcel, loading its batch first if a different one is currently
-// open — without this, seeing an address meant opening the batch, landing
-// on the Parcels tab, and hunting for that one pick among the rest.
+// One-click jump from the Batches-tab dropdown straight into a specific
+// picked parcel's full Deal Review, loading its batch first if a
+// different one is currently open — without this, seeing an address
+// meant opening the batch, landing on the Parcels tab, and hunting for
+// that one pick among the rest. Opens Deal Review directly (not just the
+// results table's quick-preview panel), same as clicking an address link
+// in the results table itself.
 async function _picksOpenPick(batchId, address) {
   if (batchId !== _currentBatchId) { await loadBatchResults(batchId); }
-  _picksJumpToResults(address);
+  const dispIdx = _currentDisplayed.findIndex(r => r.address === address);
+  if (dispIdx === -1) { toast('That parcel is not in the current view. Clear filters to find it.'); return; }
+  openDetailPanel(dispIdx, null);
+  openStoryView();
 }
 
 function renderPicksList() {
