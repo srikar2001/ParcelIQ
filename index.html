@@ -8669,6 +8669,24 @@ async function _picksOpenBatch(batchId) {
 // results table's quick-preview panel), same as clicking an address link
 // in the results table itself.
 async function _picksOpenPick(batchId, address) {
+  // loadBatchResults() ends by calling goTo('dashboard') — and since we're
+  // starting from #picks (a genuinely different hash), that actually
+  // changes window.location.hash and fires a real hashchange event. That
+  // queues a SECOND router() call, which runs shortly AFTER this function
+  // has already opened Story View — and router()'s own first line
+  // (closeDetailPanel(true)) closes it again a moment later. That's the
+  // "shows and disappears" symptom. Pre-empting the hash to '#dashboard'
+  // ourselves via replaceState (silent, fires no event) makes
+  // goTo('dashboard')'s own early-return kick in instead, so there's only
+  // ONE navigation total and nothing left afterward to undo it — the same
+  // reason a bookmarked "#dashboard/.../parcel/...?view=full" URL already
+  // opens correctly today. showScreen() has to be called explicitly here
+  // too, since it's normally router()'s job and we just made sure router()
+  // never runs for this navigation.
+  if (_baseHash(window.location.hash) !== '#dashboard') {
+    history.replaceState(null, '', '#dashboard');
+  }
+  showScreen('page-results');
   if (batchId !== _currentBatchId) { await loadBatchResults(batchId); }
   const dispIdx = _currentDisplayed.findIndex(r => r.address === address);
   if (dispIdx === -1) { toast('That parcel is not in the current view. Clear filters to find it.'); return; }
