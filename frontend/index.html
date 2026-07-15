@@ -2665,7 +2665,10 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <button id="picksTabParcels" onclick="_picksSetMode('parcels')" style="font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">Parcels</button>
         <button id="picksTabBatches" onclick="_picksSetMode('batches')" style="font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t2);cursor:pointer">Batches</button>
       </div>
-      <input type="text" id="picksSearchInput" placeholder="Search address or batch..." oninput="_picksSetQuery(this.value)" style="flex:1;min-width:180px;font-family:'Inter',sans-serif;font-size:13px;padding:8px 14px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t1);outline:none">
+      <div style="position:relative;flex:1;min-width:180px;display:flex;align-items:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:12px;color:var(--t3);pointer-events:none"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="picksSearchInput" placeholder="Search address or batch..." oninput="_picksSetQuery(this.value)" style="width:100%;font-family:'Inter',sans-serif;font-size:13px;padding:8px 14px 8px 34px;border-radius:var(--rp);border:1px solid var(--b);background:var(--card-h);color:var(--t1);outline:none">
+      </div>
     </div>
     <div id="picksListWrap"></div>
   </div>
@@ -3478,6 +3481,12 @@ if (sb) {
       }
       _lastSignedInUserId = incomingId || null;
       try { await loadUserProfile(); } catch(e) { console.error('Profile error:', e); }
+      // Fire-and-forget: pulls any admin-set daily-limit override so it's
+      // reflected everywhere (_dailyLimit) from the start of the session —
+      // without this, _dailyLimit stayed at its hardcoded 1000 default for
+      // the ENTIRE session unless the user happened to open Settings or
+      // re-screen a table row, the only two places that used to call this.
+      _loadUsageLimit();
       updateNav();
       // Navigate to dashboard only for explicit logins or OAuth callback — not session restores on protected pages
       const h = window.location.hash;
@@ -3554,6 +3563,12 @@ async function initApp() {
   updateLpNav();
   if (session) {
     loadUserProfile(); // fire-and-forget
+    // Fire-and-forget: same reasoning as the SIGNED_IN handler above — a
+    // page refresh with an already-active session resolves through HERE
+    // (an INITIAL_SESSION event, not SIGNED_IN), so without this call too,
+    // reloading the page was the one thing that DIDN'T pick up an admin's
+    // limit override.
+    _loadUsageLimit();
     // Only auto-navigate from explicit login/signup pages, NOT from landing/root
     const _EXPLICIT_AUTH = new Set(['#login', '#signup', '#forgot']);
     if (_EXPLICIT_AUTH.has(window.location.hash)) {
@@ -4803,6 +4818,8 @@ function showUpgradeModal() {
   document.querySelectorAll('.lp-btn-primary').forEach(b => { b.disabled = false; });
   const runBtn = document.getElementById('runBatchBtn');
   if (runBtn) { runBtn.disabled = false; runBtn.textContent = 'Screen Parcels →'; }
+  const limitTxt = document.getElementById('upgradeLimitTxt');
+  if (limitTxt) limitTxt.textContent = _dailyLimit.toLocaleString();
   /* PRICING_HIDDEN, re-enable for launch: upgrade modal suppressed during free beta */
   toast('You hit the daily screening limit. It resets at midnight UTC.', 6000);
   return;
@@ -4868,7 +4885,7 @@ async function runBatch() {
       const { data: wb } = await sb.from('batches').select('total')
         .eq('user_id', currentUser.id).gte('created_at', getWeekStart());
       const used = wb?.reduce((s, b) => s + (b.total || 0), 0) || 0;
-      const remaining = 1000 - used;
+      const remaining = _dailyLimit - used;
       if (remaining <= 0) { showUpgradeModal(); return; }
       const banner = document.getElementById('limitBanner');
       if (banner) {
@@ -6029,11 +6046,11 @@ function renderBatchResults() {
     sb.from('batches').select('total')
       .eq('user_id', currentUser.id).gte('created_at', getWeekStart())
       .then(({ data }) => {
-        const remaining = 1000 - (data?.reduce((s, b) => s + (b.total || 0), 0) || 0);
+        const remaining = _dailyLimit - (data?.reduce((s, b) => s + (b.total || 0), 0) || 0);
         const rb = document.getElementById('resLimitBanner');
         if (!rb) return;
         if (remaining <= 0) {
-          rb.textContent = 'Daily limit reached (1,000 parcels). Resets at midnight UTC. Upgrade for more.';
+          rb.textContent = 'Daily limit reached (' + _dailyLimit.toLocaleString() + ' parcels). Resets at midnight UTC. Upgrade for more.';
           rb.classList.add('show');
         } else if (remaining <= 100) {
           rb.textContent = remaining + ' parcels remaining today. Limit resets at midnight UTC.';
@@ -8592,7 +8609,7 @@ function renderPicksBatchList() {
       + '<div onclick="_picksToggleBatchExpand(\'' + safeId + '\')" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px">'
       +   '<div style="font-size:14px;font-weight:700;color:var(--t1)">' + escHtml(info.name) + '</div>'
       +   '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0">'
-      +     '<span style="font-size:12px;color:var(--t3)">' + count + ' pick' + (count > 1 ? 's' : '') + '</span>'
+      +     '<span style="font-size:12px;font-weight:700;color:var(--amber)">' + count + ' pick' + (count > 1 ? 's' : '') + '</span>'
       +     '<span style="font-size:10px;color:var(--t3);transition:transform .12s;transform:rotate(' + (isOpen ? '180' : '0') + 'deg)">▾</span>'
       +   '</div>'
       + '</div>'
@@ -10640,7 +10657,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="upgrade-modal-icon">🚫</div>
     <div class="upgrade-modal-title">Daily limit reached</div>
     <div class="upgrade-modal-body">
-      You have screened 1,000 parcels today.<br>
+      You have screened <span id="upgradeLimitTxt">1,000</span> parcels today.<br>
       Your limit resets at midnight UTC.<br><br>
       Upgrade to Pro or Unlimited for higher limits.
     </div>
