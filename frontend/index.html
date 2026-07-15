@@ -6667,6 +6667,7 @@ async function rescreenFromStoryView() {
     // parcel, same location, only the data changed, so this updates the
     // panel/header in place without tearing down and rebuilding the map.
     _svRefreshAfterRescreen(nr);
+    _pnavEnsureOpenParcelVisible();
     _pnavRenderList();
     toast('Parcel re-screened with fresh data');
     await _saveRescreenToSupa(origRow, nr);
@@ -10285,6 +10286,7 @@ function _buildParcelNavigator() {
       '<a class="pnav-alllink" onclick="closeStoryView()">← All Results</a>' +
       accountChip +
     '</div>';
+  _pnavEnsureOpenParcelVisible();
   _pnavRenderList();
 }
 
@@ -10376,6 +10378,37 @@ function _pnavSetQuery(q) {
   _pnavRenderList();
 }
 
+// The parcel Deal Review currently has open must be visible (and
+// therefore highlightable) in its own sidebar list. _pnavFilter/_pnavQuery
+// persist across separate Story View sessions — leave the Kill tab active,
+// close Deal Review, later open a PURSUE parcel some other way (results
+// table, Picks, a re-screen that changed its verdict), and the list would
+// silently filter that parcel's own row right out of existence, with
+// nothing left to ever highlight. Callers invoke this explicitly at the
+// specific moments the OPEN PARCEL itself changed (a fresh open, storyNav,
+// a re-screen) — never from _pnavSetFilter()/_pnavSetQuery() themselves,
+// which are the user's own deliberate filter/search clicks and must not
+// get silently reverted just because the (unrelated, still-open) parcel
+// doesn't happen to match what they just chose to browse.
+function _pnavEnsureOpenParcelVisible() {
+  if (!_openParcel) return;
+  if (_pnavFilter !== 'all' && effectiveVerdict(_openParcel) !== _pnavFilter) {
+    _pnavFilter = 'all';
+    document.querySelectorAll('#resSidebar .pnav-tab').forEach(b => b.classList.toggle('on', b.dataset.v === 'all'));
+  }
+  if (_pnavQuery) {
+    const oq = _pnavQuery.trim().toLowerCase();
+    const opi = _openParcel.parcel_info || {};
+    const oaddr = (_openParcel.address || '').toLowerCase();
+    const oapn = (opi.parcel_id || opi.apn || '').toLowerCase();
+    if (!oaddr.includes(oq) && !oapn.includes(oq)) {
+      _pnavQuery = '';
+      const input = document.getElementById('pnavSearch');
+      if (input) input.value = '';
+    }
+  }
+}
+
 function _pnavRenderList() {
   const list = document.getElementById('pnavList');
   if (!list) return;
@@ -10428,6 +10461,7 @@ function _pnavOpenParcel(r) {
   if (panel) panel.style.display = 'none';
   renderStoryView(r);
   document.querySelectorAll('#storyView .sv-map-zone,#storyView .sv-data-panel').forEach(c => c.scrollTop = 0);
+  _pnavEnsureOpenParcelVisible();
   _pnavRenderList();
 }
 
@@ -10590,6 +10624,7 @@ function storyNav(dir) {
     if (panel) panel.style.display = 'none';
     renderStoryView(_openParcel);
     document.querySelectorAll('#storyView .sv-map-zone,#storyView .sv-data-panel').forEach(c => c.scrollTop = 0);
+    _pnavEnsureOpenParcelVisible();
     _pnavRenderList();
   }
 }
