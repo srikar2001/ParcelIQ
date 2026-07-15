@@ -8496,11 +8496,17 @@ function _updateSidebarPick() {
 
 let _picksMode = 'parcels'; // 'parcels' | 'batches'
 let _picksQuery = '';
+// Which batch cards are expanded (dropdown open) on the Batches tab —
+// persists across re-renders triggered by typing in search, so opening a
+// batch to look at its addresses doesn't collapse again on the next
+// keystroke. Reset fresh each time the Picks page itself is (re)opened.
+let _picksExpandedBatches = new Set();
 
 function showPicksPage() {
   history.pushState({ from: 'results' }, '', window.location.pathname + window.location.search + '#picks');
   showScreen('page-picks');
   _picksQuery = '';
+  _picksExpandedBatches = new Set();
   const inp = document.getElementById('picksSearchInput');
   if (inp) inp.value = '';
   _picksSetMode('parcels');
@@ -8528,7 +8534,7 @@ function _picksSetMode(mode) {
     btn.style.borderColor = on ? 'var(--green)' : 'var(--b)';
   });
   const inp = document.getElementById('picksSearchInput');
-  if (inp) inp.placeholder = mode === 'batches' ? 'Search batch name...' : 'Search address...';
+  if (inp) inp.placeholder = mode === 'batches' ? 'Search batch or address...' : 'Search address...';
   if (mode === 'batches') renderPicksBatchList(); else renderPicksList();
 }
 
@@ -8541,13 +8547,19 @@ function renderPicksBatchList() {
   const byBatch = new Map();
   saved.forEach(p => {
     if (typeof p !== 'object' || !p || !p.batchId) return; // skip legacy bare-address entries — no batch to group them under
-    const cur = byBatch.get(p.batchId) || { name: p.batchName || 'Batch', count: 0 };
-    cur.count++;
+    const cur = byBatch.get(p.batchId) || { name: p.batchName || 'Batch', addresses: [] };
+    cur.addresses.push(p.address || '');
     byBatch.set(p.batchId, cur);
   });
   const q = _picksQuery.trim().toLowerCase();
   let batches = Array.from(byBatch.entries());
-  if (q) batches = batches.filter(([, info]) => info.name.toLowerCase().includes(q));
+  // Search matches the batch name OR any address picked within it — typing
+  // an address while on the Batches tab should surface which batch it's
+  // in, not just batches whose NAME happens to contain the text.
+  if (q) {
+    batches = batches.filter(([, info]) =>
+      info.name.toLowerCase().includes(q) || info.addresses.some(a => a.toLowerCase().includes(q)));
+  }
   if (sub) sub.textContent = batches.length ? batches.length + ' batch' + (batches.length > 1 ? 'es' : '') + ' with picks' : (q ? 'No matching batches.' : 'Parcels you\'ve picked from compare');
   if (!batches.length) {
     wrap.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--t3)">'
@@ -8558,12 +8570,41 @@ function renderPicksBatchList() {
     return;
   }
   wrap.innerHTML = batches.map(([batchId, info]) => {
-    const safeId = batchId.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    return '<div onclick="_picksOpenBatch(\'' + safeId + '\')" style="background:var(--card);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:10px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:border-color .12s" onmouseenter="this.style.borderColor=\'var(--bh)\'" onmouseleave="this.style.borderColor=\'var(--b)\'">'
-      + '<div style="font-size:14px;font-weight:700;color:var(--t1)">' + escHtml(info.name) + '</div>'
-      + '<div style="font-size:12px;color:var(--t3);flex-shrink:0">' + info.count + ' pick' + (info.count > 1 ? 's' : '') + ' →</div>'
+    const safeId = String(batchId).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const count = info.addresses.length;
+    // While actively searching, auto-expand every batch still in the
+    // result set — the whole point of typing an address is to see it, not
+    // to have to click a chevron to reveal what already matched.
+    const isOpen = q.length > 0 || _picksExpandedBatches.has(batchId);
+    const addrRows = info.addresses.map(addr => {
+      const { street, city } = splitAddress(addr || '');
+      const safeAddr = String(addr).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const hit = q && addr.toLowerCase().includes(q);
+      return '<div onclick="event.stopPropagation();_picksOpenPick(\'' + safeId + '\',\'' + safeAddr + '\')" style="padding:9px 14px 9px 32px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--b);' + (hit ? 'background:var(--gbg)' : '') + '" onmouseenter="this.style.background=\'var(--card-h)\'" onmouseleave="this.style.background=\'' + (hit ? 'var(--gbg)' : 'transparent') + '\'">'
+        + '<div style="min-width:0;overflow:hidden">'
+        +   '<div style="font-size:12.5px;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(street) + '</div>'
+        +   (city ? '<div style="font-size:10.5px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(city) + '</div>' : '')
+        + '</div>'
+        + '<span style="font-size:11px;color:var(--t3);flex-shrink:0">→</span>'
+        + '</div>';
+    }).join('');
+    return '<div style="background:var(--card);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:10px;overflow:hidden;transition:border-color .12s" onmouseenter="this.style.borderColor=\'var(--bh)\'" onmouseleave="this.style.borderColor=\'var(--b)\'">'
+      + '<div onclick="_picksToggleBatchExpand(\'' + safeId + '\')" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px">'
+      +   '<div style="font-size:14px;font-weight:700;color:var(--t1)">' + escHtml(info.name) + '</div>'
+      +   '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0">'
+      +     '<span style="font-size:12px;color:var(--t3)">' + count + ' pick' + (count > 1 ? 's' : '') + '</span>'
+      +     '<span style="font-size:10px;color:var(--t3);transition:transform .12s;transform:rotate(' + (isOpen ? '180' : '0') + 'deg)">▾</span>'
+      +   '</div>'
+      + '</div>'
+      + (isOpen ? '<div>' + addrRows + '<div onclick="event.stopPropagation();_picksOpenBatch(\'' + safeId + '\')" style="padding:10px 14px;cursor:pointer;text-align:center;font-size:11.5px;font-weight:600;color:var(--green);border-top:1px solid var(--b)" onmouseenter="this.style.background=\'var(--card-h)\'" onmouseleave="this.style.background=\'transparent\'">Open full batch →</div></div>' : '')
       + '</div>';
   }).join('');
+}
+
+function _picksToggleBatchExpand(batchId) {
+  if (_picksExpandedBatches.has(batchId)) _picksExpandedBatches.delete(batchId);
+  else _picksExpandedBatches.add(batchId);
+  renderPicksBatchList();
 }
 
 // Loads the chosen batch (if not already loaded), then switches back to the
@@ -8573,6 +8614,15 @@ async function _picksOpenBatch(batchId) {
   if (batchId !== _currentBatchId) { await loadBatchResults(batchId); }
   showScreen('page-picks');
   _picksSetMode('parcels');
+}
+
+// One-click jump from the Batches-tab dropdown straight to a specific
+// picked parcel, loading its batch first if a different one is currently
+// open — without this, seeing an address meant opening the batch, landing
+// on the Parcels tab, and hunting for that one pick among the rest.
+async function _picksOpenPick(batchId, address) {
+  if (batchId !== _currentBatchId) { await loadBatchResults(batchId); }
+  _picksJumpToResults(address);
 }
 
 function renderPicksList() {
