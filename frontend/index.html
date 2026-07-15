@@ -921,13 +921,6 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .sett-pw-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--b);display:none}
 .sett-pw-section.open{display:block}
 /* ══ FAQ ACCORDION */
-.faq-item{border-bottom:1px solid var(--b)}
-.faq-item:last-child{border-bottom:none}
-.faq-q{display:flex;justify-content:space-between;align-items:center;padding:16px 0;cursor:pointer;font-size:15px;font-weight:600;color:var(--t1)}
-.faq-q:hover{color:var(--green)}
-.faq-icon{font-size:16px;color:var(--t3);flex-shrink:0}
-.faq-a{font-size:14px;color:var(--t2);line-height:1.7;padding-bottom:16px;display:none}
-.faq-a.open{display:block}
 /* ══ SOCIAL PROOF */
 .proof-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:40px auto;max-width:660px}
 .proof-card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:20px;text-align:center}
@@ -936,7 +929,6 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .testimonial-card{max-width:660px;margin:0 auto 40px;background:var(--card);border:1px solid var(--b);border-left:3px solid var(--green);border-radius:var(--r);padding:24px 28px}
 .testimonial-quote{font-size:15px;color:var(--t1);line-height:1.7;font-style:italic;margin-bottom:12px}
 .testimonial-attr{font-size:13px;color:var(--t3);font-style:normal}
-.faq-wrap{max-width:660px;margin:0 auto;background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:0 24px;margin-bottom:40px}
 /* ══ SHARE MODAL */
 .share-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;align-items:center;justify-content:center;padding:24px}
 .share-overlay.show{display:flex}
@@ -1437,38 +1429,38 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   <section class="lp-features">
     <div class="lp-features-inner">
       <div class="lp-sec-center reveal" style="margin-bottom:40px">
-        <div class="lp-sec-title">Built for <span style="color:#22C55E">land acquisition teams</span></div>
+        <div class="lp-sec-title">Built for <span style="color:#22C55E">land investors</span></div>
       </div>
       <div class="lp-features-grid">
         <div class="lp-feature-card reveal" style="transition-delay:0ms">
           <div class="lp-feature-icon">⚡</div>
-          <div class="lp-feature-title">Batch analysis</div>
-          <div class="lp-feature-desc">Process hundreds of parcels at once.</div>
+          <div class="lp-feature-title">Batch screening</div>
+          <div class="lp-feature-desc">Paste or upload hundreds of parcels at once.</div>
         </div>
         <div class="lp-feature-card reveal" style="transition-delay:80ms">
-          <div class="lp-feature-icon">📋</div>
-          <div class="lp-feature-title">Source-backed reasoning</div>
-          <div class="lp-feature-desc">Every insight links to the source.</div>
+          <div class="lp-feature-icon">🗺️</div>
+          <div class="lp-feature-title">Deal Review workspace</div>
+          <div class="lp-feature-desc">Full-screen map per parcel — flood, wetlands, road, power, habitat, all drawn on it.</div>
         </div>
         <div class="lp-feature-card reveal" style="transition-delay:160ms">
-          <div class="lp-feature-icon">🗺️</div>
-          <div class="lp-feature-title">Parcel map overlays</div>
-          <div class="lp-feature-desc">Visualize risks and boundaries.</div>
+          <div class="lp-feature-icon">📋</div>
+          <div class="lp-feature-title">Every check explained</div>
+          <div class="lp-feature-desc">Plain-English reasons, owner and valuation data on every parcel.</div>
         </div>
         <div class="lp-feature-card reveal" style="transition-delay:240ms">
-          <div class="lp-feature-icon">📤</div>
-          <div class="lp-feature-title">Export CSV / Excel / PDF</div>
-          <div class="lp-feature-desc">Share results with your team.</div>
+          <div class="lp-feature-icon">⭐</div>
+          <div class="lp-feature-title">My Picks shortlist</div>
+          <div class="lp-feature-desc">Star the winners across batches, keep them in one place.</div>
         </div>
         <div class="lp-feature-card reveal" style="transition-delay:320ms">
-          <div class="lp-feature-icon">🔄</div>
-          <div class="lp-feature-title">Re-check anytime</div>
-          <div class="lp-feature-desc">Data updates. So do your results.</div>
+          <div class="lp-feature-icon">📤</div>
+          <div class="lp-feature-title">Export &amp; share</div>
+          <div class="lp-feature-desc">CSV, Excel, PDF, or a view-only link anyone can open.</div>
         </div>
         <div class="lp-feature-card reveal" style="transition-delay:400ms">
-          <div class="lp-feature-icon">🎯</div>
-          <div class="lp-feature-title">Team-ready decisions</div>
-          <div class="lp-feature-desc">Standardize how your team evaluates deals.</div>
+          <div class="lp-feature-icon">🔄</div>
+          <div class="lp-feature-title">Re-screen anytime</div>
+          <div class="lp-feature-desc">Data updates. So do your results — one click per parcel.</div>
         </div>
       </div>
     </div>
@@ -1719,6 +1711,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div><label class="auth-lbl">Confirm Password</label><input class="inp" type="password" id="signupConfirm" placeholder="Repeat password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignup()"></div>
       </div>
       <button class="btn-p btn-full" id="signupBtn" onclick="doSignup()">Create account →</button>
+      <div style="font-size:11.5px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.5">By creating an account, you agree to our <a onclick="window.location.hash='#terms'" style="color:var(--green);cursor:pointer">Terms of Service</a> and <a onclick="window.location.hash='#privacy'" style="color:var(--green);cursor:pointer">Privacy Policy</a>.</div>
       <div class="auth-div"><span>or</span></div>
       <div class="auth-link">Already have an account? <a onclick="window.location.hash='#login'">Log in →</a></div>
     </div>
@@ -2388,40 +2381,59 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <div id="page-terms" class="screen">
   <div style="max-width:760px;margin:0 auto;padding:96px 24px 80px;line-height:1.7;font-size:14px;color:var(--t2)">
     <h1 style="font-size:26px;font-weight:800;color:var(--t1);margin:0 0 4px">Terms of Service</h1>
-    <div style="font-size:12px;color:var(--t3);margin-bottom:28px">Effective date: July 6, 2026</div>
+    <div style="font-size:12px;color:var(--t3);margin-bottom:28px">Last updated: July 14, 2026</div>
 
-    <h2 class="legal-h2">1. Acceptance of these terms</h2>
-    <p>By creating an account or using ParceliQ (the "Service"), you agree to these Terms of Service. If you do not agree, do not use the Service.</p>
+    <p>Welcome to ParceliQ. These Terms of Service ("Terms") govern your access to and use of the ParceliQ website and application (the "Service"), operated by ParceliQ LLC ("ParceliQ," "we," "us," "our"). By creating an account or using the Service, you agree to these Terms.</p>
 
-    <h2 class="legal-h2">2. What ParceliQ is</h2>
-    <p>ParceliQ is a screening tool for vacant land in Florida. It brings together publicly available government data about parcels, such as flood zones, wetlands, wildlife habitat, road access, soil, and county property records, and produces informational risk screenings and verdicts to help you prioritize which parcels deserve deeper due diligence.</p>
+    <h2 class="legal-h2">1. What ParceliQ does</h2>
+    <p>ParceliQ is a batch parcel screening tool for real estate investors evaluating vacant land in Florida. The Service checks submitted property addresses against publicly available government data sources (such as flood zone maps, wetlands data, zoning records, and road access data) and returns a screening verdict and score intended to help you prioritize which properties to investigate further.</p>
+    <p><b style="color:var(--t1)">ParceliQ is a research and screening tool. It is not a substitute for a licensed surveyor, title search, appraisal, environmental assessment, or legal due diligence.</b> You should independently verify any property information before making a purchase, investment, or development decision.</p>
 
-    <h2 class="legal-h2">3. Not professional advice. Verify everything</h2>
-    <p><b style="color:var(--t1)">ParceliQ provides informational screening only, built from public government data. It is not legal, financial, engineering, environmental, or real estate advice, and no output of the Service is a substitute for professional due diligence.</b> Government datasets can be incomplete, outdated, mismapped, or wrong. Geocoding can place a point on the wrong parcel. A "PURSUE" verdict is not a recommendation to buy, and a "KILL" verdict is not a determination that a parcel is worthless. You must independently verify all information, including flood status, wetlands, legal access, title, zoning, and permits, with qualified professionals and primary sources before making any offer, purchase, or other investment decision.</p>
+    <h2 class="legal-h2">2. No warranty on data accuracy</h2>
+    <p>Screening results are generated from third-party government data sources that we do not control and cannot guarantee are current, complete, or error-free. We make reasonable efforts to keep data accurate but:</p>
+    <p>— We do not guarantee the accuracy of any verdict, score, or property data provided.<br>
+    — Government data sources may be outdated, incomplete, or contain errors.<br>
+    — A "Pursue" verdict is not a guarantee that a property is suitable for purchase or development, and a "Kill" verdict is not a guarantee that a property is unsuitable.</p>
+    <p>You use ParceliQ's output at your own risk and are solely responsible for verifying any information before relying on it for a financial or legal decision.</p>
 
-    <h2 class="legal-h2">4. Your account</h2>
-    <p>You must provide accurate registration information and keep your credentials secure. You are responsible for all activity under your account. One account per person or team seat; do not share credentials to circumvent usage limits.</p>
+    <h2 class="legal-h2">3. Your account</h2>
+    <p>You must provide accurate information when creating an account and are responsible for maintaining the confidentiality of your login credentials. You are responsible for all activity that occurs under your account.</p>
+
+    <h2 class="legal-h2">4. Free beta</h2>
+    <p>ParceliQ is currently offered free of charge as part of a beta program. We may, at our discretion:</p>
+    <p>— Introduce paid subscription plans in the future<br>
+    — Apply usage limits (currently 1,000 parcels per day per account, resetting at midnight UTC)<br>
+    — Modify, suspend, or discontinue features at any time, with or without notice</p>
+    <p>If paid plans are introduced, you will be notified in advance and existing free usage will not be charged retroactively.</p>
 
     <h2 class="legal-h2">5. Acceptable use</h2>
-    <p>You agree not to: (a) scrape, resell, or redistribute the Service's output as a dataset or competing product; (b) probe, overload, or interfere with the Service or its infrastructure; (c) use automated means to exceed your usage limits; (d) reverse-engineer the Service; or (e) use the Service for any unlawful purpose. We may throttle or suspend accounts engaged in abuse.</p>
+    <p>You agree not to:</p>
+    <p>— Use the Service for any unlawful purpose<br>
+    — Attempt to reverse-engineer, scrape, or overload the Service beyond normal use<br>
+    — Share your account credentials with unauthorized users<br>
+    — Use automated tools to abuse usage limits<br>
+    — Misrepresent screening results as professional legal, surveying, or environmental advice to third parties</p>
 
-    <h2 class="legal-h2">6. Free beta and paid plans</h2>
-    <p>The Service is currently offered as a free beta with daily usage limits. Paid subscription plans will launch in the future; pricing shown before launch is indicative. We may change features, limits, or availability during the beta at any time.</p>
+    <h2 class="legal-h2">6. Shared links</h2>
+    <p>If you use the "share batch" feature to generate a public link, you are responsible for what you share and with whom. Anyone with the link can view that batch's contents until it expires.</p>
 
-    <h2 class="legal-h2">7. Limitation of liability</h2>
-    <p>To the maximum extent permitted by law, the Service is provided "as is" and "as available," without warranties of any kind, express or implied, including accuracy, completeness, merchantability, or fitness for a particular purpose. ParceliQ and its operator shall not be liable for any indirect, incidental, special, consequential, or exemplary damages, including lost profits, lost opportunities, or losses arising from investment decisions made using the Service. Our total aggregate liability for any claim shall not exceed the greater of $100 or the amount you paid us in the twelve months before the claim arose.</p>
+    <h2 class="legal-h2">7. Intellectual property</h2>
+    <p>The ParceliQ name, scoring methodology, software, and design are the property of ParceliQ LLC. The underlying property data comes from public government sources and is not owned by ParceliQ.</p>
 
-    <h2 class="legal-h2">8. Termination</h2>
-    <p>You may stop using the Service and delete your account at any time. We may suspend or terminate accounts that violate these terms, with notice where practical. Sections 3, 7, and 9 survive termination.</p>
+    <h2 class="legal-h2">8. Limitation of liability</h2>
+    <p>To the maximum extent permitted by law, ParceliQ LLC and its founders shall not be liable for any indirect, incidental, or consequential damages, including financial losses related to real estate decisions made using information from the Service. The Service is provided "as is" and "as available," without warranties of any kind, express or implied.</p>
 
-    <h2 class="legal-h2">9. Governing law</h2>
-    <p>These terms are governed by the laws of the State of Florida, without regard to conflict-of-law principles. Any disputes shall be brought in the state or federal courts located in Florida.</p>
+    <h2 class="legal-h2">9. Termination</h2>
+    <p>We reserve the right to suspend or terminate your account if you violate these Terms. You may stop using the Service and close your account at any time.</p>
 
     <h2 class="legal-h2">10. Changes to these terms</h2>
-    <p>We may update these terms; material changes will be announced in the app or by email. Continued use after changes take effect constitutes acceptance.</p>
+    <p>We may update these Terms from time to time. We will update the "Last updated" date above when changes are made. Continued use of the Service after changes constitutes acceptance of the updated Terms.</p>
 
-    <h2 class="legal-h2">11. Contact</h2>
-    <p>Questions about these terms? <a onclick="window.location.hash='#contact'" style="color:var(--green);cursor:pointer">Use the contact form</a>.</p>
+    <h2 class="legal-h2">11. Governing law</h2>
+    <p>These Terms are governed by the laws of the State of Florida, without regard to conflict of law principles.</p>
+
+    <h2 class="legal-h2">12. Contact us</h2>
+    <p>Questions about these Terms? <a onclick="window.location.hash='#contact'" style="color:var(--green);cursor:pointer">Use the contact form</a>.</p>
 
     <div style="margin-top:36px"><a onclick="window.location.hash='#landing'" style="color:var(--green);cursor:pointer">← Back to ParceliQ</a></div>
   </div>
@@ -2430,28 +2442,60 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <div id="page-privacy" class="screen">
   <div style="max-width:760px;margin:0 auto;padding:96px 24px 80px;line-height:1.7;font-size:14px;color:var(--t2)">
     <h1 style="font-size:26px;font-weight:800;color:var(--t1);margin:0 0 4px">Privacy Policy</h1>
-    <div style="font-size:12px;color:var(--t3);margin-bottom:28px">Effective date: July 6, 2026</div>
+    <div style="font-size:12px;color:var(--t3);margin-bottom:28px">Last updated: July 14, 2026</div>
 
-    <h2 class="legal-h2">1. What we collect</h2>
-    <p>When you use ParceliQ we collect: your email address and name (at signup), the property addresses and parcel numbers you screen, your screening results and saved batches, notes you attach to parcels, and basic usage data (batches run, parcels screened, feature usage) needed to operate limits and improve the product.</p>
+    <p>ParceliQ ("we," "us," "our") operates parceliq.com and the ParceliQ web application (the "Service"). This Privacy Policy explains what information we collect, how we use it, and your choices.</p>
 
-    <h2 class="legal-h2">2. How we use it</h2>
-    <p>We use your data to deliver the Service: running screenings, saving your batch history, enforcing usage limits, providing support, and improving reliability. <b style="color:var(--t1)">We do not sell your personal information or your screened-address lists to anyone.</b> Your lead lists are your business, and we treat them as confidential.</p>
+    <h2 class="legal-h2">1. Information we collect</h2>
+    <p><b style="color:var(--t1)">Account information.</b> When you create an account, we collect your name and email address, either directly or through Google Sign-In (Google OAuth). If you sign in with Google, we receive your name, email address, and profile picture from Google — we do not receive your Google password or access your other Google data.</p>
+    <p><b style="color:var(--t1)">Usage data.</b> When you use the Service, we store:</p>
+    <p>— The property addresses you submit for screening<br>
+    — The screening results generated for those addresses (score, verdict, and related property data)<br>
+    — Batch names, notes you add to parcels, and your usage volume (for enforcing free-tier limits)</p>
+    <p><b style="color:var(--t1)">Automatically collected data.</b> We may collect standard technical data such as IP address, browser type, and device information for security and troubleshooting purposes.</p>
+    <p>We do not collect payment information at this time, as ParceliQ is currently offered free of charge.</p>
 
-    <h2 class="legal-h2">3. Where it lives</h2>
-    <p>Account data and screening results are stored with Supabase (our database and authentication provider), which acts as a data processor on our behalf. Screening requests are processed by our backend hosting provider. Property addresses you screen are sent to third-party geocoding and public government data services solely to produce your results.</p>
+    <h2 class="legal-h2">2. How we use your information</h2>
+    <p>We use the information we collect to:</p>
+    <p>— Provide, operate, and maintain the Service<br>
+    — Authenticate your account and secure access<br>
+    — Generate and cache parcel screening results<br>
+    — Enforce usage limits during the free beta<br>
+    — Communicate with you about your account or the Service<br>
+    — Improve accuracy and performance of the Service</p>
 
-    <h2 class="legal-h2">4. Cookies and local storage</h2>
-    <p>We use browser local storage to keep you signed in, remember preferences (theme, sort order), and cache recent results for speed. We do not use third-party advertising cookies or trackers.</p>
+    <h2 class="legal-h2">3. How we store your information</h2>
+    <p>Your data is stored using <b style="color:var(--t1)">Supabase</b>, a third-party database and authentication provider, hosted in the United States. Supabase provides the infrastructure for our database; we do not sell or share your data with Supabase for their own purposes.</p>
+    <p>Property screening results may be cached for up to 24 hours to improve performance across users searching the same address. Cached results are limited to publicly available government property data (flood zones, wetlands, zoning, etc.) and are not tied to any individual user.</p>
 
-    <h2 class="legal-h2">5. Your rights</h2>
-    <p>You can access your data in the app at any time. You may request a copy of your data or deletion of your account and all associated data by emailing us. Deletion requests are honored within 30 days.</p>
+    <h2 class="legal-h2">4. Third-party services</h2>
+    <p>ParceliQ retrieves property data from public government sources (such as FEMA, USGS, and Florida county/state records) and third-party APIs used solely to process your requests. We do not share your personal account information (name, email) with these services — only the property addresses necessary to generate a screening result.</p>
+    <p>We use Google OAuth for optional sign-in. Google's handling of your data is governed by <a href="https://policies.google.com/privacy" target="_blank" rel="noopener" style="color:var(--green)">Google's Privacy Policy</a>.</p>
 
-    <h2 class="legal-h2">6. Retention</h2>
-    <p>We keep your account data and batch history while your account is active. Cached screening results expire automatically. If you delete your account, associated personal data is deleted within 30 days, except records we must keep for legal or security reasons.</p>
+    <h2 class="legal-h2">5. What we don't do</h2>
+    <p>— We do not sell your personal data to third parties.<br>
+    — We do not use your data for advertising or share it with advertisers.<br>
+    — We do not share the addresses you screen with other users, except where you explicitly choose to share a batch via a public link.</p>
 
-    <h2 class="legal-h2">7. Contact</h2>
-    <p>Privacy questions or requests? <a onclick="window.location.hash='#contact'" style="color:var(--green);cursor:pointer">Use the contact form</a>.</p>
+    <h2 class="legal-h2">6. Shared batches</h2>
+    <p>If you use the "share batch" feature, a public link is generated that allows anyone with the link to view that batch's results. Do not share this link if you do not want the contents visible to others. Shared links expire automatically after 30 days.</p>
+
+    <h2 class="legal-h2">7. Data retention</h2>
+    <p>We retain your account information and screening history for as long as your account is active. You may request deletion of your account and associated data at any time by contacting us (see Section 10).</p>
+
+    <h2 class="legal-h2">8. Your choices</h2>
+    <p>— You may update your account information at any time in Settings.<br>
+    — You may request a copy of your data or deletion of your account by contacting us.<br>
+    — You may stop using the Service and request account closure at any time.</p>
+
+    <h2 class="legal-h2">9. Children's privacy</h2>
+    <p>The Service is intended for business use by real estate professionals and is not directed at children. We do not knowingly collect information from anyone under 18.</p>
+
+    <h2 class="legal-h2">10. Changes to this policy</h2>
+    <p>We may update this Privacy Policy from time to time. We will update the "Last updated" date above when changes are made. Continued use of the Service after changes constitutes acceptance of the updated policy.</p>
+
+    <h2 class="legal-h2">11. Contact us</h2>
+    <p>Questions about this Privacy Policy? <a onclick="window.location.hash='#contact'" style="color:var(--green);cursor:pointer">Use the contact form</a>.</p>
 
     <div style="margin-top:36px"><a onclick="window.location.hash='#landing'" style="color:var(--green);cursor:pointer">← Back to ParceliQ</a></div>
   </div>
@@ -3690,22 +3734,6 @@ function getLandUseCategory(code) {
   return 'Other';
 }
 
-function getDORDescription(code) {
-  const c = parseInt(code);
-  const MAP = {
-    0:'Vacant Residential',1:'Single Family',2:'Mobile Home',3:'Multi-Family <10',4:'Condominium',5:'Cooperatives',6:'Retirement Homes',7:'Misc Residential',8:'Multi-Family 10+',9:'Vacant Multi-Family',
-    10:'Vacant Commercial',11:'Stores, One Story',12:'Mixed Use',13:'Dept Store',14:'Supermarket',15:'Regional Mall',16:'Community Shop Ctr',17:'Office, 1 Story',18:'Office, Multi-Story',19:'Professional Bldg',
-    20:'Airport/Marina',21:'Restaurant/Cafe',22:'Drive-In Restaurant',23:'Financial Inst',24:'Insurance Bldg',25:'Repair Shop',26:'Service Station',27:'Auto Sales',28:'Parking Lot',29:'Wholesale/Produce',
-    30:'Florist/Greenhouse',31:'Drive-In Theater',32:'Enclosed Theater',33:'Night Clubs',34:'Bowling/Skating',35:'Tourist Attraction',36:'Race Track',37:'Golf Course',38:'Hotels/Motels',39:'Vacant Hotel/Motel',
-    40:'Vacant Industrial',41:'Light Manufacture',42:'Heavy Industrial',43:'Lumber Yard',44:'Packing Plant',45:'Cannery/Brewery',46:'Other Food Proc',47:'Mineral Processing',48:'Warehousing',49:'Open Storage',
-    50:'Improved Agric',51:'Cropland',52:'Timberland',53:'Poultry/Egg',54:'Livestock',55:'Feed Lots',56:'Dairies',57:'Ornamentals',58:'Specialty Farm',59:'Truck Crops',
-    60:'Grazing Land',61:'Ornamental/Tree',62:'Poultry',63:'Livestock Grazed',64:'Timberland Grazed',65:'Row Crops Grazed',66:'Fallow Land',67:'Non-agric Acreage',68:'Barren Land',69:'Marshes/Wetlands',
-    70:'Vacant Institutional',71:'Churches',72:'Private Schools',73:'Private Hospitals',74:'Homes for Aged',75:'Orphanages',76:'Mortuaries',77:'Clubs/Lodges',78:'Camp Sites',79:'Nonprofit Homes',
-    80:'Govt Parks',81:'Military',82:'Forest/Recreation',83:'Public Schools',84:'Colleges',85:'Hospitals',86:'Counties',87:'State',88:'Federal',89:'Municipal',
-    90:'Leasehold',91:'Utility',92:'Mining',93:'Subsurface Rights',94:'Right of Way',95:'Rivers/Lakes',96:'Sewage Disposal',97:'Outdoor Recreation',98:'Centrally Assessed',99:'Acreage not zoned agric'
-  };
-  return MAP[c] != null ? MAP[c] : ('County use code ' + code);
-}
 
 // FIX 3: Flag + source translation
 function translateFlag(f) {
@@ -3763,15 +3791,6 @@ function translateFlag(f) {
   return f;
 }
 
-function translateSource(s) {
-  const MAP = {
-    'FEMA NFHL':'Flood maps','USFWS NWI':'Wetlands','USFWS Critical Habitat':'Wildlife',
-    'EPA ECHO Superfund':'Contamination','OpenStreetMap':'Roads','FL DOR Cadastral':'County records',
-    'USGS National Elevation Dataset':'Elevation','USDA Web Soil Survey':'Soil',
-    'FL Division of Emergency Management':'Evac Zones','USDA NRCS':'Easements','USDA NRCS / FNAI':'Easements',
-  };
-  return MAP[s] || s;
-}
 
 // FIX 4: Extract flood/access from result data
 function getFloodText(r) {
@@ -3787,18 +3806,6 @@ function getFloodText(r) {
   return '—';
 }
 
-function getAccessText(r) {
-  const pi = r.parcel_info || {};
-  if (pi.road_surface === 'paved') return 'Paved';
-  if (pi.road_surface === 'dirt')  return 'Dirt';
-  if (pi.road_private)             return 'Private';
-  if (pi.road_type)                return 'Yes';
-  for (const f of (r.flags || [])) {
-    const fl = f.toLowerCase();
-    if (fl.includes('no road')) return 'None';
-  }
-  return '—';
-}
 
 // ── ADDRESS PARSING
 function splitAddress(addr) {
@@ -3996,37 +4003,6 @@ function buildSignals(r) {
     (more > 0 ? '<span class="sig-pill sig-pill-m">+' + more + '</span>' : '');
 }
 
-// FIX 5: Load dashboard sidebar + stats
-async function loadDashboardData() {
-  updateUIWithProfile();
-  if (sb && currentUser) {
-    try {
-      await _loadUsageLimit();
-      const { data: wb } = await sb.from('batches').select('total')
-        .eq('user_id', currentUser.id).gte('created_at', getWeekStart());
-      const weeklyCount = wb?.reduce((s, b) => s + (b.total || 0), 0) || 0;
-      _weeklyUsed = weeklyCount;
-      const remaining = _dailyLimit - weeklyCount;
-      const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-      setEl('dashUsed', weeklyCount);
-      const fill = document.getElementById('dashUsageFill');
-      if (fill) fill.style.width = Math.min(Math.round(weeklyCount / _dailyLimit * 100), 100) + '%';
-      const banner = document.getElementById('limitBanner');
-      if (banner) {
-        if (remaining <= 0) {
-          banner.textContent = 'Daily limit reached (' + _dailyLimit.toLocaleString() + ' parcels). Resets at midnight UTC.';
-          banner.classList.add('show');
-        } else if (remaining <= 100) {
-          banner.textContent = remaining + ' parcels remaining today. Limit resets at midnight UTC.';
-          banner.classList.add('show');
-        } else {
-          banner.classList.remove('show');
-        }
-      }
-    } catch(e) {}
-  }
-  loadPastBatches();
-}
 
 function _dashEmptyState() {}
 
@@ -4417,32 +4393,7 @@ function toggleResultsSidebar() {
   }
 }
 
-function togglePrevScreened() {
-  const hdr = document.getElementById('rsbPrevHdr');
-  const list = document.getElementById('sidebarBatchList');
-  if (!list) return;
-  const isOpen = hdr && hdr.classList.contains('rsb-prev-open');
-  if (isOpen) {
-    if (hdr) hdr.classList.remove('rsb-prev-open');
-    list.style.display = 'none';
-  } else {
-    if (hdr) hdr.classList.add('rsb-prev-open');
-    list.style.display = 'flex';
-    if (!list.children.length || (list.children.length === 1 && list.children[0].textContent.includes('Loading'))) {
-      _loadSidebarBatches();
-    }
-  }
-}
 
-function toggleSidebarBatches() {
-  const list = document.getElementById('sidebarBatchList');
-  const chev = document.getElementById('sidebarBatchChevron');
-  if (!list) return;
-  const open = list.style.display !== 'none';
-  list.style.display = open ? 'none' : '';
-  if (chev) chev.textContent = open ? '►' : '▼';
-  if (!open) _loadSidebarBatches();
-}
 
 async function _loadSidebarBatches() {
   const list = document.getElementById('sidebarBatchList');
@@ -4804,18 +4755,18 @@ async function saveBatchToSupabase(batchName, results) {
 }
 
 function showUpgradeModal() {
-  /* PRICING_HIDDEN, re-enable for launch: upgrade modal suppressed during free beta */
-  toast('You hit the daily screening limit. It resets at midnight UTC.', 6000);
-  return;
-  document.getElementById('upgradeModal')?.classList.add('show');
-  // Reset any buttons that may be in loading state when the modal fires
+  // Reset any buttons that may be in loading state when the limit fires —
+  // this has to run BEFORE the beta early-return below, or hitting the
+  // limit leaves the screening buttons permanently stuck on "Screening…".
   const analyzeBtn = document.querySelector('.lp-analyze-btn');
   if (analyzeBtn) { analyzeBtn.disabled = false; analyzeBtn.innerHTML = 'Start screening →'; }
   document.querySelectorAll('.lp-btn-primary').forEach(b => { b.disabled = false; });
   const runBtn = document.getElementById('runBatchBtn');
   if (runBtn) { runBtn.disabled = false; runBtn.textContent = 'Screen Parcels →'; }
-  const sbBtn = document.getElementById('sbRunBtn');
-  if (sbBtn) { sbBtn.disabled = false; sbBtn.textContent = 'Screen →'; }
+  /* PRICING_HIDDEN, re-enable for launch: upgrade modal suppressed during free beta */
+  toast('You hit the daily screening limit. It resets at midnight UTC.', 6000);
+  return;
+  document.getElementById('upgradeModal')?.classList.add('show');
 }
 function hideUpgradeModal() {
   document.getElementById('upgradeModal')?.classList.remove('show');
@@ -5169,27 +5120,6 @@ async function _executeBatch(lines, estimatedSet) {
   }
 }
 
-async function runSidebarBatch() {
-  const raw = (document.getElementById('sbBatchInput')?.value || '').trim();
-  if (!raw) { toast('Paste at least one address'); return; }
-  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-  if (!lines.length) { toast('No valid addresses found'); return; }
-  if (!(await checkWeeklyLimit(lines.length))) return;
-  const name = (document.getElementById('sbBatchName')?.value || '').trim();
-  batchState.name = name || _generateBatchName(lines);
-  const sbBtn = document.getElementById('sbRunBtn');
-  if (sbBtn) { sbBtn.disabled = true; sbBtn.textContent = 'Screening…'; }
-  const restoreSbBtn = () => { if (sbBtn) { sbBtn.disabled = false; sbBtn.textContent = 'Screen →'; } };
-  const inp = document.getElementById('sbBatchInput');
-  const nameInp = document.getElementById('sbBatchName');
-  if (inp) inp.value = '';
-  if (nameInp) nameInp.value = '';
-  try {
-    await _executeBatch(lines, new Set());
-  } finally {
-    restoreSbBtn();
-  }
-}
 
 function toggleAddParcelPopover() {
   const pop = document.getElementById('addParcelPopover');
@@ -5502,18 +5432,6 @@ function updateProgress(completed, total, latestAddress) {
   dots.forEach((d, i) => d.classList.toggle('done', i < doneDots));
 }
 
-function showProcError(title, sub) {
-  const ids = ['batchRingCirc','batchPct','procCount','batchStat','batchSub','procDots'];
-  ids.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-  const eta = document.querySelector('.proc-eta'); if (eta) eta.style.display = 'none';
-  const ring = document.querySelector('.ring'); if (ring) ring.style.display = 'none';
-  const err = document.getElementById('procError');
-  const t   = document.getElementById('procErrTitle');
-  const s   = document.getElementById('procErrSub');
-  if (t) t.textContent = title;
-  if (s) s.textContent = sub;
-  if (err) err.classList.add('show');
-}
 
 function retryLastBatch() {
   const err = document.getElementById('procError');
@@ -5638,7 +5556,6 @@ function buildFilterPanel() {
   _updateFilterBadgeAndChips();
 }
 
-function renderFilterPanel() { buildFilterPanel(); }
 function renderFlagFilters() { buildFilterPanel(); }
 
 function toggleFilterPanel() {
@@ -5802,7 +5719,6 @@ function clearAllFilters() {
   _updateFilterBadgeAndChips();
   _refreshTable();
 }
-function clearFlagFilters() { clearAllFilters(); }
 
 // ── Saved views (per user, persisted to localStorage) ────────────────────
 function _savedViewsKey() { return 'piq-savedviews-' + (currentUser ? currentUser.id : 'anon'); }
@@ -6143,7 +6059,6 @@ function updateSidebarActive(verdict) {
 function verdictClass(v) { return v==='KILL'?'vb-kill':v==='REVIEW'?'vb-review':v==='PURSUE'?'vb-pursue':v==='OUTSIDE_COVERAGE'?'vb-outside':'vb-error'; }
 function verdictColor(v) { return v==='KILL'?'var(--rd)':v==='REVIEW'?'var(--am)':v==='PURSUE'?'var(--sg2)':v==='OUTSIDE_COVERAGE'?'var(--ink4)':'var(--ink4)'; }
 function _fmtTs(iso) { try { const d = new Date(iso); return d.toLocaleDateString([],{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}); } catch(e) { return ''; } }
-function _fmtElapsed(s) { if (!s) return '—'; if (s < 60) return s + ' sec'; const m = Math.floor(s / 60), r = s % 60; return m + ' min' + (r ? ' ' + r + ' sec' : ''); }
 
 // ── PAGINATION + TABLE RENDER (Tasks 15, 19)
 function renderPage() {
@@ -6996,52 +6911,6 @@ function exportSelected() {
   a.click(); toast(_selectedRows.size + ' parcels exported');
 }
 
-// Expand detail with translated flags and DOR desc
-function buildExpandHtml(r, expId) {
-  const isError   = r.verdict === 'ERROR';
-  const isGeoFail = isError && (r.error || '').toLowerCase().includes('geocod');
-  const isTimeout = isError && !isGeoFail;
-
-  if (isGeoFail) {
-    const inputId = 'ei-' + expId;
-    return '<div class="expand-inner err-panel">' +
-      '<div class="proc-error-title" style="font-size:15px;margin-bottom:4px">Could not locate this address.</div>' +
-      '<div class="proc-error-sub">Try adding city, state, and zip code.</div>' +
-      '<div class="proc-error-sub" style="color:var(--ink4);margin-top:2px">Example: 123 Main St, Tampa FL 33601</div>' +
-      '<input id="' + inputId + '" class="err-fix-inp" value="' + escHtml(r.address) + '" placeholder="Fix the address here…" />' +
-      '<button class="btn-p btn-sm" style="margin-top:10px" onclick="rescreenParcel(document.getElementById(\'' + inputId + '\').value, \'' + escHtml(r.address) + '\')">↻ Try with this address</button>' +
-      '</div>';
-  }
-
-  if (isTimeout) {
-    return '<div class="expand-inner err-panel">' +
-      '<div class="proc-error-title" style="font-size:15px;margin-bottom:4px">Could not screen this parcel in time.</div>' +
-      '<div class="proc-error-sub">This sometimes happens with rural addresses.</div>' +
-      '<button class="btn-p btn-sm" style="margin-top:10px" onclick="rescreenParcel(\'' + escHtml(r.address) + '\', \'' + escHtml(r.address) + '\')">↻ Try again</button>' +
-      '</div>';
-  }
-
-  const pi       = r.parcel_info || {};
-  const flags    = (r.flags     || []).map(translateFlag);
-  const positives= (r.positives || []).map(translateFlag);
-
-  const akBanner = r.auto_kill && r.auto_kill_reason
-    ? '<div class="autokill-banner">⛔ ' + escHtml(r.auto_kill_reason) + '</div>' : '';
-  const flagsHtml = flags.length
-    ? '<div class="tags">' + flags.map(f => '<span class="tag tag-flag">' + escHtml(f) + '</span>').join('') + '</div>' : '';
-  const posHtml = positives.length
-    ? '<div class="tags">' + positives.map(p => '<span class="tag tag-pos">' + escHtml(p) + '</span>').join('') + '</div>' : '';
-
-  const meta = [
-    pi.acreage != null ? '🌍 ' + pi.acreage + ' ac' : '',
-    pi.owner ? '👤 ' + escHtml(pi.owner) : '',
-    pi.last_sale_price != null && pi.last_sale_price > 0 ? '💰 Last sale ' + fmt$(pi.last_sale_price) : '',
-    pi.land_use_code ? '🏢 ' + escHtml(getLandUseCategory(pi.land_use_code)) : '',
-  ].filter(Boolean);
-  const metaHtml = meta.length ? '<div class="rcard-meta">' + meta.map(m => '<span>' + m + '</span>').join('') + '</div>' : '';
-
-  return '<div class="expand-inner">' + akBanner + flagsHtml + posHtml + metaHtml + '</div>';
-}
 
 function filterResults(verdict, btn) {
   document.querySelectorAll('.sumchip').forEach(c => c.classList.remove('on'));
@@ -7365,15 +7234,6 @@ function closeMapModal() {
   if (_dpShow) _dpShow.style.visibility = '';
 }
 
-function viewFullDetailsFromModal() {
-  const idx = _openParcelIdx;
-  closeMapModal();
-  if (idx >= 0 && _currentDisplayed[idx]) {
-    openDetailPanel(idx, null);
-    const dp = document.getElementById('detailPanel');
-    if (dp) dp.scrollTop = 0;
-  }
-}
 
 let _modalSatOn = false;
 function toggleModalSatellite(btn) {
@@ -7393,40 +7253,6 @@ function toggleModalLayer(btn) {
 // ── EDIT BATCH
 let _editBatchId = null;
 
-async function editBatch(id, name) {
-  _editBatchId = id;
-  const modal = document.getElementById('editBatchModal');
-  const textarea = document.getElementById('editBatchAddrs');
-  const title = document.getElementById('editBatchTitle');
-  const progress = document.getElementById('editBatchProgress');
-  const submitBtn = document.getElementById('editBatchSubmit');
-  if (!modal || !textarea) return;
-
-  if (title) title.textContent = 'Edit: ' + (name || 'Batch');
-  if (progress) progress.style.display = 'none';
-  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Re-screen'; }
-  textarea.value = '';
-  modal.style.display = 'flex';
-
-  // Load addresses from session cache first, then DB
-  let addrs = [];
-  try {
-    const cached = sessionStorage.getItem('piq-res-' + id);
-    if (cached) {
-      const { rows } = JSON.parse(cached);
-      addrs = (rows || []).map(r => r.address || '').filter(Boolean);
-    }
-  } catch(e) {}
-
-  if (!addrs.length && currentUser && sb) {
-    try {
-      const { data } = await sb.from('parcel_results').select('address').eq('batch_id', id).eq('user_id', currentUser.id);
-      addrs = (data || []).map(r => r.address).filter(Boolean);
-    } catch(e) {}
-  }
-
-  textarea.value = addrs.join('\n');
-}
 
 function closeEditBatchModal() {
   const modal = document.getElementById('editBatchModal');
@@ -7658,14 +7484,6 @@ async function searchSingleParcel() {
   finally { if (btn) { btn.disabled = false; btn.textContent = 'Search →'; } }
 }
 
-// ── FAQ ACCORDION (Task 23)
-function toggleFaq(qEl) {
-  const aEl = qEl.nextElementSibling;
-  const icon = qEl.querySelector('.faq-icon');
-  const isOpen = aEl.classList.contains('open');
-  document.querySelectorAll('.faq-a.open').forEach(a => { a.classList.remove('open'); const q = a.previousElementSibling; if (q) { const ic = q.querySelector('.faq-icon'); if (ic) ic.textContent = '+'; } });
-  if (!isOpen) { aEl.classList.add('open'); if (icon) icon.textContent = '−'; }
-}
 
 // ── UPLOAD TABS (Task 22)
 function switchDashTab(mode) {
@@ -7720,16 +7538,6 @@ function switchUploadTab() {
   switchUpTab('file');
 }
 
-function removeUploadedFile() {
-  document.getElementById('batchInput').value = '';
-  const dz = document.getElementById('dropZone');
-  const card = document.getElementById('fileConfirmCard');
-  if (dz) dz.style.display = '';
-  if (card) card.style.display = 'none';
-  const errEl = document.getElementById('fileError');
-  if (errEl) errEl.style.display = 'none';
-  updateAddrCount();
-}
 
 function handleDragOver(e) {
   e.preventDefault(); e.stopPropagation();
@@ -8084,18 +7892,6 @@ function handleModalFileUpload(e) {
   processModalFile(file);
   e.target.value = '';
 }
-function removeModalFile() {
-  document.getElementById('modalBatchInput').value = '';
-  const dz   = document.getElementById('modDropZone');
-  const card = document.getElementById('modFileConfirmCard');
-  const iconWrap = document.getElementById('modDropIconWrap');
-  const title    = document.getElementById('modDropTitle');
-  if (dz)   dz.style.display = '';
-  if (card) { card.style.display = 'none'; card.innerHTML = ''; }
-  if (iconWrap) iconWrap.innerHTML = '☁';
-  if (title)    title.textContent  = 'Drop your CSV or Excel file here';
-  updateModalAddrCount();
-}
 function processModalFile(file) {
   const errEl    = document.getElementById('modFileError');
   const dz       = document.getElementById('modDropZone');
@@ -8348,7 +8144,6 @@ function exportPDF() {
   }, 600);
 }
 
-function downloadCSV() { exportCSV(); }
 
 // Close on Escape: if the story view is open, ESC closes only it and the
 // detail panel stays put underneath.
@@ -8479,7 +8274,6 @@ function updateCmpBar() {
   btn.style.cursor  = canCompare ? 'pointer' : 'not-allowed';
 }
 
-function clearCmpSelection() { clearSelection(); }
 
 function _cmpVal(key, r) {
   const pi  = r.parcel_info || {};
@@ -9641,16 +9435,6 @@ function _svRefreshAfterRescreen(r) {
   if (overlay) overlay.innerHTML = _svMapOverlayHtml(r);
 }
 
-// Click a map-overlay pill to jump straight to its matching check row in
-// the data panel — expanding it if it's collapsed, then scrolling to it.
-function svJumpToCheck(catName) {
-  let target = null;
-  document.querySelectorAll('#storyView .sv-cat-row').forEach(row => { if (row.dataset.cat === catName) target = row; });
-  if (!target) return;
-  const desc = target.nextElementSibling;
-  if (desc && desc.classList.contains('sv-cat-desc') && desc.style.display === 'none') svToggleDesc(target);
-  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
 
 // Clears ONE kind's own annotation layers, leaving every other currently
 // active filter's layers completely untouched — each kind owns its own
@@ -10085,17 +9869,6 @@ function _svSeedOffset(seedStr, index) {
   return { dLat: mag * Math.cos(angle), dLng: mag * Math.sin(angle) };
 }
 
-// Same deterministic-from-seed approach as _svSeedOffset, but returns a
-// bare 0-1 fraction — used for anything that isn't a map offset (comp
-// count, comp price) so the same parcel always shows the same fake
-// placeholder values instead of them reshuffling on every re-render.
-function _svSeedFrac(seedStr, index) {
-  let seed = 0;
-  const s = String(seedStr || '');
-  for (let i = 0; i < Math.min(4, s.length); i++) seed += s.charCodeAt(i) * (i + 1);
-  seed += index * 97;
-  return Math.abs(Math.sin(seed)) % 1;
-}
 
 // A proper map-pin icon (not a plain circle) — used for the skip-trace
 // contact marker. iconAnchor points at the pin's bottom tip, the actual
