@@ -154,26 +154,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .upgrade-modal-body{font-size:14px;color:var(--t2);line-height:1.7;margin-bottom:24px}
 .upgrade-modal-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 
-/* Onboarding tutorial */
-.ob-overlay{display:none;position:fixed;inset:0;background:rgba(5,6,9,.78);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:400;align-items:center;justify-content:center;padding:24px}
-.ob-overlay.show{display:flex}
-.ob-modal{position:relative;background:linear-gradient(180deg,#171a24,#12141c);border:1px solid #262a3a;border-radius:20px;padding:44px 40px 32px;max-width:460px;width:100%;text-align:center;box-shadow:0 40px 100px -20px rgba(0,0,0,.7),0 0 0 1px rgba(34,197,94,.05);animation:obPopIn .3s cubic-bezier(.2,.9,.3,1.2)}
-@keyframes obPopIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-.ob-skip{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--t3);font-size:12px;font-weight:600;cursor:pointer;padding:6px 10px;border-radius:var(--rs);transition:color .15s,background .15s}
-.ob-skip:hover{color:var(--t1);background:var(--card-h)}
-.ob-icon-wrap{width:76px;height:76px;border-radius:50%;background:#111318;border:2px solid rgba(34,197,94,.4);display:flex;align-items:center;justify-content:center;margin:0 auto 22px;box-shadow:0 0 40px rgba(34,197,94,.15)}
-.ob-icon{font-size:34px;display:block;animation:obIconIn .35s ease both}
-@keyframes obIconIn{from{opacity:0;transform:scale(.6) rotate(-8deg)}to{opacity:1;transform:scale(1) rotate(0)}}
-.ob-title{font-size:21px;font-weight:800;color:var(--t1);margin-bottom:12px;letter-spacing:-.01em}
-.ob-desc{font-size:14.5px;color:var(--t2);line-height:1.7;min-height:96px}
-.ob-dots{display:flex;align-items:center;justify-content:center;gap:7px;margin:26px 0 24px}
-.ob-dot{width:7px;height:7px;border-radius:50%;background:#2A2D3A;transition:background .25s,width .25s}
-.ob-dot.active{background:var(--green);width:20px;border-radius:99px}
-.ob-btns{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.ob-back{background:none;border:none;color:var(--t3);font-size:13px;font-weight:600;cursor:pointer;padding:10px 8px;transition:color .15s}
-.ob-back:hover{color:var(--t1)}
-.ob-back[style*="hidden"]{pointer-events:none}
-@media(max-width:480px){.ob-modal{padding:36px 24px 28px}}
 .limit-banner{display:none;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.3);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:#ca8a04;margin-bottom:12px}
 .add-parcel-fab{position:fixed;bottom:24px;right:24px;z-index:500;background:var(--green);color:#000;font-weight:700;font-size:13px;border:none;border-radius:99px;padding:14px 20px;min-width:48px;min-height:48px;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.3);transition:transform .15s}
 .add-parcel-fab:hover{transform:scale(1.05)}
@@ -2859,10 +2839,6 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
             <option value="tsv">TSV (Tab-separated)</option>
           </select>
         </div>
-        <div class="sett-field">
-          <span class="sett-lbl">Getting started tutorial</span>
-          <button class="btn-o btn-sm" onclick="showOnboardingTutorial()">▶ Replay tutorial</button>
-        </div>
       </div>
 
       <!-- NOTIFICATIONS -->
@@ -4543,82 +4519,6 @@ function showEmptyBatchState() {
   const btn = document.getElementById('batchSelAllBtn');
   if (btn) btn.style.display = 'none';
   _dashEmptyState();
-  _maybeShowOnboarding();
-}
-
-// ── ONBOARDING TUTORIAL (first login) ──────────────────────────────
-const ONBOARDING_STEPS = [
-  { icon: '👋', title: 'Welcome to ParceliQ',
-    desc: "ParceliQ screens parcels against flood zones, wetlands, wildlife habitat, road & power access, contamination, evacuation zones, soil & septic, elevation, and conservation easements — then hands you a Kill/Pursue verdict with the reasons spelled out. Here's how it works, in five quick steps." },
-  { icon: '↑', title: 'Paste or upload',
-    desc: 'On the dashboard, paste addresses into the box or upload a spreadsheet under the "Batch Screen" tab — hundreds at once, any format works. Checking just one address? Switch to the "Single Parcel" tab instead.' },
-  { icon: '⚡', title: '12 checks run at once',
-    desc: 'Hit "Screen Parcels →" and every parcel gets checked against flood, wetlands, habitat, road, power, contamination, evacuation, soil, elevation, and easement data — all at once.' },
-  { icon: '◉', title: 'Get a verdict, explained',
-    desc: 'Each parcel comes back with a score and a Kill or Pursue verdict, plus plain-English reasons for every flag — so you know exactly why, not just what.' },
-  { icon: '🗺️', title: 'Open Deal Review',
-    desc: 'Click any parcel to open Deal Review — a full-screen map and data workspace. Click a check in the sidebar to see it drawn right on the map.' },
-  { icon: '⭐', title: 'Pick, re-screen, export',
-    desc: "Star your shortlist to My Picks, re-screen a parcel any time its data might have changed, and export or share the rest." },
-];
-
-let _obStep = 0;
-
-function showOnboardingTutorial() {
-  _obStep = 0;
-  _onboardingRender();
-  document.getElementById('onboardingModal')?.classList.add('show');
-}
-
-function _onboardingRender() {
-  const step = ONBOARDING_STEPS[_obStep];
-  if (!step) return;
-  const iconEl = document.getElementById('obIcon');
-  if (iconEl) iconEl.textContent = step.icon;
-  const titleEl = document.getElementById('obTitle');
-  if (titleEl) titleEl.textContent = step.title;
-  const descEl = document.getElementById('obDesc');
-  if (descEl) descEl.textContent = step.desc;
-  const dotsEl = document.getElementById('obDots');
-  if (dotsEl) {
-    dotsEl.innerHTML = ONBOARDING_STEPS.map((_, i) =>
-      '<span class="ob-dot' + (i === _obStep ? ' active' : '') + '"></span>').join('');
-  }
-  const backBtn = document.getElementById('obBackBtn');
-  if (backBtn) backBtn.style.visibility = _obStep === 0 ? 'hidden' : 'visible';
-  const nextBtn = document.getElementById('obNextBtn');
-  if (nextBtn) nextBtn.textContent = _obStep === ONBOARDING_STEPS.length - 1 ? 'Get started →' : 'Next →';
-}
-
-function _onboardingNext() {
-  if (_obStep >= ONBOARDING_STEPS.length - 1) { _onboardingFinish(); return; }
-  _obStep++;
-  _onboardingRender();
-}
-
-function _onboardingBack() {
-  if (_obStep === 0) return;
-  _obStep--;
-  _onboardingRender();
-}
-
-function _onboardingSkip() {
-  _onboardingFinish();
-}
-
-function _onboardingFinish() {
-  document.getElementById('onboardingModal')?.classList.remove('show');
-  if (currentUser) {
-    try { localStorage.setItem('piq-onboarding-seen-' + currentUser.id, '1'); } catch(e) {}
-  }
-}
-
-function _maybeShowOnboarding() {
-  if (!currentUser) return;
-  try {
-    if (localStorage.getItem('piq-onboarding-seen-' + currentUser.id)) return;
-  } catch(e) { return; }
-  showOnboardingTutorial();
 }
 
 function renderPastBatches(batches) {
@@ -11095,20 +10995,6 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="upgrade-modal-btns">
       <button class="btn-p btn-sm" onclick="hideUpgradeModal();goTo('pricing')">View pricing</button>
       <button class="btn-o btn-sm" onclick="hideUpgradeModal()">OK</button>
-    </div>
-  </div>
-</div>
-<!-- ════════ ONBOARDING TUTORIAL (first login) ════════ -->
-<div id="onboardingModal" class="ob-overlay">
-  <div class="ob-modal">
-    <button class="ob-skip" onclick="_onboardingSkip()">Skip tutorial ✕</button>
-    <div class="ob-icon-wrap"><span class="ob-icon" id="obIcon">👋</span></div>
-    <div class="ob-title" id="obTitle">Welcome to ParceliQ</div>
-    <div class="ob-desc" id="obDesc"></div>
-    <div class="ob-dots" id="obDots"></div>
-    <div class="ob-btns">
-      <button class="ob-back" id="obBackBtn" onclick="_onboardingBack()">← Back</button>
-      <button class="btn-p" id="obNextBtn" onclick="_onboardingNext()">Next →</button>
     </div>
   </div>
 </div>
