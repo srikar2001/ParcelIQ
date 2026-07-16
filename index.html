@@ -1097,17 +1097,27 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 /* Trusted strip */
 .lp-strip{background:#0A0C0F;border-top:1px solid #1E2130;border-bottom:1px solid #1E2130;padding:20px 0;overflow:hidden}
 .lp-strip-label{text-align:center;font-size:13px;color:#374151;margin-bottom:16px;padding:0 24px}
-.lp-marquee-wrap{overflow:hidden}
-.lp-marquee-track{display:flex;gap:40px;width:max-content;animation:lp-marquee 22s linear infinite}
+.lp-marquee-wrap{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent);mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent)}
+.lp-marquee-track{display:flex;gap:14px;width:max-content;animation:lp-marquee 36s linear infinite}
 .lp-marquee-track:hover{animation-play-state:paused}
 @keyframes lp-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-.lp-marquee-item{font-size:14px;font-weight:600;color:#374151;white-space:nowrap}
-.lp-marquee-sep{color:#1E2130;margin-left:40px}
+.lp-marquee-item{font-size:13px;font-weight:600;color:#64748B;white-space:nowrap;background:#111318;border:1px solid #1E2130;border-radius:99px;padding:7px 16px;transition:color .25s,border-color .25s,transform .25s}
+.lp-marquee-item:hover{color:#22C55E;border-color:rgba(34,197,94,.45);transform:translateY(-2px)}
+.lp-marquee-sep{display:none}
+
+/* Stats band */
+.lp-stats{background:#0A0C0F;border-bottom:1px solid #1E2130;padding:38px 32px}
+.lp-stats-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:24px;text-align:center}
+.lp-stat-num{font-size:42px;font-weight:900;letter-spacing:-.02em;line-height:1.1}
+.lp-stat-val{background:linear-gradient(135deg,#4ADE80,#22C55E 55%,#86EFAC);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#22C55E}
+.lp-stat-label{font-size:12.5px;color:var(--t3);margin-top:5px;letter-spacing:.02em}
 
 /* Section commons */
 .lp-sec-center{text-align:center;margin-bottom:56px}
 .legal-h2{font-size:16px;font-weight:700;color:var(--t1);margin:26px 0 8px}
 .lp-sec-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#22C55E;margin-bottom:8px}
+.lp-sec-center .lp-sec-label::after{content:'';display:block;width:38px;height:2px;margin:10px auto 0;background:linear-gradient(90deg,#16A34A,#4ADE80);border-radius:2px;transform:scaleX(0);transition:transform .7s cubic-bezier(.22,1,.36,1) .25s}
+.lp-sec-center.visible .lp-sec-label::after{transform:scaleX(1)}
 .lp-sec-title{font-size:32px;font-weight:800;color:#F1F5F9;letter-spacing:-.02em;margin-bottom:10px;line-height:1.2}
 .lp-sec-sub{font-size:16px;color:var(--t2);line-height:1.6}
 
@@ -1116,36 +1126,56 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .lp-how-inner{max-width:1100px;margin:0 auto}
 .lp-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative}
 .lp-steps-5{grid-template-columns:repeat(5,1fr)}
-.lp-steps-line{position:absolute;top:31px;left:12%;right:12%;height:2px;background:repeating-linear-gradient(90deg,rgba(34,197,94,.35) 0,rgba(34,197,94,.35) 8px,transparent 8px,transparent 16px);z-index:0;pointer-events:none}
+.lp-steps-line{position:absolute;top:31px;left:12%;right:12%;height:2px;background:repeating-linear-gradient(90deg,rgba(34,197,94,.35) 0,rgba(34,197,94,.35) 8px,transparent 8px,transparent 16px);z-index:0;pointer-events:none;transform:scaleX(0);transform-origin:left center;transition:transform 1.6s cubic-bezier(.22,1,.36,1) .15s}
+.lp-steps.steps-live .lp-steps-line{transform:scaleX(1)}
 .lp-step{text-align:center;padding:0 16px;position:relative;z-index:1}
-.lp-step-icon-wrap{width:64px;height:64px;border-radius:50%;background:#111318;border:2px solid #1E2130;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px;position:relative;transition:border-color .5s}
-.lp-step.visible .lp-step-icon-wrap{border-color:rgba(34,197,94,.5)}
+.lp-step-icon-wrap{width:64px;height:64px;border-radius:50%;background:#111318;border:2px solid #1E2130;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px;position:relative;transition:border-color .5s,box-shadow .5s}
+.lp-step.visible .lp-step-icon-wrap{border-color:rgba(34,197,94,.5);box-shadow:0 0 26px rgba(34,197,94,.12);animation:lpFloat 5.5s ease-in-out infinite}
+.lp-step:hover .lp-step-icon-wrap{border-color:#22C55E;box-shadow:0 0 36px rgba(34,197,94,.3)}
+.lp-step:nth-child(3) .lp-step-icon-wrap{animation-delay:.7s}
+.lp-step:nth-child(4) .lp-step-icon-wrap{animation-delay:1.4s}
+.lp-step:nth-child(5) .lp-step-icon-wrap{animation-delay:2.1s}
+.lp-step:nth-child(6) .lp-step-icon-wrap{animation-delay:2.8s}
+@keyframes lpFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 .lp-step-num{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#22C55E;color:#000;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center}
 .lp-step-title{font-size:16px;font-weight:700;color:#F1F5F9;margin-bottom:8px}
 .lp-step-desc{font-size:14px;color:var(--t2);line-height:1.6}
 
 /* Deal Review showcase */
-.lp-dealreview{padding:90px 32px;background:#0A0C0F;border-top:1px solid #1E2130}
-.lp-dealreview-inner{max-width:1080px;margin:0 auto}
+.lp-dealreview{padding:90px 32px;background:#0A0C0F;border-top:1px solid #1E2130;position:relative;overflow:hidden}
+.lp-dealreview::before{content:'';position:absolute;width:540px;height:540px;right:-190px;top:-190px;border-radius:50%;background:radial-gradient(circle,rgba(34,197,94,.09),transparent 65%);filter:blur(60px);animation:lpDrift 18s ease-in-out infinite alternate;pointer-events:none}
+@keyframes lpDrift{from{transform:translate(0,0) scale(1)}to{transform:translate(-110px,90px) scale(1.3)}}
+.lp-dealreview-inner{max-width:1080px;margin:0 auto;position:relative}
 .lp-dr-mock{background:linear-gradient(180deg,#12141c,#0E1015);border:1px solid #232633;border-radius:18px;overflow:hidden;box-shadow:0 30px 80px -20px rgba(0,0,0,.6),0 0 0 1px rgba(34,197,94,.04)}
 .lp-dr-mock-top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-bottom:1px solid #1E2130;flex-wrap:wrap}
 .lp-dr-mock-addr-line{font-size:15px;font-weight:700;color:#F1F5F9}
 .lp-dr-mock-badges{display:flex;align-items:center;gap:8px}
 .lp-dr-verdict{font-size:11px;font-weight:800;letter-spacing:.04em;color:#22C55E;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);border-radius:99px;padding:5px 12px;transition:color .25s,background .25s,border-color .25s}
 .lp-dr-verdict.is-kill{color:#EF4444;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3)}
+.lp-dr-verdict.bump{animation:lpBump .45s cubic-bezier(.2,.9,.3,1.4)}
+@keyframes lpBump{0%{transform:scale(1)}45%{transform:scale(1.22)}100%{transform:scale(1)}}
 .lp-dr-score{font-size:15px;font-weight:800;color:#F1F5F9;background:#1A1D28;border-radius:99px;padding:5px 13px}
 .lp-dr-mock-body{display:grid;grid-template-columns:58% 42%}
 .lp-dr-mock-map{position:relative;min-height:380px;background:radial-gradient(ellipse 70% 60% at 30% 30%,rgba(34,197,94,.10),transparent 60%),repeating-linear-gradient(120deg,#182018 0,#182018 2px,#141a14 2px,#141a14 42px),#141a14;overflow:hidden;border-right:1px solid #1E2130}
-.lp-dr-parcel-outline{position:absolute;top:38%;left:32%;width:34%;height:30%;border:2px dashed rgba(56,189,248,.75);border-radius:4px;background:rgba(56,189,248,.06);transition:border-color .3s,background .3s}
-.lp-dr-parcel-outline.is-flood{border-color:rgba(56,189,248,.85);background:rgba(56,189,248,.1)}
-.lp-dr-parcel-outline.is-road{border-color:rgba(34,197,94,.85);background:rgba(34,197,94,.08)}
-.lp-dr-parcel-outline.is-habitat{border-color:rgba(239,68,68,.85);background:rgba(239,68,68,.1)}
-.lp-dr-parcel-outline.is-evac{border-color:rgba(245,158,11,.85);background:rgba(245,158,11,.1)}
-.lp-dr-map-pin{position:absolute;top:52%;left:49%;width:9px;height:9px;border-radius:50%;background:#38BDF8;box-shadow:0 0 0 4px rgba(56,189,248,.25);transition:background .3s,box-shadow .3s}
-.lp-dr-map-pin.is-road{background:#22C55E;box-shadow:0 0 0 4px rgba(34,197,94,.25)}
-.lp-dr-map-pin.is-habitat{background:#EF4444;box-shadow:0 0 0 4px rgba(239,68,68,.25)}
-.lp-dr-map-pin.is-evac{background:#F59E0B;box-shadow:0 0 0 4px rgba(245,158,11,.25)}
-.lp-dr-map-label{position:absolute;top:69%;left:26%;transform:translateX(-4%);background:rgba(0,0,0,.88);color:#fff;font-size:12.5px;font-weight:800;padding:6px 13px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.5);border-left:4px solid #38BDF8;transition:border-color .3s}
+.lp-dr-mock-map::after{content:'';position:absolute;left:0;right:0;top:0;height:110px;background:linear-gradient(180deg,transparent,rgba(34,197,94,.05) 40%,rgba(34,197,94,.13) 85%,rgba(134,239,172,.22) 99%,transparent);transform:translateY(-120%);animation:lpScan 6.5s cubic-bezier(.45,0,.55,1) infinite;pointer-events:none}
+@keyframes lpScan{0%{transform:translateY(-120%)}62%,100%{transform:translateY(430px)}}
+.lp-dr-parcel-outline{position:absolute;top:38%;left:32%;width:34%;height:30%;border-radius:4px;background:rgba(56,189,248,.06);color:rgba(56,189,248,.85);transition:background .3s,color .3s}
+.lp-dr-parcel-outline svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.lp-dr-ants-rect{x:1px;y:1px;width:calc(100% - 2px);height:calc(100% - 2px);rx:4px;fill:none;stroke:currentColor;stroke-width:2;stroke-dasharray:8 6;animation:lpAnts .9s linear infinite}
+@keyframes lpAnts{to{stroke-dashoffset:-14}}
+.lp-dr-parcel-outline.is-flood{color:rgba(56,189,248,.85);background:rgba(56,189,248,.1)}
+.lp-dr-parcel-outline.is-road{color:rgba(34,197,94,.85);background:rgba(34,197,94,.08)}
+.lp-dr-parcel-outline.is-habitat{color:rgba(239,68,68,.85);background:rgba(239,68,68,.1)}
+.lp-dr-parcel-outline.is-evac{color:rgba(245,158,11,.85);background:rgba(245,158,11,.1)}
+.lp-dr-map-pin{position:absolute;top:52%;left:49%;width:9px;height:9px;border-radius:50%;background:#38BDF8;color:#38BDF8;box-shadow:0 0 0 4px rgba(56,189,248,.25);transition:background .3s,box-shadow .3s,color .3s}
+.lp-dr-map-pin::before,.lp-dr-map-pin::after{content:'';position:absolute;inset:-3px;border-radius:50%;border:1.5px solid currentColor;opacity:0;animation:lpRadar 2.8s ease-out infinite}
+.lp-dr-map-pin::after{animation-delay:1.4s}
+@keyframes lpRadar{0%{transform:scale(.7);opacity:.8}70%{transform:scale(3.6);opacity:0}100%{transform:scale(3.6);opacity:0}}
+.lp-dr-map-pin.is-road{background:#22C55E;color:#22C55E;box-shadow:0 0 0 4px rgba(34,197,94,.25)}
+.lp-dr-map-pin.is-habitat{background:#EF4444;color:#EF4444;box-shadow:0 0 0 4px rgba(239,68,68,.25)}
+.lp-dr-map-pin.is-evac{background:#F59E0B;color:#F59E0B;box-shadow:0 0 0 4px rgba(245,158,11,.25)}
+.lp-dr-map-label{position:absolute;top:69%;left:25%;background:rgba(0,0,0,.88);color:#fff;font-size:12.5px;font-weight:800;padding:6px 13px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.5);border-left:4px solid #38BDF8;transition:border-color .3s;animation:lpSwapIn .35s ease both}
+@keyframes lpSwapIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
 .lp-dr-map-label.is-road{border-left-color:#22C55E}
 .lp-dr-map-label.is-habitat{border-left-color:#EF4444}
 .lp-dr-map-label.is-evac{border-left-color:#F59E0B}
@@ -1154,22 +1184,26 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .lp-dr-pill:hover{transform:translateX(2px)}
 .lp-dr-pill.active{border-color:#1A1A1A;transform:scale(1.04)}
 .lp-dr-mock-panel{padding:24px}
-.lp-dr-panel-title{font-size:13px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#22C55E;margin-bottom:10px}
-.lp-dr-panel-desc{font-size:14px;color:var(--t2);line-height:1.65;min-height:85px}
+.lp-dr-panel-title{font-size:13px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#22C55E;margin-bottom:10px;animation:lpSwapIn .35s ease both}
+.lp-dr-panel-desc{font-size:14px;color:var(--t2);line-height:1.65;min-height:85px;animation:lpSwapIn .35s .06s ease both}
 .lp-dr-facts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px;padding-top:20px;border-top:1px solid #1E2130}
 .lp-dr-facts div{display:flex;flex-direction:column;gap:3px}
 .lp-dr-facts span{font-size:10.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.03em}
 .lp-dr-facts b{font-size:14px;color:#F1F5F9;font-weight:700}
 .lp-dr-links{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:28px;font-size:13px;color:var(--t3)}
-.lp-dr-link-chip{background:#111318;border:1px solid #1E2130;border-radius:99px;padding:6px 14px;color:var(--t2);font-weight:600}
+.lp-dr-link-chip{background:#111318;border:1px solid #1E2130;border-radius:99px;padding:6px 14px;color:var(--t2);font-weight:600;transition:border-color .25s,color .25s,transform .25s,box-shadow .25s}
+.lp-dr-link-chip:hover{border-color:rgba(34,197,94,.45);color:#F1F5F9;transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
 
 /* Feature cards */
 .lp-features{padding:80px 32px;background:#0A0C0F;border-top:1px solid #1E2130}
 .lp-features-inner{max-width:1100px;margin:0 auto}
 .lp-features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.lp-feature-card{background:#111318;border:1px solid #1E2130;border-radius:12px;padding:24px;transition:transform .2s,border-color .2s,box-shadow .2s}
-.lp-feature-card:hover{transform:translateY(-3px);border-color:rgba(34,197,94,.3);box-shadow:0 8px 32px rgba(34,197,94,.07)}
-.lp-feature-icon{font-size:22px;margin-bottom:14px;line-height:1}
+.lp-feature-card{background:#111318;border:1px solid #1E2130;border-radius:12px;padding:24px;transition:transform .2s,border-color .2s,box-shadow .2s;position:relative;overflow:hidden}
+.lp-feature-card::after{content:'';position:absolute;inset:0;background:radial-gradient(240px circle at var(--mx,50%) var(--my,0%),rgba(34,197,94,.09),transparent 70%);opacity:0;transition:opacity .3s;pointer-events:none}
+.lp-feature-card:hover::after{opacity:1}
+.lp-feature-card:hover{transform:translateY(-4px);border-color:rgba(34,197,94,.35);box-shadow:0 12px 40px rgba(34,197,94,.09)}
+.lp-feature-icon{font-size:22px;margin-bottom:14px;line-height:1;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(34,197,94,.16),rgba(34,197,94,.03));border:1px solid rgba(34,197,94,.25);border-radius:12px;transition:transform .25s,border-color .25s,box-shadow .25s}
+.lp-feature-card:hover .lp-feature-icon{transform:scale(1.09) rotate(-5deg);border-color:rgba(34,197,94,.55);box-shadow:0 0 22px rgba(34,197,94,.22)}
 .lp-feature-title{font-size:15px;font-weight:700;color:#F1F5F9;margin-bottom:6px}
 .lp-feature-desc{font-size:13px;color:var(--t2);line-height:1.6}
 
@@ -1179,7 +1213,22 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .lp-explain-check{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px}
 .lp-explain-ck{color:#22C55E;font-weight:700;font-size:16px;flex-shrink:0;margin-top:1px}
 .lp-explain-text{font-size:15px;color:var(--t2);line-height:1.5}
-.lp-sample-card{background:#111318;border:1px solid #1E2130;border-radius:12px;overflow:hidden}
+.lp-sample-card{background:#111318;border:1px solid #1E2130;border-radius:12px;overflow:hidden;box-shadow:0 24px 70px -24px rgba(34,197,94,.16)}
+.lp-sample-card.visible{animation:lpFloat 7s ease-in-out 1.2s infinite}
+.lp-sample-card .lp-check-row{opacity:0;transform:translateX(16px);transition:opacity .45s ease,transform .45s ease}
+.lp-sample-card.visible .lp-check-row{opacity:1;transform:none}
+.lp-sample-card.visible .lp-check-row:nth-child(2){transition-delay:.15s}
+.lp-sample-card.visible .lp-check-row:nth-child(3){transition-delay:.3s}
+.lp-sample-card.visible .lp-check-row:nth-child(4){transition-delay:.45s}
+.lp-sample-card.visible .lp-check-row:nth-child(5){transition-delay:.6s}
+.lp-sample-card.visible .lp-check-row:nth-child(6){transition-delay:.75s}
+.lp-sample-card .lp-ck-badge{transform:scale(.75);opacity:0;transition:transform .35s cubic-bezier(.2,.9,.3,1.4),opacity .35s}
+.lp-sample-card.visible .lp-ck-badge{transform:scale(1);opacity:1}
+.lp-sample-card.visible .lp-check-row:nth-child(2) .lp-ck-badge{transition-delay:.35s}
+.lp-sample-card.visible .lp-check-row:nth-child(3) .lp-ck-badge{transition-delay:.5s}
+.lp-sample-card.visible .lp-check-row:nth-child(4) .lp-ck-badge{transition-delay:.65s}
+.lp-sample-card.visible .lp-check-row:nth-child(5) .lp-ck-badge{transition-delay:.8s}
+.lp-sample-card.visible .lp-check-row:nth-child(6) .lp-ck-badge{transition-delay:.95s}
 .lp-sample-head{padding:16px 20px;border-bottom:1px solid #1E2130}
 .lp-sample-title{font-size:14px;font-weight:700;color:#F1F5F9;margin-bottom:2px}
 .lp-sample-id{font-size:11px;color:var(--t2);font-family:ui-monospace,monospace}
@@ -1204,10 +1253,13 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .lp-cta-card{max-width:900px;margin:0 auto;border-radius:20px;background:#111318;border:1px solid #1E2130;padding:64px 48px;text-align:center;position:relative;overflow:hidden}
 .lp-cta-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 110%,rgba(34,197,94,.1),transparent);pointer-events:none;animation:ctaGlow 4s ease infinite}
 @keyframes ctaGlow{0%,100%{opacity:.5}50%{opacity:1}}
-.lp-cta-h{font-size:clamp(26px,4vw,44px);font-weight:900;color:#F1F5F9;letter-spacing:-.03em;margin-bottom:16px;line-height:1.1;position:relative}
-.lp-cta-sub{font-size:17px;color:var(--t2);max-width:560px;margin:0 auto 36px;line-height:1.7;position:relative}
-.lp-cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:20px;position:relative}
-.lp-cta-trust{font-size:13px;color:#374151;display:flex;gap:20px;justify-content:center;flex-wrap:wrap;position:relative}
+.lp-cta-card::after{content:'';position:absolute;width:400px;height:400px;left:-140px;top:-160px;border-radius:50%;background:radial-gradient(circle,rgba(34,197,94,.15),transparent 65%);filter:blur(52px);animation:lpDrift 16s ease-in-out infinite alternate;pointer-events:none}
+.lp-cta-h{font-size:clamp(26px,4vw,44px);font-weight:900;color:#F1F5F9;letter-spacing:-.03em;margin-bottom:16px;line-height:1.1;position:relative;z-index:1}
+.lp-cta-sub{font-size:17px;color:var(--t2);max-width:560px;margin:0 auto 36px;line-height:1.7;position:relative;z-index:1}
+.lp-cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:20px;position:relative;z-index:1}
+.lp-cta-btns .lp-btn-primary{animation:lpCtaPulse 2.6s ease-in-out infinite}
+@keyframes lpCtaPulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.35)}55%{box-shadow:0 0 0 14px rgba(34,197,94,0)}}
+.lp-cta-trust{font-size:13px;color:#374151;display:flex;gap:20px;justify-content:center;flex-wrap:wrap;position:relative;z-index:1}
 .lp-cta-trust span::before{content:'✓ ';color:#22C55E}
 
 /* Footer */
@@ -1242,6 +1294,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   .lp-hero-inner{grid-template-columns:1fr;gap:40px}
   .lp-dr-mock-body{grid-template-columns:1fr}
   .lp-dr-mock-map{min-height:280px;border-right:none;border-bottom:1px solid #1E2130}
+  .lp-stats-inner{grid-template-columns:repeat(2,1fr)}
+  .lp-stat-num{font-size:34px}
   .lp-features-grid{grid-template-columns:repeat(2,1fr)}
   .lp-explain-inner{grid-template-columns:1fr}
   .lp-footer-grid{grid-template-columns:1fr 1fr}
@@ -1259,6 +1313,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   .lp-ctas,.lp-cta-btns{flex-direction:column;align-items:flex-start}
   .lp-cta-btns{align-items:center}
   .lp-how,.lp-dealreview,.lp-features,.lp-explain,.lp-cta-sec{padding:60px 20px}
+  .lp-stats{padding:28px 20px}
+  .lp-stats-inner{gap:18px}
 }
 </style>
 <script>(function(){const t=localStorage.getItem('parceliq-theme');if(t==='light')document.documentElement.dataset.theme='light';})()</script>
@@ -1302,22 +1358,22 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="lp-hero-text">
         <div class="lp-badge hero-badge-anim">
           <span class="lp-badge-dot"></span>
-          FLORIDA · 12 LIVE DATA SOURCES · BETA
+          FLORIDA BETA · LIVE DATA
         </div>
         <h1 class="lp-h1 hero-h1-anim">
-          Screen hundreds of parcels.<br>
-          <span class="lp-green">Deep-dive the ones that matter.</span>
+          Upload your leads.<br>
+          <span class="lp-green">We'll <span style="color:#ef4444;font-weight:inherit">kill</span> the bad ones.</span>
         </h1>
-        <p class="lp-sub hero-sub-anim">Paste or upload your leads and ParceliQ screens every parcel against flood, wetlands, wildlife habitat, road and power access, contamination, evacuation zones, soil &amp; septic, elevation, and conservation easements — then hands you a Kill/Pursue verdict with the reasons spelled out. Open any parcel in <b style="color:var(--t1);font-weight:700">Deal Review</b> for a full-screen map and data workspace before you make an offer.</p>
+        <p class="lp-sub hero-sub-anim">ParceliQ checks every parcel for flood zones, wetlands, protected wildlife, contamination records, road access, and county records. Your team makes faster, smarter offers.</p>
         <div class="lp-ctas hero-ctas-anim">
           <button class="lp-btn-primary" style="font-size:16px;padding:14px 28px" onclick="startScreening()">Start screening free →</button>
-          <button class="lp-btn-outline" style="font-size:16px;padding:14px 28px" onclick="document.getElementById('lp-dealreview').scrollIntoView({behavior:'smooth'})">▶ See Deal Review</button>
+          <button class="lp-btn-outline" style="font-size:16px;padding:14px 28px" onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">▶ See how it works</button>
         </div>
         <div class="lp-trust-chips hero-ctas-anim" style="transition-delay:.06s">
           <span class="lp-trust-chip"><b>✓</b> Live Florida data</span>
-          <span class="lp-trust-chip"><b>✓</b> 12 data sources</span>
-          <span class="lp-trust-chip"><b>✓</b> Map-based Deal Review</span>
-          <span class="lp-trust-chip"><b>✓</b> Explainable verdicts</span>
+          <span class="lp-trust-chip"><b>✓</b> 10+ data sources</span>
+          <span class="lp-trust-chip"><b>✓</b> Explainable results</span>
+          <span class="lp-trust-chip"><b>✓</b> Built for speed</span>
         </div>
       </div>
 
@@ -1368,6 +1424,16 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="lp-marquee-track" id="lpMarqueeTrack"></div>
     </div>
   </div>
+
+  <!-- ── SECTION 2.5: STATS BAND ── -->
+  <section class="lp-stats">
+    <div class="lp-stats-inner">
+      <div class="lp-stat reveal"><div class="lp-stat-num"><span class="lp-stat-val" data-count="67">0</span></div><div class="lp-stat-label">Florida counties covered</div></div>
+      <div class="lp-stat reveal" style="transition-delay:80ms"><div class="lp-stat-num"><span class="lp-stat-val" data-count="12">0</span></div><div class="lp-stat-label">live data sources per parcel</div></div>
+      <div class="lp-stat reveal" style="transition-delay:160ms"><div class="lp-stat-num"><span class="lp-stat-val" data-count="2">0</span></div><div class="lp-stat-label">verdicts — Kill or Pursue</div></div>
+      <div class="lp-stat reveal" style="transition-delay:240ms"><div class="lp-stat-num"><span class="lp-stat-val" data-count="0">0</span></div><div class="lp-stat-label">black boxes — every flag explained</div></div>
+    </div>
+  </section>
 
   <!-- ── SECTION 3: HOW IT WORKS ── -->
   <section class="lp-how" id="lp-how">
@@ -1423,7 +1489,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         </div>
         <div class="lp-dr-mock-body">
           <div class="lp-dr-mock-map" id="lpDrMap">
-            <div class="lp-dr-parcel-outline"></div>
+            <div class="lp-dr-parcel-outline"><svg aria-hidden="true"><rect class="lp-dr-ants-rect"/></svg></div>
             <div class="lp-dr-map-pin" id="lpDrPin"></div>
             <div class="lp-dr-map-label" id="lpDrMapLabel">Zone X · outside floodplain</div>
             <div class="lp-dr-pills" id="lpDrPills"></div>
@@ -1684,7 +1750,9 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       var track = document.getElementById('lpMarqueeTrack');
       if (!track) return;
       var html = '';
-      [0, 1].forEach(function() {
+      // 4 copies with a -50% translate loop: the halfway frame is identical
+      // to the start frame, and two full sets per half covers ultrawide screens.
+      [0, 1, 2, 3].forEach(function() {
         MARQUEE_ITEMS.forEach(function(item) {
           html += '<span class="lp-marquee-item">' + item + '</span><span class="lp-marquee-sep">·</span>';
         });
@@ -1710,9 +1778,39 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
                  verdict: 'PURSUE', score: 94 },
     };
     var lpDrActive = 'flood';
-    window.lpDrSelect = function(check) {
+    var lpReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Re-trigger a CSS animation defined in the stylesheet on an element.
+    function lpDrRetrig(el) {
+      if (!el || lpReduced) return;
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.animation = '';
+    }
+    // Animate the score badge counting from its displayed value to `target`.
+    function lpDrScoreTo(el, target) {
+      if (!el) return;
+      var from = parseInt(el.textContent, 10);
+      if (isNaN(from)) from = target;
+      if (lpReduced || from === target || !window.requestAnimationFrame) { el.textContent = target; return; }
+      el._gen = (el._gen || 0) + 1;
+      var gen = el._gen, t0 = null, dur = 500;
+      function fr(ts) {
+        if (el._gen !== gen) return;
+        if (!t0) t0 = ts;
+        var p = Math.min((ts - t0) / dur, 1);
+        el.textContent = Math.round(from + (target - from) * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) requestAnimationFrame(fr);
+      }
+      requestAnimationFrame(fr);
+    }
+
+    // `auto` is set by the showcase's idle auto-cycle; a real user click
+    // (no second arg) permanently hands control back to the user.
+    window.lpDrSelect = function(check, auto) {
       var cfg = LP_DR_CHECKS[check];
       if (!cfg) return;
+      if (!auto) { lpDrUser = true; lpDrStop(); }
       lpDrActive = check;
       var cls = 'is-' + check;
       var allCls = Object.keys(LP_DR_CHECKS).map(function(k) { return 'is-' + k; });
@@ -1722,28 +1820,109 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         if (check !== 'flood') el.classList.add(cls);
       });
       document.querySelectorAll('.lp-dr-pill').forEach(function(btn) { btn.classList.toggle('active', btn.dataset.check === check); });
-      var labelEl = document.getElementById('lpDrMapLabel'); if (labelEl) labelEl.textContent = cfg.label;
-      var titleEl = document.getElementById('lpDrPanelTitle'); if (titleEl) titleEl.textContent = cfg.title;
-      var descEl = document.getElementById('lpDrPanelDesc'); if (descEl) descEl.textContent = cfg.desc;
+      var labelEl = document.getElementById('lpDrMapLabel'); if (labelEl) { labelEl.textContent = cfg.label; lpDrRetrig(labelEl); }
+      var titleEl = document.getElementById('lpDrPanelTitle'); if (titleEl) { titleEl.textContent = cfg.title; lpDrRetrig(titleEl); }
+      var descEl = document.getElementById('lpDrPanelDesc'); if (descEl) { descEl.textContent = cfg.desc; lpDrRetrig(descEl); }
       var verdictEl = document.getElementById('lpDrVerdict');
-      if (verdictEl) { verdictEl.textContent = cfg.verdict; verdictEl.classList.toggle('is-kill', cfg.verdict === 'KILL'); }
-      var scoreEl = document.getElementById('lpDrScore'); if (scoreEl) scoreEl.textContent = cfg.score;
+      if (verdictEl) {
+        verdictEl.textContent = cfg.verdict;
+        verdictEl.classList.toggle('is-kill', cfg.verdict === 'KILL');
+        if (!lpReduced) { verdictEl.classList.remove('bump'); void verdictEl.offsetWidth; verdictEl.classList.add('bump'); }
+      }
+      lpDrScoreTo(document.getElementById('lpDrScore'), cfg.score);
     };
+
+    // Idle auto-cycle: walk through the checks while the showcase is on
+    // screen, pause on hover, and stop for good once the user clicks a pill.
+    var lpDrOrder = Object.keys(LP_DR_CHECKS);
+    var lpDrUser = false, lpDrTimer = null, lpDrInView = false;
+    function lpDrStart() {
+      if (lpDrUser || lpDrTimer || lpReduced) return;
+      lpDrTimer = setInterval(function() {
+        var i = lpDrOrder.indexOf(lpDrActive);
+        window.lpDrSelect(lpDrOrder[(i + 1) % lpDrOrder.length], true);
+      }, 4200);
+    }
+    function lpDrStop() {
+      if (lpDrTimer) { clearInterval(lpDrTimer); lpDrTimer = null; }
+    }
+
     (function() {
       var wrap = document.getElementById('lpDrPills');
       if (!wrap) return;
       wrap.innerHTML = Object.keys(LP_DR_CHECKS).map(function(key) {
         return '<button class="lp-dr-pill' + (key === lpDrActive ? ' active' : '') + '" data-check="' + key + '" onclick="lpDrSelect(\'' + key + '\')">' + LP_DR_CHECKS[key].pill + '</button>';
       }).join('');
-      lpDrSelect(lpDrActive);
+      window.lpDrSelect(lpDrActive, true);
+
+      var drSec = document.getElementById('lp-dealreview');
+      if (drSec && 'IntersectionObserver' in window) {
+        new IntersectionObserver(function(es) {
+          es.forEach(function(e) {
+            lpDrInView = e.isIntersecting;
+            if (e.isIntersecting) lpDrStart(); else lpDrStop();
+          });
+        }, { threshold: 0.35 }).observe(drSec);
+      }
+
+      var drMock = document.querySelector('.lp-dr-mock');
+      if (drMock) {
+        drMock.addEventListener('mouseenter', lpDrStop);
+        drMock.addEventListener('mouseleave', function() { if (lpDrInView) lpDrStart(); });
+        // Subtle 3D tilt following the cursor
+        if (window.matchMedia && matchMedia('(pointer:fine)').matches && !lpReduced) {
+          drMock.addEventListener('mousemove', function(e) {
+            var r = drMock.getBoundingClientRect();
+            var rx = ((e.clientY - r.top) / r.height - .5) * -3.5;
+            var ry = ((e.clientX - r.left) / r.width - .5) * 3.5;
+            drMock.style.transition = 'transform .12s ease-out';
+            drMock.style.transform = 'perspective(1100px) rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)';
+          });
+          drMock.addEventListener('mouseleave', function() {
+            drMock.style.transition = 'transform .5s ease';
+            drMock.style.transform = '';
+          });
+        }
+      }
     })();
 
-    // Intersection Observer for scroll reveals
+    // Cursor-tracking glow on feature cards (drives the ::after radial)
+    (function() {
+      var grid = document.querySelector('.lp-features-grid');
+      if (!grid || !window.matchMedia || !matchMedia('(pointer:fine)').matches) return;
+      grid.addEventListener('mousemove', function(e) {
+        var card = e.target && e.target.closest ? e.target.closest('.lp-feature-card') : null;
+        if (!card) return;
+        var r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+        card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+      });
+    })();
+
+    // Count-up for the stats band
+    function lpCountUp(el) {
+      if (el.dataset.done) return;
+      el.dataset.done = '1';
+      var target = parseInt(el.dataset.count, 10) || 0;
+      if (lpReduced || !window.requestAnimationFrame) { el.textContent = target; return; }
+      var t0 = null, dur = 1200;
+      function frame(ts) {
+        if (!t0) t0 = ts;
+        var p = Math.min((ts - t0) / dur, 1);
+        el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    // Intersection Observer for scroll reveals (+ per-element extras:
+    // the steps connector line draw and the stat count-ups)
     var io = new IntersectionObserver(function(entries) {
       entries.forEach(function(e) {
         if (!e.isIntersecting) return;
         e.target.classList.add('visible');
-        if (e.target.classList.contains('lp-step')) e.target.classList.add('visible');
+        if (e.target.classList.contains('lp-step') && e.target.parentElement) e.target.parentElement.classList.add('steps-live');
+        if (e.target.querySelectorAll) e.target.querySelectorAll('.lp-stat-val').forEach(function(v) { lpCountUp(v); });
       });
     }, { threshold: 0.15 });
 
