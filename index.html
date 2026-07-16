@@ -153,6 +153,27 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .upgrade-modal-title{font-size:20px;font-weight:800;color:var(--t1);margin-bottom:10px}
 .upgrade-modal-body{font-size:14px;color:var(--t2);line-height:1.7;margin-bottom:24px}
 .upgrade-modal-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+
+/* Onboarding tutorial */
+.ob-overlay{display:none;position:fixed;inset:0;background:rgba(5,6,9,.78);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:400;align-items:center;justify-content:center;padding:24px}
+.ob-overlay.show{display:flex}
+.ob-modal{position:relative;background:linear-gradient(180deg,#171a24,#12141c);border:1px solid #262a3a;border-radius:20px;padding:44px 40px 32px;max-width:460px;width:100%;text-align:center;box-shadow:0 40px 100px -20px rgba(0,0,0,.7),0 0 0 1px rgba(34,197,94,.05);animation:obPopIn .3s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes obPopIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.ob-skip{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--t3);font-size:12px;font-weight:600;cursor:pointer;padding:6px 10px;border-radius:var(--rs);transition:color .15s,background .15s}
+.ob-skip:hover{color:var(--t1);background:var(--card-h)}
+.ob-icon-wrap{width:76px;height:76px;border-radius:50%;background:#111318;border:2px solid rgba(34,197,94,.4);display:flex;align-items:center;justify-content:center;margin:0 auto 22px;box-shadow:0 0 40px rgba(34,197,94,.15)}
+.ob-icon{font-size:34px;display:block;animation:obIconIn .35s ease both}
+@keyframes obIconIn{from{opacity:0;transform:scale(.6) rotate(-8deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+.ob-title{font-size:21px;font-weight:800;color:var(--t1);margin-bottom:12px;letter-spacing:-.01em}
+.ob-desc{font-size:14.5px;color:var(--t2);line-height:1.7;min-height:96px}
+.ob-dots{display:flex;align-items:center;justify-content:center;gap:7px;margin:26px 0 24px}
+.ob-dot{width:7px;height:7px;border-radius:50%;background:#2A2D3A;transition:background .25s,width .25s}
+.ob-dot.active{background:var(--green);width:20px;border-radius:99px}
+.ob-btns{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ob-back{background:none;border:none;color:var(--t3);font-size:13px;font-weight:600;cursor:pointer;padding:10px 8px;transition:color .15s}
+.ob-back:hover{color:var(--t1)}
+.ob-back[style*="hidden"]{pointer-events:none}
+@media(max-width:480px){.ob-modal{padding:36px 24px 28px}}
 .limit-banner{display:none;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.3);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:#ca8a04;margin-bottom:12px}
 .add-parcel-fab{position:fixed;bottom:24px;right:24px;z-index:500;background:var(--green);color:#000;font-weight:700;font-size:13px;border:none;border-radius:99px;padding:14px 20px;min-width:48px;min-height:48px;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.3);transition:transform .15s}
 .add-parcel-fab:hover{transform:scale(1.05)}
@@ -1094,6 +1115,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .lp-how{padding:80px 32px;background:#0A0C0F}
 .lp-how-inner{max-width:1100px;margin:0 auto}
 .lp-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative}
+.lp-steps-5{grid-template-columns:repeat(5,1fr)}
 .lp-steps-line{position:absolute;top:31px;left:12%;right:12%;height:2px;background:repeating-linear-gradient(90deg,rgba(34,197,94,.35) 0,rgba(34,197,94,.35) 8px,transparent 8px,transparent 16px);z-index:0;pointer-events:none}
 .lp-step{text-align:center;padding:0 16px;position:relative;z-index:1}
 .lp-step-icon-wrap{width:64px;height:64px;border-radius:50%;background:#111318;border:2px solid #1E2130;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px;position:relative;transition:border-color .5s}
@@ -1102,18 +1124,44 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .lp-step-title{font-size:16px;font-weight:700;color:#F1F5F9;margin-bottom:8px}
 .lp-step-desc{font-size:14px;color:var(--t2);line-height:1.6}
 
-/* Decision engine */
-.lp-engine{padding:80px 32px;background:#0A0C0F;border-top:1px solid #1E2130}
-.lp-engine-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:40% 60%;gap:60px;align-items:center}
-.lp-engine-diagram{position:relative;height:440px;display:flex;align-items:center;justify-content:center}
-.lp-engine-center{width:130px;height:130px;border-radius:50%;background:#111318;border:1px solid rgba(34,197,94,.4);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px;box-sizing:border-box;animation:breathe 3s ease infinite;z-index:2;position:relative;flex-shrink:0}
-@keyframes breathe{0%,100%{box-shadow:0 0 30px rgba(34,197,94,.15);transform:scale(1)}50%{box-shadow:0 0 60px rgba(34,197,94,.3);transform:scale(1.02)}}
-.lp-engine-name{font-size:13px;font-weight:800;color:#F1F5F9;line-height:1.2}
-.lp-engine-sub{font-size:10px;color:var(--t2);margin-top:3px}
-.lp-src-card{position:absolute;background:#111318;border:1px solid #1E2130;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;color:var(--t2);white-space:nowrap;cursor:default;transition:border-color .2s,color .2s,box-shadow .2s;z-index:3}
-.lp-src-card:hover{border-color:rgba(34,197,94,.4);color:#22C55E;box-shadow:0 0 16px rgba(34,197,94,.1)}
-.lp-engine-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
-.eng-line{stroke-dasharray:5 4;animation:dashMove 2.5s linear infinite}
+/* Deal Review showcase */
+.lp-dealreview{padding:90px 32px;background:#0A0C0F;border-top:1px solid #1E2130}
+.lp-dealreview-inner{max-width:1080px;margin:0 auto}
+.lp-dr-mock{background:linear-gradient(180deg,#12141c,#0E1015);border:1px solid #232633;border-radius:18px;overflow:hidden;box-shadow:0 30px 80px -20px rgba(0,0,0,.6),0 0 0 1px rgba(34,197,94,.04)}
+.lp-dr-mock-top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-bottom:1px solid #1E2130;flex-wrap:wrap}
+.lp-dr-mock-addr-line{font-size:15px;font-weight:700;color:#F1F5F9}
+.lp-dr-mock-badges{display:flex;align-items:center;gap:8px}
+.lp-dr-verdict{font-size:11px;font-weight:800;letter-spacing:.04em;color:#22C55E;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);border-radius:99px;padding:5px 12px;transition:color .25s,background .25s,border-color .25s}
+.lp-dr-verdict.is-kill{color:#EF4444;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3)}
+.lp-dr-score{font-size:15px;font-weight:800;color:#F1F5F9;background:#1A1D28;border-radius:99px;padding:5px 13px}
+.lp-dr-mock-body{display:grid;grid-template-columns:58% 42%}
+.lp-dr-mock-map{position:relative;min-height:380px;background:radial-gradient(ellipse 70% 60% at 30% 30%,rgba(34,197,94,.10),transparent 60%),repeating-linear-gradient(120deg,#182018 0,#182018 2px,#141a14 2px,#141a14 42px),#141a14;overflow:hidden;border-right:1px solid #1E2130}
+.lp-dr-parcel-outline{position:absolute;top:38%;left:32%;width:34%;height:30%;border:2px dashed rgba(56,189,248,.75);border-radius:4px;background:rgba(56,189,248,.06);transition:border-color .3s,background .3s}
+.lp-dr-parcel-outline.is-flood{border-color:rgba(56,189,248,.85);background:rgba(56,189,248,.1)}
+.lp-dr-parcel-outline.is-road{border-color:rgba(34,197,94,.85);background:rgba(34,197,94,.08)}
+.lp-dr-parcel-outline.is-habitat{border-color:rgba(239,68,68,.85);background:rgba(239,68,68,.1)}
+.lp-dr-parcel-outline.is-evac{border-color:rgba(245,158,11,.85);background:rgba(245,158,11,.1)}
+.lp-dr-map-pin{position:absolute;top:52%;left:49%;width:9px;height:9px;border-radius:50%;background:#38BDF8;box-shadow:0 0 0 4px rgba(56,189,248,.25);transition:background .3s,box-shadow .3s}
+.lp-dr-map-pin.is-road{background:#22C55E;box-shadow:0 0 0 4px rgba(34,197,94,.25)}
+.lp-dr-map-pin.is-habitat{background:#EF4444;box-shadow:0 0 0 4px rgba(239,68,68,.25)}
+.lp-dr-map-pin.is-evac{background:#F59E0B;box-shadow:0 0 0 4px rgba(245,158,11,.25)}
+.lp-dr-map-label{position:absolute;top:69%;left:26%;transform:translateX(-4%);background:rgba(0,0,0,.88);color:#fff;font-size:12.5px;font-weight:800;padding:6px 13px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.5);border-left:4px solid #38BDF8;transition:border-color .3s}
+.lp-dr-map-label.is-road{border-left-color:#22C55E}
+.lp-dr-map-label.is-habitat{border-left-color:#EF4444}
+.lp-dr-map-label.is-evac{border-left-color:#F59E0B}
+.lp-dr-pills{position:absolute;top:16px;left:16px;display:flex;flex-direction:column;gap:8px;z-index:2}
+.lp-dr-pill{font-family:'Inter',sans-serif;font-size:12px;font-weight:700;color:#3A2E22;background:#FBEEDD;border:2px solid transparent;border-radius:99px;padding:7px 14px;cursor:pointer;text-align:left;box-shadow:0 3px 10px rgba(0,0,0,.35);transition:transform .12s,border-color .12s}
+.lp-dr-pill:hover{transform:translateX(2px)}
+.lp-dr-pill.active{border-color:#1A1A1A;transform:scale(1.04)}
+.lp-dr-mock-panel{padding:24px}
+.lp-dr-panel-title{font-size:13px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#22C55E;margin-bottom:10px}
+.lp-dr-panel-desc{font-size:14px;color:var(--t2);line-height:1.65;min-height:85px}
+.lp-dr-facts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px;padding-top:20px;border-top:1px solid #1E2130}
+.lp-dr-facts div{display:flex;flex-direction:column;gap:3px}
+.lp-dr-facts span{font-size:10.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.03em}
+.lp-dr-facts b{font-size:14px;color:#F1F5F9;font-weight:700}
+.lp-dr-links{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:28px;font-size:13px;color:var(--t3)}
+.lp-dr-link-chip{background:#111318;border:1px solid #1E2130;border-radius:99px;padding:6px 14px;color:var(--t2);font-weight:600}
 
 /* Feature cards */
 .lp-features{padding:80px 32px;background:#0A0C0F;border-top:1px solid #1E2130}
@@ -1192,12 +1240,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 /* Responsive */
 @media(max-width:1000px){
   .lp-hero-inner{grid-template-columns:1fr;gap:40px}
-  .lp-engine-inner{grid-template-columns:1fr}
-  .lp-engine-diagram{height:auto;min-height:0}
-  .lp-engine-src-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
-  .lp-src-card{position:static;transform:none!important}
-  .lp-engine-svg{display:none}
-  .lp-engine-center-wrap{display:flex;justify-content:center;margin-bottom:16px}
+  .lp-dr-mock-body{grid-template-columns:1fr}
+  .lp-dr-mock-map{min-height:280px;border-right:none;border-bottom:1px solid #1E2130}
   .lp-features-grid{grid-template-columns:repeat(2,1fr)}
   .lp-explain-inner{grid-template-columns:1fr}
   .lp-footer-grid{grid-template-columns:1fr 1fr}
@@ -1214,7 +1258,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   .lp-footer-grid{grid-template-columns:1fr}
   .lp-ctas,.lp-cta-btns{flex-direction:column;align-items:flex-start}
   .lp-cta-btns{align-items:center}
-  .lp-how,.lp-engine,.lp-features,.lp-explain,.lp-cta-sec{padding:60px 20px}
+  .lp-how,.lp-dealreview,.lp-features,.lp-explain,.lp-cta-sec{padding:60px 20px}
 }
 </style>
 <script>(function(){const t=localStorage.getItem('parceliq-theme');if(t==='light')document.documentElement.dataset.theme='light';})()</script>
@@ -1258,22 +1302,22 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="lp-hero-text">
         <div class="lp-badge hero-badge-anim">
           <span class="lp-badge-dot"></span>
-          FLORIDA BETA · LIVE DATA
+          FLORIDA · 12 LIVE DATA SOURCES · BETA
         </div>
         <h1 class="lp-h1 hero-h1-anim">
-          Upload your leads.<br>
-          <span class="lp-green">We'll <span style="color:#ef4444;font-weight:inherit">kill</span> the bad ones.</span>
+          Screen hundreds of parcels.<br>
+          <span class="lp-green">Deep-dive the ones that matter.</span>
         </h1>
-        <p class="lp-sub hero-sub-anim">ParceliQ checks every parcel for flood zones, wetlands, protected wildlife, contamination records, road access, and county records. Your team makes faster, smarter offers.</p>
+        <p class="lp-sub hero-sub-anim">Paste or upload your leads and ParceliQ screens every parcel against flood, wetlands, wildlife habitat, road and power access, contamination, evacuation zones, soil &amp; septic, elevation, and conservation easements — then hands you a Kill/Pursue verdict with the reasons spelled out. Open any parcel in <b style="color:var(--t1);font-weight:700">Deal Review</b> for a full-screen map and data workspace before you make an offer.</p>
         <div class="lp-ctas hero-ctas-anim">
           <button class="lp-btn-primary" style="font-size:16px;padding:14px 28px" onclick="startScreening()">Start screening free →</button>
-          <button class="lp-btn-outline" style="font-size:16px;padding:14px 28px" onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">▶ See how it works</button>
+          <button class="lp-btn-outline" style="font-size:16px;padding:14px 28px" onclick="document.getElementById('lp-dealreview').scrollIntoView({behavior:'smooth'})">▶ See Deal Review</button>
         </div>
         <div class="lp-trust-chips hero-ctas-anim" style="transition-delay:.06s">
           <span class="lp-trust-chip"><b>✓</b> Live Florida data</span>
-          <span class="lp-trust-chip"><b>✓</b> 10+ data sources</span>
-          <span class="lp-trust-chip"><b>✓</b> Explainable results</span>
-          <span class="lp-trust-chip"><b>✓</b> Built for speed</span>
+          <span class="lp-trust-chip"><b>✓</b> 12 data sources</span>
+          <span class="lp-trust-chip"><b>✓</b> Map-based Deal Review</span>
+          <span class="lp-trust-chip"><b>✓</b> Explainable verdicts</span>
         </div>
       </div>
 
@@ -1321,25 +1365,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   <div class="lp-strip">
     <div class="lp-strip-label">Every parcel checked against multiple federal and state government databases</div>
     <div class="lp-marquee-wrap">
-      <div class="lp-marquee-track">
-        <span class="lp-marquee-item">Flood zones</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Wetlands</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Wildlife habitat</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Road access</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Soil &amp; septic</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Elevation</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Evacuation zones</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Contamination records</span><span class="lp-marquee-sep">·</span>
-        <!-- Duplicate for seamless loop -->
-        <span class="lp-marquee-item">Flood zones</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Wetlands</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Wildlife habitat</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Road access</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Soil &amp; septic</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Elevation</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Evacuation zones</span><span class="lp-marquee-sep">·</span>
-        <span class="lp-marquee-item">Contamination records</span><span class="lp-marquee-sep">·</span>
-      </div>
+      <div class="lp-marquee-track" id="lpMarqueeTrack"></div>
     </div>
   </div>
 
@@ -1349,78 +1375,76 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="lp-sec-center reveal">
         <div class="lp-sec-label">How it works</div>
         <div class="lp-sec-title">How ParceliQ works</div>
-        <div class="lp-sec-sub">Four steps. Minutes, not hours.</div>
+        <div class="lp-sec-sub">Five steps. Minutes, not hours.</div>
       </div>
-      <div class="lp-steps" style="position:relative">
+      <div class="lp-steps lp-steps-5" style="position:relative">
         <div class="lp-steps-line"></div>
         <div class="lp-step reveal" style="transition-delay:0ms">
           <div class="lp-step-icon-wrap"><span class="lp-step-num">1</span>↑</div>
-          <div class="lp-step-title">Upload your leads</div>
-          <div class="lp-step-desc">Paste addresses or upload a spreadsheet. Any format works.</div>
+          <div class="lp-step-title">Paste or upload</div>
+          <div class="lp-step-desc">Addresses, a spreadsheet, hundreds at once. Any format works.</div>
         </div>
-        <div class="lp-step reveal" style="transition-delay:100ms">
+        <div class="lp-step reveal" style="transition-delay:80ms">
           <div class="lp-step-icon-wrap"><span class="lp-step-num">2</span>⚡</div>
-          <div class="lp-step-title">We run the checks</div>
-          <div class="lp-step-desc">Flood zones, wetlands, wildlife, road access, and county records, all at once.</div>
+          <div class="lp-step-title">12 checks run at once</div>
+          <div class="lp-step-desc">Flood, wetlands, habitat, road, power, contamination, evac, soil, elevation, easements.</div>
         </div>
-        <div class="lp-step reveal" style="transition-delay:200ms">
+        <div class="lp-step reveal" style="transition-delay:160ms">
           <div class="lp-step-icon-wrap"><span class="lp-step-num">3</span>◉</div>
-          <div class="lp-step-title">ParceliQ scores risk</div>
-          <div class="lp-step-desc">Our engine evaluates each parcel and explains the reasoning.</div>
+          <div class="lp-step-title">Get a verdict, explained</div>
+          <div class="lp-step-desc">Kill or Pursue, with a score and plain-English reasons for every flag.</div>
         </div>
-        <div class="lp-step reveal" style="transition-delay:300ms">
-          <div class="lp-step-icon-wrap"><span class="lp-step-num">4</span>◎</div>
-          <div class="lp-step-title">Focus on the best lots</div>
-          <div class="lp-step-desc">Spend time on opportunities, not dead deals.</div>
+        <div class="lp-step reveal" style="transition-delay:240ms">
+          <div class="lp-step-icon-wrap"><span class="lp-step-num">4</span>🗺️</div>
+          <div class="lp-step-title">Open Deal Review</div>
+          <div class="lp-step-desc">A full-screen map and data workspace for any single parcel, one click away.</div>
+        </div>
+        <div class="lp-step reveal" style="transition-delay:320ms">
+          <div class="lp-step-icon-wrap"><span class="lp-step-num">5</span>⭐</div>
+          <div class="lp-step-title">Pick, re-screen, export</div>
+          <div class="lp-step-desc">Star your shortlist, refresh a parcel's data anytime, share or export the rest.</div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ── SECTION 4: DECISION ENGINE ── -->
-  <section class="lp-engine" id="lp-engine">
-    <div class="lp-engine-inner">
-      <!-- Left text -->
-      <div class="reveal">
-        <div class="lp-sec-label" style="text-align:left">What ParceliQ evaluates</div>
-        <div class="lp-sec-title" style="text-align:left">What ParceliQ<br>evaluates</div>
-        <p style="font-size:16px;color:var(--t2);line-height:1.7;margin:0 0 24px">Our decision engine checks every parcel against multiple federal and state government databases to uncover risk, access, and opportunity in seconds. Coverage: all 67 Florida counties, statewide.</p>
-        <a style="color:#22C55E;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none" onclick="window.location.hash='#signup'">Try it on your own parcels →</a>
+  <!-- ── SECTION 4: DEAL REVIEW SHOWCASE ── -->
+  <section class="lp-dealreview" id="lp-dealreview">
+    <div class="lp-dealreview-inner">
+      <div class="lp-sec-center reveal">
+        <div class="lp-sec-label">See it in action</div>
+        <div class="lp-sec-title">Every parcel gets its own <span style="color:#22C55E">Deal Review</span></div>
+        <div class="lp-sec-sub">A full-screen map and data workspace for one parcel at a time. Click a check to see it drawn on the map.</div>
       </div>
-      <!-- Diagram -->
-      <div class="reveal" style="transition-delay:200ms">
-        <div class="lp-engine-diagram">
-          <!-- Central glowing circle -->
-          <div class="lp-engine-center">
-            <div class="lp-engine-name">ParceliQ</div>
-            <div class="lp-engine-sub">Decision Engine</div>
-          </div>
-          <!-- Source cards positioned around center (absolute) -->
-          <!-- top center -->
-          <div class="lp-src-card" style="top:2%;left:50%;transform:translateX(-50%)">Flood Risk</div>
-          <!-- top right -->
-          <div class="lp-src-card" style="top:18%;right:1%">Road Access</div>
-          <!-- mid right -->
-          <div class="lp-src-card" style="top:50%;right:0%;transform:translateY(-50%)">County Records</div>
-          <!-- bottom right -->
-          <div class="lp-src-card" style="bottom:18%;right:1%">Contamination</div>
-          <!-- bottom center -->
-          <div class="lp-src-card" style="bottom:2%;left:50%;transform:translateX(-50%)">Parcel Boundaries</div>
-          <!-- bottom left -->
-          <div class="lp-src-card" style="bottom:18%;left:1%">Wildlife Habitat</div>
-          <!-- top left -->
-          <div class="lp-src-card" style="top:18%;left:1%">Wetlands</div>
-          <!-- SVG connector lines -->
-          <svg class="lp-engine-svg" viewBox="0 0 440 440" preserveAspectRatio="xMidYMid meet">
-            <line x1="220" y1="220" x2="220" y2="36" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line"/>
-            <line x1="220" y1="220" x2="410" y2="96" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:.35s"/>
-            <line x1="220" y1="220" x2="425" y2="220" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:.7s"/>
-            <line x1="220" y1="220" x2="410" y2="344" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:1.05s"/>
-            <line x1="220" y1="220" x2="220" y2="404" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:1.4s"/>
-            <line x1="220" y1="220" x2="30" y2="344" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:1.75s"/>
-            <line x1="220" y1="220" x2="30" y2="96" stroke="rgba(34,197,94,.18)" stroke-width="1.5" class="eng-line" style="animation-delay:2.1s"/>
-          </svg>
+      <div class="lp-dr-mock reveal" style="transition-delay:100ms">
+        <div class="lp-dr-mock-top">
+          <div class="lp-dr-mock-addr-line">14718 NE 147th Ave, Waldo, FL 32694</div>
+          <div class="lp-dr-mock-badges"><span class="lp-dr-verdict" id="lpDrVerdict">PURSUE</span><span class="lp-dr-score" id="lpDrScore">94</span></div>
         </div>
+        <div class="lp-dr-mock-body">
+          <div class="lp-dr-mock-map" id="lpDrMap">
+            <div class="lp-dr-parcel-outline"></div>
+            <div class="lp-dr-map-pin" id="lpDrPin"></div>
+            <div class="lp-dr-map-label" id="lpDrMapLabel">Zone X · outside floodplain</div>
+            <div class="lp-dr-pills" id="lpDrPills"></div>
+          </div>
+          <div class="lp-dr-mock-panel">
+            <div class="lp-dr-panel-title" id="lpDrPanelTitle">Flood Zone</div>
+            <div class="lp-dr-panel-desc" id="lpDrPanelDesc"></div>
+            <div class="lp-dr-facts">
+              <div><span>APN</span><b>17151-001-000</b></div>
+              <div><span>Acreage</span><b>1.15 ac</b></div>
+              <div><span>County</span><b>Alachua</b></div>
+              <div><span>Type of Land</span><b>Residential</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="lp-dr-links reveal" style="transition-delay:180ms">
+        <span>Also on every Deal Review:</span>
+        <span class="lp-dr-link-chip">⭐ Star to My Picks</span>
+        <span class="lp-dr-link-chip">↻ Re-screen anytime</span>
+        <span class="lp-dr-link-chip">📤 Export or share</span>
       </div>
     </div>
   </section>
@@ -1555,7 +1579,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div class="lp-footer-col-title">Product</div>
         <a onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">How it works</a>
         <a onclick="window.location.hash='#pricing'" style="display:none">Pricing</a><!-- PRICING_HIDDEN, re-enable for launch -->
-        <a onclick="document.getElementById('lp-engine').scrollIntoView({behavior:'smooth'})">Coverage</a>
+        <a onclick="document.getElementById('lp-dealreview').scrollIntoView({behavior:'smooth'})">Deal Review</a>
       </div>
       <div class="lp-footer-col">
         <div class="lp-footer-col-title">Company</div>
@@ -1652,6 +1676,67 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       };
       reader.readAsBinaryString(f);
     };
+
+    // Trust-strip marquee — every real check category the app runs,
+    // duplicated once so the CSS scroll-loop (translateX -50%) is seamless.
+    var MARQUEE_ITEMS = ['Flood zones','Wetlands','Wildlife habitat','Road access','Power lines','Contamination records','Evacuation zones','Soil & septic','Elevation','Conservation easements','Land use type','Owner & valuation'];
+    (function() {
+      var track = document.getElementById('lpMarqueeTrack');
+      if (!track) return;
+      var html = '';
+      [0, 1].forEach(function() {
+        MARQUEE_ITEMS.forEach(function(item) {
+          html += '<span class="lp-marquee-item">' + item + '</span><span class="lp-marquee-sep">·</span>';
+        });
+      });
+      track.innerHTML = html;
+    })();
+
+    // Deal Review showcase — clicking a check pill swaps the mock map's
+    // highlighted parcel color/label and the panel's title/description,
+    // matching what the real Deal Review map does per filter.
+    var LP_DR_CHECKS = {
+      flood:   { pill: '🌊 Flood Zone',    label: 'Zone X · outside floodplain', title: 'Flood Zone',
+                 desc: 'This parcel sits outside the FEMA-mapped floodplain (Zone X) — the lowest flood risk category. Zone, distance to the mapped boundary, and source all shown on the real map.',
+                 verdict: 'PURSUE', score: 94 },
+      road:    { pill: '🛣️ Road Access',   label: '40m to nearest road', title: 'Road Access',
+                 desc: 'A real line drawn to the nearest mapped road centerline, measured in meters — not a guess. Power line distance gets the same treatment.',
+                 verdict: 'PURSUE', score: 94 },
+      habitat: { pill: '🐢 Wildlife Habitat', label: '🐢 Gopher Tortoise on parcel', title: 'Wildlife Habitat',
+                 desc: 'Critical habitat records show a Gopher Tortoise burrow inside the parcel boundary. Species-level detail, not just "habitat nearby" — often enough to auto-kill a deal on its own.',
+                 verdict: 'KILL', score: 18 },
+      evac:    { pill: '🚧 Evacuation Zone', label: 'Zone C evacuation', title: 'Evacuation Zone',
+                 desc: 'Zone C is a moderate hurricane evacuation risk — not immediate, but worth flagging for insurance and resale conversations.',
+                 verdict: 'PURSUE', score: 94 },
+    };
+    var lpDrActive = 'flood';
+    window.lpDrSelect = function(check) {
+      var cfg = LP_DR_CHECKS[check];
+      if (!cfg) return;
+      lpDrActive = check;
+      var cls = 'is-' + check;
+      var allCls = Object.keys(LP_DR_CHECKS).map(function(k) { return 'is-' + k; });
+      [document.getElementById('lpDrMap').querySelector('.lp-dr-parcel-outline'), document.getElementById('lpDrPin'), document.getElementById('lpDrMapLabel')].forEach(function(el) {
+        if (!el) return;
+        allCls.forEach(function(c) { el.classList.remove(c); });
+        if (check !== 'flood') el.classList.add(cls);
+      });
+      document.querySelectorAll('.lp-dr-pill').forEach(function(btn) { btn.classList.toggle('active', btn.dataset.check === check); });
+      var labelEl = document.getElementById('lpDrMapLabel'); if (labelEl) labelEl.textContent = cfg.label;
+      var titleEl = document.getElementById('lpDrPanelTitle'); if (titleEl) titleEl.textContent = cfg.title;
+      var descEl = document.getElementById('lpDrPanelDesc'); if (descEl) descEl.textContent = cfg.desc;
+      var verdictEl = document.getElementById('lpDrVerdict');
+      if (verdictEl) { verdictEl.textContent = cfg.verdict; verdictEl.classList.toggle('is-kill', cfg.verdict === 'KILL'); }
+      var scoreEl = document.getElementById('lpDrScore'); if (scoreEl) scoreEl.textContent = cfg.score;
+    };
+    (function() {
+      var wrap = document.getElementById('lpDrPills');
+      if (!wrap) return;
+      wrap.innerHTML = Object.keys(LP_DR_CHECKS).map(function(key) {
+        return '<button class="lp-dr-pill' + (key === lpDrActive ? ' active' : '') + '" data-check="' + key + '" onclick="lpDrSelect(\'' + key + '\')">' + LP_DR_CHECKS[key].pill + '</button>';
+      }).join('');
+      lpDrSelect(lpDrActive);
+    })();
 
     // Intersection Observer for scroll reveals
     var io = new IntersectionObserver(function(entries) {
@@ -2594,6 +2679,10 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
             <option value="csv">CSV (Excel-compatible)</option>
             <option value="tsv">TSV (Tab-separated)</option>
           </select>
+        </div>
+        <div class="sett-field">
+          <span class="sett-lbl">Getting started tutorial</span>
+          <button class="btn-o btn-sm" onclick="showOnboardingTutorial()">▶ Replay tutorial</button>
         </div>
       </div>
 
@@ -4275,6 +4364,82 @@ function showEmptyBatchState() {
   const btn = document.getElementById('batchSelAllBtn');
   if (btn) btn.style.display = 'none';
   _dashEmptyState();
+  _maybeShowOnboarding();
+}
+
+// ── ONBOARDING TUTORIAL (first login) ──────────────────────────────
+const ONBOARDING_STEPS = [
+  { icon: '👋', title: 'Welcome to ParceliQ',
+    desc: "ParceliQ screens parcels against flood zones, wetlands, wildlife habitat, road & power access, contamination, evacuation zones, soil & septic, elevation, and conservation easements — then hands you a Kill/Pursue verdict with the reasons spelled out. Here's how it works, in five quick steps." },
+  { icon: '↑', title: 'Paste or upload',
+    desc: 'On the dashboard, paste addresses into the box or upload a spreadsheet under the "Batch Screen" tab — hundreds at once, any format works. Checking just one address? Switch to the "Single Parcel" tab instead.' },
+  { icon: '⚡', title: '12 checks run at once',
+    desc: 'Hit "Screen Parcels →" and every parcel gets checked against flood, wetlands, habitat, road, power, contamination, evacuation, soil, elevation, and easement data — all at once.' },
+  { icon: '◉', title: 'Get a verdict, explained',
+    desc: 'Each parcel comes back with a score and a Kill or Pursue verdict, plus plain-English reasons for every flag — so you know exactly why, not just what.' },
+  { icon: '🗺️', title: 'Open Deal Review',
+    desc: 'Click any parcel to open Deal Review — a full-screen map and data workspace. Click a check in the sidebar to see it drawn right on the map.' },
+  { icon: '⭐', title: 'Pick, re-screen, export',
+    desc: "Star your shortlist to My Picks, re-screen a parcel any time its data might have changed, and export or share the rest." },
+];
+
+let _obStep = 0;
+
+function showOnboardingTutorial() {
+  _obStep = 0;
+  _onboardingRender();
+  document.getElementById('onboardingModal')?.classList.add('show');
+}
+
+function _onboardingRender() {
+  const step = ONBOARDING_STEPS[_obStep];
+  if (!step) return;
+  const iconEl = document.getElementById('obIcon');
+  if (iconEl) iconEl.textContent = step.icon;
+  const titleEl = document.getElementById('obTitle');
+  if (titleEl) titleEl.textContent = step.title;
+  const descEl = document.getElementById('obDesc');
+  if (descEl) descEl.textContent = step.desc;
+  const dotsEl = document.getElementById('obDots');
+  if (dotsEl) {
+    dotsEl.innerHTML = ONBOARDING_STEPS.map((_, i) =>
+      '<span class="ob-dot' + (i === _obStep ? ' active' : '') + '"></span>').join('');
+  }
+  const backBtn = document.getElementById('obBackBtn');
+  if (backBtn) backBtn.style.visibility = _obStep === 0 ? 'hidden' : 'visible';
+  const nextBtn = document.getElementById('obNextBtn');
+  if (nextBtn) nextBtn.textContent = _obStep === ONBOARDING_STEPS.length - 1 ? 'Get started →' : 'Next →';
+}
+
+function _onboardingNext() {
+  if (_obStep >= ONBOARDING_STEPS.length - 1) { _onboardingFinish(); return; }
+  _obStep++;
+  _onboardingRender();
+}
+
+function _onboardingBack() {
+  if (_obStep === 0) return;
+  _obStep--;
+  _onboardingRender();
+}
+
+function _onboardingSkip() {
+  _onboardingFinish();
+}
+
+function _onboardingFinish() {
+  document.getElementById('onboardingModal')?.classList.remove('show');
+  if (currentUser) {
+    try { localStorage.setItem('piq-onboarding-seen-' + currentUser.id, '1'); } catch(e) {}
+  }
+}
+
+function _maybeShowOnboarding() {
+  if (!currentUser) return;
+  try {
+    if (localStorage.getItem('piq-onboarding-seen-' + currentUser.id)) return;
+  } catch(e) { return; }
+  showOnboardingTutorial();
 }
 
 function renderPastBatches(batches) {
@@ -10751,6 +10916,20 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="upgrade-modal-btns">
       <button class="btn-p btn-sm" onclick="hideUpgradeModal();goTo('pricing')">View pricing</button>
       <button class="btn-o btn-sm" onclick="hideUpgradeModal()">OK</button>
+    </div>
+  </div>
+</div>
+<!-- ════════ ONBOARDING TUTORIAL (first login) ════════ -->
+<div id="onboardingModal" class="ob-overlay">
+  <div class="ob-modal">
+    <button class="ob-skip" onclick="_onboardingSkip()">Skip tutorial ✕</button>
+    <div class="ob-icon-wrap"><span class="ob-icon" id="obIcon">👋</span></div>
+    <div class="ob-title" id="obTitle">Welcome to ParceliQ</div>
+    <div class="ob-desc" id="obDesc"></div>
+    <div class="ob-dots" id="obDots"></div>
+    <div class="ob-btns">
+      <button class="ob-back" id="obBackBtn" onclick="_onboardingBack()">← Back</button>
+      <button class="btn-p" id="obNextBtn" onclick="_onboardingNext()">Next →</button>
     </div>
   </div>
 </div>
