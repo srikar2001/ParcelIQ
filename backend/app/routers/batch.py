@@ -35,7 +35,7 @@ WEEKLY_LIMIT  = 1000
 # ── Per-host concurrency limits. External services rate-limit per IP; a single
 # global semaphore let one 20-parcel chunk fire 60+ concurrent Overpass calls
 # (limit ~2) so road/waterway/power data failed on nearly every batch row.
-_SEM_OVERPASS = asyncio.Semaphore(2)   # overpass-api.de — waterways + powerlines (bundled)
+_SEM_OVERPASS = asyncio.Semaphore(10)  # waterways + powerlines — now local Supabase PostGIS RPC (no rate limit); was Overpass @ 2/IP
 _SEM_TIGER    = asyncio.Semaphore(8)   # Census TIGERweb — road access
 _SEM_FLDOR    = asyncio.Semaphore(8)   # FL DOR statewide cadastral
 _SEM_FEMA     = asyncio.Semaphore(5)   # FEMA NFHL
