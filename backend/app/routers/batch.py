@@ -569,6 +569,27 @@ async def get_usage(authorization: Optional[str] = Header(None)):
     return JSONResponse(content={"used": used, "limit": limit})
 
 
+async def _split_cached(parcels: list, skip_cache: bool) -> tuple[list, list]:
+    """Split parcels into (already-cached result pairs, parcels still needing a
+    geocode). A cache hit skips BOTH geocoding (a paid Geocodio credit) and
+    screening. skip_cache (a re-screen) forces everything to be re-fetched.
+
+    Cache reads run concurrently so the pre-pass adds ~one round-trip, not one
+    per parcel."""
+    if skip_cache:
+        return [], list(parcels)
+    hits = await asyncio.gather(*[get_cached_result(p.address) for p in parcels])
+    cached_pairs, to_geocode = [], []
+    for p, c in zip(parcels, hits):
+        if isinstance(c, dict) and c:
+            c = dict(c)
+            c["cached"] = True
+            cached_pairs.append((p, c))
+        else:
+            to_geocode.append(p)
+    return cached_pairs, to_geocode
+
+
 @router.post("/batch/stream")
 async def batch_screen_stream(
     request: BatchRequest,
@@ -587,13 +608,22 @@ async def batch_screen_stream(
         try:
             yield f'data: {json.dumps({"type":"start","total":total})}\n\n'
 
-            # ── Step 1: batch-geocode all addresses in one API call ──────────────
-            addresses = [p.address for p in parcels]
-            geo_map   = await geocode_batch(addresses)  # {address -> {lat,lng,formatted}}
+            # ── Step 0: cache-first — a cached address skips geocoding entirely
+            # (no Geocodio credit) and its result streams out immediately.
+            cached_pairs, to_geocode = await _split_cached(parcels, request.cache_bust)
+            for p, r in cached_pairs:
+                all_results.append(r)
+                completed += 1
+                pct = int((completed / total) * 100)
+                yield f'data: {json.dumps({"type":"progress","completed":completed,"total":total,"percent":pct,"latest":r})}\n\n'
+
+            # ── Step 1: batch-geocode ONLY the uncached addresses ────────────────
+            addresses = [p.address for p in to_geocode]
+            geo_map   = await geocode_batch(addresses) if addresses else {}
 
             # Immediately emit ERROR for any that failed geocoding
             geocoded_parcels = []
-            for p in parcels:
+            for p in to_geocode:
                 geo = geo_map.get(p.address) or {"status": "not_found"}
                 if geo.get("status") == "ok":
                     geocoded_parcels.append((p, geo))
@@ -604,11 +634,12 @@ async def batch_screen_stream(
                     pct = int((completed / total) * 100)
                     yield f'data: {json.dumps({"type":"progress","completed":completed,"total":total,"percent":pct,"latest":r})}\n\n'
 
-            # ── Step 2: process in parallel chunks (no geocoding overhead) ────────
+            # ── Step 2: process in parallel chunks (cache already checked above,
+            # so skip_cache=True avoids a redundant cache read per parcel) ────────
             for i in range(0, len(geocoded_parcels), BATCH_SIZE):
                 chunk = geocoded_parcels[i:i + BATCH_SIZE]
                 chunk_results = await asyncio.gather(
-                    *[_process_parcel_pregeocoded_safe(p, geo, skip_cache=request.cache_bust) for p, geo in chunk]
+                    *[_process_parcel_pregeocoded_safe(p, geo, skip_cache=True) for p, geo in chunk]
                 )
                 for result in chunk_results:
                     all_results.append(result)
@@ -690,13 +721,19 @@ async def _process_batch_background(job_id: str, parcels: list, skip_cache: bool
 
     await _job_update(job_id, "processing", 0, [])
     try:
-        # Batch-geocode all addresses in one API call (same as SSE path)
-        addresses = [p.address for p in parcels]
-        geo_map   = await geocode_batch(addresses)
+        # Cache-first: cached addresses skip geocoding (no Geocodio credit) and
+        # go straight into the results.
+        cached_pairs, to_geocode = await _split_cached(parcels, skip_cache)
+        for _p, r in cached_pairs:
+            accumulated.append(r)
+
+        # Batch-geocode ONLY the uncached addresses
+        addresses = [p.address for p in to_geocode]
+        geo_map   = await geocode_batch(addresses) if addresses else {}
 
         # Parcels that failed geocoding get immediate ERROR results
         geocoded_parcels = []
-        for p in parcels:
+        for p in to_geocode:
             geo = geo_map.get(p.address) or {"status": "not_found"}
             if geo.get("status") == "ok":
                 geocoded_parcels.append((p, geo))
@@ -709,8 +746,9 @@ async def _process_batch_background(job_id: str, parcels: list, skip_cache: bool
         # concurrency governors, and sequential chunks left the rate-limited
         # hosts idle at each chunk boundary (convoy effect). The generous
         # timeout covers time spent queued behind the per-host limits.
+        # Cache already checked above, so skip_cache=True here.
         queue_timeout = max(_PARCEL_TIMEOUT, 30.0 * len(geocoded_parcels))
-        tasks = [asyncio.create_task(_process_parcel_pregeocoded_safe(p, geo, timeout=queue_timeout, skip_cache=skip_cache))
+        tasks = [asyncio.create_task(_process_parcel_pregeocoded_safe(p, geo, timeout=queue_timeout, skip_cache=True))
                  for p, geo in geocoded_parcels]
         for fut in asyncio.as_completed(tasks):
             accumulated.append(await fut)
