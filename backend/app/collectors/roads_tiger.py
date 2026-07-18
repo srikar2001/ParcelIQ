@@ -14,6 +14,13 @@ import httpx
 _BASE = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer"
 _LAYERS = [8, 6, 2]          # local roads first, then secondary, then primary
 SEARCH_RADIUS_M = 150
+# Rural / large-lot parcels geocode to a point that can sit well past 150m from
+# the frontage road (e.g. "5510 Paces Landing Rd" — its own road is ~400m from
+# the geocoded point). Searching only 150m reported those as "no road access",
+# which is wrong. Try 150m first (keeps urban precision), then widen until a
+# road is found. Truly landlocked parcels (nothing within 800m) still return
+# NONE_FOUND. The reported road_distance_m makes a far road self-evident.
+_SEARCH_RADII_M = [150, 400, 800]
 
 # MTFCC road classification -> (road_type, surface implication)
 _MTFCC = {
@@ -68,9 +75,12 @@ def _min_distance(lat: float, lng: float, paths: list) -> tuple[float, float, fl
     return best, best_pt[0], best_pt[1]
 
 
-async def get_road_access(lat: float, lng: float) -> dict:
-    dlat = SEARCH_RADIUS_M / 111_320.0
-    dlng = SEARCH_RADIUS_M / (111_320.0 * max(0.2, math.cos(math.radians(lat))))
+async def _query_radius(client: httpx.AsyncClient, lat: float, lng: float,
+                        radius_m: float) -> dict | None:
+    """Search all layers within radius_m. Returns a road result dict, or None
+    if no vehicle road was found at this radius (caller widens and retries)."""
+    dlat = radius_m / 111_320.0
+    dlng = radius_m / (111_320.0 * max(0.2, math.cos(math.radians(lat))))
     envelope = f"{lng - dlng},{lat - dlat},{lng + dlng},{lat + dlat}"
     params = {
         "geometry": envelope,
@@ -82,41 +92,49 @@ async def get_road_access(lat: float, lng: float) -> dict:
         "outSR": "4326",
         "f": "json",
     }
+    for layer in _LAYERS:
+        resp = await client.get(f"{_BASE}/{layer}/query", params=params)
+        resp.raise_for_status()
+        data = resp.json()
+        if "error" in data:
+            raise RuntimeError(f"TIGERweb error: {data['error']}")
+        feats = [f for f in data.get("features", [])
+                 if (f.get("attributes", {}).get("MTFCC") or "") not in _EXCLUDE]
+        if not feats:
+            continue
+
+        scored = []
+        for f in feats:
+            attrs = f.get("attributes", {})
+            mtfcc = attrs.get("MTFCC") or ""
+            result = _min_distance(lat, lng, (f.get("geometry") or {}).get("paths"))
+            dist, nlat, nlng = result if result is not None else (1e9, None, None)
+            scored.append((mtfcc in _PRIVATE, dist, nlat, nlng, mtfcc, attrs.get("NAME")))
+        # Prefer public roads over private drives, then nearest
+        scored.sort(key=lambda t: (t[0], t[1]))
+        is_private, dist, nlat, nlng, mtfcc, name = scored[0]
+        road_type, surface = _MTFCC.get(mtfcc, ("road", "unknown"))
+        return {
+            "road_found": True,
+            "road_type": road_type,
+            "road_surface": surface,
+            "road_name": (name or "").strip() or None,
+            "road_distance_m": round(dist) if dist < 1e9 else None,
+            "road_private": bool(is_private),
+            "road_nearest_lat": nlat if dist < 1e9 else None,
+            "road_nearest_lng": nlng if dist < 1e9 else None,
+            "source": "US Census TIGER",
+        }
+    return None
+
+
+async def get_road_access(lat: float, lng: float) -> dict:
     try:
         async with httpx.AsyncClient(timeout=12.0) as client:
-            for layer in _LAYERS:
-                resp = await client.get(f"{_BASE}/{layer}/query", params=params)
-                resp.raise_for_status()
-                data = resp.json()
-                if "error" in data:
-                    raise RuntimeError(f"TIGERweb error: {data['error']}")
-                feats = [f for f in data.get("features", [])
-                         if (f.get("attributes", {}).get("MTFCC") or "") not in _EXCLUDE]
-                if not feats:
-                    continue
-
-                scored = []
-                for f in feats:
-                    attrs = f.get("attributes", {})
-                    mtfcc = attrs.get("MTFCC") or ""
-                    result = _min_distance(lat, lng, (f.get("geometry") or {}).get("paths"))
-                    dist, nlat, nlng = result if result is not None else (1e9, None, None)
-                    scored.append((mtfcc in _PRIVATE, dist, nlat, nlng, mtfcc, attrs.get("NAME")))
-                # Prefer public roads over private drives, then nearest
-                scored.sort(key=lambda t: (t[0], t[1]))
-                is_private, dist, nlat, nlng, mtfcc, name = scored[0]
-                road_type, surface = _MTFCC.get(mtfcc, ("road", "unknown"))
-                return {
-                    "road_found": True,
-                    "road_type": road_type,
-                    "road_surface": surface,
-                    "road_name": (name or "").strip() or None,
-                    "road_distance_m": round(dist) if dist < 1e9 else None,
-                    "road_private": bool(is_private),
-                    "road_nearest_lat": nlat if dist < 1e9 else None,
-                    "road_nearest_lng": nlng if dist < 1e9 else None,
-                    "source": "US Census TIGER",
-                }
+            for radius_m in _SEARCH_RADII_M:
+                found = await _query_radius(client, lat, lng, radius_m)
+                if found is not None:
+                    return found
         return dict(NONE_FOUND)
     except Exception as e:
         print(f"[RoadsTIGER] Error: {e}")
