@@ -1,66 +1,57 @@
-import asyncio
+"""Flood zone from local PostGIS (fl_flood_zones, FEMA NFHL data).
+
+Formerly a live FEMA NFHL ArcGIS point query per parcel; now a single PostGIS
+RPC (flood_zone_at) called with the anon key over PostgREST — same FEMA data
+(all Florida S_FLD_HAZ_AR polygons), same point-in-polygon, same zone/SFHA/BFE
+derivation. Geometry is generalized ~10m (finer than geocoding error) so the
+zone a point falls in is unchanged. Return shape unchanged so insight_engine's
+flood kill logic is untouched.
+"""
+import os
+
 import httpx
 
-FEMA_URL = "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query"
-DEFAULT     = {"zone": "UNKNOWN",    "sfha": False, "source": "FEMA NFHL"}
-NOT_MAPPED  = {"zone": "NOT_MAPPED", "sfha": False, "source": "FEMA NFHL"}
-API_ERROR   = {"zone": "ERROR",      "sfha": False, "source": "FEMA NFHL"}
+_SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+_SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_KEY", "")
+_RPC = f"{_SUPABASE_URL}/rest/v1/rpc"
+_HEADERS = {"apikey": _SUPABASE_KEY, "Authorization": f"Bearer {_SUPABASE_KEY}",
+            "Content-Type": "application/json"}
 
-_PARAMS_BASE = {
-    "where": "1=1",
-    "geometryType": "esriGeometryPoint",
-    "inSR": "4326",
-    "spatialRel": "esriSpatialRelIntersects",
-    "outFields": "FLD_ZONE,ZONE_SUBTY,SFHA_TF,STATIC_BFE",
-    "returnGeometry": "false",
-    "f": "json",
-}
+DEFAULT    = {"zone": "UNKNOWN",    "sfha": False, "source": "FEMA NFHL"}
+NOT_MAPPED = {"zone": "NOT_MAPPED", "sfha": False, "source": "FEMA NFHL"}
+API_ERROR  = {"zone": "ERROR",      "sfha": False, "source": "FEMA NFHL"}
 
-
-async def _query(lat: float, lng: float) -> dict | None:
-    params = {**_PARAMS_BASE, "geometry": f"{lng},{lat}"}
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        resp = await client.get(FEMA_URL, params=params)
-        resp.raise_for_status()
-        data = resp.json()
-    if "error" in data:
-        raise RuntimeError(f"FEMA error: {data['error']}")
-    return data
+_SFHA_ZONES = {"AE", "VE", "V", "AO", "AH", "A"}
 
 
 async def get_flood_zone(lat: float, lng: float) -> dict:
-    for attempt in range(2):
-        try:
-            data = await _query(lat, lng)
-            features = data.get("features", [])
-            if not features:
-                return NOT_MAPPED
+    try:
+        async with httpx.AsyncClient(timeout=15.0, headers=_HEADERS) as client:
+            resp = await client.post(f"{_RPC}/flood_zone_at", json={"in_lat": lat, "in_lng": lng})
+            resp.raise_for_status()
+            rows = resp.json()
+        if not rows:                       # no flood polygon contains the point
+            return dict(NOT_MAPPED)
+        row = rows[0] if isinstance(rows, list) else rows
 
-            attrs = features[0].get("attributes", {})
-            zone_raw = attrs.get("FLD_ZONE")
-            zone = (zone_raw or "").strip().upper() or "UNKNOWN"
+        zone = (row.get("fld_zone") or "").strip().upper() or "UNKNOWN"
 
-            # SFHA_TF is "T" or "F" — None means the field was missing, treat as SFHA if zone says so
-            sfha_raw = attrs.get("SFHA_TF")
-            if sfha_raw is None:
-                # Infer from zone: A, AE, VE, V, AO, AH are always SFHA
-                sfha = zone in {"AE", "VE", "V", "AO", "AH", "A"}
-            else:
-                sfha = str(sfha_raw).strip().upper() == "T"
+        sfha_raw = row.get("sfha_tf")
+        if sfha_raw is None:
+            sfha = zone in _SFHA_ZONES
+        else:
+            sfha = str(sfha_raw).strip().upper() == "T"
 
-            bfe_raw = attrs.get("STATIC_BFE")
-            bfe = float(bfe_raw) if bfe_raw not in (None, -9999, -9999.0) else None
-            return {
-                "zone": zone,
-                "zone_subtype": (attrs.get("ZONE_SUBTY") or "").strip(),
-                "sfha": sfha,
-                "base_flood_elevation_ft": bfe,
-                "source": "FEMA NFHL",
-            }
-        except Exception as e:
-            if attempt == 0:
-                await asyncio.sleep(1.0)
-                continue
-            print(f"[Flood] Error after 2 attempts: {e}")
-            return API_ERROR
-    return API_ERROR  # unreachable but satisfies type checker
+        bfe_raw = row.get("static_bfe")
+        bfe = float(bfe_raw) if bfe_raw not in (None, -9999, -9999.0) else None
+
+        return {
+            "zone": zone,
+            "zone_subtype": (row.get("zone_subty") or "").strip(),
+            "sfha": sfha,
+            "base_flood_elevation_ft": bfe,
+            "source": "FEMA NFHL",
+        }
+    except Exception as e:
+        print(f"[Flood] Error: {e}")
+        return dict(API_ERROR)
