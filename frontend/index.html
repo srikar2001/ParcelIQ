@@ -10653,11 +10653,41 @@ function _pnavEnsureOpenParcelVisible() {
   }
 }
 
+// Windowed rendering: building a DOM row for every parcel froze the tab on
+// large batches (10k+). We render a first batch (plus enough to include the
+// open parcel so its highlight shows) and append more as the user scrolls.
+// For normal-size batches the first batch covers everything, so behavior is
+// unchanged.
+let _pnavFiltered = [];
+let _pnavRendered = 0;
+const _PNAV_BATCH = 80;
+
+function _pnavBuildRow(r) {
+  const ev = effectiveVerdict(r);
+  const street = (r.address || '').split(',')[0].trim();
+  const row = document.createElement('div');
+  row.className = 'pnav-row' + (r === _openParcel ? ' pnav-row-active' : '');
+  row.innerHTML =
+    '<div class="pnav-row-addr" style="color:' + verdictColor(ev) + '">' + escHtml(street) + '</div>' +
+    '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">' +
+      (r._starred ? '<span title="Picked" style="color:var(--amber);font-size:13px;line-height:1">⭐</span>' : '') +
+      (r.score != null ? '<div class="pnav-row-score ' + (ev === 'KILL' ? 'v-kill' : 'v-pursue') + '">' + r.score + '</div>' : '') +
+    '</div>';
+  row.addEventListener('click', function() { _pnavOpenParcel(r); });
+  return row;
+}
+
+function _pnavAppendRows(list, upTo) {
+  const end = Math.min(upTo, _pnavFiltered.length);
+  for (let i = _pnavRendered; i < end; i++) list.appendChild(_pnavBuildRow(_pnavFiltered[i]));
+  _pnavRendered = end;
+}
+
 function _pnavRenderList() {
   const list = document.getElementById('pnavList');
   if (!list) return;
   const q = _pnavQuery.trim().toLowerCase();
-  const filtered = (batchState.results || []).filter(r => {
+  _pnavFiltered = (batchState.results || []).filter(r => {
     if (_pnavFilter !== 'all' && effectiveVerdict(r) !== _pnavFilter) return false;
     if (q) {
       const pi = r.parcel_info || {};
@@ -10667,25 +10697,27 @@ function _pnavRenderList() {
     }
     return true;
   });
-  if (!filtered.length) {
+  if (!_pnavFiltered.length) {
     list.innerHTML = '<div style="padding:16px 10px;font-size:12px;color:var(--t3);text-align:center">No matching parcels.</div>';
+    _pnavRendered = 0;
     return;
   }
   list.innerHTML = '';
-  filtered.forEach(r => {
-    const ev = effectiveVerdict(r);
-    const street = (r.address || '').split(',')[0].trim();
-    const row = document.createElement('div');
-    row.className = 'pnav-row' + (r === _openParcel ? ' pnav-row-active' : '');
-    row.innerHTML =
-      '<div class="pnav-row-addr" style="color:' + verdictColor(ev) + '">' + escHtml(street) + '</div>' +
-      '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">' +
-        (r._starred ? '<span title="Picked" style="color:var(--amber);font-size:13px;line-height:1">⭐</span>' : '') +
-        (r.score != null ? '<div class="pnav-row-score ' + (ev === 'KILL' ? 'v-kill' : 'v-pursue') + '">' + r.score + '</div>' : '') +
-      '</div>';
-    row.addEventListener('click', function() { _pnavOpenParcel(r); });
-    list.appendChild(row);
-  });
+  _pnavRendered = 0;
+  let initial = _PNAV_BATCH;
+  const openIdx = _openParcel ? _pnavFiltered.indexOf(_openParcel) : -1;
+  if (openIdx >= 0) initial = Math.max(initial, openIdx + 10);
+  _pnavAppendRows(list, initial);
+  list.onscroll = function() {
+    if (_pnavRendered >= _pnavFiltered.length) return;
+    if (list.scrollTop + list.clientHeight >= list.scrollHeight - 300) {
+      _pnavAppendRows(list, _pnavRendered + _PNAV_BATCH);
+    }
+  };
+  if (openIdx >= 0) {
+    const activeRow = list.querySelector('.pnav-row-active');
+    if (activeRow && activeRow.scrollIntoView) activeRow.scrollIntoView({ block: 'nearest' });
+  }
 }
 
 function _pnavOpenParcel(r) {
