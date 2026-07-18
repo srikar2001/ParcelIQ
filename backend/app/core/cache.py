@@ -16,7 +16,8 @@ async def get_cached_result(address: str) -> dict | None:
     if not _SUPABASE_URL:
         return None
     try:
-        cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        # No TTL — a cached result is reused forever (repeats are always free /
+        # instant). A re-screen sets skip_cache to force fresh data instead.
         addr_key = address.strip().lower()
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(
@@ -24,7 +25,7 @@ async def get_cached_result(address: str) -> dict | None:
                 params={
                     "select": "report_json,updated_at",
                     "address": f"eq.{addr_key}",
-                    "updated_at": f"gte.{cutoff}",
+                    "order": "updated_at.desc",
                     "limit": "1",
                 },
                 headers={"apikey": _SUPABASE_KEY, "Authorization": f"Bearer {_SUPABASE_KEY}"},

@@ -1377,7 +1377,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           </div>
         </div>
         <div id="lp-content-paste" class="lp-tab-content">
-          <textarea class="lp-textarea" id="lpPasteArea" placeholder="1234 Main St, Tampa, FL 33602&#10;456 Oak Ave, Orlando, FL 32801&#10;789 Pine Rd, Jacksonville, FL 32201&#10;...one address per line"></textarea>
+          <textarea class="lp-textarea" id="lpPasteArea" oninput="lpPasteCount()" placeholder="1234 Main St, Tampa, FL 33602&#10;456 Oak Ave, Orlando, FL 32801&#10;789 Pine Rd, Jacksonville, FL 32201&#10;...one address per line"></textarea>
+          <div id="lpPasteCount" style="font-size:12px;color:var(--t3);margin-top:6px;min-height:16px"></div>
         </div>
         <div style="padding:0 20px 20px">
           <select class="lp-state-sel"><option value="FL">🏖 Florida</option></select>
@@ -1659,6 +1660,15 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         document.getElementById('lp-tab-' + t).classList.toggle('active', t === tab);
         document.getElementById('lp-content-' + t).classList.toggle('active', t === tab);
       });
+    };
+
+    // Live count of pasted addresses (non-empty lines)
+    window.lpPasteCount = function() {
+      var ta = document.getElementById('lpPasteArea');
+      var el = document.getElementById('lpPasteCount');
+      if (!ta || !el) return;
+      var n = ta.value.split('\n').filter(function(l) { return l.trim().length > 0; }).length;
+      el.textContent = n ? (n.toLocaleString() + ' address' + (n === 1 ? '' : 'es') + ' pasted') : '';
     };
 
     // Analyze button
@@ -2208,7 +2218,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <button onclick="showPricingComingSoon()" style="display:none;width:100%;padding:8px 12px;background:var(--green);color:#000;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.02em">⬆ Upgrade Plan</button><!-- PRICING_HIDDEN, re-enable for launch -->
         <div class="rsb-usage-row">
           <div class="rsb-usage-bar"><div class="rsb-usage-bar-fill" id="sbUsageFill" style="width:0%"></div></div>
-          <div class="rsb-usage-txt"><span id="sbUsageCount">—</span> / <span id="sbUsageLimit">1,000</span> today</div>
+          <div class="rsb-usage-txt"><span id="sbUsageCount">—</span> / <span id="sbUsageLimit">Unlimited</span> today</div>
         </div>
         <div class="rsb-profile">
           <div class="rsb-profile-av" id="rsbAvatar">?</div>
@@ -3372,7 +3382,7 @@ async function _loadUsageLimit() {
     const data = await r.json();
     if (data.limit != null) {
       _dailyLimit = data.limit;
-      document.querySelectorAll('#sbUsageLimit').forEach(el => el.textContent = _dailyLimit.toLocaleString());
+      document.querySelectorAll('#sbUsageLimit').forEach(el => el.textContent = _dailyLimit >= 1000000 ? 'Unlimited' : _dailyLimit.toLocaleString());
     }
   } catch(e) {}
 }
@@ -7760,8 +7770,11 @@ async function _runQueueBatch(flLines, outsideResults) {
       if (metaEl) metaEl.textContent = 'Screening · ' + seen + ' of ' + total + ' · ' + remStr + stalled;
     } else {
       _setProc('procCount', seen > 0 ? seen + ' of ' + total + ' screened' : 'Geocoding ' + total + ' addresses…');
-      updateProgress(seen, total, null); // also sets #procEta via the same tracker
-      if (stalled) { const etaEl = document.getElementById('procEta'); if (etaEl) etaEl.textContent += stalled; }
+      updateProgress(seen, total, null); // sets the #procCount progress bar
+      // Rebuild the ETA text each poll (do NOT append — appending stacked the
+      // "taking a bit longer" note once per poll).
+      const etaEl = document.getElementById('procEta');
+      if (etaEl) etaEl.textContent = remStr + stalled;
     }
 
     if (st.status === 'complete') break;
