@@ -35,16 +35,20 @@ WEEKLY_LIMIT  = 1_000_000   # effectively unlimited — free during beta (was 10
 # ── Per-host concurrency limits. External services rate-limit per IP; a single
 # global semaphore let one 20-parcel chunk fire 60+ concurrent Overpass calls
 # (limit ~2) so road/waterway/power data failed on nearly every batch row.
-_SEM_OVERPASS = asyncio.Semaphore(10)  # waterways + powerlines — now local Supabase PostGIS RPC (no rate limit); was Overpass @ 2/IP
+# Local Supabase PostGIS RPCs — no per-IP rate limit, so concurrency is bounded
+# only by what the Supabase compute handles. Raised from 5 (which were sized for
+# the old live APIs and were needlessly throttling the batch); wetland/habitat
+# kept a bit lower since they're the heaviest spatial queries.
+_SEM_OVERPASS = asyncio.Semaphore(12)  # waterways + powerlines (local)
+_SEM_FEMA     = asyncio.Semaphore(12)  # flood zones (local)
+_SEM_USFWS    = asyncio.Semaphore(8)   # wetlands + critical habitat (local, heaviest)
 _SEM_TIGER    = asyncio.Semaphore(8)   # Census TIGERweb — road access
 _SEM_FLDOR    = asyncio.Semaphore(8)   # FL DOR statewide cadastral
-_SEM_FEMA     = asyncio.Semaphore(5)   # FEMA NFHL
-_SEM_USFWS    = asyncio.Semaphore(5)   # USFWS wetlands + critical habitat
-_SEM_USGS     = asyncio.Semaphore(10)  # USGS elevation
+_SEM_USGS     = asyncio.Semaphore(12)  # elevation (Open-Meteo)
 _SEM_EPA      = asyncio.Semaphore(5)
 _SEM_SOIL     = asyncio.Semaphore(5)   # USDA soil data access
 _SEM_EVAC     = asyncio.Semaphore(5)   # FL FDEM evacuation zones
-_SEM_EASE     = asyncio.Semaphore(5)   # conservation easements
+_SEM_EASE     = asyncio.Semaphore(12)  # conservation easements (local)
 _SUPABASE_URL     = os.environ.get('SUPABASE_URL', '')
 # Deployments have used several names for these keys — accept any of them
 _SUPABASE_KEY     = (os.environ.get('SUPABASE_ANON_KEY')
