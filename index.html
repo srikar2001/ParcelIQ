@@ -1303,7 +1303,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 
 <!-- NAV -->
 <nav class="nav">
-  <div class="nav-logo" onclick="window.location.hash='#landing'">Parcel<span class="iq">iQ</span></div>
+  <div class="nav-logo" onclick="goHome()">Parcel<span class="iq">iQ</span></div>
   <div class="nav-right" id="navRight">
     <span class="fl-pill">FL Beta</span>
     <button class="btn-o btn-sm hide-mob" onclick="window.location.hash='#login'">Log in</button>
@@ -1317,7 +1317,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   <!-- ── Landing Nav (overlays global nav via z-index) ── -->
   <nav class="lp-nav">
     <div style="display:flex;align-items:center;gap:32px">
-      <div class="lp-nav-logo" onclick="window.location.hash='#landing'">Parcel<span>iQ</span></div>
+      <div class="lp-nav-logo" onclick="goHome()">Parcel<span>iQ</span></div>
       <div class="lp-nav-links">
         <a onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'})">How it works</a>
         <a onclick="window.location.hash='#pricing'" style="display:none">Pricing</a><!-- PRICING_HIDDEN, re-enable for launch -->
@@ -2976,6 +2976,18 @@ let currentBatchResults = [];
 // transition it just initiated — every other way a screen can change
 // (back/forward, a direct showScreen() call elsewhere) is correctly a no-op.
 let _allowNextScreenAnim = false;
+function goHome() {
+  // Logo click. If we're already on the landing page, a plain hash set is a
+  // silent no-op (the reported "logo doesn't reload" bug) — so do a real
+  // reload. From inside the app, just navigate to the landing page.
+  const lp = document.getElementById('page-landing');
+  if (lp && lp.classList.contains('active')) {
+    window.location.reload();
+  } else {
+    goTo('landing');
+  }
+}
+
 function goTo(page) {
   closeDetailPanel();
   const targetHash = '#' + page;
@@ -3311,7 +3323,7 @@ let _rowsPerPage    = 25;
 let _selectedRows   = new Set();
 let _openParcel     = null;
 let _weeklyUsed     = null; // cached weekly usage count
-let _dailyLimit     = 1000; // updated from /api/usage — reflects any admin override
+let _dailyLimit     = 1_000_000; // effectively unlimited (free beta); still updated from /api/usage
 let _rescreenAborted = false;
 let _rescreenReader  = null;
 

@@ -30,7 +30,7 @@ router = APIRouter(prefix="/api")
 BATCH_SIZE    = 20        # parcels processed in parallel per chunk
 _API_TIMEOUT  = 16.0      # default per external API call (HTTP time only — queue wait excluded)
 _PARCEL_TIMEOUT = 240.0   # hard cap per individual parcel (includes per-host queue waits)
-WEEKLY_LIMIT  = 1000
+WEEKLY_LIMIT  = 1_000_000   # effectively unlimited — free during beta (was 1000)
 
 # ── Per-host concurrency limits. External services rate-limit per IP; a single
 # global semaphore let one 20-parcel chunk fire 60+ concurrent Overpass calls
@@ -54,9 +54,9 @@ _SUPABASE_SVC_KEY = (os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
                      or _SUPABASE_KEY)  # bypasses RLS
 
 
-_VIP_LIMITS: dict[str, int] = {
-    'srikarvudaru1@gmail.com': 10_000,
-}
+# Per-email overrides are moot now that everyone is effectively unlimited,
+# but kept so a specific user could still be raised further if ever needed.
+_VIP_LIMITS: dict[str, int] = {}
 
 class _AuthUnavailable(Exception):
     """Token could not be verified because the verification infrastructure is
