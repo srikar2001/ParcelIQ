@@ -58,6 +58,72 @@ async def create_share(req: ShareRequest):
     return {"share_url": f"{_FRONTEND_URL}/#shared/{token}", "token": token, "expires_at": expires}
 
 
+class ParcelShareRequest(BaseModel):
+    result: dict
+
+
+@router.post("/share/parcel")
+async def create_parcel_share(req: ParcelShareRequest):
+    """Snapshot a single parcel's Deal Review into a public read-only link.
+    Stored in the reports KV table under a reserved 'shareparcel:<token>' key
+    (same pattern the contact form uses) — no new table needed."""
+    if not _SUPABASE_URL:
+        return JSONResponse(status_code=503, content={"error": "Database not configured"})
+    if not isinstance(req.result, dict) or not req.result:
+        return JSONResponse(status_code=400, content={"error": "No parcel data to share"})
+    token = str(uuid.uuid4()).replace("-", "")[:16]
+    key = f"shareparcel:{token}"
+    payload = {
+        "address": key,
+        "folio": key,
+        "report_json": json.dumps({
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "result": req.result,
+        }),
+    }
+    headers = {
+        "apikey": _SUPABASE_KEY, "Authorization": f"Bearer {_SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.post(f"{_SUPABASE_URL}/rest/v1/reports", json=payload, headers=headers)
+        if resp.status_code not in (200, 201, 204):
+            raise HTTPException(status_code=500, detail=f"Failed to save share link: {resp.text}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Share] parcel DB error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save share link — database error")
+    return {"share_url": f"{_FRONTEND_URL}/#p/{token}", "token": token}
+
+
+@router.get("/share/parcel/{token}")
+async def get_parcel_share(token: str):
+    if not _SUPABASE_URL:
+        return JSONResponse(status_code=503, content={"error": "Database not configured"})
+    key = f"shareparcel:{token}"
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(
+                f"{_SUPABASE_URL}/rest/v1/reports",
+                params={"address": f"eq.{key}", "select": "report_json", "limit": "1"},
+                headers={"apikey": _SUPABASE_KEY, "Authorization": f"Bearer {_SUPABASE_KEY}"},
+            )
+        rows = r.json()
+        if not rows:
+            return JSONResponse(status_code=404, content={"error": "Share link not found"})
+        raw = rows[0].get("report_json")
+        data = json.loads(raw) if isinstance(raw, str) else raw
+        result = data.get("result") if isinstance(data, dict) else None
+        if not result:
+            return JSONResponse(status_code=404, content={"error": "Share link not found"})
+        return {"result": result}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/share/{token}")
 async def get_shared(token: str):
     if not _SUPABASE_URL:

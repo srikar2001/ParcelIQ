@@ -3878,6 +3878,9 @@ const _hash = window.location.hash;
 if (_hash.startsWith('#shared/')) {
   const _token = _hash.replace('#shared/', '').split('?')[0];
   loadSharedBatch(_token);
+} else if (_hash.startsWith('#p/')) {
+  const _ptoken = _hash.replace('#p/', '').split('?')[0];
+  loadSharedParcel(_ptoken);
 } else {
   initApp();
 }
@@ -3929,6 +3932,33 @@ async function loadSharedBatch(token) {
   }
 }
 
+// Render a parcel's flags as readable, color-coded signal chips (red = kill-type,
+// amber = caution, grey = info). Used by the shared batch table and the shared
+// single-parcel view — recipients see the actual signals, not just dots.
+function _signalChipsHtml(flags, opts) {
+  opts = opts || {};
+  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const list = (flags || []).filter(Boolean);
+  if (!list.length) return '<span style="font-size:12px;color:var(--t2)">No red flags</span>';
+  const color = f => {
+    const t = f.toLowerCase();
+    if (t.includes('flood') || t.includes('wetland') || t.includes('habitat') || t.includes('protected') || t.includes('kill') || t.includes('conservation'))
+      return { bg:'rgba(239,68,68,.14)', fg:'#F87171' };
+    if (t.includes('road') || t.includes('access') || t.includes('canal') || t.includes('easement') || t.includes('power') || t.includes('review') || t.includes('slope'))
+      return { bg:'rgba(245,158,11,.14)', fg:'#FBBF24' };
+    return { bg:'rgba(148,163,184,.14)', fg:'#94A3B8' };
+  };
+  const max = opts.max || list.length;
+  const shown = list.slice(0, max);
+  let html = shown.map(f => {
+    const c = color(f);
+    return '<span style="display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;'
+      + 'margin:2px 4px 2px 0;background:' + c.bg + ';color:' + c.fg + '">' + esc(f) + '</span>';
+  }).join('');
+  if (list.length > max) html += '<span style="font-size:11px;color:var(--t2)">+' + (list.length - max) + ' more</span>';
+  return html;
+}
+
 // FIX 3 — renderSharedResults
 function renderSharedResults(results, container) {
   const vColor = v => v === 'PURSUE' ? '#22C55E' : v === 'KILL' ? '#EF4444' : v === 'REVIEW' ? '#F59E0B' : '#64748B';
@@ -3953,18 +3983,13 @@ function renderSharedResults(results, container) {
     const city = addrParts.slice(1).join(',').trim();
     const landType = pi.land_use_code != null ? getLandUseCategory(pi.land_use_code) : 'Unknown';
     const acreage = pi.acreage != null ? (Math.round(pi.acreage * 10) / 10) + ' ac' : '';
-    const flags = (r.flags || []).slice(0, 3).map(f =>
-      '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;background:' +
-      (f.toLowerCase().includes('flood') || f.toLowerCase().includes('wetland') || f.toLowerCase().includes('kill') ? '#EF4444' :
-       f.toLowerCase().includes('review') || f.toLowerCase().includes('canal') || f.toLowerCase().includes('road') ? '#F59E0B' : '#64748B') +
-      '" title="' + esc(f) + '"></span>'
-    ).join('');
+    const flags = _signalChipsHtml(r.flags, { max: 5 });
     const score = r.score != null ? r.score : '';
     return `<tr style="border-bottom:1px solid #1E2130;cursor:default">
       <td style="padding:10px 12px"><div style="font-weight:500;font-size:13px">${esc(street)}</div><div style="font-size:11px;color:var(--t2)">${esc(city)}</div></td>
       <td style="padding:10px 12px;font-size:12px;color:var(--t2)">${esc(landType)}</td>
       <td style="padding:10px 12px;font-size:12px;color:var(--t2)">${esc(acreage)}</td>
-      <td style="padding:10px 12px">${flags}</td>
+      <td style="padding:10px 12px;max-width:380px">${flags}</td>
       <td style="padding:10px 12px;font-weight:700;color:${vColor(ev)}">${esc(score)}</td>
       <td style="padding:10px 12px"><span style="padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;background:${ev==='PURSUE'?'rgba(34,197,94,.15)':ev==='KILL'?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)'};color:${vColor(ev)}">${esc(ev)}</span></td>
     </tr>`;
@@ -3978,10 +4003,6 @@ function renderSharedResults(results, container) {
       <div style="background:rgba(34,197,94,.1);border-radius:10px;padding:12px 20px;flex:1;min-width:100px">
         <div style="font-size:22px;font-weight:800;color:#22C55E">${summary.pursue}</div>
         <div style="font-size:11px;color:var(--t2);margin-top:2px">Pursue</div>
-      </div>
-      <div style="background:rgba(245,158,11,.1);border-radius:10px;padding:12px 20px;flex:1;min-width:100px">
-        <div style="font-size:22px;font-weight:800;color:#F59E0B">${summary.review}</div>
-        <div style="font-size:11px;color:var(--t2);margin-top:2px">Review</div>
       </div>
       <div style="background:rgba(239,68,68,.1);border-radius:10px;padding:12px 20px;flex:1;min-width:100px">
         <div style="font-size:22px;font-weight:800;color:#EF4444">${summary.kill}</div>
@@ -4012,6 +4033,100 @@ function renderSharedResults(results, container) {
       </button>
     </div>
   `;
+}
+
+// ── Shared single-parcel Deal Review (public, read-only) — #p/<token>
+async function loadSharedParcel(token) {
+  window.addEventListener('hashchange', () => {
+    if (!window.location.hash.startsWith('#p/')) window.location.reload();
+  }, { once: true });
+  document.body.innerHTML = '';
+  document.body.style.cssText = 'background:#0D0F12;color:#F1F5F9;font-family:Inter,sans-serif';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'max-width:860px;margin:0 auto;padding:24px';
+  document.body.appendChild(wrap);
+  wrap.innerHTML = `
+    <div style='display:flex;justify-content:space-between;align-items:center;
+      padding:0 0 20px;border-bottom:1px solid #2A2D3A;margin-bottom:24px'>
+      <div style='font-size:20px;font-weight:800'>Parcel<span style='color:#22C55E'>iQ</span></div>
+      <div style='display:flex;gap:10px;align-items:center'>
+        <span style='font-size:13px;color:var(--t2)'>Shared Deal Review (view only)</span>
+        <button onclick='window.location.hash="#signup"'
+          style='background:#22C55E;color:#000;border:none;padding:7px 14px;border-radius:99px;
+          cursor:pointer;font-weight:600;font-size:13px'>Create free account</button>
+      </div>
+    </div>
+    <div id='sp-content' style='text-align:center;padding:60px;color:var(--t2)'>Loading Deal Review…</div>`;
+  try {
+    const resp = await fetch(API + '/api/share/parcel/' + token);
+    if (!resp.ok) {
+      document.getElementById('sp-content').innerHTML =
+        '<h2 style="color:#F1F5F9">This share link has expired or does not exist.</h2>' +
+        '<p><a href="/" style="color:#22C55E">Return to ParceliQ</a></p>';
+      return;
+    }
+    const data = await resp.json();
+    renderSharedParcel(data.result || {}, document.getElementById('sp-content'));
+  } catch(e) {
+    document.getElementById('sp-content').innerHTML =
+      '<h2 style="color:#F1F5F9">Could not load this Deal Review.</h2><p>Check your connection.</p>';
+  }
+}
+
+function renderSharedParcel(r, el) {
+  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const pi = r.parcel_info || {};
+  const ev = r.verdict || 'ERROR';
+  const vColor = ev === 'PURSUE' ? '#22C55E' : ev === 'KILL' ? '#EF4444' : ev === 'REVIEW' ? '#F59E0B' : '#64748B';
+  const vBg = ev === 'PURSUE' ? 'rgba(34,197,94,.15)' : ev === 'KILL' ? 'rgba(239,68,68,.15)' : 'rgba(245,158,11,.15)';
+  const facts = [];
+  if (pi.land_use_code != null) facts.push(['Land type', esc(getLandUseCategory(pi.land_use_code))]);
+  if (pi.acreage != null) facts.push(['Size', (Math.round(pi.acreage*100)/100) + ' acres']);
+  if (pi.road_name || pi.road_distance_m != null) {
+    let rd = pi.road_name ? esc(pi.road_name) : 'Nearest road';
+    if (pi.road_distance_m != null) rd += ' · ' + pi.road_distance_m + 'm';
+    if (pi.road_type) rd += ' · ' + esc(pi.road_type);
+    facts.push(['Road access', rd]);
+  } else if (pi.road_surface === 'none') {
+    facts.push(['Road access', 'No public road within ~800m']);
+  }
+  if (pi.elevation_ft != null) facts.push(['Elevation', pi.elevation_ft + ' ft']);
+  if (pi.base_flood_elevation_ft != null) facts.push(['Base flood elev.', pi.base_flood_elevation_ft + ' ft']);
+  if (pi.flood_zone_subtype) facts.push(['Flood zone', esc(pi.flood_zone_subtype)]);
+  const apn = pi.parcel_id || pi.apn;
+  if (apn) facts.push(['APN', esc(apn)]);
+  if (pi.county) facts.push(['County', esc(pi.county)]);
+
+  const factsHtml = facts.map(([k,v]) =>
+    '<div style="background:#151721;border:1px solid #1E2130;border-radius:10px;padding:12px 14px">'
+    + '<div style="font-size:11px;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">' + esc(k) + '</div>'
+    + '<div style="font-size:14px;font-weight:600">' + v + '</div></div>').join('');
+
+  const posHtml = (r.positives || []).length
+    ? '<div style="margin-top:22px"><div style="font-size:13px;font-weight:700;color:#22C55E;margin-bottom:8px">Positives</div>'
+      + (r.positives || []).map(p => '<span style="display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;margin:2px 4px 2px 0;background:rgba(34,197,94,.14);color:#4ADE80">' + esc(p) + '</span>').join('') + '</div>'
+    : '';
+
+  el.style.textAlign = 'left';
+  el.style.padding = '0';
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="font-size:24px;font-weight:800">${esc(r.address || 'Parcel')}</div>
+      <span style="padding:4px 14px;border-radius:99px;font-size:13px;font-weight:800;background:${vBg};color:${vColor}">${esc(ev)}</span>
+      ${r.score != null ? '<span style="font-size:20px;font-weight:800;color:'+vColor+'">'+r.score+'</span>' : ''}
+    </div>
+    ${r.auto_kill_reason ? '<div style="font-size:13px;color:#F87171;margin-bottom:18px">⚡ '+esc(r.auto_kill_reason)+'</div>' : '<div style="margin-bottom:18px"></div>'}
+    <div style="font-size:13px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Signals</div>
+    <div style="margin-bottom:6px">${_signalChipsHtml(r.flags, {})}</div>
+    ${posHtml}
+    <div style="font-size:13px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin:24px 0 10px">Parcel facts</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">${factsHtml || '<div style="color:var(--t2);font-size:13px">No parcel facts available.</div>'}</div>
+    <div style="margin-top:32px;padding:28px;background:linear-gradient(135deg,rgba(34,197,94,.08),rgba(34,197,94,.03));border:1px solid rgba(34,197,94,.2);border-radius:14px;text-align:center">
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Screen your own parcels, free</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:16px">Florida statewide · Kill / Pursue in seconds</div>
+      <button onclick='window.location.hash="#signup"'
+        style='background:#22C55E;color:#000;border:none;padding:11px 28px;border-radius:99px;cursor:pointer;font-weight:700;font-size:15px'>Create free account →</button>
+    </div>`;
 }
 
 async function loadUserProfile() {
@@ -8158,16 +8273,51 @@ async function shareResults() {
     const data = await resp.json();
     const urlInp = document.getElementById('shareUrlInput');
     if (urlInp) urlInp.value = data.share_url || '';
+    _setShareModalText('Share Results', 'Anyone with this link can view results without logging in.');
     document.getElementById('shareModal')?.classList.add('show');
   } catch(e) {
     // Fallback: generate a pseudo share link from batch name
     const token = Math.random().toString(36).slice(2,12);
     const urlInp = document.getElementById('shareUrlInput');
     if (urlInp) urlInp.value = 'https://parcel-iq-nine.vercel.app/#shared/' + token;
+    _setShareModalText('Share Results', 'Anyone with this link can view results without logging in.');
     document.getElementById('shareModal')?.classList.add('show');
   }
 }
 function hideShareModal() { document.getElementById('shareModal')?.classList.remove('show'); }
+
+function _setShareModalText(title, sub) {
+  const t = document.querySelector('#shareModal .share-modal-title');
+  const s = document.querySelector('#shareModal .share-modal-sub');
+  if (t) t.textContent = title;
+  if (s) s.textContent = sub;
+}
+
+// Share a single parcel's Deal Review as a public read-only link (#p/<token>).
+async function shareParcel() {
+  const r = _openParcel;
+  if (!r) { toast('Open a parcel first, then share its Deal Review'); return; }
+  const btn = document.getElementById('svShareBtn');
+  // Strip internal (underscore-prefixed) fields before publishing.
+  const clean = {};
+  for (const k in r) { if (!k.startsWith('_')) clean[k] = r[k]; }
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    const hdrs = { 'Content-Type':'application/json' };
+    if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
+    const resp = await fetch(API + '/api/share/parcel', { method:'POST', headers:hdrs, body:JSON.stringify({ result: clean }) });
+    if (!resp.ok) throw new Error('Share failed');
+    const data = await resp.json();
+    const urlInp = document.getElementById('shareUrlInput');
+    if (urlInp) urlInp.value = data.share_url || '';
+    _setShareModalText('Share Deal Review', 'Anyone with this link can view this parcel’s Deal Review without logging in.');
+    document.getElementById('shareModal')?.classList.add('show');
+  } catch(e) {
+    toast('Could not create share link — try again');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '↗ Share'; }
+  }
+}
 
 // ── UPLOAD MODAL
 function openUploadModal() {
@@ -9801,6 +9951,7 @@ function renderStoryView(r) {
             '<span id="svVerdictBadge" class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
             (r.score != null ? '<span id="svScoreNum" style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '<span id="svScoreNum" style="flex-shrink:0"></span>') +
             '<button id="svRescreenBtn" class="sv-rescreen-btn" onclick="rescreenFromStoryView()" title="Re-screen this parcel with fresh data">↻ Re-screen</button>' +
+            '<button id="svShareBtn" class="sv-rescreen-btn" onclick="shareParcel()" title="Share this Deal Review as a read-only link">↗ Share</button>' +
             '<button id="svStarBtn" onclick="_toggleStarFromPanel()" title="' + (r._starred ? 'Remove from My Picks' : 'Add to My Picks') + '" style="background:none;border:none;font-size:20px;cursor:pointer;padding:0 2px;color:' + (r._starred ? 'var(--amber)' : 'var(--t3)') + ';line-height:1;flex-shrink:0;transition:color .12s">' + (r._starred ? '⭐' : '☆') + '</button>' +
           '</div>' +
           (apn ? '<div class="sv-apn">APN ' + escHtml(apn) + '</div>' : '') +
