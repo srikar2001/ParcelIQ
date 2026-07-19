@@ -931,7 +931,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .testimonial-quote{font-size:15px;color:var(--t1);line-height:1.7;font-style:italic;margin-bottom:12px}
 .testimonial-attr{font-size:13px;color:var(--t3);font-style:normal}
 /* ══ SHARE MODAL */
-.share-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;align-items:center;justify-content:center;padding:24px}
+.share-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:5000;align-items:center;justify-content:center;padding:24px}
 .share-overlay.show{display:flex}
 .share-modal{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:28px;max-width:480px;width:100%}
 .share-modal-title{font-size:18px;font-weight:800;margin-bottom:8px}
@@ -3932,9 +3932,25 @@ async function loadSharedBatch(token) {
   }
 }
 
+// Rank a signal by how much it distinguishes a parcel. Generic flags that
+// appear on nearly every FL vacant parcel (road surface unconfirmed, low sale
+// price, JV/LV diverge, no nearby power) rank lowest so the meaningful,
+// deal-defining signals (wetlands, flood, easement, no road, poor soil) lead
+// each row instead of a wall of the same boilerplate.
+function _signalRank(f) {
+  const t = f.toLowerCase();
+  if (t.includes('flood') || t.includes('wetland') || t.includes('habitat') || t.includes('protected') || t.includes('conservation') || t.includes('endangered')) return 6;
+  if (t.includes('easement') || t.includes('right-of-way') || t.includes('right of way') || t.includes('no public road') || t.includes('no road') || t.includes('landlocked') || (t.includes('road') && t.includes('access'))) return 5;
+  if (t.includes('very small') || t.includes('poor soil') || t.includes('drained') || t.includes('septic') || t.includes('slope') || t.includes('steep')) return 4;
+  if (t.includes('power')) return 2;
+  if (t.includes('road surface') || t.includes('satellite') || t.includes('sale price') || t.includes('sale history') || t.includes('just value') || t.includes('land value') || t.includes('diverge') || t.includes('county data')) return 1;
+  return 3;
+}
+
 // Render a parcel's flags as readable, color-coded signal chips (red = kill-type,
-// amber = caution, grey = info). Used by the shared batch table and the shared
-// single-parcel view — recipients see the actual signals, not just dots.
+// amber = caution, grey = info), ordered most-distinguishing first. Used by the
+// shared batch table and the shared single-parcel view — recipients see the
+// actual signals, not just dots.
 function _signalChipsHtml(flags, opts) {
   opts = opts || {};
   const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -3948,8 +3964,12 @@ function _signalChipsHtml(flags, opts) {
       return { bg:'rgba(245,158,11,.14)', fg:'#FBBF24' };
     return { bg:'rgba(148,163,184,.14)', fg:'#94A3B8' };
   };
-  const max = opts.max || list.length;
-  const shown = list.slice(0, max);
+  // Stable sort by rank (desc), keeping original order within a rank.
+  const ranked = list.map((f, i) => [f, i])
+    .sort((a, b) => _signalRank(b[0]) - _signalRank(a[0]) || a[1] - b[1])
+    .map(x => x[0]);
+  const max = opts.max || ranked.length;
+  const shown = ranked.slice(0, max);
   let html = shown.map(f => {
     const c = color(f);
     return '<span style="display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;'
