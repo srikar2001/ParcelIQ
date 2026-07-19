@@ -4056,40 +4056,49 @@ function renderSharedResults(results, container) {
 }
 
 // ── Shared single-parcel Deal Review (public, read-only) — #p/<token>
+// Renders the *real* Deal Review (map, flood/wetlands layers, data panel) in a
+// locked-down view-only mode — same as the owner sees, minus the edit controls.
 async function loadSharedParcel(token) {
   window.addEventListener('hashchange', () => {
     if (!window.location.hash.startsWith('#p/')) window.location.reload();
   }, { once: true });
   document.body.innerHTML = '';
-  document.body.style.cssText = 'background:#0D0F12;color:#F1F5F9;font-family:Inter,sans-serif';
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'max-width:860px;margin:0 auto;padding:24px';
-  document.body.appendChild(wrap);
-  wrap.innerHTML = `
-    <div style='display:flex;justify-content:space-between;align-items:center;
-      padding:0 0 20px;border-bottom:1px solid #2A2D3A;margin-bottom:24px'>
-      <div style='font-size:20px;font-weight:800'>Parcel<span style='color:#22C55E'>iQ</span></div>
-      <div style='display:flex;gap:10px;align-items:center'>
-        <span style='font-size:13px;color:var(--t2)'>Shared Deal Review (view only)</span>
-        <button onclick='window.location.hash="#signup"'
-          style='background:#22C55E;color:#000;border:none;padding:7px 14px;border-radius:99px;
-          cursor:pointer;font-weight:600;font-size:13px'>Create free account</button>
-      </div>
-    </div>
-    <div id='sp-content' style='text-align:center;padding:60px;color:var(--t2)'>Loading Deal Review…</div>`;
+  document.body.style.cssText = 'margin:0;background:var(--bg);color:var(--t1);font-family:Inter,sans-serif';
+  const host = document.createElement('div');
+  host.id = 'storyView';
+  host.style.height = '100vh';
+  document.body.appendChild(host);
+  host.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:var(--t2)">Loading Deal Review…</div>';
   try {
     const resp = await fetch(API + '/api/share/parcel/' + token);
     if (!resp.ok) {
-      document.getElementById('sp-content').innerHTML =
-        '<h2 style="color:#F1F5F9">This share link has expired or does not exist.</h2>' +
-        '<p><a href="/" style="color:#22C55E">Return to ParceliQ</a></p>';
+      host.innerHTML = '<div style="text-align:center;padding:80px 24px"><h2>This share link has expired or does not exist.</h2>'
+        + '<p><a href="/" style="color:var(--green)">Return to ParceliQ</a></p></div>';
       return;
     }
     const data = await resp.json();
-    renderSharedParcel(data.result || {}, document.getElementById('sp-content'));
+    const r = data.result || {};
+    window._sharedViewOnly = true;
+    _openParcel = r;
+    try {
+      renderStoryView(r);
+      host.classList.add('open');
+      setTimeout(() => { if (_svMap) { try { _svMap.invalidateSize(); } catch(e) {} } }, 300);
+    } catch(err) {
+      // Older snapshots may lack the geometry/fields the full map needs — fall
+      // back to the simple summary so the link still shows signals + facts.
+      console.error('Shared story render failed, using summary:', err);
+      host.classList.remove('open');
+      host.style.height = 'auto';
+      host.innerHTML = '<div style="max-width:860px;margin:0 auto;padding:24px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:0 0 20px;border-bottom:1px solid var(--b);margin-bottom:24px">'
+        + '<div style="font-size:20px;font-weight:800">Parcel<span style="color:var(--green)">iQ</span></div>'
+        + '<button onclick="window.location.hash=\'#signup\'" style="background:var(--green);color:#000;border:none;padding:7px 14px;border-radius:99px;cursor:pointer;font-weight:600;font-size:13px">Create free account</button>'
+        + '</div><div id="sp-content"></div></div>';
+      renderSharedParcel(r, document.getElementById('sp-content'));
+    }
   } catch(e) {
-    document.getElementById('sp-content').innerHTML =
-      '<h2 style="color:#F1F5F9">Could not load this Deal Review.</h2><p>Check your connection.</p>';
+    host.innerHTML = '<div style="text-align:center;padding:80px 24px"><h2>Could not load this Deal Review.</h2><p>Check your connection.</p></div>';
   }
 }
 
@@ -8318,9 +8327,11 @@ async function shareParcel() {
   const r = _openParcel;
   if (!r) { toast('Open a parcel first, then share its Deal Review'); return; }
   const btn = document.getElementById('svShareBtn');
-  // Strip internal (underscore-prefixed) fields before publishing.
+  // Strip internal (underscore-prefixed) fields before publishing — but keep
+  // _lat/_lng, which the shared Deal Review map needs to center. (Other _ keys
+  // can hold DOM refs that aren't JSON-serializable.)
   const clean = {};
-  for (const k in r) { if (!k.startsWith('_')) clean[k] = r[k]; }
+  for (const k in r) { if (!k.startsWith('_') || k === '_lat' || k === '_lng') clean[k] = r[k]; }
   try {
     if (btn) { btn.disabled = true; btn.textContent = '…'; }
     const hdrs = { 'Content-Type':'application/json' };
@@ -9958,29 +9969,38 @@ function renderStoryView(r) {
   // now-unreachable collapsed sidebar) the moment you navigate to another parcel.
   const existingSidebar = document.getElementById('resSidebar');
   const sidebarCurrentlyHidden = !!(existingSidebar && existingSidebar.classList.contains('rsb-hidden'));
+  // Shared (public, read-only) mode: same Deal Review — map, layers, data
+  // panel — but no owner-only controls (re-screen / share / star / jump /
+  // parcel nav), and a "create account" affordance instead of a Back button.
+  const shared = !!window._sharedViewOnly;
 
   sv.innerHTML =
     '<div class="sv-wrap">' +
       '<div class="sv-header">' +
-        '<button class="sv-back icon-only" onclick="closeStoryView()" title="Back to Results">←</button>' +
-        '<button id="svSidebarOpenBtn" class="sv-back icon-only" onclick="_svToggleSidebar()" title="Show sidebar" style="display:' + (sidebarCurrentlyHidden ? 'inline-flex' : 'none') + '"><svg width="16" height="14" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>' +
+        (shared
+          ? '<div style="font-weight:800;font-size:16px;padding:0 6px;white-space:nowrap">Parcel<span style="color:var(--green)">iQ</span></div>'
+          : '<button class="sv-back icon-only" onclick="closeStoryView()" title="Back to Results">←</button>' +
+            '<button id="svSidebarOpenBtn" class="sv-back icon-only" onclick="_svToggleSidebar()" title="Show sidebar" style="display:' + (sidebarCurrentlyHidden ? 'inline-flex' : 'none') + '"><svg width="16" height="14" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>') +
         '<div style="min-width:0;flex:1">' +
-          '<div class="sv-section-label">Deal Review</div>' +
+          '<div class="sv-section-label">' + (shared ? 'Deal Review · shared, view only' : 'Deal Review') + '</div>' +
           '<div style="display:flex;align-items:center;gap:10px;min-width:0">' +
             '<div class="sv-addr">' + escHtml(r.address || '') + '</div>' +
             '<span id="svVerdictBadge" class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
             (r.score != null ? '<span id="svScoreNum" style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '<span id="svScoreNum" style="flex-shrink:0"></span>') +
-            '<button id="svRescreenBtn" class="sv-rescreen-btn" onclick="rescreenFromStoryView()" title="Re-screen this parcel with fresh data">↻ Re-screen</button>' +
-            '<button id="svShareBtn" class="sv-rescreen-btn" onclick="shareParcel()" title="Share this Deal Review as a read-only link">↗ Share</button>' +
-            '<button id="svStarBtn" onclick="_toggleStarFromPanel()" title="' + (r._starred ? 'Remove from My Picks' : 'Add to My Picks') + '" style="background:none;border:none;font-size:20px;cursor:pointer;padding:0 2px;color:' + (r._starred ? 'var(--amber)' : 'var(--t3)') + ';line-height:1;flex-shrink:0;transition:color .12s">' + (r._starred ? '⭐' : '☆') + '</button>' +
+            (shared ? '' :
+              '<button id="svRescreenBtn" class="sv-rescreen-btn" onclick="rescreenFromStoryView()" title="Re-screen this parcel with fresh data">↻ Re-screen</button>' +
+              '<button id="svShareBtn" class="sv-rescreen-btn" onclick="shareParcel()" title="Share this Deal Review as a read-only link">↗ Share</button>' +
+              '<button id="svStarBtn" onclick="_toggleStarFromPanel()" title="' + (r._starred ? 'Remove from My Picks' : 'Add to My Picks') + '" style="background:none;border:none;font-size:20px;cursor:pointer;padding:0 2px;color:' + (r._starred ? 'var(--amber)' : 'var(--t3)') + ';line-height:1;flex-shrink:0;transition:color .12s">' + (r._starred ? '⭐' : '☆') + '</button>') +
           '</div>' +
           (apn ? '<div class="sv-apn">APN ' + escHtml(apn) + '</div>' : '') +
         '</div>' +
-        '<div class="sv-jump-box">' +
-          '<input type="text" id="svJumpInput" class="sv-jump-input" placeholder="Search address or APN..." oninput="_svJumpInput(this.value)" onkeydown="if(event.key===\'Escape\')_svJumpClose()" onblur="setTimeout(_svJumpClose,150)">' +
-          '<button class="sv-jump-btn" title="Search" onclick="document.getElementById(\'svJumpInput\').focus()">' + _PNAV_SEARCH_ICON + '</button>' +
-          '<div class="sv-jump-dropdown" id="svJumpDropdown" style="display:none"></div>' +
-        '</div>' +
+        (shared
+          ? '<button onclick="window.location.hash=\'#signup\'" style="background:var(--green);color:#000;border:none;padding:8px 16px;border-radius:99px;cursor:pointer;font-weight:700;font-size:13px;white-space:nowrap;flex-shrink:0">Create free account</button>'
+          : '<div class="sv-jump-box">' +
+              '<input type="text" id="svJumpInput" class="sv-jump-input" placeholder="Search address or APN..." oninput="_svJumpInput(this.value)" onkeydown="if(event.key===\'Escape\')_svJumpClose()" onblur="setTimeout(_svJumpClose,150)">' +
+              '<button class="sv-jump-btn" title="Search" onclick="document.getElementById(\'svJumpInput\').focus()">' + _PNAV_SEARCH_ICON + '</button>' +
+              '<div class="sv-jump-dropdown" id="svJumpDropdown" style="display:none"></div>' +
+            '</div>') +
       '</div>' +
 
       '<div class="sv-main">' +
@@ -9993,8 +10013,9 @@ function renderStoryView(r) {
             '<button class="sv-map-btn" data-svlayer="satellite" onclick="svToggleLayer(this)">Satellite</button>' +
           '</div>' +
           '<div class="sv-map-overlay" id="svMapOverlay"></div>' +
-          '<button class="sv-navfab sv-navfab-prev" onclick="storyNav(-1)" title="Previous parcel">‹</button>' +
-          '<button class="sv-navfab sv-navfab-next" onclick="storyNav(1)" title="Next parcel">›</button>' +
+          (shared ? '' :
+            '<button class="sv-navfab sv-navfab-prev" onclick="storyNav(-1)" title="Previous parcel">‹</button>' +
+            '<button class="sv-navfab sv-navfab-next" onclick="storyNav(1)" title="Next parcel">›</button>') +
         '</div>' +
 
         '<div class="sv-data-panel" id="svDataPanel">' + _svDataPanelHtml(r) + '</div>' +
