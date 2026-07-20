@@ -41,7 +41,12 @@ WEEKLY_LIMIT  = 1_000_000   # effectively unlimited — free during beta (was 10
 # locked everyone out because there was NO such cap (all parcels fired at once).
 # Interactive single-parcel searches deliberately bypass this (one parcel is
 # cheap). Raise via BATCH_PARCEL_CONCURRENCY after a Supabase compute bump.
-_MAX_PARCEL_CONCURRENCY = int(os.environ.get('BATCH_PARCEL_CONCURRENCY', '6'))
+# Default 4 is tuned for the free Nano compute — deliberately conservative so a
+# big batch trickles through instead of exhausting the daily Burst Disk I/O and
+# taking the whole instance down (as a 5k upload once did). Big batches are
+# slower as a result; that's the free-tier trade-off. Raise this env var after a
+# compute upgrade to make batches fast again.
+_MAX_PARCEL_CONCURRENCY = int(os.environ.get('BATCH_PARCEL_CONCURRENCY', '4'))
 _SEM_PARCELS  = asyncio.Semaphore(_MAX_PARCEL_CONCURRENCY)
 
 # ── Per-host concurrency limits. External services rate-limit per IP; a single
