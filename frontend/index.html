@@ -3825,6 +3825,40 @@ async function signInWithGoogle() {
 const _AUTH_PAGES = new Set(['', '#', '#login', '#signup', '#forgot']);
 
 // App startup — wait for the first onAuthStateChange event (reliable session source)
+// ── Gentle "new version available" nudge ─────────────────────────────────────
+// A Vercel deploy swaps the site atomically, so open tabs keep running the old
+// build until they refresh — we never force-reload anyone mid-task. Instead we
+// watch the served index.html's ETag; when a new build lands, we show a small
+// dismissible banner and let the user refresh whenever they're ready.
+let _appBuildTag = null;
+async function _checkForUpdate() {
+  try {
+    const resp = await fetch(location.pathname + '?_ck=' + Date.now(), { method: 'HEAD', cache: 'no-store' });
+    const tag = resp.headers.get('etag') || resp.headers.get('last-modified');
+    if (!tag) return false;
+    if (_appBuildTag === null) { _appBuildTag = tag; return false; }  // baseline
+    if (tag !== _appBuildTag) { _showUpdateBanner(); return true; }
+  } catch (e) {}
+  return false;
+}
+function _watchForUpdates() {
+  _checkForUpdate();  // record baseline now
+  const iv = setInterval(async () => { if (await _checkForUpdate()) clearInterval(iv); }, 5 * 60 * 1000);
+}
+function _showUpdateBanner() {
+  if (document.getElementById('updateBanner')) return;
+  const b = document.createElement('div');
+  b.id = 'updateBanner';
+  b.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9000;'
+    + 'background:var(--card,#151721);border:1px solid var(--green,#22C55E);border-radius:10px;'
+    + 'padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);'
+    + 'font-size:13px;color:var(--t1,#F1F5F9);max-width:calc(100vw - 32px)';
+  b.innerHTML = '<span>A new version of ParceliQ is available.</span>'
+    + '<button onclick="location.reload()" style="background:var(--green,#22C55E);color:#000;border:none;padding:6px 14px;border-radius:99px;cursor:pointer;font-weight:700;font-size:13px;white-space:nowrap">Refresh</button>'
+    + '<button onclick="document.getElementById(\'updateBanner\').remove()" title="Dismiss" style="background:none;border:none;color:var(--t2,#94A3B8);cursor:pointer;font-size:16px;line-height:1">×</button>';
+  document.body.appendChild(b);
+}
+
 async function initApp() {
   // OAuth callback: access_token in hash — Supabase auto-processes it, then fires SIGNED_IN.
   // Password-recovery links also carry access_token but must land on #reset-password
@@ -3855,6 +3889,7 @@ async function initApp() {
   ]);
   updateNav();
   updateLpNav();
+  _watchForUpdates();  // gentle refresh nudge when a new build deploys
   if (session) {
     loadUserProfile(); // fire-and-forget
     // Fire-and-forget: same reasoning as the SIGNED_IN handler above — a
