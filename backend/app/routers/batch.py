@@ -32,23 +32,36 @@ _API_TIMEOUT  = 16.0      # default per external API call (HTTP time only — qu
 _PARCEL_TIMEOUT = 240.0   # hard cap per individual parcel (includes per-host queue waits)
 WEEKLY_LIMIT  = 1_000_000   # effectively unlimited — free during beta (was 1000)
 
+# ── GLOBAL parcel cap — the guardrail that keeps one user's huge upload from
+# taking down the whole app. It bounds how many parcels are actively screened
+# at once ACROSS ALL batches and ALL users (module-level = process-wide). Each
+# parcel fires ~6 Supabase spatial queries, so this caps total batch DB load to
+# roughly 6x this number, leaving the shared Micro Postgres headroom to keep
+# serving login / dashboard / admin. A 5k-parcel upload once pegged the DB and
+# locked everyone out because there was NO such cap (all parcels fired at once).
+# Interactive single-parcel searches deliberately bypass this (one parcel is
+# cheap). Raise via BATCH_PARCEL_CONCURRENCY after a Supabase compute bump.
+_MAX_PARCEL_CONCURRENCY = int(os.environ.get('BATCH_PARCEL_CONCURRENCY', '6'))
+_SEM_PARCELS  = asyncio.Semaphore(_MAX_PARCEL_CONCURRENCY)
+
 # ── Per-host concurrency limits. External services rate-limit per IP; a single
 # global semaphore let one 20-parcel chunk fire 60+ concurrent Overpass calls
 # (limit ~2) so road/waterway/power data failed on nearly every batch row.
-# Local Supabase PostGIS RPCs — no per-IP rate limit, so concurrency is bounded
-# only by what the Supabase compute handles. Raised from 5 (which were sized for
-# the old live APIs and were needlessly throttling the batch); wetland/habitat
-# kept a bit lower since they're the heaviest spatial queries.
-_SEM_OVERPASS = asyncio.Semaphore(12)  # waterways + powerlines (local)
-_SEM_FEMA     = asyncio.Semaphore(12)  # flood zones (local)
-_SEM_USFWS    = asyncio.Semaphore(8)   # wetlands + critical habitat (local, heaviest)
-_SEM_TIGER    = asyncio.Semaphore(8)   # Census TIGERweb — road access
-_SEM_FLDOR    = asyncio.Semaphore(8)   # FL DOR statewide cadastral
-_SEM_USGS     = asyncio.Semaphore(12)  # elevation (Open-Meteo)
+# Local Supabase PostGIS RPCs (OVERPASS/FEMA/USFWS/EASE) share the same 1GB
+# Micro compute that serves interactive traffic, so they're kept LOW on purpose
+# — batches must never consume all the DB's capacity. Tune up only alongside a
+# compute bump. External-only collectors (TIGER/FLDOR/USGS/EPA/SOIL/EVAC) don't
+# touch Postgres, so they don't threaten interactive uptime.
+_SEM_OVERPASS = asyncio.Semaphore(6)   # waterways + powerlines (local Postgres)
+_SEM_FEMA     = asyncio.Semaphore(5)   # flood zones (local Postgres)
+_SEM_USFWS    = asyncio.Semaphore(4)   # wetlands + critical habitat (local, heaviest)
+_SEM_TIGER    = asyncio.Semaphore(8)   # Census TIGERweb — road access (external)
+_SEM_FLDOR    = asyncio.Semaphore(8)   # FL DOR statewide cadastral (external)
+_SEM_USGS     = asyncio.Semaphore(12)  # elevation (Open-Meteo, external)
 _SEM_EPA      = asyncio.Semaphore(5)
-_SEM_SOIL     = asyncio.Semaphore(5)   # USDA soil data access
-_SEM_EVAC     = asyncio.Semaphore(5)   # FL FDEM evacuation zones
-_SEM_EASE     = asyncio.Semaphore(12)  # conservation easements (local)
+_SEM_SOIL     = asyncio.Semaphore(5)   # USDA soil data access (external)
+_SEM_EVAC     = asyncio.Semaphore(5)   # FL FDEM evacuation zones (external)
+_SEM_EASE     = asyncio.Semaphore(6)   # conservation easements (local Postgres)
 _SUPABASE_URL     = os.environ.get('SUPABASE_URL', '')
 # Deployments have used several names for these keys — accept any of them
 _SUPABASE_KEY     = (os.environ.get('SUPABASE_ANON_KEY')
@@ -467,12 +480,18 @@ async def _process_parcel_safe(parcel: ParcelInput, skip_cache: bool = False) ->
 
 
 async def _process_parcel_pregeocoded_safe(parcel: ParcelInput, geo: dict, timeout: float = _PARCEL_TIMEOUT, skip_cache: bool = False) -> dict:
-    try:
-        return await asyncio.wait_for(_process_parcel_pregeocoded(parcel, geo, skip_cache), timeout=timeout)
-    except asyncio.TimeoutError:
-        return _timeout_result(parcel.address)
-    except Exception as e:
-        return _error_result(parcel.address, str(e))
+    # Acquire the global parcel slot OUTSIDE the processing timeout — a parcel
+    # queued behind others (waiting for the shared DB budget) must not have that
+    # wait counted against its own timeout. This semaphore is what stops a giant
+    # batch from firing thousands of concurrent spatial queries at the DB; the
+    # rest of the batch simply waits its turn instead of drowning the instance.
+    async with _SEM_PARCELS:
+        try:
+            return await asyncio.wait_for(_process_parcel_pregeocoded(parcel, geo, skip_cache), timeout=timeout)
+        except asyncio.TimeoutError:
+            return _timeout_result(parcel.address)
+        except Exception as e:
+            return _error_result(parcel.address, str(e))
 
 
 def _timeout_result(address: str) -> dict:
