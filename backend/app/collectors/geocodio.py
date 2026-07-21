@@ -1,5 +1,42 @@
 import os
+import re
+
 import httpx
+
+# Street-type suffixes, directionals, unit words and state tokens that are NOT,
+# on their own, an actual street/place NAME. Used only to spot junk like
+# "232 street" (a number + a generic word, no real name) so we don't pay the
+# geocoder for it.
+_ADDR_GENERIC = {
+    "st", "street", "ave", "avenue", "av", "rd", "road", "blvd", "boulevard",
+    "ln", "lane", "dr", "drive", "ct", "court", "pl", "place", "ter", "terrace",
+    "way", "cir", "circle", "hwy", "highway", "pkwy", "parkway", "trl", "trail",
+    "loop", "run", "path", "pass", "row", "pike", "plaza", "sq", "square",
+    "aly", "alley", "byp", "bypass", "xing", "crossing", "cres", "crescent",
+    "n", "s", "e", "w", "ne", "nw", "se", "sw", "north", "south", "east", "west",
+    "fl", "florida", "us", "usa", "apt", "unit", "ste", "suite", "lot", "no",
+    "county", "co", "cr", "sr",
+}
+
+
+def looks_like_address(address: str) -> bool:
+    """Cheap, LENIENT local sanity check run before we spend a paid geocoder
+    lookup. It only rejects the clearly-unusable (empty, too short, pure
+    numbers/symbols, or a number + a generic word with no real name like
+    "232 street") — anything that could plausibly be a real address passes, so
+    a legitimate parcel is never dropped. Junk rows still get an ERROR result;
+    they just don't cost an API credit."""
+    s = (address or "").strip()
+    if len(s) < 6:
+        return False
+    letters = re.findall(r"[a-zA-Z]+", s)
+    if not letters:
+        return False  # pure numbers / symbols, e.g. "12345" or "###"
+    # A real name = a word that isn't just a street-type/directional/state token.
+    name_words = [w for w in letters if w.lower() not in _ADDR_GENERIC]
+    has_zip = re.search(r"\b\d{5}\b", s) is not None
+    # No actual name AND no ZIP -> too vague to be a real parcel address.
+    return bool(name_words) or has_zip
 
 # Accuracy types that pin a coordinate to (or adjacent to) the actual lot.
 # Notably excluded: "place" (town centroid), "state", "county", "zip" — these
@@ -88,6 +125,8 @@ def _classify(candidates: list) -> dict:
 
 async def geocode(address: str) -> dict:
     """Geocode one address. Always returns a dict with a "status" key."""
+    if not looks_like_address(address):
+        return {"status": "invalid"}  # skip the paid lookup for obvious junk
     try:
         api_key = os.environ['GEOCODIO_API_KEY']
         async with httpx.AsyncClient(timeout=8.0) as client:
@@ -111,26 +150,39 @@ async def geocode_batch(addresses: list[str]) -> dict[str, dict]:
     """
     if not addresses:
         return {}
+    # Split off obvious junk locally so it never costs an API credit — only
+    # plausible addresses are sent to the paid batch endpoint.
+    valid: list[str] = []
+    out: dict[str, dict] = {}
+    for a in addresses:
+        if looks_like_address(a):
+            valid.append(a)
+        else:
+            out[a] = {"status": "invalid"}
+    if not valid:
+        return out
     try:
         api_key = os.environ['GEOCODIO_API_KEY']
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
                 "https://api.geocod.io/v1.7/geocode",
                 params={"api_key": api_key, "limit": 5},
-                json=addresses,
+                json=valid,
             )
             resp.raise_for_status()
             data = resp.json()
 
-        out: dict[str, dict] = {}
         results = data.get("results", [])
         for i, item in enumerate(results):
             # Geocodio echoes the query string; fall back to positional order
             # (batch responses preserve input order) if it ever normalizes it.
-            query = item.get("query") or (addresses[i] if i < len(addresses) else "")
+            query = item.get("query") or (valid[i] if i < len(valid) else "")
             hits = item.get("response", {}).get("results", [])
             out[query] = _classify(hits)
         return out
     except Exception as e:
         print(f"[Geocodio Batch] Error: {e}")
-        return {a: {"status": "not_found"} for a in addresses}
+        # Keep the locally-flagged invalids; mark the plausible ones not_found.
+        for a in valid:
+            out.setdefault(a, {"status": "not_found"})
+        return out

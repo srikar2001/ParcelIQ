@@ -538,6 +538,8 @@ def _geocode_error_result(address: str, geo: dict) -> dict:
                 suggestions=suggestions,
             )
         return _error_result(address, "Address not found.")
+    if status == "invalid":
+        return _error_result(address, "Not a valid address — skipped (no lookup charge).")
     return _error_result(address, "Address not found. Enter a full street address.")
 
 
