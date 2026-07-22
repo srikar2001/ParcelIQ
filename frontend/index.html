@@ -2723,7 +2723,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <p>Property screening results may be cached for up to 24 hours to improve performance across users searching the same address. Cached results are limited to publicly available government property data (flood zones, wetlands, zoning, etc.) and are not tied to any individual user.</p>
 
     <h2 class="legal-h2">4. Third-party services</h2>
-    <p>ParceliQ retrieves property data from public government sources (such as FEMA, USGS, and Florida county/state records) and third-party APIs used solely to process your requests. We do not share your personal account information (name, email) with these services — only the property addresses necessary to generate a screening result.</p>
+    <p>ParceliQ retrieves property data from public government and open data sources and third-party APIs used solely to process your requests. We do not share your personal account information (name, email) with these services — only the property addresses necessary to generate a screening result.</p>
     <p>We use Google OAuth for optional sign-in. Google's handling of your data is governed by <a href="https://policies.google.com/privacy" target="_blank" rel="noopener" style="color:var(--green)">Google's Privacy Policy</a>.</p>
 
     <h2 class="legal-h2">5. What we don't do</h2>
@@ -4006,9 +4006,9 @@ function _signalChipsHtml(flags, opts) {
   const max = opts.max || ranked.length;
   const shown = ranked.slice(0, max);
   let html = shown.map(f => {
-    const c = color(f);
+    const c = color(f);  // rank/color use the raw flag; display the source-stripped label
     return '<span style="display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;'
-      + 'margin:2px 4px 2px 0;background:' + c.bg + ';color:' + c.fg + '">' + esc(f) + '</span>';
+      + 'margin:2px 4px 2px 0;background:' + c.bg + ';color:' + c.fg + '">' + esc(translateFlag(f)) + '</span>';
   }).join('');
   if (list.length > max) html += '<span style="font-size:11px;color:var(--t2)">+' + (list.length - max) + ' more</span>';
   return html;
@@ -4256,6 +4256,21 @@ function getLandUseCategory(code) {
 
 
 // FIX 3: Flag + source translation
+// Strip data-source attributions from any user-facing text. The sources are the
+// secret sauce — users never need to see where a value was pulled from. Display
+// only; never touches stored data or scoring. Safety net behind translateFlag's
+// curated map, so even an unmapped or future flag can't leak a provider name.
+function _stripSrc(t) {
+  if (t == null) return t;
+  return String(t)
+    .replace(/\s*\([^)]*\b(?:USFWS|USGS|FEMA|NWI|NFHL|EPA|USDA|NRCS|DOR|FDEM|Census|TIGER\w*|OpenStreetMap|OSM|Open-?Meteo|Copernicus)\b[^)]*\)/gi, '')
+    .replace(/\b(?:FEMA|USFWS|USGS|EPA|USDA|NRCS|FDEM|US\s+Census|TIGERweb|OpenStreetMap|Open-?Meteo|Copernicus(?:\s+DEM)?|NWI|NFHL|FL\s+DOR)\b[\s:]*/gi, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([.,;])/g, '$1')
+    .trim();
+}
+
 function translateFlag(f) {
   const exact = {
     'Wetlands nearby (within ~100m)':               'Wetlands within 100m, not on the parcel itself',
@@ -4306,9 +4321,9 @@ function translateFlag(f) {
   if (/^Critical habitat nearby:/i.test(f)) return f.replace('Critical habitat nearby:', 'Wildlife:');
   if (/^Critical habitat:/i.test(f)) {
     const species = f.replace(/^Critical habitat:\s*/i, '');
-    return 'Protected wildlife habitat: ' + species;
+    return 'Protected wildlife habitat: ' + _stripSrc(species);
   }
-  return f;
+  return _stripSrc(f);
 }
 
 
@@ -6873,7 +6888,7 @@ function openDetailPanel(absIdx, event) {
     // Owner — mailing address only when it differs from the parcel address
     // (a different mailing address is a skip-tracing signal; the same one is noise)
     if (pi.owner && pi.owner !== 'N/A') {
-      let ownerHtml = escHtml(pi.owner) + '<div class="dp-grid-sub">as of county tax roll</div>';
+      let ownerHtml = escHtml(pi.owner);
       const mail = _normAddr(pi.owner_mailing_address);
       const situs = _normAddr(pi.county_address_on_file || r.address);
       if (pi.owner_mailing_address && mail && situs && !mail.startsWith(situs.slice(0, 18))) {
@@ -9951,7 +9966,6 @@ function _svDataPanelHtml(r) {
     '<div class="sv-sec-title">Owner</div>' +
     '<div class="sv-card-sec">' +
       (hasOwner ? '<div class="sv-owner-name">' + escHtml(pi.owner) + '</div>' : '<div class="sv-owner-name empty">Unknown Owner</div>') +
-      '<div class="sv-owner-sub">as of county tax roll</div>' +
       (mailsElsewhere ? '<div class="sv-owner-mail">Mails to: ' + escHtml(pi.owner_mailing_address) + '</div>' : '') +
       '<div class="sv-owner-contact">' +
         '<div class="sv-owner-contact-row">📞 Phone — <em>Coming Soon</em></div>' +
