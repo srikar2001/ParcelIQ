@@ -8497,8 +8497,8 @@ function _reportOverview(r) {
   return s.join(' ');
 }
 
-// Build the report's inner content (styles inline; the #reportRenderTarget host
-// supplies the white page). Seller-framed executive summary — no verdict/score.
+// Build the report's inner content — an editorial, investment-memo style
+// executive summary (styles inline for html2canvas). Seller-framed; no verdict.
 function _buildReportHTML(r, opts) {
   opts = opts || {};
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -8518,6 +8518,8 @@ function _buildReportHTML(r, opts) {
   const fz = (typeof getFloodText === 'function') ? getFloodText(r) : '';
   const author = by || 'Property Investment Summary';
 
+  const INK = '#12233B', BODY = '#374151', MUT = '#8A94A6', LINE = '#E4E7EC';
+  const SER = "Georgia,'Times New Roman',serif";
   const cats = (typeof _svCategoryVerdicts === 'function') ? _svCategoryVerdicts(r) : [];
   const S = [], W = [], T = [], O = [];
   cats.forEach(c => {
@@ -8529,75 +8531,75 @@ function _buildReportHTML(r, opts) {
   (r.positives || []).forEach(p => { const t = (typeof translateFlag === 'function') ? translateFlag(p) : p; if (t) S.push(t); });
   if (ac != null && ac >= 10) O.push('Large ' + ac + '-acre footprint — room to subdivide or develop in phases.');
   if (luCat === 'Agricultural') O.push('Agricultural classification — farming, timber, or conservation-income potential.');
-  else if (luCat === 'Vacant Land') O.push('Blank-slate vacant lot — flexible for a buyer’s intended use.');
+  else if (luCat === 'Vacant Land') O.push('Blank-slate vacant lot — flexible for the buyer’s intended use.');
   if (!O.length) O.push('Buyer can tailor development to their own strategy.');
 
-  const sec = (t) => '<div style="font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#6B7280;margin:22px 0 11px;padding-bottom:6px;border-bottom:2px solid #EEF0F3">' + esc(t) + '</div>';
+  const label = (t) => '<div style="font-family:' + SER + ';font-size:15px;font-weight:700;color:' + INK + ';margin:26px 0 11px;padding-bottom:7px;border-bottom:1px solid ' + LINE + '">' + esc(t) + '</div>';
 
-  const quad = (title, color, bg, items) => '<div style="background:' + bg + ';border:1px solid #E9ECEF;border-radius:10px;padding:11px 13px;height:100%">'
-    + '<div style="font-size:11px;font-weight:800;color:' + color + ';text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">' + title + '</div>'
-    + (items.length ? items.slice(0, 3).map(x => '<div style="font-size:11px;color:#374151;padding:2.5px 0;display:flex;gap:6px;line-height:1.4"><span style="color:' + color + '">•</span><span>' + esc(x) + '</span></div>').join('') : '<div style="font-size:11px;color:#9CA3AF;padding:2.5px 0">None noted.</div>')
+  // SWOT — hairline grid, no filled boxes
+  const cell = (title, color, items) => '<div style="padding:13px 16px">'
+    + '<div style="font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:' + color + ';margin-bottom:7px">' + title + '</div>'
+    + (items.length ? items.slice(0, 3).map(x => '<div style="font-size:11.5px;color:' + BODY + ';padding:2.5px 0;line-height:1.45;display:flex;gap:8px"><span style="color:' + color + ';font-weight:700">—</span><span>' + esc(x) + '</span></div>').join('') : '<div style="font-size:11.5px;color:#9CA3AF">None noted.</div>')
     + '</div>';
-  const swotRow = (a, b) => '<div style="display:flex;gap:11px;margin-bottom:11px"><div style="flex:1">' + a + '</div><div style="flex:1">' + b + '</div></div>';
-  const swot = swotRow(quad('Strengths', '#16A34A', '#F0FDF4', S), quad('Weaknesses', '#DC2626', '#FEF2F2', W))
-             + swotRow(quad('Opportunities', '#2563EB', '#EFF6FF', O), quad('Threats', '#D97706', '#FFFBEB', T));
+  const swot = '<div style="border:1px solid ' + LINE + ';border-radius:8px;overflow:hidden">'
+    + '<div style="display:flex;border-bottom:1px solid ' + LINE + '"><div style="flex:1;border-right:1px solid ' + LINE + '">' + cell('Strengths', '#0E7C46', S) + '</div><div style="flex:1">' + cell('Weaknesses', '#C0392B', W) + '</div></div>'
+    + '<div style="display:flex"><div style="flex:1;border-right:1px solid ' + LINE + '">' + cell('Opportunities', '#1E5FA8', O) + '</div><div style="flex:1">' + cell('Threats', '#B7791F', T) + '</div></div>'
+    + '</div>';
 
-  const chip = (label, val) => val ? '<div style="border:1px solid #E9ECEF;border-radius:9px;padding:9px 13px;min-width:96px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9CA3AF">' + esc(label) + '</div><div style="font-size:15px;font-weight:700;color:#111827;margin-top:1px">' + esc(val) + '</div></div>' : '';
-  const snap = [
-    chip('Size', ac != null ? ac + ' ac' : ''), chip('County', pi.county), chip('Land Use', luCat),
-    chip('Elevation', pi.elevation_ft != null ? pi.elevation_ft + ' ft' : ''), chip('Flood Zone', (fz && fz !== '—') ? fz : ''),
-    chip('Road', pi.road_distance_m != null ? pi.road_distance_m + ' m' : ''), chip('Power', pi.powerline_distance),
-    chip('Assessed', (av > 0) ? fmt$(av) : ''),
-  ].filter(Boolean).join('');
+  // Site spec strip — hairline table, no boxes
+  const specs = [['Size', ac != null ? ac + ' ac' : ''], ['County', pi.county], ['Land Use', luCat], ['Elevation', pi.elevation_ft != null ? pi.elevation_ft + ' ft' : ''], ['Flood Zone', (fz && fz !== '—') ? fz : ''], ['Road', pi.road_distance_m != null ? pi.road_distance_m + ' m' : ''], ['Power', pi.powerline_distance]].filter(x => x[1]);
+  const specStrip = '<table style="width:100%;border-collapse:collapse;margin-top:4px;table-layout:fixed"><tr>'
+    + specs.map(x => '<td style="border-bottom:2px solid ' + INK + ';padding:0 12px 5px 0;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:' + MUT + ';text-align:left;vertical-align:bottom">' + esc(x[0]) + '</td>').join('') + '</tr><tr>'
+    + specs.map(x => '<td style="padding:8px 12px 0 0;font-size:14px;font-weight:700;color:' + INK + ';text-align:left">' + esc(x[1]) + '</td>').join('') + '</tr></table>';
 
-  const highlights = seller.length ? (
-    sec('Highlights')
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 20px">'
-    + seller.map(s => '<div style="font-size:12px;color:#374151;display:flex;gap:7px;padding:2px 0"><span style="color:#16A34A;font-weight:800">✓</span><span>' + esc(s) + '</span></div>').join('')
-    + '</div><div style="font-size:9.5px;color:#B0B4BB;font-style:italic;margin-top:6px">Highlights above are provided by the seller and not independently verified.</div>'
-  ) : '';
+  // Investment snapshot — computed price/acre
+  let ppa = '';
+  const pn = parseFloat(String(price).replace(/[^0-9.]/g, ''));
+  if (price && ac > 0 && pn > 0) ppa = fmt$(Math.round(pn / ac)) + ' /ac';
+  const invRows = [['Asking Price', price], ['Price per Acre', ppa], ['County Assessed', av > 0 ? fmt$(av) : '']].filter(x => x[1]);
+  const invest = (price && invRows.length) ? label('Investment Snapshot')
+    + '<div style="display:flex;border:1px solid ' + LINE + ';border-radius:8px;overflow:hidden">'
+    + invRows.map((x, i) => '<div style="flex:1;padding:13px 18px' + (i < invRows.length - 1 ? ';border-right:1px solid ' + LINE : '') + '"><div style="font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:' + MUT + '">' + esc(x[0]) + '</div><div style="font-family:' + SER + ';font-size:19px;font-weight:700;color:' + (i === 0 ? '#0E7C46' : INK) + ';margin-top:3px">' + esc(x[1]) + '</div></div>').join('')
+    + '</div>' : '';
 
-  const invest = price ? (
-    '<div style="margin-top:20px;display:flex;align-items:center;gap:16px;background:#F9FAFB;border:1px solid #E9ECEF;border-radius:11px;padding:14px 18px">'
-    + '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9CA3AF">Asking Price</div><div style="font-size:24px;font-weight:800;color:#16A34A">' + price + '</div></div>'
-    + (av > 0 ? '<div style="font-size:11px;color:#9CA3AF;border-left:1px solid #E5E7EB;padding-left:16px">County assessed value<br><strong style="color:#374151;font-size:13px">' + fmt$(av) + '</strong></div>' : '')
-    + '</div>'
-  ) : '';
+  const highlights = seller.length ? label('Highlights')
+    + '<div style="display:flex;flex-wrap:wrap">'
+    + seller.map(s => '<div style="width:50%;box-sizing:border-box;padding-right:18px;font-size:12px;color:' + BODY + ';display:flex;gap:8px;padding-top:3px;padding-bottom:3px;line-height:1.4"><span style="color:#0E7C46;font-weight:800">✓</span><span>' + esc(s) + '</span></div>').join('')
+    + '</div><div style="font-size:9px;color:#B0B4BB;font-style:italic;margin-top:8px">Provided by the seller; not independently verified.</div>' : '';
 
-  return ''
-    // HEADER — author (seller) is the headliner; ParceliQ small
+  return '<div style="font-family:\'Segoe UI\',Helvetica,Arial,sans-serif;color:' + BODY + '">'
+    // LETTERHEAD
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">'
-      + '<div style="min-width:0"><div style="font-size:30px;font-weight:800;color:#111827;letter-spacing:-.02em;line-height:1.05">' + esc(author) + '</div>'
-        + '<div style="font-size:13px;color:#6B7280;margin-top:5px;font-weight:600;letter-spacing:.02em">EXECUTIVE SUMMARY</div></div>'
-      + '<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;color:#9CA3AF">Powered by <span style="font-weight:800;color:#111827">Parcel<span style="color:#16A34A">iQ</span></span></div><div style="font-size:11px;color:#9CA3AF;margin-top:2px">' + dateStr + '</div></div>'
+      + '<div style="min-width:0"><div style="font-family:' + SER + ';font-size:29px;font-weight:700;color:' + INK + ';letter-spacing:-.01em;line-height:1.06">' + esc(author) + '</div>'
+        + '<div style="font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:' + MUT + ';margin-top:6px">Executive Summary · Land Investment</div></div>'
+      + '<div style="text-align:right;flex-shrink:0;font-size:11px;color:' + MUT + ';line-height:1.7">Powered by <span style="font-weight:800;color:' + INK + '">Parcel<span style="color:#0E7C46">iQ</span></span><br>' + dateStr + '</div>'
     + '</div>'
-    + '<div style="height:3px;background:#111827;margin:13px 0 0"></div>'
-    // SUBJECT PROPERTY — the address is the main subject
-    + '<div style="margin-top:18px;padding:16px 20px;background:#F9FAFB;border-radius:12px;border:1px solid #EEF0F3">'
-      + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF">Subject Property</div>'
-      + '<div style="font-size:21px;font-weight:800;color:#111827;margin-top:3px;line-height:1.15">' + addr + '</div>'
-      + (apn ? '<div style="font-size:12px;color:#9CA3AF;margin-top:3px">Parcel ' + esc(apn) + (pi.county ? '  ·  ' + esc(pi.county) + ' County' : '') + '</div>' : '')
+    + '<div style="height:2px;background:' + INK + ';margin:12px 0 0"></div>'
+    // SUBJECT PROPERTY
+    + '<div style="margin-top:20px">'
+      + '<div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:' + MUT + '">Subject Property</div>'
+      + '<div style="font-family:' + SER + ';font-size:22px;font-weight:700;color:' + INK + ';margin-top:4px;line-height:1.15">' + addr + '</div>'
+      + (apn ? '<div style="font-size:12px;color:' + MUT + ';margin-top:3px">Parcel ' + esc(apn) + (pi.county ? '  ·  ' + esc(pi.county) + ' County, FL' : '') + '</div>' : '')
     + '</div>'
     // OVERVIEW
-    + sec('Property Overview')
-    + '<p style="margin:0;font-size:13px;color:#374151;line-height:1.6">' + esc(_reportOverview(r)) + '</p>'
-    // SNAPSHOT
-    + (snap ? '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:14px">' + snap + '</div>' : '')
+    + label('Property Overview')
+    + '<p style="margin:0;font-size:13px;color:' + BODY + ';line-height:1.65">' + esc(_reportOverview(r)) + '</p>'
+    + (specStrip ? specStrip : '')
     // SWOT
-    + sec('SWOT Analysis')
+    + label('SWOT Analysis')
     + swot
     // HIGHLIGHTS
     + highlights
     // INVESTMENT
     + invest
     // FOOTER
-    + '<div style="margin-top:26px;padding-top:13px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;gap:16px;align-items:flex-end">'
-      + '<div style="font-size:11px;color:#6B7280">' + (client ? 'Prepared for <strong>' + client + '</strong><br>' : '') + (by ? 'Prepared by <strong>' + by + '</strong>' : '') + (contact ? '<br>' + contact : '') + '</div>'
-      + '<div style="font-size:9px;color:#B0B4BB;text-align:right;max-width:340px;line-height:1.5">Property data compiled via ParceliQ from public sources for informational purposes only; not a survey, appraisal, or legal advice. Buyer should independently verify all details.</div>'
+    + '<div style="margin-top:30px;padding-top:14px;border-top:2px solid ' + INK + ';display:flex;justify-content:space-between;gap:22px;align-items:flex-start">'
+      + '<div style="font-size:11px;color:' + BODY + ';line-height:1.65">' + (by ? '<strong style="color:' + INK + '">' + by + '</strong><br>' : '') + (contact ? esc(contact) + '<br>' : '') + (client ? '<span style="color:' + MUT + '">Prepared for ' + client + '</span>' : '') + '</div>'
+      + '<div style="font-size:8.5px;color:#B0B4BB;text-align:right;max-width:330px;line-height:1.55">Property data compiled via ParceliQ from public and open sources for informational purposes only. Not a survey, appraisal, or legal advice. Buyer should independently verify all details.</div>'
+    + '</div>'
     + '</div>';
 }
 
-// Render into the in-app preview (no pop-up); download from the toolbar there.
 function generateReport() {
   const r = _openParcel; if (!r) { toast('Open a parcel first'); return; }
   const el = document.getElementById('reportRenderTarget');
@@ -8607,37 +8609,39 @@ function generateReport() {
 }
 function hideReportView() { const v = document.getElementById('reportView'); if (v) v.style.display = 'none'; }
 
-// Lazy-load the PDF engine only when first needed (zero impact on page load).
-function _ensureHtml2Pdf(cb) {
-  if (window.html2pdf) { cb(); return; }
-  const s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js';
-  s.onload = () => cb();
-  s.onerror = () => toast('Could not load the PDF engine — check your connection');
-  document.head.appendChild(s);
+// Lazy-load html2canvas + jsPDF (only on first PDF request).
+function _ensurePdfLibs(cb) {
+  const need = [];
+  if (!window.html2canvas) need.push('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+  if (!(window.jspdf && window.jspdf.jsPDF)) need.push('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  if (!need.length) { cb(); return; }
+  let n = 0, failed = false;
+  need.forEach(src => {
+    const s = document.createElement('script'); s.src = src;
+    s.onload = () => { if (++n === need.length && !failed) cb(); };
+    s.onerror = () => { if (!failed) { failed = true; toast('Could not load the PDF engine — check your connection'); } };
+    document.head.appendChild(s);
+  });
 }
 
-// Direct PDF download (no browser print dialog) — renders the preview element
-// to a single, correctly-oriented page sized to the content.
+// Direct PDF: capture the preview element to a single, correctly-sized page.
 function downloadReportPDF() {
   const el = document.getElementById('reportRenderTarget');
   if (!el || !el.innerHTML.trim()) { toast('Generate the report first'); return; }
   const btn = document.getElementById('rptPdfBtn');
-  _ensureHtml2Pdf(() => {
-    if (!window.html2pdf) return;
+  _ensurePdfLibs(() => {
+    const H2C = window.html2canvas, JS = window.jspdf && window.jspdf.jsPDF;
+    if (!H2C || !JS) { toast('PDF engine unavailable'); return; }
     if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
     const done = () => { if (btn) { btn.disabled = false; btn.textContent = '⬇ Download PDF'; } };
-    const h = Math.max(1056, el.scrollHeight);
-    try {
-      window.html2pdf().set({
-        margin: 0,
-        filename: _reportFilename(_openParcel, _gatherReportOpts()) + '.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, backgroundColor: '#ffffff', windowWidth: 816 },
-        jsPDF: { unit: 'px', format: [816, h], orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all'] },
-      }).from(el).save().then(done, () => { done(); toast('PDF failed — try again'); });
-    } catch (e) { done(); toast('PDF failed — try again'); }
+    H2C(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true, width: 816, windowWidth: 816, scrollX: 0, scrollY: 0 }).then(canvas => {
+      const wPt = 612;                              // 816px @96dpi = 8.5in = 612pt
+      const hPt = canvas.height / canvas.width * wPt;
+      const pdf = new JS({ unit: 'pt', format: [wPt, hPt], orientation: 'portrait', compress: true });
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, wPt, hPt);
+      pdf.save(_reportFilename(_openParcel, _gatherReportOpts()) + '.pdf');
+      done();
+    }).catch(() => { done(); toast('PDF failed — try again'); });
   });
 }
 
