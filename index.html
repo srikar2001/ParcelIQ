@@ -2944,6 +2944,36 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   </div>
 </div>
 
+<div id="reportModal" class="share-overlay" onclick="if(event.target===this)hideReportModal()">
+  <div class="share-modal" style="max-width:560px;max-height:88vh;overflow-y:auto">
+    <div class="share-modal-title">Create Client Report</div>
+    <div class="share-modal-sub">A polished executive summary for this parcel — download as PDF or Word to send to a client.</div>
+
+    <label style="display:block;font-size:12px;font-weight:600;color:var(--t2);margin:14px 0 5px">Prepared for (client or company)</label>
+    <input id="rptClient" class="share-url-inp" style="width:100%" placeholder="e.g. Acme Land Partners" maxlength="80">
+
+    <label style="display:block;font-size:12px;font-weight:600;color:var(--t2);margin:14px 0 5px">Prepared by</label>
+    <input id="rptBy" class="share-url-inp" style="width:100%" placeholder="Your name or company" maxlength="80">
+
+    <label style="display:block;font-size:12px;font-weight:600;color:var(--t2);margin:16px 0 5px">Seller-provided details <span style="font-weight:400;color:var(--t3)">(optional — labeled separately in the report)</span></label>
+    <div id="rptSellerList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+    <div style="display:flex;gap:6px">
+      <input id="rptSellerInput" class="share-url-inp" style="flex:1" placeholder="e.g. Owner financing available; survey on file" maxlength="160" onkeydown="if(event.key==='Enter'){event.preventDefault();_reportAddFeature();}">
+      <button class="btn-p btn-sm" onclick="_reportAddFeature()">+ Add</button>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap">
+      <button class="btn-p" style="flex:1;min-width:120px" onclick="downloadReportPDF()">⬇ Download PDF</button>
+      <button class="btn-p" style="flex:1;min-width:120px;background:var(--card-h);color:var(--t1);border:1px solid var(--b)" onclick="downloadReportWord()">⬇ Download Word</button>
+      <button class="btn-p" style="flex:1;min-width:100px;background:transparent;color:var(--t2);border:1px solid var(--b)" onclick="previewReport()">Preview</button>
+    </div>
+    <div class="share-note" style="margin-top:12px">
+      Tip: in the PDF dialog, pick “Save as PDF”.<br>
+      <span style="color:var(--green);cursor:pointer" onclick="hideReportModal()">Close</span>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -8372,6 +8402,215 @@ function _setShareModalText(title, sub) {
   if (s) s.textContent = sub;
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// CLIENT REPORT BUILDER — a polished, per-parcel executive summary the owner
+// can name, add their own seller-provided notes to, and download as PDF/Word.
+// Fully self-contained: reads the current parcel (_openParcel) + existing
+// helpers, renders a standalone document, and downloads via browser print
+// (PDF) or an HTML .doc blob (Word). No new dependencies, no backend.
+// ══════════════════════════════════════════════════════════════════════════
+let _reportSellerFeatures = [];
+let _reportSellerFor = null;
+
+function openReportBuilder() {
+  const r = _openParcel;
+  if (!r) { toast('Open a parcel first, then create its report'); return; }
+  // Seller notes belong to one parcel — reset them when a different parcel opens.
+  if (_reportSellerFor !== (r.address || '')) { _reportSellerFeatures = []; _reportSellerFor = r.address || ''; }
+  _reportRenderSellerList();
+  const byEl = document.getElementById('rptBy');
+  if (byEl && !byEl.value && window.userProfile) byEl.value = (userProfile.full_name || userProfile.company || '');
+  document.getElementById('reportModal')?.classList.add('show');
+}
+function hideReportModal() { document.getElementById('reportModal')?.classList.remove('show'); }
+
+function _reportRenderSellerList() {
+  const el = document.getElementById('rptSellerList'); if (!el) return;
+  el.innerHTML = (_reportSellerFeatures || []).map((f, i) =>
+    '<div style="display:flex;align-items:center;gap:8px;background:var(--card-h);border:1px solid var(--b);border-radius:8px;padding:6px 10px;font-size:13px">'
+    + '<span style="flex:1;word-break:break-word">' + escHtml(f) + '</span>'
+    + '<span style="cursor:pointer;color:var(--t3);font-size:17px;line-height:1" onclick="_reportRemoveFeature(' + i + ')" title="Remove">×</span></div>'
+  ).join('');
+}
+function _reportAddFeature() {
+  const inp = document.getElementById('rptSellerInput'); if (!inp) return;
+  const v = (inp.value || '').trim(); if (!v) return;
+  _reportSellerFeatures.push(v.slice(0, 160)); inp.value = ''; _reportRenderSellerList();
+}
+function _reportRemoveFeature(i) { _reportSellerFeatures.splice(i, 1); _reportRenderSellerList(); }
+
+function _gatherReportOpts() {
+  return {
+    client: (document.getElementById('rptClient') || {}).value || '',
+    by:     (document.getElementById('rptBy') || {}).value || '',
+    seller: (_reportSellerFeatures || []).slice(),
+  };
+}
+function _reportFilename(r, opts) {
+  const raw = (opts && opts.client) ? opts.client : (r.address || 'parcel');
+  const base = raw.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'parcel';
+  return 'ParceliQ_Report_' + base;
+}
+
+// A crisp SVG score ring — colored by verdict, filled proportional to score.
+function _reportGauge(score, color) {
+  if (score == null) return '';
+  const pct = Math.max(0, Math.min(100, score)) / 100;
+  const circ = 2 * Math.PI * 54;
+  const off = circ * (1 - pct);
+  return '<svg width="130" height="130" viewBox="0 0 132 132" style="display:block">'
+    + '<circle cx="66" cy="66" r="54" fill="none" stroke="#E5E7EB" stroke-width="13"/>'
+    + '<circle cx="66" cy="66" r="54" fill="none" stroke="' + color + '" stroke-width="13" stroke-linecap="round"'
+    + ' stroke-dasharray="' + circ.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 66 66)"/>'
+    + '<text x="66" y="62" text-anchor="middle" font-size="34" font-weight="800" fill="' + color + '" font-family="Arial">' + score + '</text>'
+    + '<text x="66" y="84" text-anchor="middle" font-size="11" fill="#6B7280" font-family="Arial">out of 100</text>'
+    + '</svg>';
+}
+
+// Build the full standalone report document (HTML string). forPrint=true adds
+// an auto-print trigger for the PDF path.
+function _buildReportDoc(r, opts, forPrint) {
+  opts = opts || {};
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const pi = r.parcel_info || {};
+  const ev = (typeof effectiveVerdict === 'function') ? effectiveVerdict(r) : (r.verdict || 'ERROR');
+  const vColor = ev === 'KILL' ? '#DC2626' : ev === 'PURSUE' ? '#16A34A' : ev === 'REVIEW' ? '#D97706' : '#6B7280';
+  const vWord = ev === 'KILL' ? 'PASS — HIGH RISK' : ev === 'PURSUE' ? 'PURSUE' : ev === 'REVIEW' ? 'REVIEW' : 'INCONCLUSIVE';
+  const score = (r.score != null) ? r.score : null;
+  const client = esc(opts.client || '').trim();
+  const by = esc(opts.by || '').trim();
+  const seller = (opts.seller || []).filter(Boolean);
+  const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const addr = esc(r.address || 'Parcel');
+  const apn = pi.parcel_id || pi.apn;
+
+  const cats = (typeof _svCategoryVerdicts === 'function') ? _svCategoryVerdicts(r) : [];
+  const nRisk = cats.filter(c => c.status === 'RISK').length;
+  const nCaution = cats.filter(c => c.status === 'CAUTION').length;
+  const nClear = cats.filter(c => c.status === 'CLEAR').length;
+  const reason = (typeof _svMainReason === 'function') ? _svMainReason(r) : '';
+  const nextStep = (typeof _svNextStep === 'function') ? _svNextStep(r) : '';
+
+  const facts = [];
+  const addF = (k, v, sub) => { if (v != null && String(v).trim() !== '' && v !== '—') facts.push([k, String(v), sub || '']); };
+  if (apn) addF('Parcel / APN', apn);
+  const ac = (typeof getAcreage === 'function') ? getAcreage(r) : pi.acreage;
+  addF('Lot Size', ac != null ? (ac + ' acres') : '');
+  addF('County', pi.county);
+  addF('Land Use', pi.land_use_code != null ? getLandUseCategory(pi.land_use_code) : '');
+  const av = (pi.assessed_value != null) ? pi.assessed_value : pi.just_value;
+  addF('Assessed Value', (av != null && av > 0) ? fmt$(av) : '', 'County estimate, not market value');
+  if (pi.last_sale_price != null && pi.last_sale_price > 0 && pi.last_sale_year != null) addF('Last Sale', fmt$(pi.last_sale_price) + ' (' + pi.last_sale_year + ')');
+  addF('Elevation', pi.elevation_ft != null ? (pi.elevation_ft + ' ft') : '');
+  const fz = (typeof getFloodText === 'function') ? getFloodText(r) : '';
+  addF('Flood Zone', (fz && fz !== '—') ? fz : '');
+  if (pi.soil_drainage) addF('Soil', _svCap(pi.soil_drainage) + (pi.septic_suitable === false ? ' — septic not feasible' : pi.septic_suitable === true ? ' — septic feasible' : ''));
+  addF('Evacuation Zone', pi.evac_zone || 'Not in an evacuation zone');
+  if (pi.road_distance_m != null) addF('Road Access', (pi.road_type ? _svCap(pi.road_type) : 'Road') + ' ' + pi.road_distance_m + 'm' + (pi.road_name ? ' (' + pi.road_name + ')' : ''));
+  if (pi.powerline_distance) addF('Power', pi.powerline_distance);
+  if (pi.owner && pi.owner !== 'N/A') addF('Owner of Record', pi.owner);
+
+  const stColor = s => s === 'RISK' ? '#DC2626' : s === 'CAUTION' ? '#D97706' : s === 'CLEAR' ? '#16A34A' : '#9CA3AF';
+  const stLabel = s => s === 'RISK' ? 'Risk' : s === 'CAUTION' ? 'Caution' : s === 'CLEAR' ? 'Clear' : 'No data';
+
+  const findingsRows = cats.map(c =>
+    '<tr>'
+    + '<td style="padding:11px 14px;border-bottom:1px solid #EEF0F3;vertical-align:top;width:32%">'
+      + '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + stColor(c.status) + ';margin-right:8px"></span>'
+      + '<strong style="color:#111827">' + esc(c.name) + '</strong></td>'
+    + '<td style="padding:11px 10px;border-bottom:1px solid #EEF0F3;vertical-align:top;width:13%">'
+      + '<span style="font-size:11px;font-weight:700;color:' + stColor(c.status) + ';background:' + stColor(c.status) + '1a;padding:2px 9px;border-radius:20px;white-space:nowrap">' + stLabel(c.status) + '</span></td>'
+    + '<td style="padding:11px 14px;border-bottom:1px solid #EEF0F3;vertical-align:top;color:#4B5563;font-size:12.5px">' + esc(c.txt) + '</td>'
+    + '</tr>'
+  ).join('');
+
+  const factsCells = facts.map(f =>
+    '<div class="card" style="border:1px solid #E5E7EB;border-radius:10px;padding:12px 14px">'
+    + '<div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#9CA3AF;font-weight:700;margin-bottom:3px">' + esc(f[0]) + '</div>'
+    + '<div style="font-size:15px;font-weight:600;color:#111827">' + esc(f[1]) + '</div>'
+    + (f[2] ? '<div style="font-size:10px;color:#9CA3AF;margin-top:2px">' + esc(f[2]) + '</div>' : '')
+    + '</div>'
+  ).join('');
+
+  const sellerSection = seller.length ? (
+    '<div style="margin-top:30px" class="card">'
+    + '<div style="font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#374151;margin-bottom:2px">Seller-Provided Information</div>'
+    + '<div style="font-size:11px;color:#9CA3AF;margin-bottom:12px;font-style:italic">The items below were supplied by the seller and have <strong>not</strong> been independently verified by ParceliQ.</div>'
+    + '<div style="border:1px dashed #D1D5DB;border-radius:10px;padding:4px 8px;background:#FAFAFA">'
+    + seller.map(s => '<div style="display:flex;gap:9px;padding:8px 6px;font-size:13.5px;color:#374151;border-bottom:1px solid #F3F4F6"><span style="color:#9CA3AF">•</span><span>' + esc(s) + '<span style="font-size:10px;color:#9CA3AF;font-style:italic"> — provided by seller</span></span></div>').join('')
+    + '</div></div>'
+  ) : '';
+
+  const gauge = _reportGauge(score, vColor);
+  const autoPrint = forPrint ? '<scr' + 'ipt>window.addEventListener("load",function(){setTimeout(function(){window.print();},400);});</scr' + 'ipt>' : '';
+
+  return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>' + (client ? client + ' — ' : '') + 'Parcel Report</title>'
+    + '<style>'
+    + '@page{size:letter;margin:0.55in}'
+    + '*{box-sizing:border-box}html,body{margin:0;padding:0}'
+    + 'body{font-family:"Segoe UI",Helvetica,Arial,sans-serif;color:#1F2937;line-height:1.5;background:#F3F4F6;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    + '.pg{max-width:780px;margin:24px auto;background:#fff;padding:44px 46px;box-shadow:0 2px 18px rgba(0,0,0,.08)}'
+    + '.sec{font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#374151;margin:30px 0 12px;padding-bottom:6px;border-bottom:2px solid #F3F4F6}'
+    + 'table{width:100%;border-collapse:collapse}'
+    + '@media print{body{background:#fff}.pg{box-shadow:none;margin:0;max-width:none;padding:0}.sec,tr,.card{break-inside:avoid}}'
+    + '</style></head><body><div class="pg">'
+    + (client ? '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#16A34A;margin-bottom:6px">Prepared for ' + client + '</div>' : '')
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:3px solid #111827;padding-bottom:16px">'
+      + '<div><div style="font-size:23px;font-weight:800;color:#111827;line-height:1.15">Parcel Due Diligence Report</div>'
+        + '<div style="font-size:15px;color:#374151;margin-top:6px;font-weight:600">' + addr + '</div>'
+        + '<div style="font-size:12px;color:#9CA3AF;margin-top:8px">' + (by ? 'Prepared by ' + by + ' · ' : '') + dateStr + '</div></div>'
+      + '<div style="text-align:right;flex-shrink:0"><div style="font-size:18px;font-weight:800;color:#111827">Parcel<span style="color:#16A34A">iQ</span></div><div style="font-size:10px;color:#9CA3AF">Land screening</div></div>'
+    + '</div>'
+    + '<div class="card" style="display:flex;align-items:center;gap:26px;margin-top:24px;padding:20px 22px;border:1px solid #E5E7EB;border-radius:14px;background:' + vColor + '0d">'
+      + '<div style="flex-shrink:0">' + gauge + '</div>'
+      + '<div style="flex:1">'
+        + '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9CA3AF">Screening Verdict</div>'
+        + '<div style="font-size:28px;font-weight:800;color:' + vColor + ';margin:2px 0 4px">' + vWord + '</div>'
+        + (score != null ? '<div style="font-size:13px;color:#6B7280;margin-bottom:9px;font-weight:600">Screening score: <strong style="color:' + vColor + '">' + score + '</strong> / 100</div>' : '')
+        + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+          + '<span style="font-size:12px;font-weight:700;color:#DC2626;background:#FEE2E2;padding:3px 11px;border-radius:20px">' + nRisk + ' Risk' + (nRisk === 1 ? '' : 's') + '</span>'
+          + '<span style="font-size:12px;font-weight:700;color:#D97706;background:#FEF3C7;padding:3px 11px;border-radius:20px">' + nCaution + ' Caution</span>'
+          + '<span style="font-size:12px;font-weight:700;color:#16A34A;background:#DCFCE7;padding:3px 11px;border-radius:20px">' + nClear + ' Clear</span>'
+        + '</div>'
+      + '</div>'
+    + '</div>'
+    + (reason ? '<div class="sec">Executive Summary</div><p style="margin:0;font-size:14px;color:#374151">' + esc(reason) + '</p>' : '')
+    + (nextStep ? '<div style="margin-top:14px;padding:13px 16px;background:#F0FDF4;border-left:4px solid #16A34A;border-radius:0 8px 8px 0"><span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#16A34A">Recommended Next Step</span><div style="font-size:13.5px;color:#374151;margin-top:3px">' + esc(nextStep) + '</div></div>' : '')
+    + (findingsRows ? '<div class="sec">Key Findings</div><table><tbody>' + findingsRows + '</tbody></table>' : '')
+    + (factsCells ? '<div class="sec">Parcel Details</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + factsCells + '</div>' : '')
+    + sellerSection
+    + '<div style="margin-top:34px;padding-top:14px;border-top:1px solid #E5E7EB;font-size:10.5px;color:#9CA3AF;line-height:1.6">'
+      + 'This report was generated by ParceliQ from public and open data sources for preliminary due-diligence screening only. It is not a survey, title search, appraisal, or legal advice, and data may be incomplete or out of date. Verify all findings independently before making an offer or investment decision.'
+      + '<div style="margin-top:6px">© ' + new Date().getFullYear() + ' ParceliQ · Generated ' + dateStr + '</div>'
+    + '</div></div>' + autoPrint + '</body></html>';
+}
+
+function previewReport() {
+  const r = _openParcel; if (!r) { toast('Open a parcel first'); return; }
+  const w = window.open('', '_blank');
+  if (!w) { toast('Allow pop-ups to preview the report'); return; }
+  w.document.open(); w.document.write(_buildReportDoc(r, _gatherReportOpts(), false)); w.document.close();
+}
+function downloadReportPDF() {
+  const r = _openParcel; if (!r) { toast('Open a parcel first'); return; }
+  const w = window.open('', '_blank');
+  if (!w) { toast('Allow pop-ups so the PDF can open'); return; }
+  w.document.open(); w.document.write(_buildReportDoc(r, _gatherReportOpts(), true)); w.document.close();
+  hideReportModal();
+}
+function downloadReportWord() {
+  const r = _openParcel; if (!r) { toast('Open a parcel first'); return; }
+  const opts = _gatherReportOpts();
+  const blob = new Blob(['﻿', _buildReportDoc(r, opts, false)], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = _reportFilename(r, opts) + '.doc';
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 100);
+  hideReportModal();
+}
+
 // Share a single parcel's Deal Review as a public read-only link (#p/<token>).
 async function shareParcel() {
   const r = _openParcel;
@@ -10038,6 +10277,7 @@ function renderStoryView(r) {
             (r.score != null ? '<span id="svScoreNum" style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '<span id="svScoreNum" style="flex-shrink:0"></span>') +
             (shared ? '' :
               '<button id="svRescreenBtn" class="sv-rescreen-btn" onclick="rescreenFromStoryView()" title="Re-screen this parcel with fresh data">↻ Re-screen</button>' +
+              '<button id="svReportBtn" class="sv-rescreen-btn" onclick="openReportBuilder()" title="Generate a polished client report (PDF / Word)">📄 Report</button>' +
               '<button id="svShareBtn" class="sv-rescreen-btn" onclick="shareParcel()" title="Share this Deal Review as a read-only link">↗ Share</button>' +
               '<button id="svStarBtn" onclick="_toggleStarFromPanel()" title="' + (r._starred ? 'Remove from My Picks' : 'Add to My Picks') + '" style="background:none;border:none;font-size:20px;cursor:pointer;padding:0 2px;color:' + (r._starred ? 'var(--amber)' : 'var(--t3)') + ';line-height:1;flex-shrink:0;transition:color .12s">' + (r._starred ? '⭐' : '☆') + '</button>') +
           '</div>' +
