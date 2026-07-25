@@ -2332,7 +2332,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <thead>
             <tr>
               <th style="width:32px"><input type="checkbox" class="row-cb" id="selAllCb" onchange="toggleSelectAll()" style="margin:0"></th>
-              <th>ADDRESS <span style="font-size:10px;color:var(--t2);font-weight:400;letter-spacing:0">· hover ↻ to re-run</span></th>
+              <th>ADDRESS <span class="reRunHint" style="font-size:10px;color:var(--t2);font-weight:400;letter-spacing:0">· hover ↻ to re-run</span></th>
               <th onclick="sortBy('landuse')" style="cursor:pointer"><span class="col-sort-btn" id="sort-landuse">TYPE OF LAND <span class="arrow">↕</span></span><button type="button" class="tbl-landuse-filter-btn" onclick="event.stopPropagation();openLandTypeFilter()" title="Filter by type of land">▾</button></th>
               <th onclick="sortBy('size')" style="cursor:pointer"><span class="col-sort-btn" id="sort-size">SIZE <span class="arrow">↕</span></span></th>
               <th>SIGNALS</th>
@@ -4039,7 +4039,7 @@ function _injectSharedModeStyle() {
     + 'backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--b)}'
     + 'body.shared-mode #resSidebar,body.shared-mode #sidebarOpenBtn,body.shared-mode .res-header-btns,'
     + 'body.shared-mode #addParcelFab,body.shared-mode #batchTitleEditBtn,body.shared-mode #dpStarBtn,'
-    + 'body.shared-mode #rescreenAllBtn{display:none!important}'
+    + 'body.shared-mode #rescreenAllBtn,body.shared-mode .reRunHint{display:none!important}'
     + 'body.shared-mode #resTitleCount{pointer-events:none;cursor:default!important}'
     + 'body.shared-mode .res-main{padding-top:62px!important}'
     + 'body.shared-mode #detailPanel{top:52px!important}';
