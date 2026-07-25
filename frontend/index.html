@@ -3969,49 +3969,81 @@ if (_hash.startsWith('#shared/')) {
 
 // FIX 2 — loadSharedBatch
 async function loadSharedBatch(token) {
-  // When user navigates away from shared view (e.g. clicks Sign Up), reload to restore SPA
+  // Leaving the shared view (e.g. Create account) reloads to restore the SPA.
   window.addEventListener('hashchange', () => {
     if (!window.location.hash.startsWith('#shared/')) window.location.reload();
   }, { once: true });
-  document.body.innerHTML = '';
-  document.body.style.cssText = 'background:#0D0F12;color:#F1F5F9;font-family:Inter,sans-serif';
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'max-width:1200px;margin:0 auto;padding:24px';
-  document.body.appendChild(wrap);
-  wrap.innerHTML = `
-    <div style='display:flex;justify-content:space-between;align-items:center;
-      padding:0 0 20px;border-bottom:1px solid #2A2D3A;margin-bottom:24px'>
-      <div style='font-size:20px;font-weight:800'>
-        Parcel<span style='color:#22C55E'>iQ</span>
-      </div>
-      <div style='display:flex;gap:10px;align-items:center'>
-        <span style='font-size:13px;color:var(--t2)'>Shared results (view only)</span>
-        <button onclick='window.location.hash="#signup"'
-          style='background:#22C55E;color:#000;border:none;padding:7px 14px;
-          border-radius:99px;cursor:pointer;font-weight:600;font-size:13px'>
-          Create free account
-        </button>
-      </div>
-    </div>
-    <div id='shared-content' style='text-align:center;padding:60px;color:var(--t2)'>
-      Loading shared results…
-    </div>
-  `;
   try {
     const resp = await fetch(API + '/api/share/' + token);
-    if (!resp.ok) {
-      document.getElementById('shared-content').innerHTML =
-        '<h2 style="color:#F1F5F9">This share link has expired or does not exist.</h2>' +
-        '<p><a href="/" style="color:#22C55E">Return to ParceliQ</a></p>';
-      return;
-    }
+    if (!resp.ok) { _sharedBatchError('This share link has expired or does not exist.'); return; }
     const data = await resp.json();
     const results = _mapBatchRows(data.results || []);
-    renderSharedResults(results, wrap, (data.batch||{}).name);
-  } catch(e) {
-    document.getElementById('shared-content').innerHTML =
-      '<h2 style="color:#F1F5F9">Could not load results.</h2><p>Check your connection.</p>';
+    if (!results.length) { _sharedBatchError('This shared batch has no results.'); return; }
+
+    // Drive the REAL results page in a locked, view-only mode — same table, same
+    // right-hand detail panel, same Deal Review the owner sees — just without the
+    // edit controls. (Mirrors how the shared single-parcel link reuses the Deal
+    // Review verbatim.)
+    window._sharedViewOnly = true;
+    _injectSharedModeStyle();
+    _renderSharedBar();
+    document.body.classList.add('shared-mode');
+
+    _currentBatchId = 'shared';
+    batchState.results = results;
+    batchState.name = (data.batch || {}).name || 'Shared screening results';
+    batchState.filtered = 'all';
+    batchState.sortCol = null;
+    batchState.elapsed = 0;
+    batchState.completedAt = ((data.batch || {}).created_at) ? new Date(data.batch.created_at).getTime() : null;
+    currentBatchResults = results;
+
+    renderBatchResults();
+    showScreen('page-results');          // applies body.on-results layout
+  } catch (e) {
+    console.error('Shared batch load failed:', e);
+    _sharedBatchError('Could not load these results. Check your connection.');
   }
+}
+
+function _sharedBatchError(msg) {
+  document.body.innerHTML = '';
+  document.body.style.cssText = 'margin:0;background:#0D0F12;color:#F1F5F9;font-family:Inter,Segoe UI,sans-serif';
+  document.body.innerHTML = '<div style="text-align:center;padding:90px 24px">'
+    + '<div style="font-size:22px;font-weight:800;margin-bottom:10px">' + msg + '</div>'
+    + '<a href="/" style="color:#22C55E;font-weight:600">Return to ParceliQ</a></div>';
+}
+
+// Fixed top bar for the shared view (replaces the app nav, which is hidden).
+function _renderSharedBar() {
+  if (document.getElementById('sharedBar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'sharedBar';
+  bar.innerHTML = '<div style="display:flex;align-items:center;gap:10px;min-width:0">'
+    + '<span style="font-weight:800;font-size:16px">Parcel<span style="color:var(--green)">iQ</span></span>'
+    + '<span style="font-size:12px;color:var(--t2);white-space:nowrap">Shared results · view only</span></div>'
+    + '<button onclick="window.location.hash=\'#signup\'" style="background:var(--green);color:#000;border:none;padding:7px 14px;border-radius:99px;cursor:pointer;font-weight:700;font-size:13px;white-space:nowrap">Create free account</button>';
+  document.body.appendChild(bar);
+}
+
+// Inject the view-only overrides once: hide the app's edit chrome and reserve
+// space for the shared bar. Scoped to body.shared-mode so the real app is
+// untouched.
+function _injectSharedModeStyle() {
+  if (document.getElementById('sharedModeStyle')) return;
+  const s = document.createElement('style');
+  s.id = 'sharedModeStyle';
+  s.textContent = ''
+    + '#sharedBar{position:fixed;top:0;left:0;right:0;height:52px;z-index:10000;display:flex;'
+    + 'align-items:center;justify-content:space-between;padding:0 20px;background:rgba(13,15,18,.94);'
+    + 'backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--b)}'
+    + 'body.shared-mode #resSidebar,body.shared-mode #sidebarOpenBtn,body.shared-mode .res-header-btns,'
+    + 'body.shared-mode #addParcelFab,body.shared-mode #batchTitleEditBtn,body.shared-mode #dpStarBtn,'
+    + 'body.shared-mode #rescreenAllBtn{display:none!important}'
+    + 'body.shared-mode #resTitleCount{pointer-events:none;cursor:default!important}'
+    + 'body.shared-mode .res-main{padding-top:62px!important}'
+    + 'body.shared-mode #detailPanel{top:52px!important}';
+  document.head.appendChild(s);
 }
 
 // Rank a signal by how much it distinguishes a parcel. Generic flags that
