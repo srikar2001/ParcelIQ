@@ -3986,6 +3986,7 @@ async function loadSharedBatch(token) {
     // edit controls. (Mirrors how the shared single-parcel link reuses the Deal
     // Review verbatim.)
     window._sharedViewOnly = true;
+    window._sharedBatchMode = true;   // Deal Review here has a results list to go back to
     _injectSharedModeStyle();
     _renderSharedBar();
     document.body.classList.add('shared-mode');
@@ -5165,21 +5166,43 @@ function showResultsLoading() {
   if (badge) badge.style.display = 'none';
 }
 
+// Centroid [lat,lng] of a parcel polygon, for deriving a map center.
+function _geomCentroid(geometry) {
+  const coords = extractPolygonCoords(geometry);
+  if (!coords || !coords.length) return null;
+  let sa = 0, sn = 0, n = 0;
+  for (const c of coords) {
+    if (c && typeof c[0] === 'number' && typeof c[1] === 'number') { sa += c[0]; sn += c[1]; n++; }
+  }
+  return n ? [sa / n, sn / n] : null;
+}
+
 function _mapBatchRows(rows) {
-  return rows.map(r => ({
-    ...r,
-    parcel_info: typeof r.parcel_info === 'string'
+  return rows.map(r => {
+    const parcel_info = typeof r.parcel_info === 'string'
       ? (() => { try { return JSON.parse(r.parcel_info); } catch(e) { return {}; } })()
-      : (r.parcel_info || {}),
-    flags: typeof r.flags === 'string'
-      ? (() => { try { return JSON.parse(r.flags); } catch(e) { return []; } })()
-      : (r.flags || []),
-    positives: typeof r.positives === 'string'
-      ? (() => { try { return JSON.parse(r.positives); } catch(e) { return []; } })()
-      : (r.positives || []),
-    _note: r.notes,
-    _note_updated_at: r.notes_updated_at,
-  }));
+      : (r.parcel_info || {});
+    const out = {
+      ...r,
+      parcel_info,
+      flags: typeof r.flags === 'string'
+        ? (() => { try { return JSON.parse(r.flags); } catch(e) { return []; } })()
+        : (r.flags || []),
+      positives: typeof r.positives === 'string'
+        ? (() => { try { return JSON.parse(r.positives); } catch(e) { return []; } })()
+        : (r.positives || []),
+      _note: r.notes,
+      _note_updated_at: r.notes_updated_at,
+    };
+    // DB rows don't store _lat/_lng (they're only set at live-screen time), so
+    // the Deal Review map pills (road/power/wetland lines) had nothing to draw
+    // from. Derive a parcel-center from the geometry when missing.
+    if (out._lat == null || out._lng == null) {
+      const c = _geomCentroid(parcel_info.geometry);
+      if (c) { out._lat = c[0]; out._lng = c[1]; }
+    }
+    return out;
+  });
 }
 
 async function loadBatchResults(batchId) {
@@ -10342,7 +10365,9 @@ function renderStoryView(r) {
     '<div class="sv-wrap">' +
       '<div class="sv-header">' +
         (shared
-          ? '<div style="font-weight:800;font-size:16px;padding:0 6px;white-space:nowrap">Parcel<span style="color:var(--green)">iQ</span></div>'
+          ? (window._sharedBatchMode
+              ? '<button class="sv-back icon-only" onclick="closeStoryView()" title="Back to Results">←</button>'
+              : '<div style="font-weight:800;font-size:16px;padding:0 6px;white-space:nowrap">Parcel<span style="color:var(--green)">iQ</span></div>')
           : '<button class="sv-back icon-only" onclick="closeStoryView()" title="Back to Results">←</button>' +
             '<button id="svSidebarOpenBtn" class="sv-back icon-only" onclick="_svToggleSidebar()" title="Show sidebar" style="display:' + (sidebarCurrentlyHidden ? 'inline-flex' : 'none') + '"><svg width="16" height="14" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>') +
         '<div style="min-width:0;flex:1">' +
