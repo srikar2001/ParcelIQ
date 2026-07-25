@@ -3973,6 +3973,7 @@ async function loadSharedBatch(token) {
   window.addEventListener('hashchange', () => {
     if (!window.location.hash.startsWith('#shared/')) window.location.reload();
   }, { once: true });
+  _showSharedLoader();   // cover the app immediately so no login/landing flashes
   try {
     const resp = await fetch(API + '/api/share/' + token);
     if (!resp.ok) { _sharedBatchError('This share link has expired or does not exist.'); return; }
@@ -4000,11 +4001,25 @@ async function loadSharedBatch(token) {
 
     renderBatchResults();
     showScreen('page-results');          // applies body.on-results layout
+    requestAnimationFrame(_hideSharedLoader);
   } catch (e) {
     console.error('Shared batch load failed:', e);
+    _hideSharedLoader();
     _sharedBatchError('Could not load these results. Check your connection.');
   }
 }
+
+// Full-screen loader shown while the shared batch fetches, so the app's default
+// (login/landing) never flashes underneath.
+function _showSharedLoader() {
+  if (document.getElementById('sharedLoader')) return;
+  const d = document.createElement('div');
+  d.id = 'sharedLoader';
+  d.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#0D0F12;color:#F1F5F9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-family:Inter,Segoe UI,sans-serif';
+  d.innerHTML = '<div style="font-size:22px;font-weight:800">Parcel<span style="color:#22C55E">iQ</span></div><div style="font-size:13px;color:#94A3B8">Loading shared results…</div>';
+  document.body.appendChild(d);
+}
+function _hideSharedLoader() { const d = document.getElementById('sharedLoader'); if (d) d.remove(); }
 
 function _sharedBatchError(msg) {
   document.body.innerHTML = '';
@@ -4042,7 +4057,10 @@ function _injectSharedModeStyle() {
     + 'body.shared-mode #rescreenAllBtn,body.shared-mode .reRunHint{display:none!important}'
     + 'body.shared-mode #resTitleCount{pointer-events:none;cursor:default!important}'
     + 'body.shared-mode .res-main{padding-top:62px!important}'
-    + 'body.shared-mode #detailPanel{top:52px!important}';
+    + 'body.shared-mode #detailPanel{top:52px!important}'
+    // When the Deal Review opens it becomes a full-screen overlay ABOVE the
+    // shared bar (which has its own header), so there's no double header.
+    + 'body.shared-mode #storyView.open{position:fixed!important;inset:0!important;z-index:10001!important;height:100vh!important}';
   document.head.appendChild(s);
 }
 
