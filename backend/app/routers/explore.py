@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/explore")
 _MAX_BBOX_DEG = 0.06
 _BBOX_CAP = 500          # max parcels drawn per viewport
 _COMPS_RADIUS_DEG = 0.02  # ~2.2km search box for comps
-_COMPS_FETCH = 60         # fetch this many, then filter/sort to the best few
+_COMPS_FETCH = 40         # fetch this many, then filter/sort to the best few
 _COMPS_RETURN = 12
 
 
@@ -198,7 +198,10 @@ async def comps(
         "inSR": "4326", "outSR": "4326",
         "spatialRel": "esriSpatialRelIntersects",
         "outFields": "PARCEL_ID,PHY_ADDR1,PHY_CITY,SALE_PRC1,SALE_YR1,LND_SQFOOT,DOR_UC",
-        "returnGeometry": "true",
+        # Centroid only (not full polygons) — ~2x faster and all we need for the
+        # distance + the map pin.
+        "returnGeometry": "false",
+        "returnCentroid": "true",
         "orderByFields": "SALE_YR1 DESC",
         "resultRecordCount": str(_COMPS_FETCH),
         "f": "json",
@@ -214,10 +217,10 @@ async def comps(
         rows = []
         for feat in data.get("features", []):
             a = feat.get("attributes", {})
-            ring = _rings_to_latlng((feat.get("geometry") or {}).get("rings"))
-            cen = _ring_centroid(ring)
-            if not cen:
+            c = feat.get("centroid") or {}
+            if c.get("y") is None or c.get("x") is None:
                 continue
+            cen = [c["y"], c["x"]]
             sq = a.get("LND_SQFOOT")
             acre = round(sq / 43560, 3) if sq else None
             price = a.get("SALE_PRC1")
