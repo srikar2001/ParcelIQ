@@ -16,6 +16,7 @@ from fastapi import APIRouter, Header, Query
 from fastapi.responses import JSONResponse
 
 from app.collectors.parcel_fl import get_parcel_data, URL as _PARCEL_URL, _CO_NO_TO_COUNTY
+from app.collectors.geocodio import geocode as _geocode
 from app.routers.batch import _user_id_from_token, _AuthUnavailable
 
 router = APIRouter(prefix="/api/explore")
@@ -112,6 +113,18 @@ async def parcel_at(lat: float, lng: float, authorization: Optional[str] = Heade
         data["click_lat"] = lat
         data["click_lng"] = lng
     return data
+
+
+@router.get("/geocode")
+async def geocode_q(q: str = Query(...), authorization: Optional[str] = Header(None)):
+    """Geocode a search-bar query to a point, so the map can pan there."""
+    denied = await _require_auth(authorization)
+    if denied is not None:
+        return denied
+    g = await _geocode(q)
+    if g.get("status") == "ok" and g.get("lat") is not None:
+        return {"found": True, "lat": g["lat"], "lng": g["lng"], "formatted": g.get("formatted_address")}
+    return {"found": False, "status": g.get("status")}
 
 
 @router.get("/parcels")
