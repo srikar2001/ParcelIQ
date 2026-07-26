@@ -2960,6 +2960,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .ex-fact{background:var(--card);padding:10px 12px}
 .ex-fact-k{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--t3)}
 .ex-fact-v{font-size:13px;font-weight:600;color:var(--t1);margin-top:2px;word-break:break-word}
+.ex-fact-sub{font-size:9px;color:var(--t3);margin-top:1px}
+.ex-comp.ex-comp-active{background:var(--card-h);box-shadow:inset 3px 0 0 var(--green)}
 .ex-comps-head{font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--t2);padding:8px 20px;border-top:1px solid var(--b)}
 .ex-comp{display:flex;justify-content:space-between;gap:10px;padding:10px 20px;border-bottom:1px solid var(--b);cursor:pointer}
 .ex-comp:hover{background:var(--card-h)}
@@ -11637,7 +11639,7 @@ function _attachAddressAutocomplete(inputEl) {
 // comes from the click, no geocoding).
 // ══════════════════════════════════════════════════════════════════════════
 let _exMap = null, _exParcelLayer = null, _exNeighborLayer = null, _exCompMarkers = null;
-let _exSearchTimer = null, _exDrawTimer = null, _exLastParcel = null, _exSuggestions = [];
+let _exSearchTimer = null, _exDrawTimer = null, _exLastParcel = null, _exSuggestions = [], _exCompMarkerList = [];
 
 function _exHeaders() {
   const h = {};
@@ -11675,6 +11677,7 @@ async function exIdentify(lat, lng) {
     _exDrawParcel(d);
     _exRenderPanel(d);
     exFetchComps(d);
+    exScreenPoint(d.click_lat, d.click_lng);   // verdict/score/signals (async)
   } catch (e) { _exOpenPanel('<div style="padding:60px 24px;text-align:center;color:var(--t2)">Could not load this parcel.</div>'); }
 }
 
@@ -11690,22 +11693,51 @@ function _exDrawParcel(d) {
 }
 function _exClearParcel() { if (_exParcelLayer) { _exMap.removeLayer(_exParcelLayer); _exParcelLayer = null; } }
 
+// Full ParcelIQ screening on the clicked point — verdict / score / signals.
+function exScreenPoint(lat, lng) {
+  const slot = document.getElementById('exVerdictSlot');
+  if (!slot || lat == null) return;
+  fetch(API + '/api/explore/screen?lat=' + lat + '&lng=' + lng, { headers: _exHeaders() })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      const s2 = document.getElementById('exVerdictSlot'); if (!s2) return;
+      if (!d.verdict || d.verdict === 'ERROR') { s2.innerHTML = '<div style="padding:2px 20px 12px;font-size:12px;color:var(--t3)">Screening unavailable for this parcel.</div>'; return; }
+      const ev = d.verdict;
+      const vc = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
+      const vbg = ev === 'KILL' ? 'rgba(239,68,68,.14)' : ev === 'PURSUE' ? 'rgba(34,197,94,.14)' : 'rgba(245,158,11,.14)';
+      const pi = d.parcel_info || {};
+      const chips = (typeof _signalChipsHtml === 'function') ? _signalChipsHtml(d.flags || [], { max: 6 }) : '';
+      s2.innerHTML = ''
+        + '<div style="display:flex;align-items:center;gap:10px;padding:2px 20px 4px">'
+        + '<span style="font-size:15px;font-weight:800;color:' + vc + ';background:' + vbg + ';padding:4px 14px;border-radius:99px;letter-spacing:.02em">' + escHtml(ev) + '</span>'
+        + (d.score != null ? '<span style="font-size:20px;font-weight:800;color:' + vc + '">' + d.score + '</span><span style="font-size:11px;color:var(--t3);margin-left:-4px">/100</span>' : '')
+        + (pi.confidence_pct != null ? '<span style="margin-left:auto;font-size:10.5px;color:var(--t3)">' + pi.confidence_pct + '% confidence</span>' : '')
+        + '</div>'
+        + (chips ? '<div style="padding:4px 20px 14px">' + chips + '</div>' : '<div style="padding:0 20px 12px"></div>');
+    })
+    .catch(function () { const s2 = document.getElementById('exVerdictSlot'); if (s2) s2.innerHTML = ''; });
+}
+
 function _exRenderPanel(d) {
   const cat = d.land_use_category || (d.land_use_code != null ? getLandUseCategory(d.land_use_code) : '—');
   const facts = [];
-  const F = function (k, v) { if (v != null && v !== '' && v !== '—') facts.push('<div class="ex-fact"><div class="ex-fact-k">' + escHtml(k) + '</div><div class="ex-fact-v">' + escHtml(v) + '</div></div>'); };
-  F('APN', d.parcel_id);
+  const F = function (k, v, sub) { if (v != null && v !== '' && v !== '—') facts.push('<div class="ex-fact"><div class="ex-fact-k">' + escHtml(k) + '</div><div class="ex-fact-v">' + escHtml(v) + '</div>' + (sub ? '<div class="ex-fact-sub">' + escHtml(sub) + '</div>' : '') + '</div>'); };
   F('Acreage', d.acreage != null ? d.acreage + ' ac' : '');
-  F('County', d.county);
   F('Land Use', cat);
-  F('Just Value', (d.just_value > 0) ? fmt$(d.just_value) : '');
-  F('Land Value', (d.land_value > 0) ? fmt$(d.land_value) : '');
+  F('Est. Market Value', (d.just_value > 0) ? fmt$(d.just_value) : '', 'County appraiser');
+  F('Land Value', (d.land_value > 0) ? fmt$(d.land_value) : '', 'Land only, no buildings');
   F('Last Sale', (d.last_sale_price > 0 && d.last_sale_year) ? (fmt$(d.last_sale_price) + ' (' + d.last_sale_year + ')') : '');
+  F('Prior Sale', (d.prior_sale_price > 0 && d.prior_sale_year) ? (fmt$(d.prior_sale_price) + ' (' + d.prior_sale_year + ')') : '');
+  F('Year Built', (d.year_built && d.year_built > 1800) ? String(d.year_built) : '');
+  F('Living Area', (d.living_area_sqft > 0) ? (d.living_area_sqft.toLocaleString() + ' sq ft') : '');
+  F('APN', d.parcel_id);
+  F('County', d.county);
   F('Owner', d.owner);
   const addr = d.county_address_on_file || '';
   const html = ''
     + '<div class="ex-panel-head"><div class="ex-panel-title">' + escHtml(addr || d.parcel_id || 'Parcel') + '</div>'
     + '<div class="ex-panel-sub">' + escHtml((d.county ? d.county + ' County · ' : '') + cat) + '</div></div>'
+    + '<div id="exVerdictSlot"><div style="padding:14px 20px;color:var(--t3);font-size:12px">Screening this parcel…</div></div>'
     + '<div class="ex-facts">' + facts.join('') + '</div>'
     + '<div class="ex-comps-head">Nearby comparable sales</div>'
     + '<div id="exCompsSlot"><div style="padding:14px 20px;color:var(--t3);font-size:12.5px">Finding comps…</div></div>';
@@ -11722,30 +11754,48 @@ async function exFetchComps(parcel) {
   } catch (e) { const s = document.getElementById('exCompsSlot'); if (s) s.innerHTML = '<div style="padding:14px 20px;color:var(--t3);font-size:12.5px">Could not load comps.</div>'; }
 }
 
+function _exCompIcon(n, active) {
+  const bg = active ? '#22C55E' : '#F59E0B';
+  const sz = active ? 26 : 20;
+  return L.divIcon({ className: 'ex-comp-pin', html: '<div style="background:' + bg + ';color:#000;font-size:' + (active ? 12 : 10) + 'px;font-weight:800;border-radius:50%;width:' + sz + 'px;height:' + sz + 'px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)">' + n + '</div>', iconSize: [sz, sz] });
+}
+
 function _exRenderComps(comps) {
   const slot = document.getElementById('exCompsSlot');
   if (_exCompMarkers) _exCompMarkers.clearLayers();
+  _exCompMarkerList = [];
   if (!slot) return;
   if (!comps.length) { slot.innerHTML = '<div style="padding:14px 20px;color:var(--t3);font-size:12.5px">No recent comparable sales found nearby.</div>'; return; }
   const rows = comps.map(function (c, i) {
+    let marker = null;
     if (_exCompMarkers && c.lat != null) {
-      const m = L.marker([c.lat, c.lng], { icon: L.divIcon({ className: 'ex-comp-pin', html: '<div style="background:#F59E0B;color:#000;font-size:10px;font-weight:800;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:2px solid #fff">' + (i + 1) + '</div>', iconSize: [20, 20] }) });
-      m.bindPopup(escHtml(c.address || 'Sale') + '<br>' + (c.sale_price != null ? fmt$(c.sale_price) : '') + ' (' + (c.sale_year || '') + ')');
-      _exCompMarkers.addLayer(m);
+      marker = L.marker([c.lat, c.lng], { icon: _exCompIcon(i + 1, false) });
+      marker.bindPopup('<b>' + escHtml(c.address || 'Sale') + '</b><br>' + (c.sale_price != null ? fmt$(c.sale_price) : '') + ' (' + (c.sale_year || '') + ')' + (c.acreage != null ? '<br>' + c.acreage + ' ac' : ''));
+      marker.on('click', (function (idx) { return function () { exFlyToComp(idx); }; })(i));
+      _exCompMarkers.addLayer(marker);
     }
+    _exCompMarkerList[i] = { marker: marker, lat: c.lat, lng: c.lng };
     const dist = c.distance_m != null ? (c.distance_m < 1000 ? c.distance_m + ' m' : (c.distance_m / 1609).toFixed(1) + ' mi') : '';
     const ppa = c.price_per_acre ? ' · ' + fmt$(c.price_per_acre) + '/ac' : '';
     const meta = (c.acreage != null ? c.acreage + ' ac' : '') + ((c.acreage != null && dist) ? ' · ' : '') + dist + ppa;
-    return '<div class="ex-comp" onclick="exFlyToComp(' + (c.lat || 0) + ',' + (c.lng || 0) + ')">'
+    return '<div class="ex-comp" data-i="' + i + '" onclick="exFlyToComp(' + i + ')">'
       + '<div style="min-width:0"><div class="ex-comp-addr">' + (i + 1) + '. ' + escHtml(c.address || 'Unnamed parcel') + '</div>'
       + '<div class="ex-comp-meta">' + escHtml(meta) + '</div></div>'
       + '<div style="text-align:right"><div class="ex-comp-price">' + (c.sale_price != null ? fmt$(c.sale_price) : '—') + '</div><div class="ex-comp-yr">' + (c.sale_year || '') + '</div></div></div>';
   }).join('');
   slot.innerHTML = rows;
 }
-function exFlyToComp(lat, lng) { if (_exMap && lat && lng) _exMap.setView([lat, lng], Math.max(_exMap.getZoom(), 17)); }
 
-// ── Neighbor boundaries (high zoom only) ────────────────────────────────────
+// Pan to a comp and highlight it (enlarged green pin, popup, and its list row).
+function exFlyToComp(i) {
+  const c = _exCompMarkerList[i]; if (!c || c.lat == null) return;
+  _exMap.setView([c.lat, c.lng], Math.max(_exMap.getZoom(), 17));
+  _exCompMarkerList.forEach(function (x, j) { if (x.marker) x.marker.setIcon(_exCompIcon(j + 1, j === i)); });
+  if (c.marker) { if (c.marker.setZIndexOffset) c.marker.setZIndexOffset(1000); c.marker.openPopup(); }
+  document.querySelectorAll('.ex-comp.ex-comp-active').forEach(function (el) { el.classList.remove('ex-comp-active'); });
+  const row = document.querySelector('.ex-comp[data-i="' + i + '"]'); if (row) { row.classList.add('ex-comp-active'); row.scrollIntoView({ block: 'nearest' }); }
+}
+
 async function exDrawNeighbors() {
   if (!_exMap) return;
   if (_exMap.getZoom() < 16) { if (_exNeighborLayer) { _exMap.removeLayer(_exNeighborLayer); _exNeighborLayer = null; } return; }
