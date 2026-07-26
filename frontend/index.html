@@ -2020,6 +2020,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="dsb-divider"></div>
       <nav class="dsb-nav">
         <div class="dsb-nav-item active">Dashboard</div>
+        <div class="dsb-nav-item" onclick="window.location.hash='#explore'">🗺 Map Comps</div>
         <div class="dsb-nav-item" onclick="window.location.hash='#pricing'" style="display:none">Pricing</div><!-- PRICING_HIDDEN, re-enable for launch -->
         <div class="dsb-nav-item" onclick="window.location.hash='#settings'">Settings</div>
       </nav>
@@ -2928,6 +2929,59 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   </div>
 </div>
 
+<!-- ════════ MAP COMPS / PARCEL EXPLORER ════════ -->
+<style>
+#page-explore.active{display:block}
+#page-explore{padding-top:58px}
+.ex-wrap{position:relative;height:calc(100vh - 58px);width:100%;overflow:hidden;background:#0d0f12}
+#exMap{position:absolute;inset:0}
+.ex-search{position:absolute;top:14px;left:14px;z-index:640;width:min(370px,calc(100% - 28px))}
+.ex-search-box{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--b);border-radius:12px;padding:11px 14px;box-shadow:0 6px 22px rgba(0,0,0,.4)}
+.ex-search-box input{flex:1;background:none;border:none;outline:none;color:var(--t1);font-size:14px;font-family:inherit}
+.ex-search-box input::placeholder{color:var(--t3)}
+.ex-search-results{margin-top:6px;background:var(--card);border:1px solid var(--b);border-radius:10px;overflow-y:auto;max-height:280px;box-shadow:0 10px 28px rgba(0,0,0,.45);display:none}
+.ex-search-results.show{display:block}
+.ex-sr-item{padding:10px 14px;font-size:13px;color:var(--t1);cursor:pointer;border-bottom:1px solid var(--b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ex-sr-item:last-child{border-bottom:none}
+.ex-sr-item:hover{background:var(--card-h)}
+.ex-hint{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);z-index:620;background:rgba(13,15,18,.9);border:1px solid var(--b);border-radius:99px;padding:8px 18px;font-size:12.5px;color:var(--t2);pointer-events:none;white-space:nowrap}
+.ex-panel{position:absolute;top:0;right:0;bottom:0;width:min(400px,100%);background:var(--card);border-left:1px solid var(--b);z-index:660;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow-y:auto;box-shadow:-8px 0 30px rgba(0,0,0,.4)}
+.ex-panel.open{transform:translateX(0)}
+.ex-panel-close{position:absolute;top:12px;right:14px;z-index:2;background:var(--card-h);border:1px solid var(--b);color:var(--t2);width:30px;height:30px;border-radius:8px;font-size:15px;cursor:pointer;line-height:1}
+.ex-panel-head{padding:20px 20px 14px;border-bottom:1px solid var(--b)}
+.ex-panel-title{font-size:16px;font-weight:800;color:var(--t1);word-break:break-word;padding-right:36px}
+.ex-panel-sub{font-size:12.5px;color:var(--t2);margin-top:3px}
+.ex-facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--b);margin:16px;border:1px solid var(--b);border-radius:8px;overflow:hidden}
+.ex-fact{background:var(--card);padding:10px 12px}
+.ex-fact-k{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--t3)}
+.ex-fact-v{font-size:13px;font-weight:600;color:var(--t1);margin-top:2px;word-break:break-word}
+.ex-comps-head{font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--t2);padding:8px 20px;border-top:1px solid var(--b)}
+.ex-comp{display:flex;justify-content:space-between;gap:10px;padding:10px 20px;border-bottom:1px solid var(--b);cursor:pointer}
+.ex-comp:hover{background:var(--card-h)}
+.ex-comp-addr{font-size:12.5px;color:var(--t1);font-weight:600}
+.ex-comp-meta{font-size:11px;color:var(--t3);margin-top:2px}
+.ex-comp-price{font-size:14px;font-weight:800;color:var(--green);white-space:nowrap}
+.ex-comp-yr{font-size:10.5px;color:var(--t3);text-align:right;margin-top:1px}
+@media(max-width:640px){.ex-panel{width:100%}.ex-hint{font-size:11px;bottom:14px}}
+</style>
+<div id="page-explore" class="screen">
+  <div class="ex-wrap">
+    <div id="exMap"></div>
+    <div class="ex-search">
+      <div class="ex-search-box">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="exSearchInput" type="text" autocomplete="off" placeholder="Search an address or place in Florida..." oninput="exSearchInput(this.value)" onkeydown="exSearchKey(event)" onblur="setTimeout(function(){document.getElementById('exSearchResults')&&document.getElementById('exSearchResults').classList.remove('show')},180)">
+      </div>
+      <div id="exSearchResults" class="ex-search-results"></div>
+    </div>
+    <div id="exHint" class="ex-hint">Click any parcel on the map to see its details &amp; comps</div>
+    <div id="exPanel" class="ex-panel">
+      <button class="ex-panel-close" onclick="exClosePanel()">✕</button>
+      <div id="exPanelBody"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ════════ SHARE MODAL (Task 21) ════════ -->
 <div id="shareModal" class="share-overlay" onclick="if(event.target===this)hideShareModal()">
   <div class="share-modal">
@@ -3139,6 +3193,7 @@ const HASH_MAP = {
   '#forgot': 'page-forgot', '#reset-password': 'page-reset-password',
   '#dashboard': 'page-results', '#processing': 'page-processing',
   '#results': 'page-results', '#pricing': 'page-pricing',
+  '#explore': 'page-explore',
   '#settings': 'page-settings', '#picks': 'page-picks',
   '#terms': 'page-terms', '#privacy': 'page-privacy', '#contact': 'page-contact',
   // Admin route uses an unguessable hash instead of '#admin' - real gate is
@@ -3169,7 +3224,7 @@ function resetBatchState() {
   currentBatchResults = [];
   try { sessionStorage.removeItem('piq-last-batch'); } catch(e) {}
 }
-const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings']);
+const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings', '#explore']);
 
 // ── DEEP-LINK SUB-HASH HELPERS ──────────────────────────────────────────
 // A hash can now carry a sub-path/query beyond the base page, e.g.
@@ -3574,6 +3629,7 @@ async function router() {
     updateLpNav();
   }
   showScreen(HASH_MAP[hash] || 'page-landing');
+  if (hash === '#explore' && typeof initExplore === 'function') setTimeout(initExplore, 30);
   // Settings section restore must run after showScreen() above — scrolling
   // to a section inside a still-hidden (display:none) page is a no-op in
   // most browsers, so this can't live in the '#settings' branch earlier,
@@ -11567,6 +11623,182 @@ function _attachAddressAutocomplete(inputEl) {
   inputEl.addEventListener('keydown', e => { if (e.key === 'Escape') _acClose(); });
   window.addEventListener('scroll', _acClose, true);
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// MAP COMPS / PARCEL EXPLORER  (#explore)
+// Search or click anywhere in FL to identify the parcel there, see neighbor
+// boundaries, and pull nearby comparable sales. All data via the auth-gated
+// /api/explore endpoints (FL DOR cadastral). Clicking costs nothing (the point
+// comes from the click, no geocoding).
+// ══════════════════════════════════════════════════════════════════════════
+let _exMap = null, _exParcelLayer = null, _exNeighborLayer = null, _exCompMarkers = null;
+let _exSearchTimer = null, _exDrawTimer = null, _exLastParcel = null, _exSuggestions = [];
+
+function _exHeaders() {
+  const h = {};
+  if (currentSession && currentSession.access_token) h['Authorization'] = 'Bearer ' + currentSession.access_token;
+  return h;
+}
+
+function initExplore() {
+  const mapDiv = document.getElementById('exMap');
+  if (!mapDiv || typeof L === 'undefined') return;
+  if (_exMap) { setTimeout(function(){ try { _exMap.invalidateSize(); } catch(e){} }, 60); return; }
+  _exMap = L.map('exMap', { zoomControl: true }).setView([28.4, -82.4], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_exMap);
+  _exCompMarkers = L.layerGroup().addTo(_exMap);
+  _exMap.on('click', function(e){ exIdentify(e.latlng.lat, e.latlng.lng); });
+  _exMap.on('moveend', function(){ clearTimeout(_exDrawTimer); _exDrawTimer = setTimeout(exDrawNeighbors, 350); });
+  setTimeout(function(){ try { _exMap.invalidateSize(); } catch(e){} }, 90);
+}
+
+// ── Identify parcel at a point ──────────────────────────────────────────────
+async function exIdentify(lat, lng) {
+  if (!_exMap) return;
+  const hint = document.getElementById('exHint'); if (hint) hint.style.display = 'none';
+  _exOpenPanel('<div style="padding:70px 24px;text-align:center;color:var(--t2)">Loading parcel…</div>');
+  try {
+    const r = await fetch(API + '/api/explore/parcel?lat=' + lat + '&lng=' + lng, { headers: _exHeaders() });
+    if (r.status === 401) { _exOpenPanel('<div style="padding:60px 24px;text-align:center;color:var(--t2)">Please sign in to explore parcels.</div>'); return; }
+    const d = await r.json();
+    if (!d.found) {
+      _exClearParcel();
+      _exOpenPanel('<div style="padding:56px 24px;text-align:center;color:var(--t2)">No parcel here.<br><span style="font-size:12px;color:var(--t3)">Click directly on a property. Florida only for now.</span></div>');
+      return;
+    }
+    _exLastParcel = d;
+    _exDrawParcel(d);
+    _exRenderPanel(d);
+    exFetchComps(d);
+  } catch (e) { _exOpenPanel('<div style="padding:60px 24px;text-align:center;color:var(--t2)">Could not load this parcel.</div>'); }
+}
+
+function _exDrawParcel(d) {
+  if (_exParcelLayer) { _exMap.removeLayer(_exParcelLayer); _exParcelLayer = null; }
+  const g = d.geometry;
+  if (g && g.length && g[0] && g[0].length > 2) {
+    _exParcelLayer = L.polygon(g, { color: '#22C55E', weight: 3, fillColor: '#22C55E', fillOpacity: 0.18 }).addTo(_exMap);
+    try { _exMap.fitBounds(_exParcelLayer.getBounds(), { padding: [50, 50], maxZoom: 18 }); } catch (e) {}
+  } else if (d.click_lat != null) {
+    _exParcelLayer = L.circleMarker([d.click_lat, d.click_lng], { radius: 10, color: '#22C55E', fillColor: '#22C55E', fillOpacity: 0.4 }).addTo(_exMap);
+  }
+}
+function _exClearParcel() { if (_exParcelLayer) { _exMap.removeLayer(_exParcelLayer); _exParcelLayer = null; } }
+
+function _exRenderPanel(d) {
+  const cat = d.land_use_category || (d.land_use_code != null ? getLandUseCategory(d.land_use_code) : '—');
+  const facts = [];
+  const F = function (k, v) { if (v != null && v !== '' && v !== '—') facts.push('<div class="ex-fact"><div class="ex-fact-k">' + escHtml(k) + '</div><div class="ex-fact-v">' + escHtml(v) + '</div></div>'); };
+  F('APN', d.parcel_id);
+  F('Acreage', d.acreage != null ? d.acreage + ' ac' : '');
+  F('County', d.county);
+  F('Land Use', cat);
+  F('Just Value', (d.just_value > 0) ? fmt$(d.just_value) : '');
+  F('Land Value', (d.land_value > 0) ? fmt$(d.land_value) : '');
+  F('Last Sale', (d.last_sale_price > 0 && d.last_sale_year) ? (fmt$(d.last_sale_price) + ' (' + d.last_sale_year + ')') : '');
+  F('Owner', d.owner);
+  const addr = d.county_address_on_file || '';
+  const html = ''
+    + '<div class="ex-panel-head"><div class="ex-panel-title">' + escHtml(addr || d.parcel_id || 'Parcel') + '</div>'
+    + '<div class="ex-panel-sub">' + escHtml((d.county ? d.county + ' County · ' : '') + cat) + '</div></div>'
+    + '<div class="ex-facts">' + facts.join('') + '</div>'
+    + '<div class="ex-comps-head">Nearby comparable sales</div>'
+    + '<div id="exCompsSlot"><div style="padding:14px 20px;color:var(--t3);font-size:12.5px">Finding comps…</div></div>';
+  _exOpenPanel(html);
+}
+
+// ── Comps ───────────────────────────────────────────────────────────────────
+async function exFetchComps(parcel) {
+  const lat = parcel.click_lat, lng = parcel.click_lng, lu = parcel.land_use_code || '';
+  try {
+    const r = await fetch(API + '/api/explore/comps?lat=' + lat + '&lng=' + lng + '&land_use=' + encodeURIComponent(lu), { headers: _exHeaders() });
+    const d = await r.json();
+    _exRenderComps(d.comps || []);
+  } catch (e) { const s = document.getElementById('exCompsSlot'); if (s) s.innerHTML = '<div style="padding:14px 20px;color:var(--t3);font-size:12.5px">Could not load comps.</div>'; }
+}
+
+function _exRenderComps(comps) {
+  const slot = document.getElementById('exCompsSlot');
+  if (_exCompMarkers) _exCompMarkers.clearLayers();
+  if (!slot) return;
+  if (!comps.length) { slot.innerHTML = '<div style="padding:14px 20px;color:var(--t3);font-size:12.5px">No recent comparable sales found nearby.</div>'; return; }
+  const rows = comps.map(function (c, i) {
+    if (_exCompMarkers && c.lat != null) {
+      const m = L.marker([c.lat, c.lng], { icon: L.divIcon({ className: 'ex-comp-pin', html: '<div style="background:#F59E0B;color:#000;font-size:10px;font-weight:800;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:2px solid #fff">' + (i + 1) + '</div>', iconSize: [20, 20] }) });
+      m.bindPopup(escHtml(c.address || 'Sale') + '<br>' + (c.sale_price != null ? fmt$(c.sale_price) : '') + ' (' + (c.sale_year || '') + ')');
+      _exCompMarkers.addLayer(m);
+    }
+    const dist = c.distance_m != null ? (c.distance_m < 1000 ? c.distance_m + ' m' : (c.distance_m / 1609).toFixed(1) + ' mi') : '';
+    const ppa = c.price_per_acre ? ' · ' + fmt$(c.price_per_acre) + '/ac' : '';
+    const meta = (c.acreage != null ? c.acreage + ' ac' : '') + ((c.acreage != null && dist) ? ' · ' : '') + dist + ppa;
+    return '<div class="ex-comp" onclick="exFlyToComp(' + (c.lat || 0) + ',' + (c.lng || 0) + ')">'
+      + '<div style="min-width:0"><div class="ex-comp-addr">' + (i + 1) + '. ' + escHtml(c.address || 'Unnamed parcel') + '</div>'
+      + '<div class="ex-comp-meta">' + escHtml(meta) + '</div></div>'
+      + '<div style="text-align:right"><div class="ex-comp-price">' + (c.sale_price != null ? fmt$(c.sale_price) : '—') + '</div><div class="ex-comp-yr">' + (c.sale_year || '') + '</div></div></div>';
+  }).join('');
+  slot.innerHTML = rows;
+}
+function exFlyToComp(lat, lng) { if (_exMap && lat && lng) _exMap.setView([lat, lng], Math.max(_exMap.getZoom(), 17)); }
+
+// ── Neighbor boundaries (high zoom only) ────────────────────────────────────
+async function exDrawNeighbors() {
+  if (!_exMap) return;
+  if (_exMap.getZoom() < 16) { if (_exNeighborLayer) { _exMap.removeLayer(_exNeighborLayer); _exNeighborLayer = null; } return; }
+  const b = _exMap.getBounds();
+  try {
+    const r = await fetch(API + '/api/explore/parcels?w=' + b.getWest() + '&s=' + b.getSouth() + '&e=' + b.getEast() + '&n=' + b.getNorth(), { headers: _exHeaders() });
+    const d = await r.json();
+    if (_exNeighborLayer) { _exMap.removeLayer(_exNeighborLayer); _exNeighborLayer = null; }
+    if (!d.parcels || !d.parcels.length) return;
+    const grp = L.layerGroup();
+    d.parcels.forEach(function (p) {
+      if (p.ring && p.ring.length > 2) L.polygon(p.ring, { color: '#60A5FA', weight: 1, opacity: 0.5, fill: true, fillOpacity: 0.03, interactive: false }).addTo(grp);
+    });
+    _exNeighborLayer = grp.addTo(_exMap);
+    if (_exParcelLayer && _exParcelLayer.bringToFront) _exParcelLayer.bringToFront();
+  } catch (e) {}
+}
+
+// ── Search ──────────────────────────────────────────────────────────────────
+function exSearchInput(val) {
+  clearTimeout(_exSearchTimer);
+  const box = document.getElementById('exSearchResults');
+  if (!val || val.trim().length < 3) { if (box) box.classList.remove('show'); return; }
+  _exSearchTimer = setTimeout(function () {
+    fetch(API + '/api/geocodio-suggest?q=' + encodeURIComponent(val.trim()))
+      .then(function (r) { return r.json(); })
+      .then(function (d) { _exShowSuggestions((d.suggestions || []).map(function (s) { return s.address; })); })
+      .catch(function () {});
+  }, 300);
+}
+function _exShowSuggestions(list) {
+  _exSuggestions = list.slice(0, 6);
+  const box = document.getElementById('exSearchResults');
+  if (!box) return;
+  if (!_exSuggestions.length) { box.classList.remove('show'); box.innerHTML = ''; return; }
+  box.innerHTML = _exSuggestions.map(function (a, i) { return '<div class="ex-sr-item" onmousedown="exGoToIndex(' + i + ')">' + escHtml(a) + '</div>'; }).join('');
+  box.classList.add('show');
+}
+function exGoToIndex(i) { const a = _exSuggestions[i]; if (a) exGoTo(a); }
+function exSearchKey(e) {
+  if (e.key === 'Enter') { const v = document.getElementById('exSearchInput').value.trim(); if (v) exGoTo(v); }
+  else if (e.key === 'Escape') { const b = document.getElementById('exSearchResults'); if (b) b.classList.remove('show'); }
+}
+async function exGoTo(query) {
+  const box = document.getElementById('exSearchResults'); if (box) box.classList.remove('show');
+  const inp = document.getElementById('exSearchInput'); if (inp) inp.value = query;
+  try {
+    const r = await fetch(API + '/api/explore/geocode?q=' + encodeURIComponent(query), { headers: _exHeaders() });
+    const d = await r.json();
+    if (d.found && _exMap) { _exMap.setView([d.lat, d.lng], 17); setTimeout(function () { exIdentify(d.lat, d.lng); }, 350); }
+    else toast('Address not found in Florida coverage.');
+  } catch (e) { toast('Search failed — try again.'); }
+}
+
+// ── Panel ───────────────────────────────────────────────────────────────────
+function _exOpenPanel(html) { const b = document.getElementById('exPanelBody'); if (b) b.innerHTML = html; const p = document.getElementById('exPanel'); if (p) p.classList.add('open'); }
+function exClosePanel() { const p = document.getElementById('exPanel'); if (p) p.classList.remove('open'); _exClearParcel(); if (_exCompMarkers) _exCompMarkers.clearLayers(); }
+
 
 document.addEventListener('DOMContentLoaded', () => {
   // Single-address input only — batch paste textareas take one address per
