@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 
 from app.collectors.parcel_fl import get_parcel_data, URL as _PARCEL_URL, _CO_NO_TO_COUNTY
 from app.collectors.geocodio import geocode as _geocode
-from app.routers.batch import _user_id_from_token, _AuthUnavailable
+from app.routers.batch import _user_id_from_token, _AuthUnavailable, _screen_coordinate
 
 router = APIRouter(prefix="/api/explore")
 
@@ -26,8 +26,10 @@ router = APIRouter(prefix="/api/explore")
 # only queries when zoomed in and we hard-stop oversized boxes here too.
 _MAX_BBOX_DEG = 0.06
 _BBOX_CAP = 500          # max parcels drawn per viewport
-_COMPS_RADIUS_DEG = 0.02  # ~2.2km search box for comps
-_COMPS_FETCH = 40         # fetch this many, then filter/sort to the best few
+_COMPS_RADIUS_DEG = 0.013  # ~1.4km search box — small enough to stay fast even
+                           # in dense metros (a wider box makes the ArcGIS sort
+                           # time out), big enough for a good comp set.
+_COMPS_FETCH = 40          # fetch this many, then filter/sort to the best few
 _COMPS_RETURN = 12
 
 
@@ -115,6 +117,22 @@ async def parcel_at(lat: float, lng: float, authorization: Optional[str] = Heade
     return data
 
 
+@router.get("/screen")
+async def screen_point(lat: float, lng: float, authorization: Optional[str] = Header(None)):
+    """Run the full ParcelIQ screening on a clicked coordinate (no geocoding) —
+    returns the verdict, score, signals, and enriched parcel_info, same as the
+    Deal Review. Slower than /parcel (runs every data collector), so the UI
+    fetches it after showing the quick facts."""
+    denied = await _require_auth(authorization)
+    if denied is not None:
+        return denied
+    try:
+        return await _screen_coordinate("", {"lat": lat, "lng": lng}, lat, lng)
+    except Exception as ex:
+        print(f"[Explore] screen error: {ex}")
+        return {"verdict": "ERROR", "error": "screen_failed"}
+
+
 @router.get("/geocode")
 async def geocode_q(q: str = Query(...), authorization: Optional[str] = Header(None)):
     """Geocode a search-bar query to a point, so the map can pan there."""
@@ -150,7 +168,7 @@ async def parcels_in_bbox(
         "f": "json",
     }
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
             r = await client.get(_PARCEL_URL, params=params)
             r.raise_for_status()
             data = r.json()
@@ -208,7 +226,7 @@ async def comps(
     }
     subj_cat = _lu_category(land_use) if land_use is not None else None
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
             r = await client.get(_PARCEL_URL, params=params)
             r.raise_for_status()
             data = r.json()
