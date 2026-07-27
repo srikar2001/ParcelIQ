@@ -799,6 +799,7 @@ body.on-results .detail-panel{top:0}
 .sv-comps-wrap{border:1px solid var(--b);border-radius:14px;overflow:hidden;margin-bottom:18px;background:var(--bg)}
 .sv-comps-wrap .ex-comp:last-child{border-bottom:none}
 .sv-comps-msg{padding:14px 16px;color:var(--t3);font-size:12.5px}
+.ex-comp.sv-comp-hover{background:var(--card-h);box-shadow:inset 3px 0 0 var(--green)}
 .dp-sec-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
 .dp-flag-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(42,45,58,.5);font-size:12px}
 .dp-flag-row:last-child{border-bottom:none}
@@ -11201,21 +11202,76 @@ async function svFetchComps(r) {
   }
 }
 
+// Numbered comp pin — amber normally, larger + green when hovered/active so the
+// map<->list link is obvious.
+let _svCompMarkers = null;
+let _svCompMarkerList = [];
+function _svCompIcon(n, active) {
+  const sz = active ? 28 : 20;
+  const bg = active ? '#22C55E' : '#F59E0B';
+  return L.divIcon({ className: 'sv-comp-pin', html: '<div style="background:' + bg + ';color:#000;font-size:' + (active ? 12 : 10) + 'px;font-weight:800;border-radius:50%;width:' + sz + 'px;height:' + sz + 'px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.5)">' + n + '</div>', iconSize: [sz, sz] });
+}
+
 function _svRenderComps(comps) {
   const slot = document.getElementById('svCompsSlot');
+  if (_svCompMarkers && _svMap) { try { _svMap.removeLayer(_svCompMarkers); } catch (e) {} }
+  _svCompMarkers = null; _svCompMarkerList = [];
   if (!slot) return;
   if (!comps.length) { slot.innerHTML = '<div class="sv-comps-msg">No recent comparable sales found nearby.</div>'; return; }
+  // Nearest first (they already are), so the list + map lead with the true
+  // neighbours rather than the farther sales.
+  comps = comps.slice().sort(function (a, b) { return (a.distance_m || 0) - (b.distance_m || 0); });
+  const grp = (_svMap && typeof L !== 'undefined') ? L.layerGroup() : null;
+  const nearPts = [];   // just the close comps — what we frame the map to
   slot.innerHTML = comps.map(function (c, i) {
+    if (grp && c.lat != null && c.lng != null) {
+      const mk = L.marker([c.lat, c.lng], { icon: _svCompIcon(i + 1, false), riseOnHover: true });
+      mk.bindPopup('<b>' + escHtml(c.address || 'Sale') + '</b><br>' + (c.sale_price != null ? fmt$(c.sale_price) : '') + (c.sale_year ? ' (' + c.sale_year + ')' : '') + (c.acreage != null ? '<br>' + c.acreage + ' ac' : ''));
+      mk.on('mouseover', function () { svHoverComp(i, true, true); });
+      mk.on('mouseout', function () { svHoverComp(i, false, true); });
+      mk.on('click', function () { svExploreParcel(c.lat, c.lng); });
+      grp.addLayer(mk);
+      _svCompMarkerList[i] = { marker: mk, lat: c.lat, lng: c.lng };
+      // Frame around the immediate neighbours (<= ~0.5 mi) — or at least the
+      // three closest — so the map doesn't zoom way out to a 1–2 mi sale.
+      if (c.distance_m == null || c.distance_m <= 800 || i < 3) nearPts.push([c.lat, c.lng]);
+    }
     const dist = c.distance_m != null ? (c.distance_m < 1000 ? c.distance_m + ' m' : (c.distance_m / 1609).toFixed(1) + ' mi') : '';
     const ppa = c.price_per_acre ? ' · ' + fmt$(c.price_per_acre) + '/ac' : '';
     const meta = (c.acreage != null ? c.acreage + ' ac' : '') + ((c.acreage != null && dist) ? ' · ' : '') + dist + ppa;
     const clickable = (c.lat != null && c.lng != null);
-    return '<div class="ex-comp"' + (clickable ? ' onclick="svExploreParcel(' + c.lat + ',' + c.lng + ')" title="Open this parcel"' : '') + '>' +
+    return '<div class="ex-comp" data-ci="' + i + '"' +
+      (clickable ? ' onmouseenter="svHoverComp(' + i + ',true)" onmouseleave="svHoverComp(' + i + ',false)" onclick="svExploreParcel(' + c.lat + ',' + c.lng + ')" title="Open this parcel"' : '') + '>' +
       '<div style="min-width:0"><div class="ex-comp-addr">' + (i + 1) + '. ' + escHtml(c.address || 'Unnamed parcel') + '</div>' +
       '<div class="ex-comp-meta">' + escHtml(meta) + '</div></div>' +
       '<div style="display:flex;align-items:center;gap:8px"><div style="text-align:right"><div class="ex-comp-price">' + (c.sale_price != null ? fmt$(c.sale_price) : '—') + '</div><div class="ex-comp-yr">' + (c.sale_year || '') + '</div></div>' + (clickable ? '<div class="ex-comp-arr">›</div>' : '') + '</div>' +
     '</div>';
   }).join('');
+  if (grp && _svMap) {
+    _svCompMarkers = grp.addTo(_svMap);
+    // Frame the subject + its NEAR comps so the neighbours are actually visible
+    // (they were mostly off-screen at the subject-only zoom) without zooming out
+    // to catch a far sale.
+    try {
+      const b = L.latLngBounds(nearPts.length ? nearPts : _svCompMarkerList.filter(Boolean).map(m => [m.lat, m.lng]));
+      if (_svLayers['parcel'] && _svLayers['parcel'].getBounds) b.extend(_svLayers['parcel'].getBounds());
+      if (b.isValid()) _svMap.fitBounds(b, { padding: [45, 45], maxZoom: 16 });
+    } catch (e) {}
+  }
+}
+
+// Link a comp row and its map pin: hovering either one enlarges the pin and
+// highlights the row, so moving down the list lights up each neighbour in turn.
+function svHoverComp(i, on, fromMap) {
+  const c = _svCompMarkerList[i];
+  const row = document.querySelector('#svCompsSlot .ex-comp[data-ci="' + i + '"]');
+  if (row) row.classList.toggle('sv-comp-hover', !!on);
+  if (c && c.marker) {
+    c.marker.setIcon(_svCompIcon(i + 1, !!on));
+    if (c.marker.setZIndexOffset) c.marker.setZIndexOffset(on ? 1000 : 0);
+    if (on && !fromMap) c.marker.openPopup();
+    else if (!on && !fromMap) c.marker.closePopup();
+  }
 }
 
 // Approximate meters from strings like "< 500m" / "< 1 mile" — the backend
