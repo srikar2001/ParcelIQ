@@ -791,16 +791,9 @@ body.on-results .detail-panel{top:0}
 .sv-cat-desc{font-size:12px;line-height:1.55;color:var(--t2);padding:6px 6px 10px 30px}
 
 /* Section E — coming soon */
-.sv-soon-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-@media(max-width:500px){.sv-soon-row{grid-template-columns:1fr}}
-.sv-soon-card2{border:1px solid var(--b);border-radius:10px;padding:12px;background:var(--card-h);position:relative}
 .sv-comps-wrap{border:1px solid var(--b);border-radius:14px;overflow:hidden;margin-bottom:18px;background:var(--bg)}
 .sv-comps-wrap .ex-comp:last-child{border-bottom:none}
 .sv-comps-msg{padding:14px 16px;color:var(--t3);font-size:12.5px}
-.sv-soon-badge2{position:absolute;top:8px;right:8px;font-size:10px;background:var(--b);color:var(--t2);padding:2px 6px;border-radius:10px}
-.sv-soon-card2 .sv-soon-title{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:3px;padding-right:50px}
-.sv-soon-card2 .sv-soon-desc{font-size:11.5px;color:var(--t2);line-height:1.5}
-.sv-soon-card2 .sv-soon-note{font-size:10px;color:var(--t3);margin-top:4px}
 .dp-sec-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
 .dp-flag-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(42,45,58,.5);font-size:12px}
 .dp-flag-row:last-child{border-bottom:none}
@@ -10411,15 +10404,7 @@ function _svDataPanelHtml(r) {
     '<div class="sv-sec-title" style="margin-top:2px">Nearby Comparable Sales</div>' +
     (window._sharedViewOnly
       ? '<div class="sv-comps-wrap"><div class="sv-comps-msg">Create a free account to see recent comparable sales.</div></div>'
-      : '<div id="svCompsSlot" class="sv-comps-wrap"><div class="sv-comps-msg">Finding recent sales nearby…</div></div>') +
-
-    '<div class="sv-soon-row">' +
-      '<div class="sv-soon-card2" style="grid-column:1 / -1">' +
-        '<span class="sv-soon-badge2">🔒</span>' +
-        '<div class="sv-soon-title">📞 Skip Tracing</div>' +
-        '<div class="sv-soon-desc">Find owner contact in one click. Coming Soon.</div>' +
-      '</div>' +
-    '</div>'
+      : '<div id="svCompsSlot" class="sv-comps-wrap"><div class="sv-comps-msg">Finding recent sales nearby…</div></div>')
   );
 }
 
