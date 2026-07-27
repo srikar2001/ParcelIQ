@@ -3932,7 +3932,13 @@ async function signInWithGoogle() {
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin + '/#dashboard',
+      // IMPORTANT: no URL #fragment here. Supabase (implicit flow) returns the
+      // session in the hash (#access_token=...). If redirectTo already ends in
+      // a fragment like /#dashboard, the callback becomes /#dashboard#access_token=...
+      // (a second '#'), which the client can't parse — the session is silently
+      // dropped and the user bounces back to the landing page. Land on a clean
+      // origin; initApp() + the SIGNED_IN handler route to the dashboard.
+      redirectTo: window.location.origin + '/',
     },
   });
   if (error) toast('Google sign-in failed: ' + error.message);
@@ -3981,10 +3987,25 @@ async function initApp() {
   // Password-recovery links also carry access_token but must land on #reset-password
   // (the PASSWORD_RECOVERY handler routes there) — don't rewrite those to #results.
   if (window.location.hash.includes('access_token=')) {
-    if (!window.location.hash.includes('type=recovery')) {
-      setTimeout(() => {
-        window.history.replaceState({}, document.title, window.location.pathname + '#dashboard');
-      }, 500);
+    // Password-recovery links also carry access_token but must land on
+    // #reset-password (the PASSWORD_RECOVERY handler routes there) — leave those.
+    if (window.location.hash.includes('type=recovery')) return;
+    // OAuth callback (implicit flow returns the session in the URL hash). Wait
+    // for Supabase to parse it, then route into the app deterministically.
+    // We rewrite the token-laden URL straight to #dashboard (never a bare/empty
+    // hash) BEFORE routing, because the router treats "session + empty/auth
+    // hash" as a cue to bounce to the landing page — that transient, plus a
+    // timed replaceState racing the SIGNED_IN handler, was exactly what stranded
+    // Google sign-ins on the landing page.
+    await Promise.race([_authReadyPromise, new Promise(r => setTimeout(r, 2000))]);
+    const pending = (sessionStorage.getItem('lp_pending') || '').trim();
+    if (pending) {
+      // Addresses were pasted before signing in — run that batch.
+      try { window.history.replaceState({}, document.title, window.location.pathname); } catch (e) {}
+      _runPendingOrResults();
+    } else {
+      try { window.history.replaceState({}, document.title, window.location.pathname + '#dashboard'); } catch (e) {}
+      router();
     }
     return;
   }
