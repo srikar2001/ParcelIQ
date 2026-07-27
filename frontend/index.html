@@ -4694,12 +4694,24 @@ function computeSignals(r) {
   return out;
 }
 
+// Classify a failed (verdict ERROR) row so the UI labels it accurately. An
+// unresolvable/junk address is "Not found" (a paste-cleanup case, not a system
+// fault); a genuinely slow-data failure is "Timeout" (worth a retry); an
+// out-of-state hit is "Not FL". Keys off the backend's message — and defaults
+// the unknown case (e.g. an older saved row with no stored reason) to
+// "Not found" rather than the alarming, misleading "Timeout".
+function _errInfo(r) {
+  const e = (r.error || '').toLowerCase();
+  if (e.includes('florida only') || e.includes('covers florida') || e.includes('non-florida')) return { kind: 'wrongstate', label: 'Not FL' };
+  if (e.includes('timed out') || e.includes('timeout')) return { kind: 'timeout', label: 'Timeout' };
+  return { kind: 'notfound', label: 'Not found' };
+}
+
 function buildSignals(r) {
   const v = r.verdict;
   if (v === 'OUTSIDE_COVERAGE') return '<span style="color:var(--t3);font-size:11px">Outside FL</span>';
   if (v === 'ERROR') {
-    const isGeo = (r.error || '').toLowerCase().includes('geocod');
-    return '<span style="color:var(--t3);font-size:11px">' + (isGeo ? 'Not found' : 'Timed out') + '</span>';
+    return '<span style="color:var(--t3);font-size:11px">' + _errInfo(r).label + '</span>';
   }
   let src = [], pillClass = '';
   if (v === 'KILL') {
@@ -5292,6 +5304,13 @@ function _mapBatchRows(rows) {
       const c = _geomCentroid(parcel_info.geometry);
       if (c) { out._lat = c[0]; out._lng = c[1]; }
     }
+    // Lift the stashed failure reason back out of parcel_info (see saveBatch)
+    // so a reloaded ERROR row shows its real "why" + any suggestions.
+    if (out.verdict === 'ERROR' && parcel_info && (parcel_info._err || (parcel_info._sugg && parcel_info._sugg.length))) {
+      if (!out.error && parcel_info._err) out.error = parcel_info._err;
+      if ((!out.suggestions || !out.suggestions.length) && parcel_info._sugg) out.suggestions = parcel_info._sugg;
+      out.parcel_info = {};
+    }
     return out;
   });
 }
@@ -5450,7 +5469,13 @@ async function saveBatchToSupabase(batchName, results) {
       sources:           r.sources   || [],
       auto_kill:         r.auto_kill || false,
       auto_kill_reason:  r.auto_kill_reason || null,
-      parcel_info:       r.parcel_info || {},
+      // ERROR rows have no parcel_info; there's no dedicated error column, so
+      // stash the failure reason (+ any "did you mean" suggestions) in this
+      // JSONB column so a reloaded batch can still show WHY it failed instead
+      // of a generic "could not screen" / mislabeled "Timeout".
+      parcel_info:       (r.verdict === 'ERROR')
+                            ? { _err: r.error || null, _sugg: r.suggestions || [] }
+                            : (r.parcel_info || {}),
       created_at:        new Date().toISOString()
     }));
     if (rows.length > 0) {
@@ -6873,8 +6898,7 @@ function renderTable(results, offset) {
     const absIdx    = (offset || 0) + i;
     const isOutside = r.verdict === 'OUTSIDE_COVERAGE';
     const isError   = r.verdict === 'ERROR';
-    const isGeoFail = isError && (r.error || '').toLowerCase().includes('geocod');
-    const isTimeout = isError && !isGeoFail;
+    const errInfo   = isError ? _errInfo(r) : null;
     const isEst     = !isOutside && !isError && _estimatedAddresses.has((r.address || '').toLowerCase());
     const isSelected  = _selectedRows.has(absIdx);
     const isPanelOpen = _openParcel && _openParcel.address === r.address;
@@ -6926,7 +6950,7 @@ function renderTable(results, offset) {
     }
     const scoreStr   = (isOutside || isError) ? '' : (r.score != null ? String(r.score) : '');
     const scoreColor = (isOutside || isError) ? '' : r.auto_kill ? 'var(--red)' : verdictColor(ev);
-    const verdictLabel = isOutside ? 'Not FL' : isGeoFail ? 'Not found' : isTimeout ? 'Timeout' : ev;
+    const verdictLabel = isOutside ? 'Not FL' : isError ? errInfo.label : ev;
     const autoKillChip = (r.auto_kill && !isOutside && !isError)
       ? '<div style="font-size:10px;color:var(--red);margin-top:2px;font-weight:600;letter-spacing:.01em">⛔ Auto-kill</div>'
       : '';
