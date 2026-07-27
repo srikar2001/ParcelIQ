@@ -634,6 +634,11 @@ body.on-results .detail-panel{top:0}
 .vb-outside{background:rgba(100,116,139,.1);color:var(--t2);border:1px solid #2A2D3A}
 .res-trow.row-outside{opacity:.6}
 .res-trow.row-error{opacity:.85;background:rgba(245,158,11,.04)}
+.tbl-parcel-err .tbl-addr-street{color:var(--t2);font-weight:600}
+.tbl-err-cell{vertical-align:middle}
+.tbl-err{display:flex;align-items:center;flex-wrap:wrap;gap:8px;line-height:1.4}
+.tbl-err-lead{font-size:12.5px;color:var(--amber);font-weight:600}
+.tbl-err-did{font-size:11px;color:var(--t3);margin-left:2px}
 .err-sugg-chip{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);color:var(--amber);border-radius:var(--rp,12px);padding:3px 10px;font-size:11px;cursor:pointer;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
 .err-sugg-chip:hover{background:rgba(245,158,11,.16)}
 .proc-error{display:none;text-align:center;margin-top:16px}
@@ -5708,7 +5713,9 @@ async function _executeBatch(lines, estimatedSet) {
   const _procLabelEl = document.getElementById('batchProcLabel');
   if (_procLabelEl) _procLabelEl.textContent = 'Screening ' + flLines.length + ' parcel' + (flLines.length !== 1 ? 's' : '') + '…';
   const _procEtaEl = document.getElementById('procEta');
-  if (_procEtaEl) _procEtaEl.textContent = '~' + formatDuration(_estLow) + '–' + formatDuration(_estHigh);
+  // A single estimate, not a low–high range — the range read as two separate
+  // times ("double"). Superseded by the live "~Ns remaining" once results start.
+  if (_procEtaEl) _procEtaEl.textContent = '~' + formatDuration(Math.round((_estLow + _estHigh) / 2));
   _resetEtaTracker();
   updateProgress(0, flLines.length, null);
   // _simulatedIndeterminatePct() only climbs when updateProgress() is
@@ -6939,14 +6946,20 @@ function renderTable(results, offset) {
       }
     }
     let signalsHtml = buildSignals(r);
+    let errCell = '';
     if (isError) {
-      const errMsg = r.error || 'Could not screen this address';
-      let chips = '';
-      (r.suggestions || []).slice(0, 3).forEach(s => {
-        chips += '<button class="err-sugg-chip" data-sugg="' + escHtml(s) + '" data-orig="' + escHtml(r.address || '') + '" onclick="event.stopPropagation();rescreenParcel(this.dataset.sugg,this.dataset.orig)">' + escHtml(s) + '</button>';
-      });
-      signalsHtml = '<div style="font-size:12px;color:var(--amber)">' + escHtml(errMsg) + '</div>' +
-        (chips ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">' + chips + '</div>' : '');
+      // A failed row gets one wide cell (spanning type/size/signals) so the
+      // reason + "did you mean" chips read as a single clean line tied to the
+      // address, instead of a cramped block crammed into the 180px signals col.
+      const baseMsg = (r.error || 'Could not screen this address').replace(/\s*Did you mean.*$/i, '').trim();
+      const chips = (r.suggestions || []).slice(0, 3).map(s =>
+        '<button class="err-sugg-chip" data-sugg="' + escHtml(s) + '" data-orig="' + escHtml(r.address || '') + '" onclick="event.stopPropagation();rescreenParcel(this.dataset.sugg,this.dataset.orig)">' + escHtml(s) + '</button>'
+      ).join('');
+      errCell = '<div class="tbl-err">' +
+        '<span class="tbl-err-lead">' + escHtml(baseMsg) + '</span>' +
+        (chips ? '<span class="tbl-err-did">Did you mean</span>' + chips : '') +
+      '</div>';
+      signalsHtml = '';
     }
     const scoreStr   = (isOutside || isError) ? '' : (r.score != null ? String(r.score) : '');
     const scoreColor = (isOutside || isError) ? '' : r.auto_kill ? 'var(--red)' : verdictColor(ev);
@@ -6957,6 +6970,17 @@ function renderTable(results, offset) {
     const rescreenedLabel = r._rescreened_at
       ? '<div style="font-size:10px;color:var(--t3);margin-top:2px">↻ Re-screened ' + _fmtTs(r._rescreened_at) + '</div>'
       : '';
+    if (isError) {
+      return '<tr class="' + rowClass + '" id="trow-' + absIdx + '" onclick="openDetailPanel(' + absIdx + ',event)">' +
+        '<td onclick="event.stopPropagation()" style="padding:8px 12px;width:32px">' +
+          '<input type="checkbox" class="row-cb"' + (isSelected ? ' checked' : '') + ' onchange="toggleRowSelect(' + absIdx + ',event)">' +
+        '</td>' +
+        '<td class="tbl-parcel tbl-parcel-err">' + addrHtml + '</td>' +
+        '<td colspan="3" class="tbl-err-cell">' + errCell + '</td>' +
+        '<td class="tbl-score-cell"></td>' +
+        '<td><span class="verdict-badge ' + vc + '">' + escHtml(verdictLabel) + '</span></td>' +
+        '</tr>';
+    }
     return '<tr class="' + rowClass + '" id="trow-' + absIdx + '" onclick="openDetailPanel(' + absIdx + ',event)">' +
       '<td onclick="event.stopPropagation()" style="padding:8px 12px;width:32px">' +
         '<input type="checkbox" class="row-cb"' + (isSelected ? ' checked' : '') + ' onchange="toggleRowSelect(' + absIdx + ',event)">' +
@@ -8131,7 +8155,7 @@ async function _runQueueBatch(flLines, outsideResults) {
   // real parcels start completing.
   const _qEstLow  = Math.max(8,  5 + Math.round(flLines.length * 0.3));
   const _qEstHigh = Math.max(15, 8 + Math.round(flLines.length * 0.6));
-  _setProc('procEta', '~' + formatDuration(_qEstLow) + '–' + formatDuration(_qEstHigh));
+  _setProc('procEta', '~' + formatDuration(Math.round((_qEstLow + _qEstHigh) / 2)));
   _resetEtaTracker();
   updateProgress(0, flLines.length, null);
 
@@ -11108,15 +11132,28 @@ async function svExploreParcel(lat, lng) {
     const pr = await fetch(API + '/api/explore/parcel?lat=' + lat + '&lng=' + lng, { headers: hdrs });
     const p = await pr.json();
     if (!p || !p.found) { toast('No parcel there — click directly on a property'); return; }
+    // Already viewing this exact parcel? Don't re-screen it. Re-screening at a
+    // slightly different click point samples different flood/wetland data and
+    // yields an inconsistent score for the SAME lot — this is what made clicking
+    // the open parcel flip e.g. PURSUE 100 -> 35.
+    const _curId = (_openParcel && _openParcel.parcel_info) ? _openParcel.parcel_info.parcel_id : null;
+    if (_curId && p.parcel_id && String(_curId) === String(p.parcel_id)) return;
+    // Screen at the parcel CENTROID, not the raw click point, so the result is
+    // deterministic per parcel (clicking anywhere in the same lot gives the same
+    // score) and stays on-parcel instead of catching an adjacent wetland/water
+    // body from a slightly-off click.
+    let _slat = lat, _slng = lng;
+    const _cen = _geomCentroid(p.geometry);
+    if (_cen) { _slat = _cen[0]; _slng = _cen[1]; }
     toast('Screening ' + (p.county_address_on_file || 'this parcel') + '…');
-    const sr = await fetch(API + '/api/explore/screen?lat=' + lat + '&lng=' + lng, { headers: hdrs });
+    const sr = await fetch(API + '/api/explore/screen?lat=' + _slat + '&lng=' + _slng, { headers: hdrs });
     const s = await sr.json();
     if (!s || !s.verdict || s.verdict === 'ERROR') { toast('Could not screen this parcel'); return; }
     const r = Object.assign({}, s);
     r.parcel_info = s.parcel_info || {};
     if (!r.parcel_info.geometry || !r.parcel_info.geometry.length) r.parcel_info.geometry = p.geometry || [];
     r.address = r.parcel_info.county_address_on_file || p.county_address_on_file || r.parcel_info.parcel_id || 'Parcel';
-    r._lat = lat; r._lng = lng;
+    r._lat = _slat; r._lng = _slng;
     r._explore = true;
     // Remember the batch Deal Review to return to — only when first leaving it
     // (drilling explore→explore keeps the original return target).
