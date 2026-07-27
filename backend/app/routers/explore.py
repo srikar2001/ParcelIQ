@@ -162,7 +162,7 @@ async def parcels_in_bbox(
         "geometryType": "esriGeometryEnvelope",
         "inSR": "4326", "outSR": "4326",
         "spatialRel": "esriSpatialRelIntersects",
-        "outFields": "PARCEL_ID,OWN_NAME,DOR_UC,JV,LND_SQFOOT",
+        "outFields": "PARCEL_ID,OWN_NAME,DOR_UC,JV,LND_SQFOOT,PHY_ADDR1,SALE_PRC1,SALE_YR1",
         "returnGeometry": "true",
         "resultRecordCount": str(_BBOX_CAP),
         "f": "json",
@@ -184,9 +184,15 @@ async def parcels_in_bbox(
             out.append({
                 "parcel_id": attrs.get("PARCEL_ID"),
                 "owner": (attrs.get("OWN_NAME") or "").strip() or None,
+                "address": (attrs.get("PHY_ADDR1") or "").strip() or None,
                 "acreage": round(sq / 43560, 3) if sq else None,
                 "land_use_code": str(attrs.get("DOR_UC")) if attrs.get("DOR_UC") is not None else None,
                 "just_value": attrs.get("JV"),
+                # Last recorded sale — lets the map hover show what each neighbour
+                # actually sold for (real comp data on the immediate parcels,
+                # not just the sparse recent-sales pins).
+                "sale_price": attrs.get("SALE_PRC1"),
+                "sale_year": attrs.get("SALE_YR1"),
                 "ring": ring,
             })
         return {"parcels": out, "capped": len(out) >= _BBOX_CAP}

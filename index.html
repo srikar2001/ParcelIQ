@@ -800,6 +800,8 @@ body.on-results .detail-panel{top:0}
 .sv-comps-wrap .ex-comp:last-child{border-bottom:none}
 .sv-comps-msg{padding:14px 16px;color:var(--t3);font-size:12.5px}
 .ex-comp.sv-comp-hover{background:var(--card-h);box-shadow:inset 3px 0 0 var(--green)}
+.leaflet-tooltip.sv-nb-tip{background:#0F1420;color:#E5E7EB;border:1px solid #2A3346;box-shadow:0 4px 14px rgba(0,0,0,.5);font-size:12px;line-height:1.55;padding:7px 11px;border-radius:8px;white-space:nowrap}
+.leaflet-tooltip.sv-nb-tip::before{border-top-color:#2A3346}
 .dp-sec-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
 .dp-flag-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(42,45,58,.5);font-size:12px}
 .dp-flag-row:last-child{border-bottom:none}
@@ -11111,9 +11113,23 @@ async function _svDrawNeighbors() {
     d.parcels.forEach(function (p) {
       if (!(p.ring && p.ring.length > 2)) return;
       const poly = L.polygon(p.ring, { color: '#1D4ED8', weight: 2, opacity: 0.9, fill: true, fillColor: '#3B82F6', fillOpacity: 0.06 });
-      poly.on('mouseover', function () { poly.setStyle({ fillOpacity: 0.18, weight: 2.5 }); });
-      poly.on('mouseout', function () { poly.setStyle({ fillOpacity: 0.06, weight: 2 }); });
+      poly.on('mouseover', function () { poly.setStyle({ fillOpacity: 0.2, weight: 2.5, color: '#22C55E' }); });
+      poly.on('mouseout', function () { poly.setStyle({ fillOpacity: 0.06, weight: 2, color: '#1D4ED8' }); });
       poly.on('click', function (e) { svExploreParcel(e.latlng.lat, e.latlng.lng); });
+      // Hover tooltip — what this neighbouring parcel is and what it last sold
+      // for, so you can sweep the map and read every neighbour's comp at a glance.
+      const _parts = [];
+      if (p.acreage != null) _parts.push(p.acreage + ' ac');
+      if (p.land_use_code != null) _parts.push(getLandUseCategory(p.land_use_code));
+      let _val = '';
+      if (p.sale_price && p.sale_price > 1000) _val = 'Sold ' + fmt$(p.sale_price) + (p.sale_year ? ' · ' + p.sale_year : '');
+      else if (p.just_value && p.just_value > 0) _val = 'Assessed ' + fmt$(p.just_value);
+      poly.bindTooltip(
+        (p.address ? '<b>' + escHtml(p.address) + '</b>' : '<b>Parcel</b>') +
+        (_parts.length ? '<br>' + escHtml(_parts.join(' · ')) : '') +
+        (_val ? '<br><span style="color:#34D399">' + escHtml(_val) + '</span>' : ''),
+        { sticky: true, direction: 'top', opacity: 1, className: 'sv-nb-tip' }
+      );
       poly.addTo(grp);
     });
     _svNeighborLayer = grp.addTo(_svMap);
