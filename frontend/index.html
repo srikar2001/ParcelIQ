@@ -2969,6 +2969,11 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .ex-comp-meta{font-size:11px;color:var(--t3);margin-top:2px}
 .ex-comp-price{font-size:14px;font-weight:800;color:var(--green);white-space:nowrap}
 .ex-comp-yr{font-size:10.5px;color:var(--t3);text-align:right;margin-top:1px}
+.ex-comp-arr{color:var(--t3);font-size:16px;align-self:center;flex-shrink:0}
+.ex-sec-title{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--t2);padding:16px 20px 8px;border-top:1px solid var(--b);margin-top:4px}
+.ex-map-btns{position:absolute;top:14px;right:14px;z-index:630;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 28px)}
+.ex-map-btn{background:var(--card);border:1px solid var(--b);color:var(--t2);font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.35)}
+.ex-map-btn.active{background:var(--green);color:#000;border-color:var(--green)}
 @media(max-width:640px){.ex-panel{width:100%}.ex-hint{font-size:11px;bottom:14px}}
 </style>
 <div id="page-explore" class="screen">
@@ -2980,6 +2985,12 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <input id="exSearchInput" type="text" autocomplete="off" placeholder="Search an address or place in Florida..." oninput="exSearchInput(this.value)" onkeydown="exSearchKey(event)" onblur="setTimeout(function(){document.getElementById('exSearchResults')&&document.getElementById('exSearchResults').classList.remove('show')},180)">
       </div>
       <div id="exSearchResults" class="ex-search-results"></div>
+    </div>
+    <div class="ex-map-btns">
+      <button class="ex-map-btn active" data-exlayer="parcel" onclick="exToggleLayer('parcel',this)">Parcels</button>
+      <button class="ex-map-btn" data-exlayer="flood" onclick="exToggleLayer('flood',this)">Flood Zones</button>
+      <button class="ex-map-btn" data-exlayer="wetlands" onclick="exToggleLayer('wetlands',this)">Wetlands</button>
+      <button class="ex-map-btn" data-exlayer="satellite" onclick="exToggleLayer('satellite',this)">Satellite</button>
     </div>
     <div id="exHint" class="ex-hint">Click any parcel on the map to see its details &amp; comps</div>
     <div id="exPanel" class="ex-panel">
@@ -11640,6 +11651,7 @@ function _attachAddressAutocomplete(inputEl) {
 // ══════════════════════════════════════════════════════════════════════════
 let _exMap = null, _exParcelLayer = null, _exNeighborLayer = null, _exCompMarkers = null;
 let _exSearchTimer = null, _exDrawTimer = null, _exLastParcel = null, _exSuggestions = [], _exCompMarkerList = [];
+let _exOsmLayer = null, _exSatLayer = null, _exFloodLayer = null, _exWetlandsLayer = null, _exParcelsOn = true, _exLastScreen = null;
 
 function _exHeaders() {
   const h = {};
@@ -11652,7 +11664,8 @@ function initExplore() {
   if (!mapDiv || typeof L === 'undefined') return;
   if (_exMap) { setTimeout(function(){ try { _exMap.invalidateSize(); } catch(e){} }, 60); return; }
   _exMap = L.map('exMap', { zoomControl: true }).setView([28.4, -82.4], 7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_exMap);
+  _exOsmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_exMap);
+  _exSatLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri', maxZoom: 19 });
   _exCompMarkers = L.layerGroup().addTo(_exMap);
   _exMap.on('click', function(e){ exIdentify(e.latlng.lat, e.latlng.lng); });
   _exMap.on('moveend', function(){ clearTimeout(_exDrawTimer); _exDrawTimer = setTimeout(exDrawNeighbors, 350); });
@@ -11677,7 +11690,7 @@ async function exIdentify(lat, lng) {
     _exDrawParcel(d);
     _exRenderPanel(d);
     exFetchComps(d);
-    exScreenPoint(d.click_lat, d.click_lng);   // verdict/score/signals (async)
+    exScreenPoint(d.click_lat, d.click_lng);
   } catch (e) { _exOpenPanel('<div style="padding:60px 24px;text-align:center;color:var(--t2)">Could not load this parcel.</div>'); }
 }
 
@@ -11693,7 +11706,8 @@ function _exDrawParcel(d) {
 }
 function _exClearParcel() { if (_exParcelLayer) { _exMap.removeLayer(_exParcelLayer); _exParcelLayer = null; } }
 
-// Full ParcelIQ screening on the clicked point — verdict / score / signals.
+// Full screening -> verdict/score/reason + the Deal Review's "What Each Check
+// Found" section (same component, so it looks and filters identically).
 function exScreenPoint(lat, lng) {
   const slot = document.getElementById('exVerdictSlot');
   if (!slot || lat == null) return;
@@ -11701,21 +11715,57 @@ function exScreenPoint(lat, lng) {
     .then(function (r) { return r.json(); })
     .then(function (d) {
       const s2 = document.getElementById('exVerdictSlot'); if (!s2) return;
-      if (!d.verdict || d.verdict === 'ERROR') { s2.innerHTML = '<div style="padding:2px 20px 12px;font-size:12px;color:var(--t3)">Screening unavailable for this parcel.</div>'; return; }
+      if (!d.verdict || d.verdict === 'ERROR') { s2.innerHTML = '<div style="padding:2px 20px 14px;font-size:12px;color:var(--t3)">Screening unavailable for this parcel.</div>'; return; }
+      _exLastScreen = d;
       const ev = d.verdict;
       const vc = ev === 'KILL' ? 'var(--red)' : ev === 'PURSUE' ? 'var(--green)' : 'var(--amber)';
       const vbg = ev === 'KILL' ? 'rgba(239,68,68,.14)' : ev === 'PURSUE' ? 'rgba(34,197,94,.14)' : 'rgba(245,158,11,.14)';
       const pi = d.parcel_info || {};
-      const chips = (typeof _signalChipsHtml === 'function') ? _signalChipsHtml(d.flags || [], { max: 6 }) : '';
+      const reason = (typeof _svMainReason === 'function') ? _svMainReason(d) : '';
       s2.innerHTML = ''
-        + '<div style="display:flex;align-items:center;gap:10px;padding:2px 20px 4px">'
+        + '<div style="padding:8px 20px 2px;display:flex;align-items:center;gap:10px">'
         + '<span style="font-size:15px;font-weight:800;color:' + vc + ';background:' + vbg + ';padding:4px 14px;border-radius:99px;letter-spacing:.02em">' + escHtml(ev) + '</span>'
-        + (d.score != null ? '<span style="font-size:20px;font-weight:800;color:' + vc + '">' + d.score + '</span><span style="font-size:11px;color:var(--t3);margin-left:-4px">/100</span>' : '')
+        + (d.score != null ? '<span style="font-size:20px;font-weight:800;color:' + vc + '">' + d.score + '</span><span style="font-size:11px;color:var(--t3);margin-left:-3px">/100</span>' : '')
         + (pi.confidence_pct != null ? '<span style="margin-left:auto;font-size:10.5px;color:var(--t3)">' + pi.confidence_pct + '% confidence</span>' : '')
         + '</div>'
-        + (chips ? '<div style="padding:4px 20px 14px">' + chips + '</div>' : '<div style="padding:0 20px 12px"></div>');
+        + (reason ? '<div style="padding:4px 20px 2px;font-size:12.5px;color:var(--t2);line-height:1.5">' + escHtml(reason) + '</div>' : '')
+        + _exChecksHtml(d);
     })
     .catch(function () { const s2 = document.getElementById('exVerdictSlot'); if (s2) s2.innerHTML = ''; });
+}
+
+// "What Each Check Found" — reuses the Deal Review's category logic + classes.
+function _exChecksHtml(d) {
+  const cats = (typeof _svCategoryVerdicts === 'function') ? _svCategoryVerdicts(d) : [];
+  if (!cats.length) return '';
+  const rows = cats.map(function (c) {
+    const st = _SV_STATUS[c.status] || _SV_STATUS['DATA UNAVAILABLE'];
+    const open = c.status === 'RISK';
+    return '<div class="sv-cat-row" data-status="' + c.status + '" onclick="svToggleDesc(this)">'
+      + '<span class="sv-cat-icon">' + _svCatIcon(c.name) + '</span>'
+      + '<span class="sv-cat-name">' + escHtml(c.name) + '</span>'
+      + '<span class="sv-cat-status" style="color:' + st.color + ';background:' + st.bg + '">' + st.label + '</span>'
+      + '<span class="sv-cat-chevron" style="' + (open ? 'transform:rotate(180deg)' : '') + '">▾</span></div>'
+      + '<div class="sv-cat-desc" style="display:' + (open ? '' : 'none') + '">' + escHtml(c.txt) + '</div>';
+  }).join('');
+  return '<div class="ex-sec-title">What Each Check Found</div>'
+    + '<div class="sv-checks-filter" id="exChecksFilter" style="padding:0 16px 8px">'
+    + '<button class="active" data-filter="all" onclick="exFilterChecks(\'all\')">All</button>'
+    + '<button data-filter="risks" onclick="exFilterChecks(\'risks\')">Risks</button>'
+    + '<button data-filter="clear" onclick="exFilterChecks(\'clear\')">Clear</button>'
+    + '</div><div class="sv-cats" id="exCats" style="padding:0 8px">' + rows + '</div>';
+}
+function exFilterChecks(filter) {
+  document.querySelectorAll('#exChecksFilter button').forEach(function (b) { b.classList.toggle('active', b.dataset.filter === filter); });
+  document.querySelectorAll('#exCats .sv-cat-row').forEach(function (row) {
+    const status = row.dataset.status;
+    let show = true;
+    if (filter === 'risks') show = status === 'RISK' || status === 'CAUTION';
+    else if (filter === 'clear') show = status === 'CLEAR';
+    row.style.display = show ? '' : 'none';
+    const desc = row.nextElementSibling;
+    if (desc && desc.classList.contains('sv-cat-desc') && !show) desc.style.display = 'none';
+  });
 }
 
 function _exRenderPanel(d) {
@@ -11738,9 +11788,10 @@ function _exRenderPanel(d) {
     + '<div class="ex-panel-head"><div class="ex-panel-title">' + escHtml(addr || d.parcel_id || 'Parcel') + '</div>'
     + '<div class="ex-panel-sub">' + escHtml((d.county ? d.county + ' County · ' : '') + cat) + '</div></div>'
     + '<div id="exVerdictSlot"><div style="padding:14px 20px;color:var(--t3);font-size:12px">Screening this parcel…</div></div>'
+    + '<div class="ex-sec-title">Parcel Facts</div>'
     + '<div class="ex-facts">' + facts.join('') + '</div>'
-    + '<div class="ex-comps-head">Nearby comparable sales</div>'
-    + '<div id="exCompsSlot"><div style="padding:14px 20px;color:var(--t3);font-size:12.5px">Finding comps…</div></div>';
+    + '<div class="ex-sec-title">Nearby Comparable Sales</div>'
+    + '<div id="exCompsSlot"><div style="padding:8px 20px 16px;color:var(--t3);font-size:12.5px">Finding comps…</div></div>';
   _exOpenPanel(html);
 }
 
@@ -11751,13 +11802,11 @@ async function exFetchComps(parcel) {
     const r = await fetch(API + '/api/explore/comps?lat=' + lat + '&lng=' + lng + '&land_use=' + encodeURIComponent(lu), { headers: _exHeaders() });
     const d = await r.json();
     _exRenderComps(d.comps || []);
-  } catch (e) { const s = document.getElementById('exCompsSlot'); if (s) s.innerHTML = '<div style="padding:14px 20px;color:var(--t3);font-size:12.5px">Could not load comps.</div>'; }
+  } catch (e) { const s = document.getElementById('exCompsSlot'); if (s) s.innerHTML = '<div style="padding:8px 20px 16px;color:var(--t3);font-size:12.5px">Could not load comps.</div>'; }
 }
 
-function _exCompIcon(n, active) {
-  const bg = active ? '#22C55E' : '#F59E0B';
-  const sz = active ? 26 : 20;
-  return L.divIcon({ className: 'ex-comp-pin', html: '<div style="background:' + bg + ';color:#000;font-size:' + (active ? 12 : 10) + 'px;font-weight:800;border-radius:50%;width:' + sz + 'px;height:' + sz + 'px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)">' + n + '</div>', iconSize: [sz, sz] });
+function _exCompIcon(n) {
+  return L.divIcon({ className: 'ex-comp-pin', html: '<div style="background:#F59E0B;color:#000;font-size:10px;font-weight:800;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)">' + n + '</div>', iconSize: [20, 20] });
 }
 
 function _exRenderComps(comps) {
@@ -11765,56 +11814,72 @@ function _exRenderComps(comps) {
   if (_exCompMarkers) _exCompMarkers.clearLayers();
   _exCompMarkerList = [];
   if (!slot) return;
-  if (!comps.length) { slot.innerHTML = '<div style="padding:14px 20px;color:var(--t3);font-size:12.5px">No recent comparable sales found nearby.</div>'; return; }
+  if (!comps.length) { slot.innerHTML = '<div style="padding:8px 20px 16px;color:var(--t3);font-size:12.5px">No recent comparable sales found nearby.</div>'; return; }
   const rows = comps.map(function (c, i) {
-    let marker = null;
     if (_exCompMarkers && c.lat != null) {
-      marker = L.marker([c.lat, c.lng], { icon: _exCompIcon(i + 1, false) });
-      marker.bindPopup('<b>' + escHtml(c.address || 'Sale') + '</b><br>' + (c.sale_price != null ? fmt$(c.sale_price) : '') + ' (' + (c.sale_year || '') + ')' + (c.acreage != null ? '<br>' + c.acreage + ' ac' : ''));
-      marker.on('click', (function (idx) { return function () { exFlyToComp(idx); }; })(i));
+      const marker = L.marker([c.lat, c.lng], { icon: _exCompIcon(i + 1) });
+      marker.on('click', (function (idx) { return function () { exCompClick(idx); }; })(i));
       _exCompMarkers.addLayer(marker);
     }
-    _exCompMarkerList[i] = { marker: marker, lat: c.lat, lng: c.lng };
+    _exCompMarkerList[i] = { lat: c.lat, lng: c.lng };
     const dist = c.distance_m != null ? (c.distance_m < 1000 ? c.distance_m + ' m' : (c.distance_m / 1609).toFixed(1) + ' mi') : '';
     const ppa = c.price_per_acre ? ' · ' + fmt$(c.price_per_acre) + '/ac' : '';
     const meta = (c.acreage != null ? c.acreage + ' ac' : '') + ((c.acreage != null && dist) ? ' · ' : '') + dist + ppa;
-    return '<div class="ex-comp" data-i="' + i + '" onclick="exFlyToComp(' + i + ')">'
+    return '<div class="ex-comp" data-i="' + i + '" onclick="exCompClick(' + i + ')">'
       + '<div style="min-width:0"><div class="ex-comp-addr">' + (i + 1) + '. ' + escHtml(c.address || 'Unnamed parcel') + '</div>'
       + '<div class="ex-comp-meta">' + escHtml(meta) + '</div></div>'
-      + '<div style="text-align:right"><div class="ex-comp-price">' + (c.sale_price != null ? fmt$(c.sale_price) : '—') + '</div><div class="ex-comp-yr">' + (c.sale_year || '') + '</div></div></div>';
+      + '<div style="text-align:right"><div class="ex-comp-price">' + (c.sale_price != null ? fmt$(c.sale_price) : '—') + '</div><div class="ex-comp-yr">' + (c.sale_year || '') + '</div></div>'
+      + '<div class="ex-comp-arr">›</div></div>';
   }).join('');
   slot.innerHTML = rows;
 }
 
-// Pan to a comp and highlight it (enlarged green pin, popup, and its list row).
-function exFlyToComp(i) {
+// Clicking a comp loads it as the subject parcel — draws its border, recenters,
+// and rebuilds the whole panel (facts + screening + its own comps).
+function exCompClick(i) {
   const c = _exCompMarkerList[i]; if (!c || c.lat == null) return;
-  _exMap.setView([c.lat, c.lng], Math.max(_exMap.getZoom(), 17));
-  _exCompMarkerList.forEach(function (x, j) { if (x.marker) x.marker.setIcon(_exCompIcon(j + 1, j === i)); });
-  if (c.marker) { if (c.marker.setZIndexOffset) c.marker.setZIndexOffset(1000); c.marker.openPopup(); }
-  document.querySelectorAll('.ex-comp.ex-comp-active').forEach(function (el) { el.classList.remove('ex-comp-active'); });
-  const row = document.querySelector('.ex-comp[data-i="' + i + '"]'); if (row) { row.classList.add('ex-comp-active'); row.scrollIntoView({ block: 'nearest' }); }
+  exIdentify(c.lat, c.lng);
 }
 
+// ── Neighbor boundaries (high zoom) — toggleable via the Parcel filter ───────
 async function exDrawNeighbors() {
   if (!_exMap) return;
-  if (_exMap.getZoom() < 16) { if (_exNeighborLayer) { _exMap.removeLayer(_exNeighborLayer); _exNeighborLayer = null; } return; }
+  if (!_exParcelsOn || _exMap.getZoom() < 16) { if (_exNeighborLayer) { _exMap.removeLayer(_exNeighborLayer); _exNeighborLayer = null; } return; }
   const b = _exMap.getBounds();
   try {
     const r = await fetch(API + '/api/explore/parcels?w=' + b.getWest() + '&s=' + b.getSouth() + '&e=' + b.getEast() + '&n=' + b.getNorth(), { headers: _exHeaders() });
     const d = await r.json();
     if (_exNeighborLayer) { _exMap.removeLayer(_exNeighborLayer); _exNeighborLayer = null; }
-    if (!d.parcels || !d.parcels.length) return;
+    if (!_exParcelsOn || !d.parcels || !d.parcels.length) return;
     const grp = L.layerGroup();
     d.parcels.forEach(function (p) {
-      if (p.ring && p.ring.length > 2) L.polygon(p.ring, { color: '#60A5FA', weight: 1, opacity: 0.5, fill: true, fillOpacity: 0.03, interactive: false }).addTo(grp);
+      if (p.ring && p.ring.length > 2) L.polygon(p.ring, { color: '#60A5FA', weight: 1, opacity: 0.55, fill: true, fillOpacity: 0.03, interactive: false }).addTo(grp);
     });
     _exNeighborLayer = grp.addTo(_exMap);
     if (_exParcelLayer && _exParcelLayer.bringToFront) _exParcelLayer.bringToFront();
   } catch (e) {}
 }
 
-// ── Search ──────────────────────────────────────────────────────────────────
+// ── Map layer filters (Parcel / Flood Zones / Wetlands / Satellite) ─────────
+function exToggleLayer(kind, btn) {
+  if (!_exMap) return;
+  const on = btn.classList.toggle('active');
+  if (kind === 'parcel') {
+    _exParcelsOn = on;
+    if (on) exDrawNeighbors(); else if (_exNeighborLayer) { _exMap.removeLayer(_exNeighborLayer); _exNeighborLayer = null; }
+  } else if (kind === 'satellite') {
+    if (on) { if (_exOsmLayer) _exMap.removeLayer(_exOsmLayer); if (_exSatLayer) _exSatLayer.addTo(_exMap); }
+    else { if (_exSatLayer) _exMap.removeLayer(_exSatLayer); if (_exOsmLayer) _exOsmLayer.addTo(_exMap); }
+    if (_exNeighborLayer && _exNeighborLayer.bringToFront) _exNeighborLayer.bringToFront();
+  } else if (kind === 'flood') {
+    if (on) { if (!_exFloodLayer && typeof _makeFemaLayer === 'function') _exFloodLayer = _makeFemaLayer(0.45); if (_exFloodLayer) _exFloodLayer.addTo(_exMap); }
+    else if (_exFloodLayer) _exMap.removeLayer(_exFloodLayer);
+  } else if (kind === 'wetlands') {
+    if (on) { if (!_exWetlandsLayer && typeof _makeWetlandsLayer === 'function') _exWetlandsLayer = _makeWetlandsLayer(0.45); if (_exWetlandsLayer) _exWetlandsLayer.addTo(_exMap); }
+    else if (_exWetlandsLayer) _exMap.removeLayer(_exWetlandsLayer);
+  }
+}
+
 function exSearchInput(val) {
   clearTimeout(_exSearchTimer);
   const box = document.getElementById('exSearchResults');
