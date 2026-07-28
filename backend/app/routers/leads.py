@@ -27,7 +27,8 @@ from app.core.cache import get_cached_result, save_cached_result
 router = APIRouter(prefix="/api/leads")
 
 _VACANT_CODES = {0, 9, 10, 40, 70}     # DOR use codes = vacant/undeveloped land
-_BBOX_HALF = 0.03                       # ±0.03deg -> ~0.06deg box (the fast ceiling)
+_BBOX_HALF = 0.02                       # ±0.02deg -> ~4.4km box; small enough that the
+                                        # spatial query stays fast even in denser areas
 _MAX_CANDIDATES = 70
 _MAX_SCREEN = 22                        # hard cap on fresh screens per search
 _TARGET_LEADS = 25
@@ -129,10 +130,10 @@ async def _fetch_bbox_parcels(lat: float, lng: float) -> list:
         "spatialRel": "esriSpatialRelIntersects",
         "outFields": "PARCEL_ID,OWN_NAME,PHY_ADDR1,DOR_UC,JV,LND_SQFOOT",
         "returnGeometry": "true",
-        "resultRecordCount": "800",
+        "resultRecordCount": "500",
         "f": "json",
     }
-    async with httpx.AsyncClient(timeout=25.0) as client:
+    async with httpx.AsyncClient(timeout=22.0) as client:
         r = await client.get(_CAD_URL, params=params)
         r.raise_for_status()
         data = r.json()
