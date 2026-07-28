@@ -1,19 +1,13 @@
-"""Land Leads — turn the whole FL cadastral into a prospecting tool.
+"""Land Leads — area-based vacant-land prospecting.
 
-The user picks filters (county, acreage, price, owner type, a nearby anchor like
-Publix/Walmart/a hospital); we pull matching VACANT-land parcels straight from
-the county cadastral (free, instant), then screen the candidates and return only
-the PURSUE ones in the exact same shape as a batch result (so the frontend
-reuses the results table + Deal Review verbatim).
-
-Optimized on purpose:
-  * Coordinates come from the cadastral centroid, so we NEVER geocode — zero
-    paid geocoding credits are spent, ever.
-  * Every screen is cached per parcel_id, so repeat/overlapping searches are
-    instant and the catalog only gets faster with use.
-  * Screening is bounded (a hard per-search cap) and runs under the same global
-    concurrency semaphore the batch path uses, so it can't overload the DB.
-  * It never touches the user's weekly screening limit.
+The statewide cadastral only answers spatial (bbox) queries quickly, so we work
+from a LOCATION: the user gives a place + filters, we geocode it once (free,
+Nominatim), pull every parcel in a small bounding box around it (fast spatial
+query), keep the vacant ones matching the filters, and screen those by their
+centroid — never geocoding per parcel, so zero paid credits are spent. Each
+screen is cached per parcel_id (repeat searches are instant), screening is
+bounded + concurrency-capped, and only PURSUE parcels are returned, in the exact
+shape of a batch result (the frontend reuses the results table + Deal Review).
 """
 import asyncio
 from typing import Optional
@@ -32,19 +26,16 @@ from app.core.cache import get_cached_result, save_cached_result
 
 router = APIRouter(prefix="/api/leads")
 
-_COUNTY_TO_CO_NO = {v.lower(): k for k, v in _CO_NO_TO_COUNTY.items()}
-# DOR use codes that mean vacant/undeveloped land (mirrors explore _lu_category).
-_VACANT_CODES = "0,9,10,40,70"
-_MAX_CANDIDATES = 120       # how many matching parcels to pull from the cadastral
-_MAX_SCREEN = 22            # hard cap on screens per search (bounds latency + DB load)
+_VACANT_CODES = {0, 9, 10, 40, 70}     # DOR use codes = vacant/undeveloped land
+_BBOX_HALF = 0.03                       # ±0.03deg -> ~0.06deg box (the fast ceiling)
+_MAX_CANDIDATES = 70
+_MAX_SCREEN = 22                        # hard cap on fresh screens per search
 _TARGET_LEADS = 25
 _SCREEN_TIMEOUT = 55.0
-# Business-owner name markers — LLC / entity vs an individual.
-_BIZ_MARKERS = ("LLC", "L L C", "INC", "CORP", "LTD", " LP", "L P ", "TRUST",
-                "PROPERTIES", "HOLDINGS", "INVESTMENT", "CAPITAL", "GROUP",
-                "ENTERPRISE", "COMPANY", " CO ", "PARTNERS", "REALTY", "HOMES",
-                "DEVELOPMENT", "VENTURES", "ASSOCIATES", "FUND", "BANK")
-# Nearby-anchor presets -> Overpass query fragment.
+_BIZ_MARKERS = ("LLC", "L.L.C", "INC", "CORP", "LTD", "TRUST", "PROPERTIES",
+                "HOLDINGS", "INVESTMENT", "CAPITAL", "GROUP", "ENTERPRISE",
+                "COMPANY", "PARTNERS", "REALTY", "HOMES", "DEVELOPMENT",
+                "VENTURES", "ASSOCIATES", "FUND", "BANK", "LP")
 _POI_QUERIES = {
     "publix":   '["shop"="supermarket"]["name"~"Publix",i]',
     "walmart":  '["name"~"Walmart|Wal-Mart",i]',
@@ -53,18 +44,19 @@ _POI_QUERIES = {
     "school":   '["amenity"="school"]',
     "highway":  '["highway"~"motorway|trunk"]',
 }
-_POI_RADIUS_KM = 5.0        # "nearby" = within this many km of the anchor
+_POI_RADIUS_KM = 5.0
 
 
 class LeadFilters(BaseModel):
-    county: Optional[str] = None
+    location: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
     acres_min: Optional[float] = None
     acres_max: Optional[float] = None
     price_min: Optional[float] = None
     price_max: Optional[float] = None
     owner_type: Optional[str] = None       # 'llc' | 'individual' | 'any'
-    near_poi: Optional[str] = None         # key of _POI_QUERIES
-    offset: Optional[int] = 0              # for "load more"
+    near_poi: Optional[str] = None
 
 
 async def _require_auth(authorization: Optional[str]) -> Optional[JSONResponse]:
@@ -88,86 +80,121 @@ def _haversine_km(lat1, lng1, lat2, lng2) -> float:
     return 2 * R * math.asin(min(1.0, a ** 0.5))
 
 
-def _build_where(f: LeadFilters) -> str:
-    clauses = [f"DOR_UC IN ({_VACANT_CODES})", "JV > 1000"]
-    co = _COUNTY_TO_CO_NO.get((f.county or "").strip().lower()) if f.county else None
-    if co:
-        clauses.append(f"CO_NO={co}")
-    if f.acres_min:
-        clauses.append(f"LND_SQFOOT >= {int(f.acres_min * 43560)}")
-    if f.acres_max:
-        clauses.append(f"LND_SQFOOT <= {int(f.acres_max * 43560)}")
-    if f.price_min:
-        clauses.append(f"JV >= {int(f.price_min)}")
-    if f.price_max:
-        clauses.append(f"JV <= {int(f.price_max)}")
-    ot = (f.owner_type or "any").lower()
-    if ot == "llc":
-        ors = " OR ".join(f"OWN_NAME LIKE '%{m.strip()}%'" for m in _BIZ_MARKERS if m.strip())
-        clauses.append(f"({ors})")
-    elif ot == "individual":
-        ands = " AND ".join(f"OWN_NAME NOT LIKE '%{m.strip()}%'" for m in ("LLC", "INC", "CORP", "TRUST", "PROPERTIES", "HOLDINGS", "LTD"))
-        clauses.append(f"({ands})")
-    return " AND ".join(clauses)
-
-
 def _is_business(owner: Optional[str]) -> bool:
     o = (owner or "").upper()
     return any(m in o for m in _BIZ_MARKERS)
 
 
+def _ring_center(ring):
+    """Centroid (lat, lng) of an esri ring returned as [lng, lat] pairs."""
+    if not ring:
+        return None
+    sx = sy = 0.0
+    n = 0
+    for pt in ring:
+        if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+            sx += pt[0]; sy += pt[1]; n += 1
+    return (sy / n, sx / n) if n else None
+
+
+async def _geocode_location(q: str):
+    """Free place lookup (Nominatim) -> (lat, lng). One call per search."""
+    if not q:
+        return None
+    query = q if ("fl" in q.lower() or "florida" in q.lower()) else (q + ", Florida, USA")
+    try:
+        async with httpx.AsyncClient(timeout=12.0, headers={"User-Agent": "ParcelIQ-Leads/1.0"}) as client:
+            r = await client.get("https://nominatim.openstreetmap.org/search",
+                                  params={"q": query, "format": "json", "limit": "1", "countrycodes": "us"})
+            arr = r.json()
+        if arr:
+            return float(arr[0]["lat"]), float(arr[0]["lon"])
+    except Exception as ex:
+        print(f"[Leads] geocode failed for {q!r}: {ex}")
+    return None
+
+
 @router.get("/counties")
 async def counties():
-    """FL county list for the filter dropdown."""
     return {"counties": sorted(_CO_NO_TO_COUNTY.values()), "pois": list(_POI_QUERIES.keys())}
 
 
-async def _fetch_candidates(f: LeadFilters) -> list:
+async def _fetch_bbox_parcels(lat: float, lng: float) -> list:
+    w, s, e, n = lng - _BBOX_HALF, lat - _BBOX_HALF, lng + _BBOX_HALF, lat + _BBOX_HALF
     params = {
-        "where": _build_where(f),
-        "outFields": "PARCEL_ID,OWN_NAME,PHY_ADDR1,PHY_CITY,DOR_UC,JV,LND_SQFOOT,CO_NO",
-        "returnGeometry": "false",
-        "returnCentroid": "true",
-        "outSR": "4326",
-        "orderByFields": "JV ASC",   # cheaper land first — better prospects
-        "resultOffset": str(max(0, f.offset or 0)),
-        "resultRecordCount": str(_MAX_CANDIDATES),
+        "where": "1=1",
+        "geometry": f"{w},{s},{e},{n}",
+        "geometryType": "esriGeometryEnvelope",
+        "inSR": "4326", "outSR": "4326",
+        "spatialRel": "esriSpatialRelIntersects",
+        "outFields": "PARCEL_ID,OWN_NAME,PHY_ADDR1,DOR_UC,JV,LND_SQFOOT",
+        "returnGeometry": "true",
+        "resultRecordCount": "800",
         "f": "json",
     }
     async with httpx.AsyncClient(timeout=25.0) as client:
         r = await client.get(_CAD_URL, params=params)
         r.raise_for_status()
         data = r.json()
+    if "error" in data:
+        raise RuntimeError(data["error"])
     out = []
     for feat in data.get("features", []):
         a = feat.get("attributes", {})
-        c = feat.get("centroid") or {}
-        if c.get("y") is None or c.get("x") is None:
+        try:
+            luc = int(a.get("DOR_UC"))
+        except (TypeError, ValueError):
+            continue
+        if luc not in _VACANT_CODES:
+            continue
+        rings = (feat.get("geometry") or {}).get("rings") or []
+        center = _ring_center(rings[0]) if rings else None
+        if not center:
             continue
         sq = a.get("LND_SQFOOT")
         out.append({
             "parcel_id": a.get("PARCEL_ID"),
-            "lat": c["y"], "lng": c["x"],
+            "lat": center[0], "lng": center[1],
             "address": (a.get("PHY_ADDR1") or "").strip() or None,
-            "city": (a.get("PHY_CITY") or "").strip() or None,
             "owner": (a.get("OWN_NAME") or "").strip() or None,
-            "acreage": round(sq / 43560, 3) if sq else None,
+            "acreage": round(sq / 43560, 4) if sq else None,
             "just_value": a.get("JV"),
         })
     return out
 
 
-async def _filter_near_poi(cands: list, poi_key: str) -> list:
-    """Keep only candidates within _POI_RADIUS_KM of the requested anchor.
-    One Overpass query for the candidates' bounding box (not per-parcel)."""
+def _apply_filters(cands: list, f: LeadFilters) -> list:
+    out = []
+    ot = (f.owner_type or "any").lower()
+    for c in cands:
+        ac = c.get("acreage"); jv = c.get("just_value")
+        if f.acres_min is not None and (ac is None or ac < f.acres_min):
+            continue
+        if f.acres_max is not None and (ac is None or ac > f.acres_max):
+            continue
+        if f.price_min is not None and (jv is None or jv < f.price_min):
+            continue
+        if f.price_max is not None and (jv is None or jv > f.price_max):
+            continue
+        if jv is not None and jv <= 100:      # skip nominal-value junk parcels
+            continue
+        biz = _is_business(c.get("owner"))
+        if ot == "llc" and not biz:
+            continue
+        if ot == "individual" and biz:
+            continue
+        out.append(c)
+    # cheaper land first — usually the better prospect
+    out.sort(key=lambda c: (c.get("just_value") or 1e12))
+    return out[:_MAX_CANDIDATES]
+
+
+async def _filter_near_poi(cands: list, poi_key: str, lat: float, lng: float) -> list:
     frag = _POI_QUERIES.get((poi_key or "").lower())
     if not frag or not cands:
         return cands
-    lats = [c["lat"] for c in cands]; lngs = [c["lng"] for c in cands]
-    pad = 0.06
-    s, n = min(lats) - pad, max(lats) + pad
-    w, e = min(lngs) - pad, max(lngs) + pad
-    q = f'[out:json][timeout:20];(node{frag}({s},{w},{n},{e});way{frag}({s},{w},{n},{e}););out center 400;'
+    s, w, nn, e = lat - _BBOX_HALF - 0.02, lng - _BBOX_HALF - 0.02, lat + _BBOX_HALF + 0.02, lng + _BBOX_HALF + 0.02
+    q = f'[out:json][timeout:20];(node{frag}({s},{w},{nn},{e});way{frag}({s},{w},{nn},{e}););out center 300;'
     try:
         async with httpx.AsyncClient(timeout=25.0) as client:
             r = await client.post("https://overpass-api.de/api/interpreter", data={"data": q})
@@ -176,34 +203,24 @@ async def _filter_near_poi(cands: list, poi_key: str) -> list:
     except Exception as ex:
         print(f"[Leads] POI query failed ({ex}) — skipping POI filter")
         return cands
-    pts = []
-    for el in elems:
-        plat = el.get("lat") or (el.get("center") or {}).get("lat")
-        plng = el.get("lon") or (el.get("center") or {}).get("lon")
-        if plat is not None and plng is not None:
-            pts.append((plat, plng))
+    pts = [(el.get("lat") or (el.get("center") or {}).get("lat"),
+            el.get("lon") or (el.get("center") or {}).get("lon")) for el in elems]
+    pts = [(a, b) for a, b in pts if a is not None and b is not None]
     if not pts:
         return []
-    kept = []
-    for c in cands:
-        if any(_haversine_km(c["lat"], c["lng"], p[0], p[1]) <= _POI_RADIUS_KM for p in pts):
-            kept.append(c)
-    return kept
+    return [c for c in cands if any(_haversine_km(c["lat"], c["lng"], p[0], p[1]) <= _POI_RADIUS_KM for p in pts)]
 
 
-async def _screen_candidate(cand: dict, new_screen_budget: dict) -> Optional[dict]:
-    """Return the parcel's screen result — cached if we've seen it, otherwise a
-    fresh centroid screen (counted against the per-search screen budget)."""
+async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
     pid = cand.get("parcel_id")
     cache_key = f"lead:{pid}" if pid else None
     if cache_key:
         cached = await get_cached_result(cache_key)
         if cached is not None:
             return cached
-    # Only spend a real screen if we still have budget (bounds latency + load).
-    if new_screen_budget["n"] <= 0:
+    if budget["n"] <= 0:
         return None
-    new_screen_budget["n"] -= 1
+    budget["n"] -= 1
     async with _SEM_PARCELS:
         try:
             res = await asyncio.wait_for(
@@ -230,20 +247,25 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     denied = await _require_auth(authorization)
     if denied is not None:
         return denied
+    lat, lng = f.lat, f.lng
+    if lat is None or lng is None:
+        geo = await _geocode_location(f.location or "")
+        if not geo:
+            return {"leads": [], "error": "Couldn't find that location. Try a city or town, e.g. 'Ocala, FL'."}
+        lat, lng = geo
     try:
-        cands = await _fetch_candidates(f)
+        cands = await _fetch_bbox_parcels(lat, lng)
     except Exception as ex:
-        print(f"[Leads] cadastral fetch error: {ex}")
+        print(f"[Leads] bbox fetch error: {ex}")
         return {"leads": [], "error": "Could not reach the parcel database. Try again."}
+    cands = _apply_filters(cands, f)
+    if f.near_poi and cands:
+        cands = await _filter_near_poi(cands, f.near_poi, lat, lng)
     if not cands:
-        return {"leads": [], "screened": 0, "candidates": 0}
-    if f.near_poi:
-        cands = await _filter_near_poi(cands, f.near_poi)
+        return {"leads": [], "screened": 0, "candidates": 0, "center": {"lat": lat, "lng": lng}}
 
     leads = []
     budget = {"n": _MAX_SCREEN}
-    # Process in concurrency-sized chunks so we can stop as soon as we have
-    # enough PURSUE leads (or run out of screen budget).
     for i in range(0, len(cands), _MAX_PARCEL_CONCURRENCY):
         chunk = cands[i:i + _MAX_PARCEL_CONCURRENCY]
         results = await asyncio.gather(*[_screen_candidate(c, budget) for c in chunk])
@@ -254,5 +276,9 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
             break
 
     leads.sort(key=lambda x: x.get("score") or 0, reverse=True)
-    leads = leads[:_TARGET_LEADS]
-    return {"leads": leads, "screened": _MAX_SCREEN - budget["n"], "candidates": len(cands)}
+    return {
+        "leads": leads[:_TARGET_LEADS],
+        "screened": _MAX_SCREEN - budget["n"],
+        "candidates": len(cands),
+        "center": {"lat": lat, "lng": lng},
+    }
