@@ -164,7 +164,10 @@ async def get_parcel_data(lat: float, lng: float) -> dict:
             "just_value": attrs.get("JV"),
             "assessed_value_nsd": attrs.get("AV_NSD"),
             "taxable_value_nsd": attrs.get("TV_NSD"),
-            "land_value": attrs.get("LND_VAL"),
+            # Nominal placeholder land values (e.g. $100 for condo/townhome
+            # parcels whose land is common/undivided) are meaningless — surface
+            # them as unavailable instead of a misleading "$100".
+            "land_value": (lambda v: v if (v and v > 1000) else None)(attrs.get("LND_VAL")),
             "building_count": attrs.get("NO_BULDNG") or 0,
             "year_built": attrs.get("ACT_YR_BLT") or None,
             "living_area_sqft": attrs.get("TOT_LVG_AR") or None,

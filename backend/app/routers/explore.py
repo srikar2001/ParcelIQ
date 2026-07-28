@@ -249,6 +249,16 @@ async def comps(
             acre = round(sq / 43560, 3) if sq else None
             price = a.get("SALE_PRC1")
             cat = _lu_category(a.get("DOR_UC"))
+            # $/ac from a SALE is only a meaningful LAND comp for vacant/ag
+            # parcels. On an improved parcel the sale is mostly the building, so
+            # dividing by a tiny lot's acreage explodes into nonsense
+            # ($millions–billions/ac). Compute it only for land, with a sane
+            # acreage floor, and drop implausible values.
+            ppa = None
+            if cat in ("Vacant Land", "Agricultural") and price and acre and acre >= 0.02:
+                _p = round(price / acre)
+                if _p <= 2_000_000:
+                    ppa = _p
             rows.append({
                 "parcel_id": a.get("PARCEL_ID"),
                 "address": (a.get("PHY_ADDR1") or "").strip() or None,
@@ -256,7 +266,7 @@ async def comps(
                 "sale_price": price,
                 "sale_year": a.get("SALE_YR1"),
                 "acreage": acre,
-                "price_per_acre": round(price / acre) if (price and acre and acre > 0) else None,
+                "price_per_acre": ppa,
                 "land_use_category": cat,
                 "lat": cen[0], "lng": cen[1],
                 "distance_m": round(_haversine_m(lat, lng, cen[0], cen[1])),
