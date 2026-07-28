@@ -13,7 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
-from app.routers import narrative, report, search, batch, share, admin, explore
+from app.routers import narrative, report, search, batch, share, admin, explore, leads
 
 try:
     from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -54,6 +54,7 @@ app.include_router(batch.router)
 app.include_router(share.router)
 app.include_router(admin.router)
 app.include_router(explore.router)
+app.include_router(leads.router)
 
 
 @app.get("/", include_in_schema=False)
