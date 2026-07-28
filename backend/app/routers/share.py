@@ -10,6 +10,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.collectors.parcel_fl import get_parcel_geometry_by_id
+
 router = APIRouter(prefix="/api")
 
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
@@ -119,6 +121,22 @@ async def get_parcel_share(token: str):
         result = data.get("result") if isinstance(data, dict) else None
         if not result:
             return JSONResponse(status_code=404, content={"error": "Share link not found"})
+        # Backfill geometry + center for older snapshots saved without them, so
+        # the shared Deal Review renders the REAL map (by APN, free — no geocode).
+        try:
+            pi = result.get("parcel_info") or {}
+            has_geom = bool(pi.get("geometry"))
+            has_latlng = result.get("_lat") is not None and result.get("_lng") is not None
+            if not has_geom and not has_latlng and pi.get("parcel_id"):
+                geo = await get_parcel_geometry_by_id(pi.get("parcel_id"))
+                if geo:
+                    if geo.get("geometry"):
+                        pi["geometry"] = geo["geometry"]
+                        result["parcel_info"] = pi
+                    result["_lat"] = geo["lat"]
+                    result["_lng"] = geo["lng"]
+        except Exception as enrich_err:
+            print(f"[share] geometry backfill failed: {enrich_err}")
         return {"result": result}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

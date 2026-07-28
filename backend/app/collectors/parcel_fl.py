@@ -10,6 +10,53 @@ except Exception:
 URL = "https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/query"
 DEFAULT = {"found": False, "source": "FL DOR Cadastral", "geometry": []}
 
+
+async def get_parcel_geometry_by_id(parcel_id: str):
+    """Look up a parcel's boundary + center by its PARCEL_ID (APN). Used to
+    backfill geometry for older shared-parcel snapshots that were saved without
+    it, so the shared Deal Review renders the REAL map. Free cadastral query
+    (outSR=4326 so no pyproj needed) — returns {'geometry': [[lat,lng]...],
+    'lat', 'lng'} or None."""
+    if not parcel_id:
+        return None
+    safe_id = str(parcel_id).replace("'", "")
+    params = {
+        "where": f"PARCEL_ID='{safe_id}'",
+        "outFields": "PARCEL_ID",
+        "returnGeometry": "true",
+        "returnCentroid": "true",
+        "outSR": "4326",
+        "resultRecordCount": "1",
+        "f": "json",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.get(URL, params=params)
+            r.raise_for_status()
+            data = r.json()
+        feats = data.get("features") or []
+        if not feats:
+            return None
+        feat = feats[0]
+        rings = (feat.get("geometry") or {}).get("rings") or []
+        geometry = []
+        for ring in rings:
+            conv = [[pt[1], pt[0]] for pt in ring if isinstance(pt, (list, tuple)) and len(pt) >= 2]
+            if len(conv) >= 3:
+                geometry.append(conv)
+        c = feat.get("centroid") or {}
+        lat, lng = c.get("y"), c.get("x")
+        if (lat is None or lng is None) and geometry:
+            r0 = geometry[0]
+            lat = sum(p[0] for p in r0) / len(r0)
+            lng = sum(p[1] for p in r0) / len(r0)
+        if lat is None or lng is None:
+            return None
+        return {"geometry": geometry, "lat": lat, "lng": lng}
+    except Exception as ex:
+        print(f"[parcel_fl] geometry-by-id error: {ex}")
+        return None
+
 # FL DOR county codes: alphabetical, starting at 11 (confirmed against live layer)
 _CO_NO_TO_COUNTY: dict[int, str] = {
     11: "Alachua",    12: "Baker",       13: "Bay",          14: "Bradford",
