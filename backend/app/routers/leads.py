@@ -19,12 +19,18 @@ from pydantic import BaseModel
 
 from app.collectors.parcel_fl import URL as _CAD_URL, _CO_NO_TO_COUNTY
 from app.routers.batch import (
-    _screen_coordinate, _SEM_PARCELS, _MAX_PARCEL_CONCURRENCY,
-    _user_id_from_token, _AuthUnavailable,
+    _screen_coordinate, _user_id_from_token, _AuthUnavailable,
 )
 from app.core.cache import get_cached_result, save_cached_result
 
 router = APIRouter(prefix="/api/leads")
+
+# Dedicated, BOUNDED concurrency for lead screening. A search only ever screens
+# _MAX_SCREEN parcels, so a modest bump over the batch path (4) is safe for the
+# DB — nowhere near the runaway concurrency the outage came from — and roughly
+# halves a cold search's wait. Centroid screens spend no geocoding credits.
+_SEM_LEADS = asyncio.Semaphore(6)
+_LEAD_CONCURRENCY = 6
 
 _VACANT_CODES = {0, 9, 10, 40, 70}     # DOR use codes = vacant/undeveloped land
 _BBOX_HALF = 0.02                       # ±0.02deg -> ~4.4km box; small enough that the
@@ -222,7 +228,7 @@ async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
     if budget["n"] <= 0:
         return None
     budget["n"] -= 1
-    async with _SEM_PARCELS:
+    async with _SEM_LEADS:
         try:
             res = await asyncio.wait_for(
                 _screen_coordinate(cand.get("address") or "", {"lat": cand["lat"], "lng": cand["lng"]}, cand["lat"], cand["lng"]),
@@ -267,8 +273,8 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
 
     leads = []
     budget = {"n": _MAX_SCREEN}
-    for i in range(0, len(cands), _MAX_PARCEL_CONCURRENCY):
-        chunk = cands[i:i + _MAX_PARCEL_CONCURRENCY]
+    for i in range(0, len(cands), _LEAD_CONCURRENCY):
+        chunk = cands[i:i + _LEAD_CONCURRENCY]
         results = await asyncio.gather(*[_screen_candidate(c, budget) for c in chunk])
         for res in results:
             if res and res.get("verdict") == "PURSUE":
