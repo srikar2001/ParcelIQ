@@ -7431,6 +7431,16 @@ function openDetailPanel(absIdx, event) {
       infoH += _cell('Road', roadHtml);
     }
 
+    // Nearest public places (Land Leads "near a place" enrichment).
+    if (pi.poi && typeof pi.poi === 'object' && Object.keys(pi.poi).length) {
+      const nearTxt = Object.values(pi.poi)
+        .filter(p => p && p.dist_mi != null)
+        .sort((a, b) => a.dist_mi - b.dist_mi)
+        .map(p => escHtml((p.label || 'Place') + (p.name && p.name !== p.label ? ' (' + p.name + ')' : '') + ' · ' + p.dist_mi + ' mi'))
+        .join('<br>');
+      if (nearTxt) infoH += _cell('Nearby', nearTxt);
+    }
+
     if (pi.contamination_sites && pi.contamination_sites.length) {
       const names = pi.contamination_sites.slice(0, 2)
         .map(x => (typeof x === 'object' && x !== null) ? (x.name || '') : String(x))
