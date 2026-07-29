@@ -1168,6 +1168,13 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .lp-dr-map-label.is-habitat{border-left-color:#EF4444}
 .lp-dr-map-label.is-evac{border-left-color:#F59E0B}
 .lp-dr-pills{position:absolute;top:16px;left:16px;display:flex;flex-direction:column;gap:8px;z-index:2}
+/* Real Leaflet map behind the demo overlays; when it loads, hide the faux-map art. */
+#lpDrLeaflet{position:absolute;inset:0;z-index:0;background:#0E1015}
+#lpDrLeaflet .leaflet-control-attribution{font-size:9px;background:rgba(0,0,0,.4);color:#94A3B8}
+.lp-dr-map-label{z-index:2}
+.lp-dr-mock-map.has-realmap{background:#0E1015}
+.lp-dr-mock-map.has-realmap::after{display:none}
+.lp-dr-mock-map.has-realmap .lp-dr-parcel-outline,.lp-dr-mock-map.has-realmap .lp-dr-map-pin{display:none}
 .lp-dr-pill{font-family:'Inter',sans-serif;font-size:12px;font-weight:700;color:#3A2E22;background:#FBEEDD;border:2px solid transparent;border-radius:99px;padding:7px 14px;cursor:pointer;text-align:left;box-shadow:0 3px 10px rgba(0,0,0,.35);transition:transform .12s,border-color .12s}
 .lp-dr-pill:hover{transform:translateX(2px)}
 .lp-dr-pill.active{border-color:#1A1A1A;transform:scale(1.04)}
@@ -1477,6 +1484,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         </div>
         <div class="lp-dr-mock-body">
           <div class="lp-dr-mock-map" id="lpDrMap">
+            <div id="lpDrLeaflet"></div>
             <div class="lp-dr-parcel-outline"><svg aria-hidden="true"><rect class="lp-dr-ants-rect"/></svg></div>
             <div class="lp-dr-map-pin" id="lpDrPin"></div>
             <div class="lp-dr-map-label" id="lpDrMapLabel">Zone X · outside floodplain</div>
@@ -1777,6 +1785,45 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     var lpDrActive = 'flood';
     var lpReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    // A REAL Leaflet map for the showcase (the demo parcel actually exists —
+    // 14718 NE 147th Ave, Waldo; APN 17151-001-000). We drop in satellite tiles
+    // centered on it and draw its true boundary from the FL cadastral, then
+    // recolor that outline per selected check — no faux-map art.
+    var _lpDrMap = null, _lpDrPoly = null;
+    var _LP_DR_COLORS = { flood: '#38BDF8', road: '#22C55E', habitat: '#EF4444', evac: '#F59E0B' };
+    function _lpDrInitMap() {
+      if (_lpDrMap || typeof L === 'undefined') return;
+      var host = document.getElementById('lpDrMap'), el = document.getElementById('lpDrLeaflet');
+      if (!host || !el) return;
+      try {
+        _lpDrMap = L.map(el, { zoomControl: false, attributionControl: true, dragging: false,
+          scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false,
+          tap: false, touchZoom: false }).setView([29.7906, -82.1659], 16);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          { maxZoom: 19, attribution: 'Esri' }).addTo(_lpDrMap);
+        host.classList.add('has-realmap');
+        setTimeout(function() { if (_lpDrMap) _lpDrMap.invalidateSize(); }, 250);
+      } catch (e) { _lpDrMap = null; return; }
+      // Fetch the parcel's real boundary (public cadastral query) and draw it.
+      var q = "PARCEL_ID='17151-001-000'";
+      var url = 'https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/query'
+        + '?where=' + encodeURIComponent(q) + '&outFields=PARCEL_ID&returnGeometry=true&outSR=4326&f=json';
+      fetch(url).then(function(r) { return r.json(); }).then(function(d) {
+        var f = (d.features || [])[0], rings = f && f.geometry && f.geometry.rings;
+        if (!rings || !rings[0] || !_lpDrMap) return;
+        var latlng = rings[0].map(function(p) { return [p[1], p[0]]; });
+        var c = _LP_DR_COLORS[lpDrActive] || '#22C55E';
+        _lpDrPoly = L.polygon(latlng, { color: c, weight: 3, fillColor: c, fillOpacity: 0.18 }).addTo(_lpDrMap);
+        try { _lpDrMap.fitBounds(_lpDrPoly.getBounds(), { padding: [45, 45], maxZoom: 17 }); } catch (e) {}
+      }).catch(function() {});
+    }
+    // Recolor the real parcel outline to match the active check.
+    function _lpDrPaint(check) {
+      if (!_lpDrPoly) return;
+      var c = _LP_DR_COLORS[check] || '#22C55E';
+      try { _lpDrPoly.setStyle({ color: c, fillColor: c }); } catch (e) {}
+    }
+
     // Re-trigger a CSS animation defined in the stylesheet on an element.
     function lpDrRetrig(el) {
       if (!el || lpReduced) return;
@@ -1817,6 +1864,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         if (check !== 'flood') el.classList.add(cls);
       });
       document.querySelectorAll('.lp-dr-pill').forEach(function(btn) { btn.classList.toggle('active', btn.dataset.check === check); });
+      _lpDrPaint(check);
       var labelEl = document.getElementById('lpDrMapLabel'); if (labelEl) { labelEl.textContent = cfg.label; lpDrRetrig(labelEl); }
       var titleEl = document.getElementById('lpDrPanelTitle'); if (titleEl) { titleEl.textContent = cfg.title; lpDrRetrig(titleEl); }
       var descEl = document.getElementById('lpDrPanelDesc'); if (descEl) { descEl.textContent = cfg.desc; lpDrRetrig(descEl); }
@@ -1857,7 +1905,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         new IntersectionObserver(function(es) {
           es.forEach(function(e) {
             lpDrInView = e.isIntersecting;
-            if (e.isIntersecting) lpDrStart(); else lpDrStop();
+            if (e.isIntersecting) { _lpDrInitMap(); lpDrStart(); } else lpDrStop();
           });
         }, { threshold: 0.35 }).observe(drSec);
       }
@@ -3015,8 +3063,13 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <!-- ════════ LAND LEADS ════════ -->
 <style>
 #page-leads.active{display:block}
-#page-leads{padding-top:58px;min-height:100vh;background:var(--bg)}
-.leads-wrap{max-width:660px;margin:0 auto;padding:40px 24px 80px}
+#page-leads{padding-top:58px;min-height:100vh;background:var(--bg);position:relative}
+/* Live Florida map backdrop (fixed → only renders while this page is shown, since
+   the hidden .screen is display:none); a veil keeps the form readable over it. */
+#leadsBgMap{position:fixed;inset:0;z-index:0;background:#0B0D12}
+#leadsBgMap .leaflet-control-attribution{font-size:9px;background:rgba(0,0,0,.4);color:#94A3B8}
+#leadsBgVeil{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 78% 62% at 50% 42%,rgba(11,13,18,.52),rgba(11,13,18,.82) 70%,rgba(11,13,18,.94))}
+.leads-wrap{max-width:660px;margin:0 auto;padding:40px 24px 80px;position:relative;z-index:1}
 .leads-title{font-size:30px;font-weight:800;margin:0 0 8px;letter-spacing:-.02em}
 .leads-sub{font-size:14px;color:var(--t2);line-height:1.6;margin:0 0 26px}
 .leads-form{background:var(--card);border:1px solid var(--b);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:22px}
@@ -3051,6 +3104,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 @media(max-width:520px){.leads-wrap{padding:24px 16px 60px}.leads-title{font-size:24px}.leads-counties{grid-template-columns:repeat(2,1fr)}}
 </style>
 <div id="page-leads" class="screen">
+  <div id="leadsBgMap"></div>
+  <div id="leadsBgVeil"></div>
   <div class="leads-wrap">
     <h1 class="leads-title">🎯 Land Leads</h1>
     <p class="leads-sub">Pick your markets and criteria — we surface pre-screened vacant-land prospects that come back <b style="color:var(--green)">PURSUE</b>, in the same table + Deal Review as your batches.</p>
@@ -12080,7 +12135,24 @@ function _leadRange(loId, hiId, fillId, valId, fmt) {
   lo.oninput = upd; hi.oninput = upd; upd();
 }
 
+let _leadsBgMap = null;
+function _initLeadsBgMap() {
+  if (_leadsBgMap || typeof L === 'undefined') return;
+  const el = document.getElementById('leadsBgMap');
+  if (!el) return;
+  try {
+    _leadsBgMap = L.map(el, { zoomControl: false, attributionControl: true, dragging: false,
+      scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false,
+      tap: false, touchZoom: false }).setView([28.2, -82.3], 6);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      { maxZoom: 19, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO' }).addTo(_leadsBgMap);
+    setTimeout(() => { if (_leadsBgMap) _leadsBgMap.invalidateSize(); }, 260);
+  } catch (e) { _leadsBgMap = null; }
+}
+
 function initLeads() {
+  _initLeadsBgMap();
+  if (_leadsBgMap) setTimeout(() => { try { _leadsBgMap.invalidateSize(); } catch (e) {} }, 120);
   if (_leadsInit) return;
   _leadsInit = true;
   const box = document.getElementById('leadCounties');
