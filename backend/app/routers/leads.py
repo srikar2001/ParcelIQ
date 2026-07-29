@@ -444,11 +444,16 @@ async def _enrich_poi(leads: list, poi_types, radius_mi):
         if (best is not None and best <= radius) or not eval_types:
             kept.append(l)
 
-    # POI points to draw on the map (deduped by rounded coord, capped per type).
+    # POI points to draw on the map — only those actually NEAR a lead (so the
+    # bundled statewide town list doesn't scatter pins across all of Florida).
+    lead_ll = [(la, lo) for _, la, lo in pts]
+    near_cap = radius * 1.25
     poi_points: dict = {}
     for t in types:
         seen = set(); out = []
         for la, lo, nm in (places.get(t) or []):
+            if lead_ll and min(_haversine_mi(la, lo, pla, plo) for pla, plo in lead_ll) > near_cap:
+                continue
             key = (round(la, 4), round(lo, 4))
             if key in seen:
                 continue
