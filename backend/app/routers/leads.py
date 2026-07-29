@@ -27,15 +27,16 @@ router = APIRouter(prefix="/api/leads")
 
 # Bounded concurrency for lead screening (a search only ever screens _MAX_SCREEN
 # parcels, so a modest bump over the batch path is safe for the DB).
-_SEM_LEADS = asyncio.Semaphore(6)
-_LEAD_CONCURRENCY = 6
+_SEM_LEADS = asyncio.Semaphore(8)
+_LEAD_CONCURRENCY = 8
 
 _VACANT_CODES = {0, 9, 10, 40, 70}
 _BBOX_HALF = 0.03                # ±0.03deg ≈ 6.5km box per center — stays fast
-_MAX_SCREEN = 20                 # hard cap on fresh screens per search
+_MAX_SCREEN = 22                 # hard cap on fresh screens per search
 _TARGET_LEADS = 25
-_SCREEN_TIMEOUT = 22.0           # drop a parcel that's slow to screen
-_DEADLINE_S = 42.0               # overall wall-clock budget — always return by here
+_SCREEN_TIMEOUT = 20.0           # drop a parcel that's slow to screen
+_DEADLINE_S = 34.0               # overall screening budget — always return by here
+_FETCH_TIMEOUT = 12.0            # per sample-bbox fetch (slow ones are dropped)
 _BIZ_MARKERS = ("LLC", "L.L.C", "INC", "CORP", "LTD", "TRUST", "PROPERTIES",
                 "HOLDINGS", "INVESTMENT", "CAPITAL", "GROUP", "ENTERPRISE",
                 "COMPANY", "PARTNERS", "REALTY", "HOMES", "DEVELOPMENT",
@@ -141,7 +142,7 @@ async def _fetch_bbox_parcels(lat: float, lng: float) -> list:
         "returnGeometry": "true", "resultRecordCount": "500", "f": "json",
     }
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=_FETCH_TIMEOUT) as client:
             r = await client.get(_CAD_URL, params=params)
             r.raise_for_status()
             data = r.json()
