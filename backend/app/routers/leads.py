@@ -295,22 +295,28 @@ def _lead_label(cand: dict, pi: dict) -> str:
 async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
     pid = cand.get("parcel_id")
     cache_key = f"lead:{pid}" if pid else None
+    res = None
     if cache_key:
         cached = await get_cached_result(cache_key)
         if cached is not None:
-            return cached
-    if budget["n"] <= 0:
-        return None
-    budget["n"] -= 1
-    async with _SEM_LEADS:
-        try:
-            res = await asyncio.wait_for(
-                _screen_coordinate(cand.get("address") or "", {"lat": cand["lat"], "lng": cand["lng"]}, cand["lat"], cand["lng"]),
-                timeout=_SCREEN_TIMEOUT,
-            )
-        except Exception as ex:
-            print(f"[Leads] screen error {pid}: {ex}")
+            res = cached
+    if res is None:
+        if budget["n"] <= 0:
             return None
+        budget["n"] -= 1
+        async with _SEM_LEADS:
+            try:
+                res = await asyncio.wait_for(
+                    _screen_coordinate(cand.get("address") or "", {"lat": cand["lat"], "lng": cand["lng"]}, cand["lat"], cand["lng"]),
+                    timeout=_SCREEN_TIMEOUT,
+                )
+            except Exception as ex:
+                print(f"[Leads] screen error {pid}: {ex}")
+                return None
+        if cache_key:
+            asyncio.create_task(save_cached_result(cache_key, res))
+    # Post-process fresh AND cached results the same way, so a label/format
+    # change takes effect for already-cached parcels without a re-screen.
     res["_lat"] = cand["lat"]; res["_lng"] = cand["lng"]
     pi = res.get("parcel_info") or {}
     if not pi.get("owner") and cand.get("owner"):
@@ -318,8 +324,6 @@ async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
     res["parcel_info"] = pi
     res["_folio"] = pid
     res["address"] = _lead_label(cand, pi)
-    if cache_key:
-        asyncio.create_task(save_cached_result(cache_key, res))
     return res
 
 
