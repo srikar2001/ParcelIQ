@@ -1,15 +1,16 @@
-"""Land Leads — area-based vacant-land prospecting.
+"""Land Leads — vacant-land prospecting.
 
-The statewide cadastral only answers spatial (bbox) queries quickly, so we work
-from a LOCATION: the user gives a place + filters, we geocode it once (free,
-Nominatim), pull every parcel in a small bounding box around it (fast spatial
-query), keep the vacant ones matching the filters, and screen those by their
-centroid — never geocoding per parcel, so zero paid credits are spent. Each
-screen is cached per parcel_id (repeat searches are instant), screening is
-bounded + concurrency-capped, and only PURSUE parcels are returned, in the exact
-shape of a batch result (the frontend reuses the results table + Deal Review).
+The statewide cadastral only answers small spatial queries quickly (county-wide
+attribute scans time out), so we work from geographic CENTERS: for each selected
+county (or a typed area) we geocode a center once (free, cached), pull the
+parcels in a small bbox around it (fast spatial query), keep the vacant ones
+matching the filters, and screen those by centroid — never geocoding per parcel,
+so zero paid credits. Each screen is cached per parcel_id, screening is bounded
+by a hard deadline + concurrency cap (so a search ALWAYS returns), and results
+come back in batch-result shape (frontend reuses the results table + Deal Review).
 """
 import asyncio
+import time
 from typing import Optional
 
 import httpx
@@ -18,52 +19,41 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.collectors.parcel_fl import URL as _CAD_URL, _CO_NO_TO_COUNTY
-from app.routers.batch import (
-    _screen_coordinate, _user_id_from_token, _AuthUnavailable,
-)
+from app.routers.batch import _screen_coordinate, _user_id_from_token, _AuthUnavailable
 from app.core.cache import get_cached_result, save_cached_result
 
 router = APIRouter(prefix="/api/leads")
 
-# Dedicated, BOUNDED concurrency for lead screening. A search only ever screens
-# _MAX_SCREEN parcels, so a modest bump over the batch path (4) is safe for the
-# DB — nowhere near the runaway concurrency the outage came from — and roughly
-# halves a cold search's wait. Centroid screens spend no geocoding credits.
+# Bounded concurrency for lead screening (a search only ever screens _MAX_SCREEN
+# parcels, so a modest bump over the batch path is safe for the DB).
 _SEM_LEADS = asyncio.Semaphore(6)
 _LEAD_CONCURRENCY = 6
 
-_VACANT_CODES = {0, 9, 10, 40, 70}     # DOR use codes = vacant/undeveloped land
-_BBOX_HALF = 0.02                       # ±0.02deg -> ~4.4km box; small enough that the
-                                        # spatial query stays fast even in denser areas
-_MAX_CANDIDATES = 70
-_MAX_SCREEN = 22                        # hard cap on fresh screens per search
+_VACANT_CODES = {0, 9, 10, 40, 70}
+_BBOX_HALF = 0.03                # ±0.03deg ≈ 6.5km box per center — stays fast
+_MAX_SCREEN = 20                 # hard cap on fresh screens per search
 _TARGET_LEADS = 25
-_SCREEN_TIMEOUT = 55.0
+_SCREEN_TIMEOUT = 22.0           # drop a parcel that's slow to screen
+_DEADLINE_S = 42.0               # overall wall-clock budget — always return by here
 _BIZ_MARKERS = ("LLC", "L.L.C", "INC", "CORP", "LTD", "TRUST", "PROPERTIES",
                 "HOLDINGS", "INVESTMENT", "CAPITAL", "GROUP", "ENTERPRISE",
                 "COMPANY", "PARTNERS", "REALTY", "HOMES", "DEVELOPMENT",
-                "VENTURES", "ASSOCIATES", "FUND", "BANK", "LP")
-_POI_QUERIES = {
-    "publix":   '["shop"="supermarket"]["name"~"Publix",i]',
-    "walmart":  '["name"~"Walmart|Wal-Mart",i]',
-    "grocery":  '["shop"~"supermarket|grocery"]',
-    "hospital": '["amenity"="hospital"]',
-    "school":   '["amenity"="school"]',
-    "highway":  '["highway"~"motorway|trunk"]',
-}
-_POI_RADIUS_KM = 5.0
+                "VENTURES", "ASSOCIATES", "FUND", "BANK", " LP")
+
+_county_center_cache: dict = {}
 
 
 class LeadFilters(BaseModel):
-    location: Optional[str] = None
-    lat: Optional[float] = None
-    lng: Optional[float] = None
+    counties: Optional[list] = None        # list of FL county names
+    location: Optional[str] = None         # optional free-text area override
     acres_min: Optional[float] = None
     acres_max: Optional[float] = None
-    price_min: Optional[float] = None
-    price_max: Optional[float] = None
-    owner_type: Optional[str] = None       # 'llc' | 'individual' | 'any'
-    near_poi: Optional[str] = None
+    value_min: Optional[float] = None
+    value_max: Optional[float] = None
+    individual_only: bool = False
+    out_of_state: bool = False
+    road_access: bool = False
+    exclude_kills: bool = True
 
 
 async def _require_auth(authorization: Optional[str]) -> Optional[JSONResponse]:
@@ -77,23 +67,12 @@ async def _require_auth(authorization: Optional[str]) -> Optional[JSONResponse]:
     return None
 
 
-def _haversine_km(lat1, lng1, lat2, lng2) -> float:
-    import math
-    R = 6371.0
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dp = math.radians(lat2 - lat1)
-    dl = math.radians(lng2 - lng1)
-    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * R * math.asin(min(1.0, a ** 0.5))
-
-
 def _is_business(owner: Optional[str]) -> bool:
     o = (owner or "").upper()
     return any(m in o for m in _BIZ_MARKERS)
 
 
 def _ring_center(ring):
-    """Centroid (lat, lng) of an esri ring returned as [lng, lat] pairs."""
     if not ring:
         return None
     sx = sy = 0.0
@@ -104,18 +83,22 @@ def _ring_center(ring):
     return (sy / n, sx / n) if n else None
 
 
-async def _geocode_location(q: str):
-    """Free place lookup (Nominatim) -> (lat, lng). One call per search."""
+async def _geocode(q: str):
     if not q:
         return None
-    query = q if ("fl" in q.lower() or "florida" in q.lower()) else (q + ", Florida, USA")
+    key = q.strip().lower()
+    if key in _county_center_cache:
+        return _county_center_cache[key]
+    query = q if ("fl" in key or "florida" in key) else (q + ", Florida, USA")
     try:
         async with httpx.AsyncClient(timeout=12.0, headers={"User-Agent": "ParcelIQ-Leads/1.0"}) as client:
             r = await client.get("https://nominatim.openstreetmap.org/search",
                                   params={"q": query, "format": "json", "limit": "1", "countrycodes": "us"})
             arr = r.json()
         if arr:
-            return float(arr[0]["lat"]), float(arr[0]["lon"])
+            center = (float(arr[0]["lat"]), float(arr[0]["lon"]))
+            _county_center_cache[key] = center
+            return center
     except Exception as ex:
         print(f"[Leads] geocode failed for {q!r}: {ex}")
     return None
@@ -123,28 +106,28 @@ async def _geocode_location(q: str):
 
 @router.get("/counties")
 async def counties():
-    return {"counties": sorted(_CO_NO_TO_COUNTY.values()), "pois": list(_POI_QUERIES.keys())}
+    return {"counties": sorted(_CO_NO_TO_COUNTY.values())}
 
 
 async def _fetch_bbox_parcels(lat: float, lng: float) -> list:
     w, s, e, n = lng - _BBOX_HALF, lat - _BBOX_HALF, lng + _BBOX_HALF, lat + _BBOX_HALF
     params = {
         "where": "1=1",
-        "geometry": f"{w},{s},{e},{n}",
-        "geometryType": "esriGeometryEnvelope",
-        "inSR": "4326", "outSR": "4326",
-        "spatialRel": "esriSpatialRelIntersects",
-        "outFields": "PARCEL_ID,OWN_NAME,PHY_ADDR1,DOR_UC,JV,LND_SQFOOT",
-        "returnGeometry": "true",
-        "resultRecordCount": "500",
-        "f": "json",
+        "geometry": f"{w},{s},{e},{n}", "geometryType": "esriGeometryEnvelope",
+        "inSR": "4326", "outSR": "4326", "spatialRel": "esriSpatialRelIntersects",
+        "outFields": "PARCEL_ID,OWN_NAME,OWN_STATE,PHY_ADDR1,DOR_UC,JV,LND_SQFOOT",
+        "returnGeometry": "true", "resultRecordCount": "500", "f": "json",
     }
-    async with httpx.AsyncClient(timeout=22.0) as client:
-        r = await client.get(_CAD_URL, params=params)
-        r.raise_for_status()
-        data = r.json()
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.get(_CAD_URL, params=params)
+            r.raise_for_status()
+            data = r.json()
+    except Exception as ex:
+        print(f"[Leads] bbox fetch error @{lat},{lng}: {ex}")
+        return []
     if "error" in data:
-        raise RuntimeError(data["error"])
+        return []
     out = []
     for feat in data.get("features", []):
         a = feat.get("attributes", {})
@@ -164,58 +147,30 @@ async def _fetch_bbox_parcels(lat: float, lng: float) -> list:
             "lat": center[0], "lng": center[1],
             "address": (a.get("PHY_ADDR1") or "").strip() or None,
             "owner": (a.get("OWN_NAME") or "").strip() or None,
+            "owner_state": (a.get("OWN_STATE") or "").strip().upper() or None,
             "acreage": round(sq / 43560, 4) if sq else None,
             "just_value": a.get("JV"),
         })
     return out
 
 
-def _apply_filters(cands: list, f: LeadFilters) -> list:
-    out = []
-    ot = (f.owner_type or "any").lower()
-    for c in cands:
-        ac = c.get("acreage"); jv = c.get("just_value")
-        if f.acres_min is not None and (ac is None or ac < f.acres_min):
-            continue
-        if f.acres_max is not None and (ac is None or ac > f.acres_max):
-            continue
-        if f.price_min is not None and (jv is None or jv < f.price_min):
-            continue
-        if f.price_max is not None and (jv is None or jv > f.price_max):
-            continue
-        if jv is not None and jv <= 100:      # skip nominal-value junk parcels
-            continue
-        biz = _is_business(c.get("owner"))
-        if ot == "llc" and not biz:
-            continue
-        if ot == "individual" and biz:
-            continue
-        out.append(c)
-    # cheaper land first — usually the better prospect
-    out.sort(key=lambda c: (c.get("just_value") or 1e12))
-    return out[:_MAX_CANDIDATES]
-
-
-async def _filter_near_poi(cands: list, poi_key: str, lat: float, lng: float) -> list:
-    frag = _POI_QUERIES.get((poi_key or "").lower())
-    if not frag or not cands:
-        return cands
-    s, w, nn, e = lat - _BBOX_HALF - 0.02, lng - _BBOX_HALF - 0.02, lat + _BBOX_HALF + 0.02, lng + _BBOX_HALF + 0.02
-    q = f'[out:json][timeout:20];(node{frag}({s},{w},{nn},{e});way{frag}({s},{w},{nn},{e}););out center 300;'
-    try:
-        async with httpx.AsyncClient(timeout=25.0) as client:
-            r = await client.post("https://overpass-api.de/api/interpreter", data={"data": q})
-            r.raise_for_status()
-            elems = r.json().get("elements", [])
-    except Exception as ex:
-        print(f"[Leads] POI query failed ({ex}) — skipping POI filter")
-        return cands
-    pts = [(el.get("lat") or (el.get("center") or {}).get("lat"),
-            el.get("lon") or (el.get("center") or {}).get("lon")) for el in elems]
-    pts = [(a, b) for a, b in pts if a is not None and b is not None]
-    if not pts:
-        return []
-    return [c for c in cands if any(_haversine_km(c["lat"], c["lng"], p[0], p[1]) <= _POI_RADIUS_KM for p in pts)]
+def _match(c: dict, f: LeadFilters) -> bool:
+    ac = c.get("acreage"); jv = c.get("just_value")
+    if f.acres_min is not None and (ac is None or ac < f.acres_min):
+        return False
+    if f.acres_max is not None and (ac is None or ac > f.acres_max):
+        return False
+    if f.value_min is not None and (jv is None or jv < f.value_min):
+        return False
+    if f.value_max is not None and (jv is None or jv > f.value_max):
+        return False
+    if jv is not None and jv <= 100:
+        return False
+    if f.individual_only and _is_business(c.get("owner")):
+        return False
+    if f.out_of_state and (c.get("owner_state") in (None, "FL", "")):
+        return False
+    return True
 
 
 async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
@@ -249,43 +204,70 @@ async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
     return res
 
 
+def _keep_lead(res: dict, f: LeadFilters) -> bool:
+    v = res.get("verdict")
+    if v == "ERROR":
+        return False
+    if f.exclude_kills and v != "PURSUE":
+        return False
+    if f.road_access and (res.get("parcel_info") or {}).get("road_distance_m") is None:
+        return False
+    return True
+
+
 @router.post("/search")
 async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     denied = await _require_auth(authorization)
     if denied is not None:
         return denied
-    lat, lng = f.lat, f.lng
-    if lat is None or lng is None:
-        geo = await _geocode_location(f.location or "")
-        if not geo:
-            return {"leads": [], "error": "Couldn't find that location. Try a city or town, e.g. 'Ocala, FL'."}
-        lat, lng = geo
-    try:
-        cands = await _fetch_bbox_parcels(lat, lng)
-    except Exception as ex:
-        print(f"[Leads] bbox fetch error: {ex}")
-        return {"leads": [], "error": "Could not reach the parcel database. Try again."}
-    cands = _apply_filters(cands, f)
-    if f.near_poi and cands:
-        cands = await _filter_near_poi(cands, f.near_poi, lat, lng)
-    if not cands:
-        return {"leads": [], "screened": 0, "candidates": 0, "center": {"lat": lat, "lng": lng}}
 
+    # Resolve one or more search centers.
+    centers = []
+    if f.location:
+        g = await _geocode(f.location)
+        if g:
+            centers.append(g)
+    for c in (f.counties or [])[:5]:
+        g = await _geocode(str(c) + " County, FL")
+        if g:
+            centers.append(g)
+    if not centers:
+        return {"leads": [], "error": "Pick a county (or type an area) to search."}
+
+    # Pull + filter candidates from each center's bbox.
+    seen_ids = set()
+    cands = []
+    for (clat, clng) in centers:
+        for c in await _fetch_bbox_parcels(clat, clng):
+            pid = c.get("parcel_id")
+            if pid in seen_ids:
+                continue
+            seen_ids.add(pid)
+            if _match(c, f):
+                cands.append(c)
+    cands.sort(key=lambda c: (c.get("just_value") or 1e12))   # cheaper land first
+
+    if not cands:
+        return {"leads": [], "screened": 0, "candidates": 0}
+
+    # Screen with a hard wall-clock deadline so we always return.
     leads = []
     budget = {"n": _MAX_SCREEN}
+    t0 = time.monotonic()
     for i in range(0, len(cands), _LEAD_CONCURRENCY):
         chunk = cands[i:i + _LEAD_CONCURRENCY]
-        results = await asyncio.gather(*[_screen_candidate(c, budget) for c in chunk])
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*[_screen_candidate(c, budget) for c in chunk]),
+                timeout=max(3.0, _DEADLINE_S - (time.monotonic() - t0)),
+            )
+        except asyncio.TimeoutError:
+            break
         for res in results:
-            if res and res.get("verdict") == "PURSUE":
+            if res and _keep_lead(res, f):
                 leads.append(res)
-        if len(leads) >= _TARGET_LEADS or budget["n"] <= 0:
+        if len(leads) >= _TARGET_LEADS or budget["n"] <= 0 or (time.monotonic() - t0) > _DEADLINE_S:
             break
 
     leads.sort(key=lambda x: x.get("score") or 0, reverse=True)
-    return {
-        "leads": leads[:_TARGET_LEADS],
-        "screened": _MAX_SCREEN - budget["n"],
-        "candidates": len(cands),
-        "center": {"lat": lat, "lng": lng},
-    }
+    return {"leads": leads[:_TARGET_LEADS], "screened": _MAX_SCREEN - budget["n"], "candidates": len(cands)}

@@ -3016,73 +3016,75 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <style>
 #page-leads.active{display:block}
 #page-leads{padding-top:58px;min-height:100vh;background:var(--bg)}
-.leads-wrap{max-width:640px;margin:0 auto;padding:40px 24px 80px}
+.leads-wrap{max-width:660px;margin:0 auto;padding:40px 24px 80px}
 .leads-title{font-size:30px;font-weight:800;margin:0 0 8px;letter-spacing:-.02em}
-.leads-sub{font-size:14px;color:var(--t2);line-height:1.6;margin:0 0 28px}
-.leads-form{background:var(--card);border:1px solid var(--b);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:18px}
-.leads-field{display:flex;flex-direction:column;gap:7px}
-.leads-field>label{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--t3)}
-.leads-input{background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:11px 13px;color:var(--t1);font-size:14px;font-family:inherit;outline:none;width:100%}
-.leads-input:focus{border-color:var(--green)}
-.leads-row2{display:flex;align-items:center;gap:10px}
-.leads-row2 span{color:var(--t3);font-size:13px}
-.leads-btn{background:var(--green);color:#000;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px;transition:filter .12s}
+.leads-sub{font-size:14px;color:var(--t2);line-height:1.6;margin:0 0 26px}
+.leads-form{background:var(--card);border:1px solid var(--b);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:22px}
+.leads-field{display:flex;flex-direction:column;gap:9px}
+.leads-field>label{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--t3);display:flex;justify-content:space-between;align-items:baseline}
+.lr-val{color:var(--green);font-weight:800;letter-spacing:0;text-transform:none;font-size:13px}
+.leads-btn{background:var(--green);color:#000;border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;transition:filter .12s}
 .leads-btn:hover{filter:brightness(1.05)}
 .leads-btn:disabled{opacity:.6;cursor:default}
 .leads-status{margin-top:18px;font-size:13.5px;color:var(--t2);text-align:center;line-height:1.6;min-height:20px}
-.leads-note{margin-top:22px;font-size:12px;color:var(--t3);text-align:center;line-height:1.6;background:var(--card-h);border:1px solid var(--b);border-radius:12px;padding:12px 16px}
-@media(max-width:520px){.leads-wrap{padding:24px 16px 60px}.leads-title{font-size:24px}}
+.leads-note{margin-top:20px;font-size:12px;color:var(--t3);text-align:center;line-height:1.6;background:var(--card-h);border:1px solid var(--b);border-radius:12px;padding:12px 16px}
+.leads-counties{display:grid;grid-template-columns:repeat(3,1fr);gap:5px 10px;max-height:172px;overflow-y:auto;background:var(--bg);border:1px solid var(--b);border-radius:12px;padding:13px}
+.leads-cty{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--t1);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.leads-cty input{accent-color:var(--green);width:14px;height:14px;flex-shrink:0;margin:0}
+.lr{position:relative;height:26px}
+.lr-track{position:absolute;top:11px;left:0;right:0;height:5px;border-radius:99px;background:var(--b)}
+.lr-fill{position:absolute;top:0;bottom:0;background:var(--green);border-radius:99px}
+.lr input[type=range]{position:absolute;top:4px;left:0;width:100%;height:18px;margin:0;background:none;pointer-events:none;-webkit-appearance:none;appearance:none}
+.lr input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;pointer-events:auto;width:19px;height:19px;border-radius:50%;background:#fff;border:3px solid var(--green);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.lr input[type=range]::-moz-range-thumb{pointer-events:auto;width:19px;height:19px;border-radius:50%;background:#fff;border:3px solid var(--green);cursor:pointer}
+.leads-toggles{display:flex;flex-direction:column;border-top:1px solid var(--b);padding-top:6px}
+.leads-toggle{display:flex;align-items:center;gap:12px;padding:11px 0;cursor:pointer;border-bottom:1px solid var(--b)}
+.leads-toggle:last-child{border-bottom:none}
+.lt-info{flex:1;min-width:0}
+.lt-txt{font-size:13.5px;color:var(--t1);font-weight:600}
+.lt-sub{font-size:11.5px;color:var(--t3);margin-top:2px}
+.lt-sw{position:relative;width:40px;height:23px;background:var(--b);border-radius:99px;flex-shrink:0;transition:background .15s}
+.lt-sw::after{content:'';position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:#fff;transition:transform .15s}
+.leads-toggle input{display:none}
+.leads-toggle input:checked+.lt-sw{background:var(--green)}
+.leads-toggle input:checked+.lt-sw::after{transform:translateX(17px)}
+@media(max-width:520px){.leads-wrap{padding:24px 16px 60px}.leads-title{font-size:24px}.leads-counties{grid-template-columns:repeat(2,1fr)}}
 </style>
 <div id="page-leads" class="screen">
   <div class="leads-wrap">
     <h1 class="leads-title">🎯 Land Leads</h1>
-    <p class="leads-sub">Set your criteria and we'll surface pre-screened vacant-land prospects nearby — only the ones that come back <b style="color:var(--green)">PURSUE</b>. They open in the same Deal Review as your batches.</p>
+    <p class="leads-sub">Pick your markets and criteria — we surface pre-screened vacant-land prospects that come back <b style="color:var(--green)">PURSUE</b>, in the same table + Deal Review as your batches.</p>
     <div class="leads-form">
       <div class="leads-field">
-        <label>Location</label>
-        <input id="leadLocation" class="leads-input" type="text" placeholder="City or area — e.g. Ocala, FL" autocomplete="off" onkeydown="if(event.key==='Enter')runLeadSearch()">
-        <span style="font-size:11px;color:var(--t3)">We search vacant land around this spot.</span>
+        <label>Counties <span class="lr-val" id="leadCountySel">none selected</span></label>
+        <div class="leads-counties" id="leadCounties"></div>
       </div>
       <div class="leads-field">
-        <label>Acreage</label>
-        <div class="leads-row2">
-          <input id="leadAcMin" class="leads-input" type="number" placeholder="Min" min="0" step="0.1">
-          <span>to</span>
-          <input id="leadAcMax" class="leads-input" type="number" placeholder="Max" min="0" step="0.1">
+        <label>Acreage <span class="lr-val" id="leadAcVal">any size</span></label>
+        <div class="lr">
+          <div class="lr-track"><div class="lr-fill" id="leadAcFill"></div></div>
+          <input type="range" id="leadAcLo" min="0" max="50" step="0.5" value="0">
+          <input type="range" id="leadAcHi" min="0" max="50" step="0.5" value="50">
         </div>
       </div>
       <div class="leads-field">
-        <label>Price (assessed value)</label>
-        <div class="leads-row2">
-          <input id="leadPriceMin" class="leads-input" type="number" placeholder="Min $" min="0" step="1000">
-          <span>to</span>
-          <input id="leadPriceMax" class="leads-input" type="number" placeholder="Max $" min="0" step="1000">
+        <label>Assessed value <span class="lr-val" id="leadValVal">any budget</span></label>
+        <div class="lr">
+          <div class="lr-track"><div class="lr-fill" id="leadValFill"></div></div>
+          <input type="range" id="leadValLo" min="0" max="500000" step="5000" value="0">
+          <input type="range" id="leadValHi" min="0" max="500000" step="5000" value="500000">
         </div>
       </div>
-      <div class="leads-field">
-        <label>Owner</label>
-        <select id="leadOwner" class="leads-input">
-          <option value="any">Anyone</option>
-          <option value="llc">LLCs &amp; businesses</option>
-          <option value="individual">Individuals</option>
-        </select>
-      </div>
-      <div class="leads-field">
-        <label>Near a…</label>
-        <select id="leadPoi" class="leads-input">
-          <option value="">Anywhere</option>
-          <option value="publix">Publix</option>
-          <option value="walmart">Walmart</option>
-          <option value="grocery">Grocery store</option>
-          <option value="hospital">Hospital</option>
-          <option value="school">School</option>
-          <option value="highway">Major highway</option>
-        </select>
+      <div class="leads-toggles">
+        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Individual owners only</div><div class="lt-sub">People sell — LLCs resist</div></div><input type="checkbox" id="leadIndividual"><span class="lt-sw"></span></label>
+        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Out-of-state owners</div><div class="lt-sub">Absentee = the #1 motivated-seller signal</div></div><input type="checkbox" id="leadOutState"><span class="lt-sw"></span></label>
+        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Road access confirmed</div><div class="lt-sub">Skip landlocked parcels</div></div><input type="checkbox" id="leadRoadAccess"><span class="lt-sw"></span></label>
+        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Exclude auto-kills</div><div class="lt-sub">Pursue-grade only — skip flood/wetlands/easement junk</div></div><input type="checkbox" id="leadExcludeKills" checked><span class="lt-sw"></span></label>
       </div>
       <button class="leads-btn" id="leadSearchBtn" onclick="runLeadSearch()">Find Leads →</button>
     </div>
     <div class="leads-status" id="leadStatus"></div>
-    <div class="leads-note">🔒 Every lead is already screened across 12+ data sources. Locations come straight from the county roll, so finding them <b>never spends geocoding credits</b> — and results are cached, so repeat searches are instant.</div>
+    <div class="leads-note">🔒 All leads are screened across 12+ data sources. Locations come straight from the county roll, so finding them <b>never spends geocoding credits</b> — and results are cached, so repeat searches are instant.</div>
   </div>
 </div>
 
@@ -12058,53 +12060,97 @@ let _exOsmLayer = null, _exSatLayer = null, _exFloodLayer = null, _exWetlandsLay
 // Filter vacant-land parcels from the cadastral + surface only the PURSUE ones
 // (screened server-side by centroid — no geocoding). Results drop straight into
 // the normal results table + Deal Review, so this is mostly a filter form.
-let _leadsBusy = false;
+let _leadsBusy = false, _leadsInit = false;
+function _leadMoney(v) { return v >= 1000000 ? '$' + (v / 1000000).toFixed(1) + 'M' : v >= 1000 ? '$' + Math.round(v / 1000) + 'k' : '$' + v; }
+
+// Wire a two-thumb range slider: keeps thumbs from crossing, paints the fill,
+// and formats the label.
+function _leadRange(loId, hiId, fillId, valId, fmt) {
+  const lo = document.getElementById(loId), hi = document.getElementById(hiId);
+  const fill = document.getElementById(fillId), lbl = document.getElementById(valId);
+  if (!lo || !hi) return;
+  const min = +lo.min, max = +lo.max;
+  const upd = (e) => {
+    let a = +lo.value, b = +hi.value;
+    if (a > b) { if (e && e.target === lo) { b = a; hi.value = b; } else { a = b; lo.value = a; } }
+    const pa = (a - min) / (max - min) * 100, pb = (b - min) / (max - min) * 100;
+    if (fill) { fill.style.left = pa + '%'; fill.style.width = (pb - pa) + '%'; }
+    if (lbl) lbl.textContent = fmt(a, b, min, max);
+  };
+  lo.oninput = upd; hi.oninput = upd; upd();
+}
+
 function initLeads() {
-  const el = document.getElementById('leadLocation');
-  if (el) setTimeout(() => el.focus(), 60);
+  if (_leadsInit) return;
+  _leadsInit = true;
+  const box = document.getElementById('leadCounties');
+  if (box) (async () => {
+    try {
+      const hdrs = {};
+      if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
+      const d = await (await fetch(API + '/api/leads/counties', { headers: hdrs })).json();
+      box.innerHTML = (d.counties || []).map(c =>
+        '<label class="leads-cty" title="' + escHtml(c) + '"><input type="checkbox" value="' + escHtml(c) + '" onchange="_leadCountyChanged()">' + escHtml(c) + '</label>').join('');
+    } catch (e) { box.innerHTML = '<div style="color:var(--t3);font-size:12px;grid-column:1/-1">Could not load counties. Reload the page.</div>'; }
+  })();
+  _leadRange('leadAcLo', 'leadAcHi', 'leadAcFill', 'leadAcVal',
+    (a, b, mn, mx) => (a <= mn && b >= mx) ? 'any size' : (a + '–' + (b >= mx ? b + '+' : b) + ' ac'));
+  _leadRange('leadValLo', 'leadValHi', 'leadValFill', 'leadValVal',
+    (a, b, mn, mx) => (a <= mn && b >= mx) ? 'any budget' : (_leadMoney(a) + '–' + (b >= mx ? _leadMoney(b) + '+' : _leadMoney(b))));
+}
+
+function _leadCountyChanged() {
+  const n = document.querySelectorAll('#leadCounties input:checked').length;
+  const lbl = document.getElementById('leadCountySel');
+  if (lbl) lbl.textContent = n ? (n + ' selected') : 'none selected';
 }
 
 function _leadBatchName(body, n) {
   const parts = [];
-  if (body.location) parts.push(body.location);
-  if (body.owner_type === 'llc') parts.push('LLC-owned');
-  else if (body.owner_type === 'individual') parts.push('individual-owned');
-  if (body.near_poi) parts.push('near ' + body.near_poi);
+  if (body.counties && body.counties.length) parts.push(body.counties.slice(0, 3).join(', ') + (body.counties.length > 3 ? '…' : ''));
+  if (body.individual_only) parts.push('individual');
+  if (body.out_of_state) parts.push('out-of-state');
   return 'Land Leads' + (parts.length ? ' · ' + parts.join(' · ') : '') + ' · ' + n + ' found';
 }
 
 async function runLeadSearch() {
   if (_leadsBusy) return;
   if (!currentSession) { toast('Sign in to generate leads'); return; }
-  const num = id => { const v = parseFloat((document.getElementById(id) || {}).value); return isNaN(v) ? null : v; };
-  const val = id => { const v = ((document.getElementById(id) || {}).value || '').trim(); return v || null; };
   const status = document.getElementById('leadStatus');
-  const loc = val('leadLocation');
-  if (!loc) { if (status) status.textContent = 'Enter a location (a city or area) to search.'; const el = document.getElementById('leadLocation'); if (el) el.focus(); return; }
-  _leadsBusy = true;
-  const btn = document.getElementById('leadSearchBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Finding leads…'; }
-  if (status) status.innerHTML = '<span class="lp-spinner"></span> Pulling vacant parcels near ' + escHtml(loc) + ' and screening them — this can take up to a minute the first time (results are cached, so repeat searches are instant).';
+  const counties = [...document.querySelectorAll('#leadCounties input:checked')].map(el => el.value);
+  if (!counties.length) { if (status) status.textContent = 'Select at least one county to search.'; return; }
+  const g = id => document.getElementById(id);
+  const acLo = +g('leadAcLo').value, acHi = +g('leadAcHi').value, acMax = +g('leadAcHi').max;
+  const vLo = +g('leadValLo').value, vHi = +g('leadValHi').value, vMax = +g('leadValHi').max;
   const body = {
-    location: loc,
-    acres_min: num('leadAcMin'), acres_max: num('leadAcMax'),
-    price_min: num('leadPriceMin'), price_max: num('leadPriceMax'),
-    owner_type: val('leadOwner') || 'any',
-    near_poi: val('leadPoi'),
+    counties: counties,
+    acres_min: acLo > 0 ? acLo : null,
+    acres_max: acHi < acMax ? acHi : null,
+    value_min: vLo > 0 ? vLo : null,
+    value_max: vHi < vMax ? vHi : null,
+    individual_only: g('leadIndividual').checked,
+    out_of_state: g('leadOutState').checked,
+    road_access: g('leadRoadAccess').checked,
+    exclude_kills: g('leadExcludeKills').checked,
   };
+  _leadsBusy = true;
+  const btn = g('leadSearchBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Finding leads…'; }
+  if (status) status.innerHTML = '<span class="lp-spinner"></span> Pulling vacant parcels in ' + counties.length + (counties.length > 1 ? ' counties' : ' county') + ' and screening them — up to ~40 seconds the first time (cached after).';
   try {
     const hdrs = { 'Content-Type': 'application/json' };
     if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
-    const resp = await fetch(API + '/api/leads/search', { method: 'POST', headers: hdrs, body: JSON.stringify(body) });
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 90000);
+    const resp = await fetch(API + '/api/leads/search', { method: 'POST', headers: hdrs, body: JSON.stringify(body), signal: ctrl.signal });
+    clearTimeout(to);
     const data = await resp.json();
     const leads = data.leads || [];
+    if (data.error && !leads.length) { if (status) status.textContent = data.error; return; }
     if (!leads.length) {
-      if (status) status.textContent = 'No PURSUE-grade leads matched those filters'
-        + (data.candidates ? ' (checked ' + (data.screened || 0) + ' of ' + data.candidates + ' matching parcels)' : '')
-        + '. Try widening the acreage or price, or a different county.';
+      if (status) status.textContent = 'No matching leads found' + (data.candidates ? ' (checked ' + (data.screened || 0) + ' of ' + data.candidates + ')' : '') + '. Widen the acreage/value, or pick a different county.';
       return;
     }
-    // Drive the exact same results page as a batch — table, filters, Deal Review.
     _currentBatchId = 'leads';
     batchState.results = leads;
     batchState.name = _leadBatchName(body, leads.length);
@@ -12116,7 +12162,7 @@ async function runLeadSearch() {
     renderBatchResults();
     goTo('dashboard');
   } catch (e) {
-    if (status) status.textContent = 'Something went wrong generating leads. Please try again.';
+    if (status) status.textContent = (e.name === 'AbortError') ? 'That took too long — try one county or a tighter range.' : 'Something went wrong. Please try again.';
   } finally {
     _leadsBusy = false;
     if (btn) { btn.disabled = false; btn.textContent = 'Find Leads →'; }
