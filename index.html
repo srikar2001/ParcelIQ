@@ -12151,7 +12151,9 @@ async function runLeadSearch() {
       if (status) status.textContent = 'No matching leads found' + (data.candidates ? ' (checked ' + (data.screened || 0) + ' of ' + data.candidates + ')' : '') + '. Widen the acreage/value, or pick a different county.';
       return;
     }
-    _currentBatchId = 'leads';
+    // Fresh id so this saves as its OWN batch (in Recents), not overwriting one.
+    batchState.runId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('lead-' + Date.now() + Math.random().toString(16).slice(2));
+    _currentBatchId = batchState.runId;
     batchState.results = leads;
     batchState.name = _leadBatchName(body, leads.length);
     batchState.filtered = 'all';
@@ -12161,6 +12163,16 @@ async function runLeadSearch() {
     if (status) status.textContent = '';
     renderBatchResults();
     goTo('dashboard');
+    // Persist it like a normal batch so it shows in Recents and survives reload.
+    const _sum = {
+      total: leads.length,
+      pursue: leads.filter(r => r.verdict === 'PURSUE').length,
+      kill: leads.filter(r => r.verdict === 'KILL').length,
+      review: leads.filter(r => r.verdict === 'REVIEW').length,
+    };
+    saveBatchToSupabase(batchState.name, { summary: _sum, results: leads })
+      .then(() => { if (typeof toast === 'function') toast('Saved ' + leads.length + ' leads to your batches'); })
+      .catch(() => {});
   } catch (e) {
     if (status) status.textContent = (e.name === 'AbortError') ? 'That took too long — try one county or a tighter range.' : 'Something went wrong. Please try again.';
   } finally {
