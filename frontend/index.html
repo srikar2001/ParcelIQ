@@ -3101,6 +3101,16 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .leads-toggle input{display:none}
 .leads-toggle input:checked+.lt-sw{background:var(--green)}
 .leads-toggle input:checked+.lt-sw::after{transform:translateX(17px)}
+.leads-chips{display:flex;flex-wrap:wrap;gap:8px}
+.leads-chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--t2);background:var(--bg);border:1.5px solid var(--b);border-radius:99px;padding:8px 13px;cursor:pointer;transition:background .12s,border-color .12s,color .12s;user-select:none;white-space:nowrap}
+.leads-chip:hover{border-color:var(--t3)}
+.leads-chip input{display:none}
+.leads-chip.on{background:rgba(34,197,94,.14);border-color:var(--green);color:var(--green)}
+.leads-chip.on.avoid{background:rgba(239,68,68,.13);border-color:var(--red);color:#f7a4a4}
+.leads-seg{display:flex;background:var(--bg);border:1.5px solid var(--b);border-radius:12px;padding:3px;gap:3px}
+.leads-seg-opt{flex:1;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--t2);background:none;border:none;border-radius:9px;padding:9px 6px;cursor:pointer;transition:background .12s,color .12s}
+.leads-seg-opt.active{background:var(--green);color:#000}
+.leads-hint{font-size:11.5px;color:var(--t3);margin-top:-2px}
 @media(max-width:520px){.leads-wrap{padding:24px 16px 60px}.leads-title{font-size:24px}.leads-counties{grid-template-columns:repeat(2,1fr)}}
 </style>
 <div id="page-leads" class="screen">
@@ -3113,6 +3123,14 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="leads-field">
         <label>Counties <span class="lr-val" id="leadCountySel">none selected</span></label>
         <div class="leads-counties" id="leadCounties"></div>
+      </div>
+      <div class="leads-field">
+        <label>Type of land</label>
+        <div class="leads-chips" id="leadLandTypes">
+          <label class="leads-chip on"><input type="checkbox" value="Vacant Land" checked onchange="_leadChip(this)">🌳 Vacant Land</label>
+          <label class="leads-chip"><input type="checkbox" value="Agricultural" onchange="_leadChip(this)">🚜 Agricultural</label>
+          <label class="leads-chip"><input type="checkbox" value="Residential" onchange="_leadChip(this)">🏠 Residential</label>
+        </div>
       </div>
       <div class="leads-field">
         <label>Acreage <span class="lr-val" id="leadAcVal">any size</span></label>
@@ -3130,8 +3148,39 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <input type="range" id="leadValHi" min="0" max="500000" step="5000" value="500000">
         </div>
       </div>
+      <div class="leads-field">
+        <label>Owner</label>
+        <div class="leads-seg" id="leadOwnerType">
+          <button type="button" class="leads-seg-opt active" data-owner="any" onclick="_leadSeg(this)">Anyone</button>
+          <button type="button" class="leads-seg-opt" data-owner="individual" onclick="_leadSeg(this)">Individual</button>
+          <button type="button" class="leads-seg-opt" data-owner="business" onclick="_leadSeg(this)">Business / LLC</button>
+        </div>
+        <div class="leads-hint">Individuals sell; LLCs resist. Businesses can signal builders/flippers.</div>
+      </div>
+      <div class="leads-field">
+        <label>Near a public place <span class="lr-val" id="leadPoiRadVal">off</span></label>
+        <div class="leads-chips" id="leadPois">
+          <label class="leads-chip"><input type="checkbox" value="supermarket" onchange="_leadChip(this);_leadPoiChanged()">🛒 Supermarket</label>
+          <label class="leads-chip"><input type="checkbox" value="hospital" onchange="_leadChip(this);_leadPoiChanged()">🏥 Hospital</label>
+          <label class="leads-chip"><input type="checkbox" value="school" onchange="_leadChip(this);_leadPoiChanged()">🏫 School</label>
+          <label class="leads-chip"><input type="checkbox" value="town" onchange="_leadChip(this);_leadPoiChanged()">🏙️ Town</label>
+        </div>
+        <div class="lr" id="leadPoiRadWrap" style="display:none;margin-top:10px">
+          <div class="lr-track"><div class="lr-fill" id="leadPoiRadFill"></div></div>
+          <input type="range" id="leadPoiRad" min="1" max="30" step="1" value="10" oninput="_leadPoiRad()">
+        </div>
+      </div>
+      <div class="leads-field">
+        <label>Avoid <span class="lr-val">optional</span></label>
+        <div class="leads-chips" id="leadAvoid">
+          <label class="leads-chip"><input type="checkbox" value="flood_ae" onchange="_leadChip(this,1)">🌊 Flood zone</label>
+          <label class="leads-chip"><input type="checkbox" value="wetlands" onchange="_leadChip(this,1)">💧 Wetlands</label>
+          <label class="leads-chip"><input type="checkbox" value="wildlife" onchange="_leadChip(this,1)">🐢 Wildlife habitat</label>
+          <label class="leads-chip"><input type="checkbox" value="epa" onchange="_leadChip(this,1)">☣️ Contamination</label>
+          <label class="leads-chip"><input type="checkbox" value="easement" onchange="_leadChip(this,1)">📜 Conservation easement</label>
+        </div>
+      </div>
       <div class="leads-toggles">
-        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Individual owners only</div><div class="lt-sub">People sell — LLCs resist</div></div><input type="checkbox" id="leadIndividual"><span class="lt-sw"></span></label>
         <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Out-of-state owners</div><div class="lt-sub">Absentee = the #1 motivated-seller signal</div></div><input type="checkbox" id="leadOutState"><span class="lt-sw"></span></label>
         <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Road access confirmed</div><div class="lt-sub">Skip landlocked parcels</div></div><input type="checkbox" id="leadRoadAccess"><span class="lt-sw"></span></label>
         <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Exclude auto-kills</div><div class="lt-sub">Pursue-grade only — skip flood/wetlands/easement junk</div></div><input type="checkbox" id="leadExcludeKills" checked><span class="lt-sw"></span></label>
@@ -12177,11 +12226,39 @@ function _leadCountyChanged() {
   if (lbl) lbl.textContent = n ? (n + ' selected') : 'none selected';
 }
 
+// Multi-select chip (land type / POI / avoid) — toggle the highlight.
+function _leadChip(input, isAvoid) {
+  const lab = input.closest('.leads-chip');
+  if (!lab) return;
+  lab.classList.toggle('on', input.checked);
+  if (isAvoid) lab.classList.toggle('avoid', input.checked);
+}
+// Owner segmented control.
+function _leadSeg(btn) {
+  document.querySelectorAll('#leadOwnerType .leads-seg-opt').forEach(b => b.classList.toggle('active', b === btn));
+}
+// Show the radius slider only once a "near" place is picked.
+function _leadPoiChanged() {
+  const any = document.querySelectorAll('#leadPois input:checked').length > 0;
+  const wrap = document.getElementById('leadPoiRadWrap');
+  if (wrap) wrap.style.display = any ? 'block' : 'none';
+  _leadPoiRad();
+}
+function _leadPoiRad() {
+  const r = document.getElementById('leadPoiRad');
+  const fill = document.getElementById('leadPoiRadFill');
+  const lbl = document.getElementById('leadPoiRadVal');
+  const any = document.querySelectorAll('#leadPois input:checked').length > 0;
+  if (r && fill) fill.style.cssText = 'left:0;width:' + ((r.value - r.min) / (r.max - r.min) * 100) + '%';
+  if (lbl) lbl.textContent = any ? ('within ' + (r ? r.value : 10) + ' mi') : 'off';
+}
+
 function _leadBatchName(body, n) {
   const parts = [];
   if (body.counties && body.counties.length) parts.push(body.counties.slice(0, 3).join(', ') + (body.counties.length > 3 ? '…' : ''));
-  if (body.individual_only) parts.push('individual');
+  if (body.owner_type && body.owner_type !== 'any') parts.push(body.owner_type);
   if (body.out_of_state) parts.push('out-of-state');
+  if (body.poi_types && body.poi_types.length) parts.push('near ' + body.poi_types.join('/'));
   return 'Land Leads' + (parts.length ? ' · ' + parts.join(' · ') : '') + ' · ' + n + ' found';
 }
 
@@ -12194,16 +12271,25 @@ async function runLeadSearch() {
   const g = id => document.getElementById(id);
   const acLo = +g('leadAcLo').value, acHi = +g('leadAcHi').value, acMax = +g('leadAcHi').max;
   const vLo = +g('leadValLo').value, vHi = +g('leadValHi').value, vMax = +g('leadValHi').max;
+  const landTypes = [...document.querySelectorAll('#leadLandTypes input:checked')].map(el => el.value);
+  if (!landTypes.length) { if (status) status.textContent = 'Pick at least one type of land.'; return; }
+  const ownerType = (document.querySelector('#leadOwnerType .leads-seg-opt.active') || {}).dataset ?
+    document.querySelector('#leadOwnerType .leads-seg-opt.active').dataset.owner : 'any';
+  const poiTypes = [...document.querySelectorAll('#leadPois input:checked')].map(el => el.value);
+  const avoid = [...document.querySelectorAll('#leadAvoid input:checked')].map(el => el.value);
   const body = {
     counties: counties,
+    land_types: landTypes,
     acres_min: acLo > 0 ? acLo : null,
     acres_max: acHi < acMax ? acHi : null,
     value_min: vLo > 0 ? vLo : null,
     value_max: vHi < vMax ? vHi : null,
-    individual_only: g('leadIndividual').checked,
+    owner_type: ownerType,
     out_of_state: g('leadOutState').checked,
     road_access: g('leadRoadAccess').checked,
     exclude_kills: g('leadExcludeKills').checked,
+    poi_types: poiTypes,
+    poi_radius_mi: poiTypes.length ? +g('leadPoiRad').value : null,
   };
   _leadsBusy = true;
   const btn = g('leadSearchBtn');
@@ -12217,10 +12303,18 @@ async function runLeadSearch() {
     const resp = await fetch(API + '/api/leads/search', { method: 'POST', headers: hdrs, body: JSON.stringify(body), signal: ctrl.signal });
     clearTimeout(to);
     const data = await resp.json();
-    const leads = data.leads || [];
+    let leads = data.leads || [];
+    // Client-side "Avoid" signal excludes — reuse the exact results-page flag
+    // logic (FLAG_DEFS) so the leads honor the same definitions the table uses.
+    if (avoid.length && typeof FLAG_DEFS !== 'undefined') {
+      leads = leads.filter(r => !avoid.some(key => {
+        const def = FLAG_DEFS.find(d => d.key === key);
+        return def && def.match(r);
+      }));
+    }
     if (data.error && !leads.length) { if (status) status.textContent = data.error; return; }
     if (!leads.length) {
-      if (status) status.textContent = 'No matching leads found' + (data.candidates ? ' (checked ' + (data.screened || 0) + ' of ' + data.candidates + ')' : '') + '. Widen the acreage/value, or pick a different county.';
+      if (status) status.textContent = 'No matching leads found' + (data.candidates ? ' (checked ' + (data.screened || 0) + ' of ' + data.candidates + ')' : '') + '. Widen your filters, loosen “Avoid”, or pick another county.';
       return;
     }
     // Fresh id so this saves as its OWN batch (in Recents), not overwriting one.
