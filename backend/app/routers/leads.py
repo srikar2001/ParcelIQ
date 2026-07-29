@@ -109,6 +109,7 @@ class LeadFilters(BaseModel):
     exclude_kills: bool = True
     poi_types: Optional[list] = None       # subset of _POI_SEL keys
     poi_radius_mi: Optional[float] = None   # required nearness radius (miles)
+    limit: Optional[int] = None             # how many leads to generate (1..50)
 
 
 async def _require_auth(authorization: Optional[str]) -> Optional[JSONResponse]:
@@ -399,7 +400,7 @@ async def _enrich_poi(leads: list, poi_types, radius_mi):
     pts = [(l, l.get("_lat"), l.get("_lng")) for l in leads
            if l.get("_lat") is not None and l.get("_lng") is not None]
     if not types or not pts:
-        return leads, True
+        return leads, True, {}
     radius = radius_mi or 10.0
 
     places: dict = {t: [] for t in types}
@@ -432,7 +433,8 @@ async def _enrich_poi(leads: list, poi_types, radius_mi):
                 continue
             nd = min(cand_pts, key=lambda p: _haversine_mi(la, lo, p[0], p[1]))
             dist = round(_haversine_mi(la, lo, nd[0], nd[1]), 1)
-            near[t] = {"name": nd[2], "label": _POI_SEL[t][1], "dist_mi": dist}
+            near[t] = {"name": nd[2], "label": _POI_SEL[t][1], "dist_mi": dist,
+                       "lat": nd[0], "lng": nd[1]}
             if t in eval_types:
                 best = dist if best is None else min(best, dist)
         if near:
@@ -441,7 +443,22 @@ async def _enrich_poi(leads: list, poi_types, radius_mi):
         # any type (all requested were down) — never silently drop everything.
         if (best is not None and best <= radius) or not eval_types:
             kept.append(l)
-    return kept, ok
+
+    # POI points to draw on the map (deduped by rounded coord, capped per type).
+    poi_points: dict = {}
+    for t in types:
+        seen = set(); out = []
+        for la, lo, nm in (places.get(t) or []):
+            key = (round(la, 4), round(lo, 4))
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({"lat": la, "lng": lo, "name": nm, "label": _POI_SEL[t][1]})
+            if len(out) >= 80:
+                break
+        if out:
+            poi_points[t] = out
+    return kept, ok, poi_points
 
 
 @router.post("/search")
@@ -485,9 +502,13 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     if not cands:
         return {"leads": [], "screened": 0, "candidates": 0}
 
+    # How many leads to generate (user-chosen; deadline still bounds the work).
+    target = max(1, min(int(f.limit or _TARGET_LEADS), 50))
+    max_screen = min(max(target + 8, _MAX_SCREEN), 60)
+
     # Screen with a hard wall-clock deadline so we always return.
     leads = []
-    budget = {"n": _MAX_SCREEN}
+    budget = {"n": max_screen}
     t0 = time.monotonic()
     for i in range(0, len(cands), _LEAD_CONCURRENCY):
         chunk = cands[i:i + _LEAD_CONCURRENCY]
@@ -501,15 +522,16 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
         for res in results:
             if res and _keep_lead(res, f):
                 leads.append(res)
-        if len(leads) >= _TARGET_LEADS or budget["n"] <= 0 or (time.monotonic() - t0) > _DEADLINE_S:
+        if len(leads) >= target or budget["n"] <= 0 or (time.monotonic() - t0) > _DEADLINE_S:
             break
 
-    # Optional: keep only leads near a chosen public place.
+    # Optional: keep only leads near a chosen public place (+ points to map).
     poi_degraded = False
+    poi_points = {}
     if f.poi_types:
-        leads, poi_ok = await _enrich_poi(leads, f.poi_types, f.poi_radius_mi)
+        leads, poi_ok, poi_points = await _enrich_poi(leads, f.poi_types, f.poi_radius_mi)
         poi_degraded = not poi_ok
 
     leads.sort(key=lambda x: x.get("score") or 0, reverse=True)
-    return {"leads": leads[:_TARGET_LEADS], "screened": _MAX_SCREEN - budget["n"],
-            "candidates": len(cands), "poi_degraded": poi_degraded}
+    return {"leads": leads[:target], "screened": max_screen - budget["n"],
+            "candidates": len(cands), "poi_degraded": poi_degraded, "poi_points": poi_points}

@@ -3063,13 +3063,37 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 <!-- ════════ LAND LEADS ════════ -->
 <style>
 #page-leads.active{display:block}
-#page-leads{padding-top:58px;min-height:100vh;background:var(--bg);position:relative}
-/* Live Florida map backdrop (fixed → only renders while this page is shown, since
-   the hidden .screen is display:none); a veil keeps the form readable over it. */
-#leadsBgMap{position:fixed;inset:0;z-index:0;background:#0B0D12}
-#leadsBgMap .leaflet-control-attribution{font-size:9px;background:rgba(0,0,0,.4);color:#94A3B8}
-#leadsBgVeil{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 78% 62% at 50% 42%,rgba(11,13,18,.52),rgba(11,13,18,.82) 70%,rgba(11,13,18,.94))}
-.leads-wrap{max-width:660px;margin:0 auto;padding:40px 24px 80px;position:relative;z-index:1}
+#page-leads{padding-top:58px}
+/* Map-first workflow: docked filter/results panel + a real interactive map. */
+.ll-shell{position:relative;height:calc(100vh - 58px);width:100%;display:flex;overflow:hidden;background:var(--bg)}
+.ll-panel{width:390px;flex-shrink:0;height:100%;overflow-y:auto;background:var(--card);border-right:1px solid var(--b);padding:18px 18px 48px;z-index:2}
+.ll-map-wrap{flex:1;position:relative;min-width:0}
+#leadsMap{position:absolute;inset:0;background:#e8eef2}
+#leadsMap .leaflet-control-attribution{font-size:9px}
+.ll-title{font-size:19px;font-weight:800;margin:0 0 16px;display:flex;align-items:center;gap:8px}
+.ll-field{margin-bottom:15px}
+.ll-field>label{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--t3);margin-bottom:8px;display:flex;justify-content:space-between;align-items:baseline}
+.ll-count{display:flex;gap:6px}
+.ll-count button{flex:1;font-family:inherit;font-size:13px;font-weight:700;color:var(--t2);background:var(--bg);border:1.5px solid var(--b);border-radius:9px;padding:9px 0;cursor:pointer;transition:background .12s,color .12s,border-color .12s}
+.ll-count button.active{background:var(--green);color:#000;border-color:var(--green)}
+.ll-find{width:100%;background:var(--green);color:#000;border:none;border-radius:11px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px;transition:filter .12s}
+.ll-find:hover{filter:brightness(1.05)}
+.ll-find:disabled{opacity:.6;cursor:default}
+.ll-status{font-size:12.5px;color:var(--t2);text-align:center;margin-top:10px;line-height:1.5;min-height:16px}
+.ll-results{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+.ll-reshead{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--t3);margin:2px 0}
+.ll-rescard{background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:10px 12px;cursor:pointer;transition:border-color .12s,background .12s}
+.ll-rescard:hover,.ll-rescard.active{border-color:var(--green);background:var(--card-h)}
+.ll-rescard-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.ll-rescard-addr{font-size:13px;font-weight:700;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ll-rescard-score{font-size:13px;font-weight:800;flex-shrink:0}
+.ll-rescard-meta{font-size:11.5px;color:var(--t3);margin-top:3px}
+.ll-map-badge{position:absolute;top:14px;right:14px;z-index:600;background:var(--card);border:1px solid var(--b);border-radius:10px;padding:8px 14px;font-size:12.5px;font-weight:700;color:var(--t1);box-shadow:0 4px 16px rgba(0,0,0,.3);display:none}
+.ll-legend{position:absolute;bottom:14px;left:14px;z-index:600;background:var(--card);border:1px solid var(--b);border-radius:10px;padding:9px 12px;font-size:11.5px;color:var(--t2);box-shadow:0 4px 16px rgba(0,0,0,.3);display:none;line-height:1.7}
+.ll-legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.ll-histbtn{font-size:11.5px;color:var(--t3);cursor:pointer;text-decoration:underline;margin-bottom:12px;display:inline-block}
+.ll-poi-ico{display:flex;align-items:center;justify-content:center;font-size:15px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+@media(max-width:760px){.ll-shell{flex-direction:column;height:auto}.ll-panel{width:100%;height:auto;border-right:none;border-bottom:1px solid var(--b)}.ll-map-wrap{height:64vh}}
 .leads-title{font-size:30px;font-weight:800;margin:0 0 8px;letter-spacing:-.02em}
 .leads-sub{font-size:14px;color:var(--t2);line-height:1.6;margin:0 0 26px}
 .leads-form{background:var(--card);border:1px solid var(--b);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:22px}
@@ -3114,17 +3138,16 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 @media(max-width:520px){.leads-wrap{padding:24px 16px 60px}.leads-title{font-size:24px}.leads-counties{grid-template-columns:repeat(2,1fr)}}
 </style>
 <div id="page-leads" class="screen">
-  <div id="leadsBgMap"></div>
-  <div id="leadsBgVeil"></div>
-  <div class="leads-wrap">
-    <h1 class="leads-title">🎯 Land Leads</h1>
-    <p class="leads-sub">Pick your markets and criteria — we surface pre-screened vacant-land prospects that come back <b style="color:var(--green)">PURSUE</b>, in the same table + Deal Review as your batches.</p>
-    <div class="leads-form">
-      <div class="leads-field">
+  <div class="ll-shell">
+    <aside class="ll-panel">
+      <div class="ll-title">🎯 Land Leads</div>
+      <span class="ll-histbtn" id="leadHistBtn" style="display:none" onclick="_leadToggleHistory()">↓ Saved searches</span>
+      <div id="leadHistory" style="display:none;margin-bottom:14px"></div>
+      <div class="ll-field">
         <label>Counties <span class="lr-val" id="leadCountySel">none selected</span></label>
         <div class="leads-counties" id="leadCounties"></div>
       </div>
-      <div class="leads-field">
+      <div class="ll-field">
         <label>Type of land</label>
         <div class="leads-chips" id="leadLandTypes">
           <label class="leads-chip on"><input type="checkbox" value="Vacant Land" checked onchange="_leadChip(this)">🌳 Vacant Land</label>
@@ -3132,7 +3155,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <label class="leads-chip"><input type="checkbox" value="Residential" onchange="_leadChip(this)">🏠 Residential</label>
         </div>
       </div>
-      <div class="leads-field">
+      <div class="ll-field">
         <label>Acreage <span class="lr-val" id="leadAcVal">any size</span></label>
         <div class="lr">
           <div class="lr-track"><div class="lr-fill" id="leadAcFill"></div></div>
@@ -3140,7 +3163,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <input type="range" id="leadAcHi" min="0" max="50" step="0.5" value="50">
         </div>
       </div>
-      <div class="leads-field">
+      <div class="ll-field">
         <label>Assessed value <span class="lr-val" id="leadValVal">any budget</span></label>
         <div class="lr">
           <div class="lr-track"><div class="lr-fill" id="leadValFill"></div></div>
@@ -3148,16 +3171,15 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <input type="range" id="leadValHi" min="0" max="500000" step="5000" value="500000">
         </div>
       </div>
-      <div class="leads-field">
+      <div class="ll-field">
         <label>Owner</label>
         <div class="leads-seg" id="leadOwnerType">
           <button type="button" class="leads-seg-opt active" data-owner="any" onclick="_leadSeg(this)">Anyone</button>
           <button type="button" class="leads-seg-opt" data-owner="individual" onclick="_leadSeg(this)">Individual</button>
           <button type="button" class="leads-seg-opt" data-owner="business" onclick="_leadSeg(this)">Business / LLC</button>
         </div>
-        <div class="leads-hint">Individuals sell; LLCs resist. Businesses can signal builders/flippers.</div>
       </div>
-      <div class="leads-field">
+      <div class="ll-field">
         <label>Near a public place <span class="lr-val" id="leadPoiRadVal">off</span></label>
         <div class="leads-chips" id="leadPois">
           <label class="leads-chip"><input type="checkbox" value="supermarket" onchange="_leadChip(this);_leadPoiChanged()">🛒 Supermarket</label>
@@ -3170,7 +3192,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <input type="range" id="leadPoiRad" min="1" max="30" step="1" value="10" oninput="_leadPoiRad()">
         </div>
       </div>
-      <div class="leads-field">
+      <div class="ll-field">
         <label>Avoid <span class="lr-val">optional</span></label>
         <div class="leads-chips" id="leadAvoid">
           <label class="leads-chip"><input type="checkbox" value="flood_ae" onchange="_leadChip(this,1)">🌊 Flood zone</label>
@@ -3180,15 +3202,28 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <label class="leads-chip"><input type="checkbox" value="easement" onchange="_leadChip(this,1)">📜 Conservation easement</label>
         </div>
       </div>
-      <div class="leads-toggles">
-        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Out-of-state owners</div><div class="lt-sub">Absentee = the #1 motivated-seller signal</div></div><input type="checkbox" id="leadOutState"><span class="lt-sw"></span></label>
-        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Road access confirmed</div><div class="lt-sub">Skip landlocked parcels</div></div><input type="checkbox" id="leadRoadAccess"><span class="lt-sw"></span></label>
-        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Exclude auto-kills</div><div class="lt-sub">Pursue-grade only — skip flood/wetlands/easement junk</div></div><input type="checkbox" id="leadExcludeKills" checked><span class="lt-sw"></span></label>
+      <div class="ll-field">
+        <label>Number of leads</label>
+        <div class="ll-count" id="leadCount">
+          <button type="button" data-n="10" onclick="_leadCountSel(this)">10</button>
+          <button type="button" class="active" data-n="25" onclick="_leadCountSel(this)">25</button>
+          <button type="button" data-n="50" onclick="_leadCountSel(this)">50</button>
+        </div>
       </div>
-      <button class="leads-btn" id="leadSearchBtn" onclick="runLeadSearch()">Find Leads →</button>
+      <div class="leads-toggles">
+        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Out-of-state owners</div></div><input type="checkbox" id="leadOutState"><span class="lt-sw"></span></label>
+        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Road access confirmed</div></div><input type="checkbox" id="leadRoadAccess"><span class="lt-sw"></span></label>
+        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Exclude auto-kills</div></div><input type="checkbox" id="leadExcludeKills" checked><span class="lt-sw"></span></label>
+      </div>
+      <button class="ll-find" id="leadSearchBtn" onclick="runLeadSearch()">Find Leads</button>
+      <div class="ll-status" id="leadStatus"></div>
+      <div class="ll-results" id="leadResults"></div>
+    </aside>
+    <div class="ll-map-wrap">
+      <div id="leadsMap"></div>
+      <div class="ll-map-badge" id="leadMapBadge"></div>
+      <div class="ll-legend" id="leadLegend"></div>
     </div>
-    <div class="leads-status" id="leadStatus"></div>
-    <div class="leads-note">🔒 All leads are screened across 12+ data sources. Locations come straight from the county roll, so finding them <b>never spends geocoding credits</b> — and results are cached, so repeat searches are instant.</div>
   </div>
 </div>
 
@@ -3663,7 +3698,9 @@ const getWeekStart = getDayStart; // legacy alias — limit is daily now
 // must never show up anywhere batches are LISTED, or every re-screen
 // looks like it created a new batch.
 function _realBatches(list) {
-  return (list || []).filter(b => b.name !== '[Re-screen]');
+  // Land Leads searches live under the Land Leads page ("Saved searches"),
+  // not in Recents / the batch lists.
+  return (list || []).filter(b => b.name !== '[Re-screen]' && !/^Land Leads/.test(b.name || ''));
 }
 
 // Records re-screen usage into ONE consolidated [Re-screen] row per day
@@ -12194,24 +12231,25 @@ function _leadRange(loId, hiId, fillId, valId, fmt) {
   lo.oninput = upd; hi.oninput = upd; upd();
 }
 
-let _leadsBgMap = null;
-function _initLeadsBgMap() {
-  if (_leadsBgMap || typeof L === 'undefined') return;
-  const el = document.getElementById('leadsBgMap');
+let _leadsMap = null, _leadMarkers = null, _leadPoiMarkers = null, _leadCountN = 25;
+function _initLeadsMap() {
+  if (_leadsMap || typeof L === 'undefined') return;
+  const el = document.getElementById('leadsMap');
   if (!el) return;
   try {
-    _leadsBgMap = L.map(el, { zoomControl: false, attributionControl: true, dragging: false,
-      scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false,
-      tap: false, touchZoom: false }).setView([28.2, -82.3], 6);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      { maxZoom: 19, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO' }).addTo(_leadsBgMap);
-    setTimeout(() => { if (_leadsBgMap) _leadsBgMap.invalidateSize(); }, 260);
-  } catch (e) { _leadsBgMap = null; }
+    _leadsMap = L.map(el, { zoomControl: true, attributionControl: true }).setView([28.6, -82.4], 7);
+    // Light street basemap (visible, "white") the user works over.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+      { maxZoom: 20, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO' }).addTo(_leadsMap);
+    _leadMarkers = L.layerGroup().addTo(_leadsMap);
+    _leadPoiMarkers = L.layerGroup().addTo(_leadsMap);
+    setTimeout(() => { try { _leadsMap.invalidateSize(); } catch (e) {} }, 200);
+  } catch (e) { _leadsMap = null; }
 }
 
 function initLeads() {
-  _initLeadsBgMap();
-  if (_leadsBgMap) setTimeout(() => { try { _leadsBgMap.invalidateSize(); } catch (e) {} }, 120);
+  _initLeadsMap();
+  if (_leadsMap) setTimeout(() => { try { _leadsMap.invalidateSize(); } catch (e) {} }, 140);
   if (_leadsInit) return;
   _leadsInit = true;
   const box = document.getElementById('leadCounties');
@@ -12228,6 +12266,12 @@ function initLeads() {
     (a, b, mn, mx) => (a <= mn && b >= mx) ? 'any size' : (a + '–' + (b >= mx ? b + '+' : b) + ' ac'));
   _leadRange('leadValLo', 'leadValHi', 'leadValFill', 'leadValVal',
     (a, b, mn, mx) => (a <= mn && b >= mx) ? 'any budget' : (_leadMoney(a) + '–' + (b >= mx ? _leadMoney(b) + '+' : _leadMoney(b))));
+  _leadLoadHistory();
+}
+
+function _leadCountSel(btn) {
+  _leadCountN = +btn.dataset.n || 25;
+  document.querySelectorAll('#leadCount button').forEach(b => b.classList.toggle('active', b === btn));
 }
 
 function _leadCountyChanged() {
@@ -12300,6 +12344,7 @@ async function runLeadSearch() {
     exclude_kills: g('leadExcludeKills').checked,
     poi_types: poiTypes,
     poi_radius_mi: poiTypes.length ? +g('leadPoiRad').value : null,
+    limit: _leadCountN,
   };
   _leadsBusy = true;
   const btn = g('leadSearchBtn');
@@ -12327,7 +12372,7 @@ async function runLeadSearch() {
       if (status) status.textContent = 'No matching leads found' + (data.candidates ? ' (checked ' + (data.screened || 0) + ' of ' + data.candidates + ')' : '') + '. Widen your filters, loosen “Avoid”, or pick another county.';
       return;
     }
-    // Fresh id so this saves as its OWN batch (in Recents), not overwriting one.
+    // Fresh id so this saves as its OWN batch, not overwriting one.
     batchState.runId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('lead-' + Date.now() + Math.random().toString(16).slice(2));
     _currentBatchId = batchState.runId;
     batchState.results = leads;
@@ -12336,10 +12381,13 @@ async function runLeadSearch() {
     batchState.sortCol = null;
     batchState.elapsed = 0;
     currentBatchResults = leads;
+    _currentDisplayed = leads;           // so pin/list clicks open the Deal Review
     if (status) status.textContent = '';
-    renderBatchResults();
-    goTo('dashboard');
-    // Persist it like a normal batch so it shows in Recents and survives reload.
+    // Plot on the map + render the list right here — no page switch.
+    _leadPlotResults(leads, data.poi_points || {});
+    if (data.poi_degraded) toast('Nearby stores/hospitals unavailable right now — town proximity still applied');
+    // Persist as its own Land Leads batch (kept out of Recents; shown under
+    // "Saved searches" on this page).
     const _sum = {
       total: leads.length,
       pursue: leads.filter(r => r.verdict === 'PURSUE').length,
@@ -12347,14 +12395,110 @@ async function runLeadSearch() {
       review: leads.filter(r => r.verdict === 'REVIEW').length,
     };
     saveBatchToSupabase(batchState.name, { summary: _sum, results: leads })
-      .then(() => { if (typeof toast === 'function') toast('Saved ' + leads.length + ' leads to your batches'); })
+      .then(() => { if (typeof toast === 'function') toast('Saved ' + leads.length + ' leads'); _leadLoadHistory(); })
       .catch(() => {});
   } catch (e) {
     if (status) status.textContent = (e.name === 'AbortError') ? 'That took too long — try one county or a tighter range.' : 'Something went wrong. Please try again.';
   } finally {
     _leadsBusy = false;
-    if (btn) { btn.disabled = false; btn.textContent = 'Find Leads →'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Find Leads'; }
   }
+}
+
+// ── Plot leads + POIs on the Land Leads map, render the results list ──────────
+const _LEAD_POI_EMOJI = { supermarket: '🛒', hospital: '🏥', school: '🏫', town: '🏙️' };
+function _leadClearMarkers() {
+  if (_leadMarkers) _leadMarkers.clearLayers();
+  if (_leadPoiMarkers) _leadPoiMarkers.clearLayers();
+}
+function _leadPlotResults(leads, poiPoints) {
+  if (!_leadsMap) _initLeadsMap();
+  if (!_leadsMap) return;
+  _leadClearMarkers();
+  const bounds = [];
+  leads.forEach((r, i) => {
+    if (r._lat == null || r._lng == null) return;
+    const ev = (typeof effectiveVerdict === 'function') ? effectiveVerdict(r) : r.verdict;
+    const col = ev === 'KILL' ? '#EF4444' : ev === 'REVIEW' ? '#F59E0B' : '#22C55E';
+    const m = L.circleMarker([r._lat, r._lng], { radius: 8, color: '#fff', weight: 2, fillColor: col, fillOpacity: 0.95 });
+    m.bindTooltip((r.address || 'Parcel') + ' · ' + (r.score != null ? r.score : ''), { direction: 'top' });
+    m.on('click', () => _leadOpenLead(i));
+    m.addTo(_leadMarkers);
+    bounds.push([r._lat, r._lng]);
+  });
+  // POI markers (where the selected public places actually are).
+  Object.keys(poiPoints || {}).forEach(type => {
+    (poiPoints[type] || []).forEach(p => {
+      if (p.lat == null || p.lng == null) return;
+      const ico = L.divIcon({ className: '', html: '<div class="ll-poi-ico" style="width:22px;height:22px">' + (_LEAD_POI_EMOJI[type] || '📍') + '</div>', iconSize: [22, 22], iconAnchor: [11, 11] });
+      const m = L.marker([p.lat, p.lng], { icon: ico, opacity: 0.9 });
+      m.bindTooltip((p.name || p.label || type), { direction: 'top' });
+      m.addTo(_leadPoiMarkers);
+    });
+  });
+  if (bounds.length) { try { _leadsMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 }); } catch (e) {} }
+  setTimeout(() => { try { _leadsMap.invalidateSize(); } catch (e) {} }, 120);
+
+  // Map badge + legend.
+  const badge = document.getElementById('leadMapBadge');
+  if (badge) { badge.textContent = leads.length + ' leads'; badge.style.display = 'block'; }
+  const legend = document.getElementById('leadLegend');
+  if (legend) {
+    let lh = '<span class="dot" style="background:#22C55E"></span>Lead (Pursue)';
+    const poiKeys = Object.keys(poiPoints || {});
+    if (poiKeys.length) lh += '<br>' + poiKeys.map(k => (_LEAD_POI_EMOJI[k] || '📍') + ' ' + (k[0].toUpperCase() + k.slice(1))).join(' · ');
+    legend.innerHTML = lh; legend.style.display = 'block';
+  }
+
+  // Results list in the panel.
+  const wrap = document.getElementById('leadResults');
+  if (wrap) {
+    wrap.innerHTML = '<div class="ll-reshead">' + leads.length + ' leads found</div>' + leads.map((r, i) => {
+      const pi = r.parcel_info || {};
+      const ev = (typeof effectiveVerdict === 'function') ? effectiveVerdict(r) : r.verdict;
+      const col = ev === 'KILL' ? 'var(--red)' : ev === 'REVIEW' ? 'var(--amber)' : 'var(--green)';
+      const town = (pi.poi && (pi.poi.town || Object.values(pi.poi)[0])) || null;
+      const meta = [pi.acreage != null ? pi.acreage + ' ac' : '', town ? (town.label + ' ' + town.dist_mi + ' mi') : (pi.county ? pi.county + ' County' : '')].filter(Boolean).join(' · ');
+      return '<div class="ll-rescard" id="llrc-' + i + '" onclick="_leadOpenLead(' + i + ')">' +
+        '<div class="ll-rescard-top"><span class="ll-rescard-addr">' + escHtml(r.address || 'Parcel') + '</span>' +
+        '<span class="ll-rescard-score" style="color:' + col + '">' + (r.score != null ? r.score : '') + '</span></div>' +
+        '<div class="ll-rescard-meta">' + escHtml(meta) + '</div></div>';
+    }).join('');
+  }
+}
+function _leadOpenLead(i) {
+  const r = _currentDisplayed[i];
+  if (!r) return;
+  document.querySelectorAll('.ll-rescard.active').forEach(el => el.classList.remove('active'));
+  const card = document.getElementById('llrc-' + i);
+  if (card) { card.classList.add('active'); card.scrollIntoView({ block: 'nearest' }); }
+  if (_leadsMap && r._lat != null) _leadsMap.panTo([r._lat, r._lng]);
+  if (typeof openDetailPanel === 'function') openDetailPanel(i);
+}
+
+// ── Saved lead searches (this user's "Land Leads …" batches) ─────────────────
+async function _leadLoadHistory() {
+  if (!currentUser || !sb) return;
+  const btn = document.getElementById('leadHistBtn');
+  const wrap = document.getElementById('leadHistory');
+  try {
+    const { data } = await sb.from('batches').select('id,name,created_at,pursues,total')
+      .eq('user_id', currentUser.id).like('name', 'Land Leads%')
+      .order('created_at', { ascending: false }).limit(10);
+    if (!data || !data.length) { if (btn) btn.style.display = 'none'; return; }
+    if (btn) { btn.style.display = 'inline-block'; btn.textContent = '↓ Saved searches (' + data.length + ')'; }
+    if (wrap) wrap.innerHTML = data.map(b => {
+      const d = new Date(b.created_at);
+      return '<div class="ll-rescard" onclick="loadBatchResults(\'' + b.id + '\')">' +
+        '<div class="ll-rescard-top"><span class="ll-rescard-addr">' + escHtml(b.name || 'Land Leads') + '</span>' +
+        '<span class="ll-rescard-score" style="color:var(--green)">' + (b.pursues || b.total || 0) + '</span></div>' +
+        '<div class="ll-rescard-meta">' + d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</div></div>';
+    }).join('');
+  } catch (e) {}
+}
+function _leadToggleHistory() {
+  const wrap = document.getElementById('leadHistory');
+  if (wrap) wrap.style.display = (wrap.style.display === 'none' || !wrap.style.display) ? 'block' : 'none';
 }
 
 function _exHeaders() {
