@@ -10,6 +10,7 @@ by a hard deadline + concurrency cap (so a search ALWAYS returns), and results
 come back in batch-result shape (frontend reuses the results table + Deal Review).
 """
 import asyncio
+import random
 import time
 from typing import Optional
 
@@ -83,7 +84,8 @@ def _ring_center(ring):
     return (sy / n, sx / n) if n else None
 
 
-async def _geocode(q: str):
+async def _geo_full(q: str):
+    """Nominatim lookup -> {'lat','lng','bbox':[s,n,w,e] or None}. Cached."""
     if not q:
         return None
     key = q.strip().lower()
@@ -96,12 +98,32 @@ async def _geocode(q: str):
                                   params={"q": query, "format": "json", "limit": "1", "countrycodes": "us"})
             arr = r.json()
         if arr:
-            center = (float(arr[0]["lat"]), float(arr[0]["lon"]))
-            _county_center_cache[key] = center
-            return center
+            r0 = arr[0]
+            bb = r0.get("boundingbox")
+            out = {
+                "lat": float(r0["lat"]), "lng": float(r0["lon"]),
+                "bbox": [float(bb[0]), float(bb[1]), float(bb[2]), float(bb[3])] if (bb and len(bb) == 4) else None,
+            }
+            _county_center_cache[key] = out
+            return out
     except Exception as ex:
         print(f"[Leads] geocode failed for {q!r}: {ex}")
     return None
+
+
+def _grid_points(gf: dict) -> list:
+    """Sample a 3x3 grid of centers across a county's bounding box so we cover
+    the RURAL parts (where vacant land is), not just the developed county seat.
+    Falls back to the single center when no bbox is available."""
+    bb = (gf or {}).get("bbox")
+    if not bb:
+        return [(gf["lat"], gf["lng"])] if gf else []
+    s, n, w, e = bb
+    pts = []
+    for fy in (0.22, 0.5, 0.78):
+        for fx in (0.22, 0.5, 0.78):
+            pts.append((s + (n - s) * fy, w + (e - w) * fx))
+    return pts
 
 
 @router.get("/counties")
@@ -221,24 +243,28 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     if denied is not None:
         return denied
 
-    # Resolve one or more search centers.
-    centers = []
+    # Resolve sample points — a grid across each county (so we hit the rural
+    # areas where vacant land actually is), plus any free-text area.
+    points = []
     if f.location:
-        g = await _geocode(f.location)
-        if g:
-            centers.append(g)
-    for c in (f.counties or [])[:5]:
-        g = await _geocode(str(c) + " County, FL")
-        if g:
-            centers.append(g)
-    if not centers:
+        gf = await _geo_full(f.location)
+        if gf:
+            points.append((gf["lat"], gf["lng"]))
+    for c in (f.counties or [])[:4]:
+        gf = await _geo_full(str(c) + " County, FL")
+        if gf:
+            points.extend(_grid_points(gf))
+    if not points:
         return {"leads": [], "error": "Pick a county (or type an area) to search."}
+    random.shuffle(points)
+    points = points[:8]     # cap total bbox fetches per search
 
-    # Pull + filter candidates from each center's bbox.
+    # Fetch every sample bbox concurrently, then dedupe + filter to candidates.
+    fetched = await asyncio.gather(*[_fetch_bbox_parcels(p[0], p[1]) for p in points])
     seen_ids = set()
     cands = []
-    for (clat, clng) in centers:
-        for c in await _fetch_bbox_parcels(clat, clng):
+    for parcels in fetched:
+        for c in parcels:
             pid = c.get("parcel_id")
             if pid in seen_ids:
                 continue
