@@ -2169,6 +2169,12 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         </div>
       </div>
 
+      <div class="past-sec" id="dashLeadsSec" style="display:none">
+        <div class="past-sec-hdr">
+          <div class="past-lbl">🎯 Generated Leads</div>
+        </div>
+        <div id="dashLeadsList"></div>
+      </div>
       <div class="past-sec">
         <div class="past-sec-hdr">
           <div class="past-lbl">Recent Batches</div>
@@ -2262,6 +2268,11 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         Land Leads
       </div>
       </div>
+      <!-- Generated Leads (separate from Recents; Recents = screening batches) -->
+      <div class="rsb-grp-lbl" id="rsbLeadsHdr" style="display:none;align-items:center;justify-content:space-between;cursor:pointer" onclick="_leadToggleSidebar('rsb')">
+        <span>🎯 Generated Leads</span><span id="rsbLeadsCaret" style="color:var(--t3);font-size:11px">▾</span>
+      </div>
+      <div id="rsbLeadsList" style="display:none;flex-direction:column;gap:1px;overflow-y:auto;max-height:32vh"></div>
       <!-- Recents (always open) -->
       <div class="rsb-grp-lbl" id="rsbPrevHdr">Recents</div>
       <div id="sidebarBatchList" style="overflow-y:auto;flex:1;min-height:216px;display:flex;flex-direction:column;gap:1px"></div>
@@ -5185,6 +5196,7 @@ let _selectedBatches = new Set();
 
 async function loadPastBatches() {
   if (!currentUser) return;
+  _renderLeadsSidebar();   // populate the separate "Generated Leads" dropdown
   // Show cached data instantly while network loads
   try {
     const cached = sessionStorage.getItem('piq-batches');
@@ -12442,13 +12454,14 @@ async function runLeadSearch() {
     batchState.sortCol = null;
     batchState.elapsed = 0;
     currentBatchResults = leads;
-    _currentDisplayed = leads;           // so pin/list clicks open the Deal Review
     if (status) status.textContent = '';
-    // Plot on the map + render the list right here — no page switch.
-    _leadPlotResults(leads, data.poi_points || {});
     if (data.poi_degraded) toast('Nearby stores/hospitals unavailable right now — town proximity still applied');
-    // Persist as its own Land Leads batch (kept out of Recents; shown under
-    // "Saved searches" on this page).
+    // Open the leads in the SAME results page as a batch: table → click a row →
+    // full Deal Review (parcel-border "deal room"). No map-over-map.
+    renderBatchResults();
+    goTo('dashboard');
+    // Persist as its own Land Leads batch — kept out of Recents, listed under
+    // the "Generated Leads" dropdown in the sidebar.
     const _sum = {
       total: leads.length,
       pursue: leads.filter(r => r.verdict === 'PURSUE').length,
@@ -12456,7 +12469,7 @@ async function runLeadSearch() {
       review: leads.filter(r => r.verdict === 'REVIEW').length,
     };
     saveBatchToSupabase(batchState.name, { summary: _sum, results: leads })
-      .then(() => { if (typeof toast === 'function') toast('Saved ' + leads.length + ' leads'); _leadLoadHistory(); })
+      .then(() => { if (typeof toast === 'function') toast('Saved ' + leads.length + ' leads'); _renderLeadsSidebar(); })
       .catch(() => {});
   } catch (e) {
     if (status) status.textContent = (e.name === 'AbortError') ? 'That took too long — try one county or a tighter range.' : 'Something went wrong. Please try again.';
@@ -12548,6 +12561,41 @@ function _leadOpenLead(i) {
   if (row) { row.classList.add('active'); row.scrollIntoView({ block: 'nearest' }); }
   if (_leadsMap && r._lat != null) _leadsMap.panTo([r._lat, r._lng]);
   if (typeof openDetailPanel === 'function') openDetailPanel(i);
+}
+
+// ── "Generated Leads" sidebar dropdown (separate from Recents = screening) ───
+async function _renderLeadsSidebar() {
+  if (!currentUser || !sb) return;
+  let items = [];
+  try {
+    const { data } = await sb.from('batches').select('id,name,created_at,pursues,total')
+      .eq('user_id', currentUser.id).like('name', 'Land Leads%')
+      .order('created_at', { ascending: false }).limit(25);
+    items = data || [];
+  } catch (e) { return; }
+  const cards = items.map(b => {
+    const d = new Date(b.created_at);
+    const nm = escHtml(b.name || 'Land Leads');
+    const n = b.pursues != null ? b.pursues : (b.total || 0);
+    return '<div class="batch-card" onclick="loadBatchResults(\'' + b.id + '\')">' +
+      '<div class="batch-info"><div class="batch-name" title="' + nm + '">' + nm + '</div>' +
+      '<div class="batch-date">' + d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</div></div>' +
+      '<div class="batch-stats"><span style="color:var(--green)">■ ' + n + '</span></div>' +
+      '<button class="batch-del" onclick="event.stopPropagation();deleteBatch(\'' + b.id + '\')" title="Delete">✕</button></div>';
+  }).join('');
+  const has = items.length > 0;
+  const rl = document.getElementById('rsbLeadsList'); if (rl) { rl.innerHTML = cards; rl.style.display = has ? 'flex' : 'none'; }
+  const dl = document.getElementById('dashLeadsList'); if (dl) dl.innerHTML = cards;
+  const rh = document.getElementById('rsbLeadsHdr'); if (rh) rh.style.display = has ? 'flex' : 'none';
+  const ds = document.getElementById('dashLeadsSec'); if (ds) ds.style.display = has ? '' : 'none';
+}
+function _leadToggleSidebar(prefix) {
+  const list = document.getElementById(prefix + 'LeadsList');
+  const caret = document.getElementById(prefix + 'LeadsCaret');
+  if (!list) return;
+  const open = list.style.display !== 'none';
+  list.style.display = open ? 'none' : 'flex';
+  if (caret) caret.textContent = open ? '▸' : '▾';
 }
 
 // ── Saved lead searches (this user's "Land Leads …" batches) ─────────────────
