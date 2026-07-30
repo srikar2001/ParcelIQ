@@ -3067,8 +3067,29 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 /* Map-first workflow: docked filter/results panel + a real interactive map. */
 .ll-shell{position:relative;height:calc(100vh - 58px);width:100%;display:flex;overflow:hidden;background:var(--bg)}
 .ll-panel{width:390px;flex-shrink:0;height:100%;overflow-y:auto;background:var(--card);border-right:1px solid var(--b);padding:18px 18px 48px;z-index:2}
-.ll-map-wrap{flex:1;position:relative;min-width:0;z-index:0}
+.ll-map-wrap{flex:1;position:relative;min-width:0;z-index:0;display:flex;flex-direction:column}
+.ll-map-inner{position:relative;flex:1;min-height:0}
 #leadsMap{position:absolute;inset:0;background:#e8eef2}
+#leadTableWrap{height:0;overflow:hidden;background:var(--card);border-top:1px solid var(--b);display:flex;flex-direction:column;transition:height .22s ease}
+#leadTableWrap.show{height:45%}
+.ll-rtable-head{flex-shrink:0;padding:11px 16px;font-size:12.5px;font-weight:800;color:var(--t1);border-bottom:1px solid var(--b);display:flex;justify-content:space-between;align-items:center}
+.ll-rtable-scroll{flex:1;overflow-y:auto}
+.ll-rtable{width:100%;border-collapse:collapse;font-size:13px}
+.ll-rtable td{padding:10px 16px;border-bottom:1px solid var(--b);color:var(--t1);vertical-align:middle}
+.ll-rtable tr{cursor:pointer;transition:background .1s}
+.ll-rtable tbody tr:hover,.ll-rtable tr.active{background:var(--card-h)}
+.ll-rt-addr{font-weight:700;color:var(--t1)}
+.ll-rt-sub{font-size:11.5px;color:var(--t3);margin-top:2px}
+.ll-rt-badge{font-size:10.5px;font-weight:800;letter-spacing:.03em;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.ll-rt-score{font-size:15px;font-weight:800;text-align:right;white-space:nowrap}
+.ll-loading{position:absolute;inset:0;z-index:650;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(232,238,242,.9)}
+.ll-loading.show{display:flex}
+.ll-load-spin{width:46px;height:46px;border:4px solid rgba(34,197,94,.25);border-top-color:#16a34a;border-radius:50%;animation:llspin .8s linear infinite}
+@keyframes llspin{to{transform:rotate(360deg)}}
+.ll-load-msg{font-size:14.5px;font-weight:700;color:#0f172a;min-height:19px}
+.ll-load-bar{width:230px;height:5px;background:rgba(15,23,42,.12);border-radius:99px;overflow:hidden}
+.ll-load-bar-fill{height:100%;width:35%;background:#16a34a;border-radius:99px;animation:llbar 1.3s ease-in-out infinite}
+@keyframes llbar{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}
 #leadsMap .leaflet-control-attribution{font-size:9px}
 .ll-title{font-size:19px;font-weight:800;margin:0 0 16px;display:flex;align-items:center;gap:8px}
 .ll-field{margin-bottom:15px}
@@ -3220,9 +3241,20 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="ll-results" id="leadResults"></div>
     </aside>
     <div class="ll-map-wrap">
-      <div id="leadsMap"></div>
-      <div class="ll-map-badge" id="leadMapBadge"></div>
-      <div class="ll-legend" id="leadLegend"></div>
+      <div class="ll-map-inner">
+        <div id="leadsMap"></div>
+        <div class="ll-map-badge" id="leadMapBadge"></div>
+        <div class="ll-legend" id="leadLegend"></div>
+        <div class="ll-loading" id="leadLoading">
+          <div class="ll-load-spin"></div>
+          <div class="ll-load-msg" id="leadLoadMsg">Pulling parcels…</div>
+          <div class="ll-load-bar"><div class="ll-load-bar-fill"></div></div>
+        </div>
+      </div>
+      <div id="leadTableWrap">
+        <div class="ll-rtable-head" id="leadTableHead"></div>
+        <div class="ll-rtable-scroll"><table class="ll-rtable"><tbody id="leadTableBody"></tbody></table></div>
+      </div>
     </div>
   </div>
 </div>
@@ -12237,14 +12269,40 @@ function _initLeadsMap() {
   const el = document.getElementById('leadsMap');
   if (!el) return;
   try {
-    _leadsMap = L.map(el, { zoomControl: true, attributionControl: true }).setView([28.6, -82.4], 7);
+    _leadsMap = L.map(el, { zoomControl: true, attributionControl: true });
     // Light street basemap (visible, "white") the user works over.
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
       { maxZoom: 20, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO' }).addTo(_leadsMap);
     _leadMarkers = L.layerGroup().addTo(_leadsMap);
     _leadPoiMarkers = L.layerGroup().addTo(_leadsMap);
+    // Start focused on Florida (the only state we cover) + keep panning near it.
+    _leadsMap.fitBounds([[24.4, -87.7], [31.1, -79.9]]);
+    _leadsMap.setMaxBounds([[23.2, -89.5], [32.2, -77.5]]);
+    // Highlight the FL outline (accurate GeoJSON when reachable; harmless if not).
+    fetch('https://raw.githubusercontent.com/glynnbird/usstatesgeojson/master/florida.geojson')
+      .then(r => r.json()).then(gj => {
+        if (!_leadsMap) return;
+        L.geoJSON(gj, { style: { color: '#16a34a', weight: 2.5, fillColor: '#22C55E', fillOpacity: 0.05, interactive: false } }).addTo(_leadsMap);
+      }).catch(() => {});
     setTimeout(() => { try { _leadsMap.invalidateSize(); } catch (e) {} }, 200);
   } catch (e) { _leadsMap = null; }
+}
+
+// Active-feeling loading overlay on the map while a search runs.
+let _leadLoadTimer = null;
+const _LEAD_LOAD_MSGS = ['Pulling county parcels…', 'Filtering vacant land…', 'Screening flood & wetlands…', 'Checking road & power…', 'Scoring & ranking leads…', 'Almost there…'];
+function _leadLoadingStart() {
+  const box = document.getElementById('leadLoading'), msg = document.getElementById('leadLoadMsg');
+  if (box) box.classList.add('show');
+  let i = 0;
+  if (msg) msg.textContent = _LEAD_LOAD_MSGS[0];
+  clearInterval(_leadLoadTimer);
+  _leadLoadTimer = setInterval(() => { i = (i + 1) % _LEAD_LOAD_MSGS.length; if (msg) msg.textContent = _LEAD_LOAD_MSGS[i]; }, 2400);
+}
+function _leadLoadingStop() {
+  clearInterval(_leadLoadTimer); _leadLoadTimer = null;
+  const box = document.getElementById('leadLoading');
+  if (box) box.classList.remove('show');
 }
 
 function initLeads() {
@@ -12349,7 +12407,8 @@ async function runLeadSearch() {
   _leadsBusy = true;
   const btn = g('leadSearchBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Finding leads…'; }
-  if (status) status.innerHTML = '<span class="lp-spinner"></span> Pulling vacant parcels in ' + counties.length + (counties.length > 1 ? ' counties' : ' county') + ' and screening them — up to ~40 seconds the first time (cached after).';
+  if (status) status.textContent = '';
+  _leadLoadingStart();
   try {
     const hdrs = { 'Content-Type': 'application/json' };
     if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
@@ -12401,6 +12460,7 @@ async function runLeadSearch() {
     if (status) status.textContent = (e.name === 'AbortError') ? 'That took too long — try one county or a tighter range.' : 'Something went wrong. Please try again.';
   } finally {
     _leadsBusy = false;
+    _leadLoadingStop();
     if (btn) { btn.disabled = false; btn.textContent = 'Find Leads'; }
   }
 }
@@ -12450,28 +12510,40 @@ function _leadPlotResults(leads, poiPoints) {
     legend.innerHTML = lh; legend.style.display = 'block';
   }
 
-  // Results list in the panel.
-  const wrap = document.getElementById('leadResults');
-  if (wrap) {
-    wrap.innerHTML = '<div class="ll-reshead">' + leads.length + ' leads found</div>' + leads.map((r, i) => {
+  // Results TABLE — the familiar "results" format, with addresses, docked
+  // under the map so it's always visible (not buried in the filter panel).
+  const panelList = document.getElementById('leadResults');
+  if (panelList) panelList.innerHTML = '';
+  const thead = document.getElementById('leadTableHead');
+  const tbody = document.getElementById('leadTableBody');
+  const twrap = document.getElementById('leadTableWrap');
+  if (thead) thead.innerHTML = '<span>' + leads.length + ' lead' + (leads.length === 1 ? '' : 's') + ' found · saved to your searches</span>' +
+    '<span style="font-size:11px;color:var(--t3);font-weight:600">Click a row → Deal Review</span>';
+  if (tbody) {
+    tbody.innerHTML = leads.map((r, i) => {
       const pi = r.parcel_info || {};
       const ev = (typeof effectiveVerdict === 'function') ? effectiveVerdict(r) : r.verdict;
       const col = ev === 'KILL' ? 'var(--red)' : ev === 'REVIEW' ? 'var(--amber)' : 'var(--green)';
+      const bg = ev === 'KILL' ? 'rgba(239,68,68,.14)' : ev === 'REVIEW' ? 'rgba(245,158,11,.14)' : 'rgba(34,197,94,.14)';
+      const cat = (typeof getLandUseCategory === 'function' && pi.land_use_code != null) ? getLandUseCategory(pi.land_use_code) : 'Vacant Land';
       const town = (pi.poi && (pi.poi.town || Object.values(pi.poi)[0])) || null;
-      const meta = [pi.acreage != null ? pi.acreage + ' ac' : '', town ? (town.label + ' ' + town.dist_mi + ' mi') : (pi.county ? pi.county + ' County' : '')].filter(Boolean).join(' · ');
-      return '<div class="ll-rescard" id="llrc-' + i + '" onclick="_leadOpenLead(' + i + ')">' +
-        '<div class="ll-rescard-top"><span class="ll-rescard-addr">' + escHtml(r.address || 'Parcel') + '</span>' +
-        '<span class="ll-rescard-score" style="color:' + col + '">' + (r.score != null ? r.score : '') + '</span></div>' +
-        '<div class="ll-rescard-meta">' + escHtml(meta) + '</div></div>';
+      const sub = [cat, pi.acreage != null ? pi.acreage + ' ac' : '', pi.county ? pi.county + ' County' : '', town ? ('near ' + town.label + ' ' + town.dist_mi + ' mi') : ''].filter(Boolean).join(' · ');
+      return '<tr id="llr-' + i + '" onclick="_leadOpenLead(' + i + ')">' +
+        '<td><div class="ll-rt-addr">' + escHtml(r.address || 'Parcel') + '</div><div class="ll-rt-sub">' + escHtml(sub) + '</div></td>' +
+        '<td class="ll-rt-score" style="color:' + col + '">' + (r.score != null ? r.score : '') + '</td>' +
+        '<td><span class="ll-rt-badge" style="color:' + col + ';background:' + bg + '">' + escHtml(ev) + '</span></td>' +
+        '</tr>';
     }).join('');
   }
+  if (twrap) twrap.classList.add('show');
+  setTimeout(() => { try { _leadsMap.invalidateSize(); } catch (e) {} }, 260);
 }
 function _leadOpenLead(i) {
   const r = _currentDisplayed[i];
   if (!r) return;
-  document.querySelectorAll('.ll-rescard.active').forEach(el => el.classList.remove('active'));
-  const card = document.getElementById('llrc-' + i);
-  if (card) { card.classList.add('active'); card.scrollIntoView({ block: 'nearest' }); }
+  document.querySelectorAll('.ll-rtable tr.active').forEach(el => el.classList.remove('active'));
+  const row = document.getElementById('llr-' + i);
+  if (row) { row.classList.add('active'); row.scrollIntoView({ block: 'nearest' }); }
   if (_leadsMap && r._lat != null) _leadsMap.panTo([r._lat, r._lng]);
   if (typeof openDetailPanel === 'function') openDetailPanel(i);
 }
