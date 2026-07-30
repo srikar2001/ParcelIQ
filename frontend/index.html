@@ -9590,7 +9590,9 @@ document.addEventListener('click', function(e) {
   const panel = document.getElementById('detailPanel');
   if (!panel) return;
   if (panel.contains(e.target)) return;
-  if (e.target.closest('.res-trow')) return;
+  // Results rows, and Land Leads table rows / map pins, open the panel — a
+  // click on them must not also count as a click-away that closes it.
+  if (e.target.closest('.res-trow, .ll-rtable, #leadsMap')) return;
   const mapModal = document.getElementById('mapModal');
   if (mapModal && mapModal.contains(e.target)) return;
   closeDetailPanel();
