@@ -1795,7 +1795,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     // 14718 NE 147th Ave, Waldo; APN 17151-001-000). We drop in satellite tiles
     // centered on it and draw its true boundary from the FL cadastral, then
     // recolor that outline per selected check — no faux-map art.
-    var _lpDrMap = null, _lpDrPoly = null, _lpDrFlood = null;
+    var _lpDrMap = null, _lpDrPoly = null, _lpDrFlood = null, _lpDrRoadLayer = null, _lpDrRoadDone = false;
     var _LP_DR_COLORS = { flood: '#2563EB', road: '#059669', habitat: '#EF4444', evac: '#F59E0B' };
     function _lpDrInitMap() {
       if (_lpDrMap || typeof L === 'undefined') return;
@@ -1848,6 +1848,42 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       var c = _LP_DR_COLORS[check] || '#059669';
       try { _lpDrPoly.setStyle({ color: c, fillColor: c }); } catch (e) {}
     }
+    function _lpHav(a, b, c, d) {
+      var R = 6371000, p = Math.PI / 180;
+      var dLat = (c - a) * p, dLng = (d - b) * p;
+      var x = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(a * p) * Math.cos(c * p) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
+    }
+    // "Road Access" draws a REAL dashed line from the parcel to the nearest
+    // mapped road (OSM), just like the in-app Deal Review — not just a recolor.
+    function _lpDrShowRoad(on) {
+      if (!_lpDrMap) return;
+      if (!on) { if (_lpDrRoadLayer) { try { _lpDrMap.removeLayer(_lpDrRoadLayer); } catch (e) {} } return; }
+      if (_lpDrRoadLayer) { _lpDrRoadLayer.addTo(_lpDrMap); return; }
+      if (_lpDrRoadDone || !_lpDrPoly) return;
+      _lpDrRoadDone = true;
+      var ctr = _lpDrPoly.getBounds().getCenter();
+      var q = '[out:json][timeout:8];way(around:800,' + ctr.lat + ',' + ctr.lng
+            + ')[highway~"^(residential|unclassified|tertiary|secondary|primary|service|track|road)$"];out geom;';
+      fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: q })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          var best = null, bd = Infinity;
+          (d.elements || []).forEach(function(w) {
+            (w.geometry || []).forEach(function(p) {
+              var dd = _lpHav(ctr.lat, ctr.lng, p.lat, p.lon);
+              if (dd < bd) { bd = dd; best = p; }
+            });
+          });
+          if (!best) return;
+          _lpDrRoadLayer = L.layerGroup();
+          L.polyline([[ctr.lat, ctr.lng], [best.lat, best.lon]], { color: '#059669', weight: 3.5, dashArray: '7 6', opacity: 0.95 }).addTo(_lpDrRoadLayer);
+          L.circleMarker([best.lat, best.lon], { radius: 5, color: '#fff', weight: 2, fillColor: '#059669', fillOpacity: 1 }).addTo(_lpDrRoadLayer);
+          if (lpDrActive === 'road') _lpDrRoadLayer.addTo(_lpDrMap);
+          var descEl = document.getElementById('lpDrPanelDesc');
+          if (descEl && lpDrActive === 'road') descEl.textContent = 'A real line to the nearest mapped road — about ' + Math.round(bd) + ' m away. Road and power-line distances are measured, not guessed.';
+        }).catch(function() {});
+    }
 
     // Re-trigger a CSS animation defined in the stylesheet on an element.
     function lpDrRetrig(el) {
@@ -1890,6 +1926,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       });
       document.querySelectorAll('.lp-dr-pill').forEach(function(btn) { btn.classList.toggle('active', btn.dataset.check === check); });
       _lpDrPaint(check);
+      _lpDrShowRoad(check === 'road');
       var labelEl = document.getElementById('lpDrMapLabel'); if (labelEl) { labelEl.textContent = cfg.label; lpDrRetrig(labelEl); }
       var titleEl = document.getElementById('lpDrPanelTitle'); if (titleEl) { titleEl.textContent = cfg.title; lpDrRetrig(titleEl); }
       var descEl = document.getElementById('lpDrPanelDesc'); if (descEl) { descEl.textContent = cfg.desc; lpDrRetrig(descEl); }
@@ -2265,7 +2302,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <aside class="res-sidebar" id="resSidebar">
       <!-- Brand + toggle -->
       <div class="rsb-top">
-        <span class="rsb-brand" onclick="window.location.reload()" style="cursor:pointer" title="Reload">Parcel<span style="color:var(--green)">iQ</span></span>
+        <span class="rsb-brand" onclick="goHome()" style="cursor:pointer" title="Home">Parcel<span style="color:var(--green)">iQ</span></span>
         <div style="display:flex;align-items:center;gap:4px">
           <button id="rsbModeToggle" class="rsb-toggle-btn" onclick="toggleMode()" title="Toggle theme" style="font-size:14px;padding:3px 5px;line-height:1"><span id="rsbModeIcon">☀️</span></button>
           <button class="rsb-toggle-btn" onclick="toggleResultsSidebar()" title="Collapse sidebar"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>
@@ -3130,6 +3167,10 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .ll-title{font-size:19px;font-weight:800;margin:0 0 6px;display:flex;align-items:center;gap:8px}
 .ll-subtitle{font-size:12px;color:var(--t3);line-height:1.5;margin:0 0 16px}
 .ll-subtitle b{color:var(--t2);font-weight:700}
+.ll-cty-actions{display:flex;gap:6px;margin:0 0 8px}
+.ll-cty-actions button{font-family:inherit;font-size:11px;font-weight:600;color:var(--t2);background:var(--card);border:1px solid var(--b);border-radius:7px;padding:4px 11px;cursor:pointer;transition:all .12s}
+.ll-cty-actions button:hover{border-color:var(--green);color:var(--green)}
+.ll-cty-label{background:#059669;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap;box-shadow:0 1px 5px rgba(16,24,40,.3);transform:translate(-50%,-140%)}
 .ll-field{margin-bottom:15px}
 .ll-field>label{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--t3);margin-bottom:8px;display:flex;justify-content:space-between;align-items:baseline}
 .ll-count{display:flex;gap:6px}
@@ -3203,6 +3244,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       <div class="ll-subtitle">Generate new prospects. Saved searches live in the sidebar under <b>Generated Leads</b>.</div>
       <div class="ll-field">
         <label>Counties <span class="lr-val" id="leadCountySel">none selected</span></label>
+        <div class="ll-cty-actions"><button type="button" onclick="_leadSelectAllCounties(true)">Select all</button><button type="button" onclick="_leadSelectAllCounties(false)">Clear</button></div>
         <div class="leads-counties" id="leadCounties"></div>
       </div>
       <div class="ll-field">
@@ -3767,9 +3809,24 @@ const getWeekStart = getDayStart; // legacy alias — limit is daily now
 // must never show up anywhere batches are LISTED, or every re-screen
 // looks like it created a new batch.
 function _realBatches(list) {
-  // Land Leads searches live under the Land Leads page ("Saved searches"),
-  // not in Recents / the batch lists.
-  return (list || []).filter(b => b.name !== '[Re-screen]' && !/^Land Leads/.test(b.name || ''));
+  // Lead searches are shown under "Generated Leads", not Recents / batch lists.
+  return (list || []).filter(b => b.name !== '[Re-screen]' && !_isLeadBatch(b));
+}
+
+// Lead searches are ordinary saved batches (same account, same table) but
+// listed under "Generated Leads" instead of Recents. We tag them by id in
+// localStorage so each can carry a RANDOM name just like a Recents batch;
+// legacy "Land Leads …" names are still recognized for older searches.
+function _leadIdSet() {
+  try { return new Set(JSON.parse(localStorage.getItem('piq-lead-ids') || '[]')); }
+  catch (e) { return new Set(); }
+}
+function _markLeadBatch(id) {
+  if (!id) return;
+  try { const s = _leadIdSet(); s.add(id); localStorage.setItem('piq-lead-ids', JSON.stringify([...s])); } catch (e) {}
+}
+function _isLeadBatch(b) {
+  return !!b && (_leadIdSet().has(b.id) || /^Land Leads/.test(b.name || ''));
 }
 
 // Records re-screen usage into ONE consolidated [Re-screen] row per day
@@ -5436,8 +5493,9 @@ async function deleteBatch(id) {
     if (wasCurrent) resetBatchState(); // clears results/name/id — the batch we're viewing no longer exists
     loadPastBatches();
     _refreshSidebarIfOpen();
-    if (wasCurrent) window.location.hash = '#landing';
-    toast('Batch deleted');
+    _renderLeadsSidebar();   // keep the Generated Leads dropdown in sync too
+    if (wasCurrent) window.location.hash = '#dashboard';
+    toast('Deleted');
   } catch(e) { toast('Could not delete batch'); }
 }
 
@@ -12396,6 +12454,45 @@ function _leadCountyChanged() {
   const n = document.querySelectorAll('#leadCounties input:checked').length;
   const lbl = document.getElementById('leadCountySel');
   if (lbl) lbl.textContent = n ? (n + ' selected') : 'none selected';
+  _leadHighlightCounties();
+}
+function _leadSelectAllCounties(sel) {
+  document.querySelectorAll('#leadCounties input[type=checkbox]').forEach(cb => { cb.checked = sel; });
+  _leadCountyChanged();
+}
+// Highlight the selected counties on the Land Leads map (center+bbox resolved
+// by the backend, which reuses its geocode cache) and zoom to fit them.
+let _leadCountyLayer = null;
+const _leadCountyGeoCache = {};
+async function _leadHighlightCounties() {
+  if (!_leadsMap) return;
+  if (!_leadCountyLayer) _leadCountyLayer = L.layerGroup().addTo(_leadsMap);
+  _leadCountyLayer.clearLayers();
+  const names = [...document.querySelectorAll('#leadCounties input:checked')].map(el => el.value);
+  if (!names.length) { try { _leadsMap.fitBounds([[24.4, -87.7], [31.1, -79.9]]); } catch (e) {} return; }
+  const need = names.filter(n => !_leadCountyGeoCache[n]);
+  if (need.length) {
+    try {
+      const hdrs = {};
+      if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
+      const d = await (await fetch(API + '/api/leads/county-geo?names=' + encodeURIComponent(need.join(',')), { headers: hdrs })).json();
+      (d.counties || []).forEach(c => { _leadCountyGeoCache[c.name] = c; });
+    } catch (e) {}
+  }
+  const bounds = [];
+  names.forEach(n => {
+    const c = _leadCountyGeoCache[n];
+    if (!c) return;
+    const bb = c.bbox; // [south, north, west, east]
+    if (bb && bb.length === 4) {
+      L.rectangle([[bb[0], bb[2]], [bb[1], bb[3]]], { color: '#059669', weight: 1.5, fillColor: '#059669', fillOpacity: 0.12, interactive: false }).addTo(_leadCountyLayer);
+      bounds.push([bb[0], bb[2]], [bb[1], bb[3]]);
+    } else if (c.lat != null) {
+      bounds.push([c.lat, c.lng]);
+    }
+    if (c.lat != null) L.marker([c.lat, c.lng], { interactive: false, icon: L.divIcon({ className: 'll-cty-label', html: escHtml(n), iconSize: [0, 0] }) }).addTo(_leadCountyLayer);
+  });
+  if (bounds.length) { try { _leadsMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 9 }); } catch (e) {} }
 }
 
 // Multi-select chip (land type / POI / avoid) — toggle the highlight.
@@ -12495,7 +12592,7 @@ async function runLeadSearch() {
     batchState.runId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('lead-' + Date.now() + Math.random().toString(16).slice(2));
     _currentBatchId = batchState.runId;
     batchState.results = leads;
-    batchState.name = _leadBatchName(body, leads.length);
+    batchState.name = _generateBatchName([]);   // random friendly name, like Recents
     batchState.filtered = 'all';
     batchState.sortCol = null;
     batchState.elapsed = 0;
@@ -12514,8 +12611,9 @@ async function runLeadSearch() {
       kill: leads.filter(r => r.verdict === 'KILL').length,
       review: leads.filter(r => r.verdict === 'REVIEW').length,
     };
+    const _leadRunId = batchState.runId;
     saveBatchToSupabase(batchState.name, { summary: _sum, results: leads })
-      .then(() => { if (typeof toast === 'function') toast('Saved ' + leads.length + ' leads'); _renderLeadsSidebar(); })
+      .then(() => { _markLeadBatch(_leadRunId); if (typeof toast === 'function') toast('Saved ' + leads.length + ' leads'); _renderLeadsSidebar(); })
       .catch(() => {});
   } catch (e) {
     if (status) status.textContent = (e.name === 'AbortError') ? 'That took too long — try one county or a tighter range.' : 'Something went wrong. Please try again.';
@@ -12615,25 +12713,27 @@ async function _renderLeadsSidebar() {
   let items = [];
   try {
     const { data } = await sb.from('batches').select('id,name,created_at,pursues,total')
-      .eq('user_id', currentUser.id).like('name', 'Land Leads%')
-      .order('created_at', { ascending: false }).limit(25);
-    items = data || [];
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false }).limit(80);
+    items = (data || []).filter(_isLeadBatch).slice(0, 25);
   } catch (e) { return; }
   const cards = items.map(b => {
     const d = new Date(b.created_at);
-    const nm = escHtml(b.name || 'Land Leads');
+    const nm = escHtml(b.name || 'Leads');
+    const dt = d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const n = b.pursues != null ? b.pursues : (b.total || 0);
-    return '<div class="batch-card" onclick="loadBatchResults(\'' + b.id + '\')">' +
+    return '<div class="batch-card" id="lbc-' + b.id + '" onclick="loadBatchResults(\'' + b.id + '\')">' +
       '<div class="batch-info"><div class="batch-name" title="' + nm + '">' + nm + '</div>' +
-      '<div class="batch-date">' + d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</div></div>' +
+      '<div class="batch-date">' + dt + '</div></div>' +
       '<div class="batch-stats"><span style="color:var(--green)">■ ' + n + '</span></div>' +
+      '<button class="batch-icon-btn" onclick="event.stopPropagation();renameBatch(\'' + b.id + '\',\'' + nm.replace(/'/g, '\\\'') + '\')" title="Rename">✎</button>' +
       '<button class="batch-del" onclick="event.stopPropagation();deleteBatch(\'' + b.id + '\')" title="Delete">✕</button></div>';
   }).join('');
   const has = items.length > 0;
   const rl = document.getElementById('rsbLeadsList'); if (rl) { rl.innerHTML = cards; rl.style.display = has ? 'flex' : 'none'; }
   const dl = document.getElementById('dashLeadsList'); if (dl) dl.innerHTML = cards;
   const rh = document.getElementById('rsbLeadsHdr'); if (rh) rh.style.display = has ? 'flex' : 'none';
-  const ds = document.getElementById('dashLeadsSec'); if (ds) ds.style.display = has ? '' : 'none';
+  const ds2 = document.getElementById('dashLeadsSec'); if (ds2) ds2.style.display = has ? '' : 'none';
 }
 function _leadToggleSidebar(prefix) {
   const list = document.getElementById(prefix + 'LeadsList');

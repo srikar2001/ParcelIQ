@@ -234,6 +234,22 @@ async def counties():
     return {"counties": sorted(_CO_NO_TO_COUNTY.values())}
 
 
+@router.get("/county-geo")
+async def county_geo(names: str = ""):
+    """Center + bbox for the given counties (reuses the cached geocoder) so the
+    Land Leads map can highlight the selected counties and zoom to fit them."""
+    out, seen = [], set()
+    for nm in [n.strip() for n in names.split(",") if n.strip()][:12]:
+        k = nm.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        gf = await _geo_full(nm + " County, FL")
+        if gf:
+            out.append({"name": nm, "lat": gf["lat"], "lng": gf["lng"], "bbox": gf.get("bbox")})
+    return {"counties": out}
+
+
 @router.get("/land-types")
 async def land_types():
     return {"land_types": list(_CATEGORY_CODES.keys()),
