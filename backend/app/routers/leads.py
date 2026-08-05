@@ -192,10 +192,16 @@ def _grid_points(gf: dict) -> list:
     if not bb:
         return [(gf["lat"], gf["lng"])] if gf else []
     s, n, w, e = bb
+    dy, dx = (n - s), (e - w)
     pts = []
+    # Jitter each cell by ±7% of the county span so repeated searches explore
+    # DIFFERENT areas (not the same 9 fixed points, which often land on water /
+    # town centers) — more variety and a better shot at real vacant lots.
     for fy in (0.22, 0.5, 0.78):
         for fx in (0.22, 0.5, 0.78):
-            pts.append((s + (n - s) * fy, w + (e - w) * fx))
+            jy = (random.random() - 0.5) * dy * 0.14
+            jx = (random.random() - 0.5) * dx * 0.14
+            pts.append((s + dy * fy + jy, w + dx * fx + jx))
     return pts
 
 
@@ -242,10 +248,20 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set) -> list:
         center = _ring_center(rings[0]) if rings else None
         if not center:
             continue
+        # Keep the parcel's actual boundary — this is the authoritative outline
+        # for the lot we picked, so the Deal Review draws the RIGHT parcel
+        # instead of whatever the coordinate re-screen resolves. Nested
+        # [[[lat,lng],...]] (list of rings) matches the batch collector's format
+        # that the frontend's extractPolygonCoords() expects (bbox is outSR=4326,
+        # so rings are already lng/lat degrees — just swap to lat/lng).
+        geom = [[[pt[1], pt[0]] for pt in ring
+                 if isinstance(pt, (list, tuple)) and len(pt) >= 2]
+                for ring in rings] if rings else []
         sq = a.get("LND_SQFOOT")
         out.append({
             "parcel_id": a.get("PARCEL_ID"),
             "lat": center[0], "lng": center[1],
+            "geometry": geom,
             "address": (a.get("PHY_ADDR1") or "").strip() or None,
             "city": (a.get("PHY_CITY") or "").strip() or None,
             "owner": (a.get("OWN_NAME") or "").strip() or None,
@@ -261,6 +277,10 @@ def _match(c: dict, f: LeadFilters) -> bool:
     if f.acres_min is not None and (ac is None or ac < f.acres_min):
         return False
     if f.acres_max is not None and (ac is None or ac > f.acres_max):
+        return False
+    # Quality floor: when the user hasn't asked for tiny lots, drop slivers /
+    # retention ponds / road remnants (< ~0.08 acre) — never real land deals.
+    if f.acres_min is None and ac is not None and ac < 0.08:
         return False
     if f.value_min is not None and (jv is None or jv < f.value_min):
         return False
@@ -320,8 +340,23 @@ async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
     # change takes effect for already-cached parcels without a re-screen.
     res["_lat"] = cand["lat"]; res["_lng"] = cand["lng"]
     pi = res.get("parcel_info") or {}
-    if not pi.get("owner") and cand.get("owner"):
+    # Screening re-derives parcel_info from the COORDINATE, which can resolve a
+    # neighboring parcel (wrong address/owner/acreage/outline). The cadastral
+    # record we actually selected is authoritative — overlay it so the row AND
+    # the Deal Review show the exact same, correct lot.
+    pi["parcel_id"] = pid or pi.get("parcel_id")
+    if cand.get("owner"):
         pi["owner"] = cand["owner"]
+    if cand.get("acreage") is not None:
+        pi["acreage"] = cand["acreage"]
+    if cand.get("just_value") is not None:
+        pi["just_value"] = cand["just_value"]
+        pi["assessed_value"] = pi.get("assessed_value") or cand["just_value"]
+    if cand.get("geometry"):
+        pi["geometry"] = cand["geometry"]
+    if cand.get("address"):
+        full = cand["address"] + (", " + cand["city"] if cand.get("city") else "")
+        pi["county_address_on_file"] = full
     res["parcel_info"] = pi
     res["_folio"] = pid
     res["address"] = _lead_label(cand, pi)

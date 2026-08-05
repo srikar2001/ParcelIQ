@@ -1795,8 +1795,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     // 14718 NE 147th Ave, Waldo; APN 17151-001-000). We drop in satellite tiles
     // centered on it and draw its true boundary from the FL cadastral, then
     // recolor that outline per selected check — no faux-map art.
-    var _lpDrMap = null, _lpDrPoly = null;
-    var _LP_DR_COLORS = { flood: '#38BDF8', road: '#059669', habitat: '#EF4444', evac: '#F59E0B' };
+    var _lpDrMap = null, _lpDrPoly = null, _lpDrFlood = null;
+    var _LP_DR_COLORS = { flood: '#2563EB', road: '#059669', habitat: '#EF4444', evac: '#F59E0B' };
     function _lpDrInitMap() {
       if (_lpDrMap || typeof L === 'undefined') return;
       var host = document.getElementById('lpDrMap'), el = document.getElementById('lpDrLeaflet');
@@ -1804,9 +1804,27 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       try {
         _lpDrMap = L.map(el, { zoomControl: false, attributionControl: true, dragging: false,
           scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false,
-          tap: false, touchZoom: false }).setView([29.7906, -82.1659], 16);
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-          { maxZoom: 19, attribution: 'Esri' }).addTo(_lpDrMap);
+          tap: false, touchZoom: false }).setView([29.7906, -82.1659], 15);
+        // Street basemap (CARTO Voyager) — same "real map" style as the in-app
+        // Deal Review, not flat satellite. Clean, labeled, realistic.
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+          { maxZoom: 19, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO' }).addTo(_lpDrMap);
+        // FEMA NFHL flood zones overlay (tinted blue) so the showcase shows real
+        // flood data — the parcel sits OUTSIDE the mapped floodplain (Zone X).
+        try {
+          var _Flood = L.GridLayer.extend({ createTile: function(coords, done) {
+            var im = document.createElement('img');
+            im.style.cssText = 'width:256px;height:256px;filter:hue-rotate(155deg) saturate(3) brightness(.92) contrast(1.25);opacity:.6';
+            var bb = this._tileCoordsToBounds(coords);
+            var bx = bb.getWest() + ',' + bb.getSouth() + ',' + bb.getEast() + ',' + bb.getNorth();
+            im.onload = function() { done(null, im); }; im.onerror = function() { done(null, im); };
+            im.src = 'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/export'
+              + '?bbox=' + bx + '&bboxSR=4326&imageSR=4326&size=512,512&format=png32&transparent=true&layers=show:28&f=image';
+            return im;
+          }});
+          _lpDrFlood = new _Flood({ tileSize: 256, minZoom: 12, opacity: 1 });
+          _lpDrFlood.addTo(_lpDrMap);
+        } catch (e) {}
         host.classList.add('has-realmap');
         setTimeout(function() { if (_lpDrMap) _lpDrMap.invalidateSize(); }, 250);
       } catch (e) { _lpDrMap = null; return; }
@@ -1820,7 +1838,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         var latlng = rings[0].map(function(p) { return [p[1], p[0]]; });
         var c = _LP_DR_COLORS[lpDrActive] || '#059669';
         _lpDrPoly = L.polygon(latlng, { color: c, weight: 3, fillColor: c, fillOpacity: 0.18 }).addTo(_lpDrMap);
-        try { _lpDrMap.fitBounds(_lpDrPoly.getBounds(), { padding: [45, 45], maxZoom: 17 }); } catch (e) {}
+        // Keep some surrounding context so nearby streets + flood zones show.
+        try { _lpDrMap.fitBounds(_lpDrPoly.getBounds(), { padding: [90, 90], maxZoom: 15 }); } catch (e) {}
       }).catch(function() {});
     }
     // Recolor the real parcel outline to match the active check.
@@ -3108,7 +3127,9 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .ll-load-bar-fill{height:100%;width:35%;background:#059669;border-radius:99px;animation:llbar 1.3s ease-in-out infinite}
 @keyframes llbar{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}
 #leadsMap .leaflet-control-attribution{font-size:9px}
-.ll-title{font-size:19px;font-weight:800;margin:0 0 16px;display:flex;align-items:center;gap:8px}
+.ll-title{font-size:19px;font-weight:800;margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.ll-subtitle{font-size:12px;color:var(--t3);line-height:1.5;margin:0 0 16px}
+.ll-subtitle b{color:var(--t2);font-weight:700}
 .ll-field{margin-bottom:15px}
 .ll-field>label{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--t3);margin-bottom:8px;display:flex;justify-content:space-between;align-items:baseline}
 .ll-count{display:flex;gap:6px}
@@ -3179,8 +3200,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   <div class="ll-shell">
     <aside class="ll-panel">
       <div class="ll-title">🎯 Land Leads</div>
-      <span class="ll-histbtn" id="leadHistBtn" style="display:none" onclick="_leadToggleHistory()">↓ Saved searches</span>
-      <div id="leadHistory" style="display:none;margin-bottom:14px"></div>
+      <div class="ll-subtitle">Generate new prospects. Saved searches live in the sidebar under <b>Generated Leads</b>.</div>
       <div class="ll-field">
         <label>Counties <span class="lr-val" id="leadCountySel">none selected</span></label>
         <div class="leads-counties" id="leadCounties"></div>
@@ -3832,9 +3852,10 @@ async function router() {
   // #landing is intentionally excluded — the logo should always reach the landing page.
   const _authOnlyPages = new Set(['#login', '#signup', '#forgot', '', '#']);
   if (_authOnlyPages.has(hash) && currentSession) {
-    const lastBatch = sessionStorage.getItem('piq-last-batch');
-    if (lastBatch) { goTo('dashboard'); return; }
-    goTo('landing'); return;
+    // Already signed in and on an auth/empty route → the dashboard, always
+    // (with #dashboard in the URL). #landing is excluded above, so the logo
+    // can still reach the marketing page on purpose.
+    goTo('dashboard'); return;
   }
   if (PROTECTED.has(hash)) {
     // Trust currentSession first (already resolved by _authReadyPromise); fall back to getSession
@@ -3988,7 +4009,7 @@ function updateLpNav() {
   if (currentUser) {
     const name = (userProfile?.full_name || currentUser.email || '').split(/[\s@]/)[0] || 'Account';
     el.innerHTML =
-      '<span style="font-size:13px;color:#F1F5F9;margin-right:4px">Hi, ' + name + '</span>' +
+      '<span style="font-size:13px;font-weight:600;color:#0F1729;margin-right:6px">Hi, ' + name + '</span>' +
       '<button class="lp-btn-primary" style="padding:7px 16px;font-size:13px" onclick="window.location.hash=\'#dashboard\'">Dashboard →</button>' +
       '<button class="lp-btn-outline" style="padding:7px 16px;font-size:13px" onclick="doSignout()">Sign out</button>';
   } else {
@@ -4306,7 +4327,9 @@ async function initApp() {
   if (!window.location.hash) {
     try {
       const savedHash = sessionStorage.getItem('piq_hash');
-      if (savedHash) window.location.hash = savedHash;
+      // replaceState (not location.hash=) so we don't fire a hashchange that
+      // runs router() a second time — that was the "loads/reloads twice" flicker.
+      if (savedHash) history.replaceState(null, '', savedHash);
     } catch(e) {}
   }
   // Wait for Supabase to restore session (onAuthStateChange fires before getSession is reliable)
@@ -4333,10 +4356,9 @@ async function initApp() {
       _runPendingOrResults();
       return;
     }
-    // Logged in and opening the bare app URL with a batch to resume → go
-    // straight to the dashboard in one hop. The auth handler no longer does
-    // this on boot, so it happens exactly once here (no landing flash first).
-    if ((_h0 === '' || _h0 === '#') && sessionStorage.getItem('piq-last-batch')) {
+    // Logged in and opening the bare app URL → go straight to the dashboard in
+    // one hop, with #dashboard in the address bar (never the plain landing).
+    if (_h0 === '' || _h0 === '#') {
       goTo('dashboard');
       return;
     }
