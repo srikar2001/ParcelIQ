@@ -1814,7 +1814,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         try {
           var _Flood = L.GridLayer.extend({ createTile: function(coords, done) {
             var im = document.createElement('img');
-            im.style.cssText = 'width:256px;height:256px;filter:hue-rotate(155deg) saturate(3) brightness(.92) contrast(1.25);opacity:.6';
+            im.style.cssText = 'width:256px;height:256px;filter:saturate(1.35) contrast(1.05);opacity:.5';
             var bb = this._tileCoordsToBounds(coords);
             var bx = bb.getWest() + ',' + bb.getSouth() + ',' + bb.getEast() + ',' + bb.getNorth();
             im.onload = function() { done(null, im); }; im.onerror = function() { done(null, im); };
@@ -4180,6 +4180,9 @@ function _runPendingOrResults() {
 let _authResolve;
 const _authReadyPromise = new Promise(resolve => { _authResolve = resolve; });
 let _lastSignedInUserId = null; // track who was last signed in to detect account switches
+// Set when boot falls back to the landing page from a bare URL before the
+// session finished restoring — a late cold restore then routes to dashboard.
+let _bootBareLanding = false;
 
 // onAuthStateChange — handles OAuth callbacks, explicit logins, and sign-outs
 if (sb) {
@@ -4193,6 +4196,15 @@ if (sb) {
     const _isBoot = !!_authResolve;
     // Resolve initial auth promise on the very first event (INITIAL_SESSION, SIGNED_IN, or SIGNED_OUT)
     if (_authResolve) { _authResolve(session); _authResolve = null; }
+    // Slow cold restore: initApp already fell back to the landing page from a
+    // bare URL before the session resolved. Now that it has, go to the
+    // dashboard (guarded to that fallback, so an explicit logo->landing is
+    // left alone). One hop → no double-load.
+    if (_isBoot && session && _bootBareLanding &&
+        document.getElementById('page-landing')?.classList.contains('active')) {
+      _bootBareLanding = false;
+      goTo('dashboard');
+    }
     if (event === 'SIGNED_IN') {
       const incomingId = session?.user?.id;
       // Only clear stale data if a DIFFERENT user is signing in — not on same-user session restores
@@ -4362,6 +4374,12 @@ async function initApp() {
       goTo('dashboard');
       return;
     }
+  }
+  // No session resolved yet on a bare URL → we're about to show the landing as
+  // a fallback. Remember it so a late cold restore (the auth handler above)
+  // can move the user to the dashboard instead of stranding them here.
+  if (!session && (window.location.hash === '' || window.location.hash === '#')) {
+    _bootBareLanding = true;
   }
   router();
 }
