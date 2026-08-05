@@ -15,6 +15,7 @@ the final small lead set only.
 import asyncio
 import math
 import random
+import re
 import time
 from typing import Optional
 
@@ -128,6 +129,29 @@ def _is_business(owner: Optional[str]) -> bool:
     return any(m in o for m in _BIZ_MARKERS)
 
 
+# FL DOR PHY_ADDR1 is full of placeholders for vacant land ("UNASSIGNED
+# LOCATION", "NO SITUS", "0 NW ...") — none are real, deliverable addresses.
+_ADDR_JUNK = ("UNASSIGNED", "NO SITUS", "NOSITUS", "NOT ASSIGNED", "UNKNOWN",
+              "NO NAME", "NONE", "N/A", "TBD", "NO ADDRESS", "NO STREET",
+              "VACANT", "MULTIPLE")
+
+
+def _clean_situs(addr: Optional[str]) -> Optional[str]:
+    """Real deliverable street address, or None for the DOR placeholder junk that
+    plagues vacant-land situs fields — so the row shows a clean
+    '<acres>-acre lot · <County>' label instead of 'UNASSIGNED LOCATION RE'."""
+    if not addr:
+        return None
+    a = " ".join(str(addr).split())
+    up = a.upper()
+    if any(j in up for j in _ADDR_JUNK):
+        return None
+    m = re.match(r"^(\d+)\b", a)
+    if not m or int(m.group(1)) == 0:      # a real situs needs a house number > 0
+        return None
+    return a
+
+
 def _codes_for(land_types) -> set:
     if not land_types:
         return set(_VACANT_CODES)
@@ -199,8 +223,8 @@ def _grid_points(gf: dict) -> list:
     # town centers) — more variety and a better shot at real vacant lots.
     for fy in (0.22, 0.5, 0.78):
         for fx in (0.22, 0.5, 0.78):
-            jy = (random.random() - 0.5) * dy * 0.14
-            jx = (random.random() - 0.5) * dx * 0.14
+            jy = (random.random() - 0.5) * dy * 0.06
+            jx = (random.random() - 0.5) * dx * 0.06
             pts.append((s + dy * fy + jy, w + dx * fx + jx))
     return pts
 
@@ -262,7 +286,7 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set) -> list:
             "parcel_id": a.get("PARCEL_ID"),
             "lat": center[0], "lng": center[1],
             "geometry": geom,
-            "address": (a.get("PHY_ADDR1") or "").strip() or None,
+            "address": _clean_situs(a.get("PHY_ADDR1")),
             "city": (a.get("PHY_CITY") or "").strip() or None,
             "owner": (a.get("OWN_NAME") or "").strip() or None,
             "owner_state": (a.get("OWN_STATE") or "").strip().upper() or None,
@@ -357,6 +381,10 @@ async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
     if cand.get("address"):
         full = cand["address"] + (", " + cand["city"] if cand.get("city") else "")
         pi["county_address_on_file"] = full
+    else:
+        # No real situs on the selected parcel → don't let screening's own
+        # placeholder ("NO SITUS, OCALA") leak into the Deal Review either.
+        pi["county_address_on_file"] = None
     res["parcel_info"] = pi
     res["_folio"] = pid
     res["address"] = _lead_label(cand, pi)
@@ -537,7 +565,18 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
             seen_ids.add(pid)
             if _match(c, f):
                 cands.append(c)
-    cands.sort(key=lambda c: (c.get("just_value") or 1e12))   # cheaper land first
+    # Screen the most buildable-looking parcels first. A real situs address and a
+    # healthy value-per-acre both correlate with dry, road-accessible land; swamp
+    # /wetland parcels are near-worthless and unaddressed. The old cheapest-first
+    # order systematically surfaced that junk → mostly KILL verdicts (and empty
+    # results in wetland-heavy counties). Cheaper total value is the tiebreak.
+    def _cand_rank(c: dict):
+        ac = c.get("acreage") or 0.0
+        jv = c.get("just_value") or 0.0
+        vpa = (jv / ac) if ac > 0 else 0.0
+        has_addr = 1 if c.get("address") else 0
+        return (-has_addr, -min(vpa, 40000.0), jv)
+    cands.sort(key=_cand_rank)
 
     if not cands:
         return {"leads": [], "screened": 0, "candidates": 0}
