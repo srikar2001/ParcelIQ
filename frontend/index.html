@@ -1855,34 +1855,22 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
     }
     // "Road Access" draws a REAL dashed line from the parcel to the nearest
-    // mapped road (OSM), just like the in-app Deal Review — not just a recolor.
+    // mapped road, just like the in-app Deal Review — not just a recolor. The
+    // demo parcel's nearest OSM road (~49 m) is drawn directly so the line is
+    // always there; live Overpass is too flaky to depend on for the showcase.
+    var _LP_DR_ROAD_PT = [29.79028, -82.166077];
     function _lpDrShowRoad(on) {
       if (!_lpDrMap) return;
       if (!on) { if (_lpDrRoadLayer) { try { _lpDrMap.removeLayer(_lpDrRoadLayer); } catch (e) {} } return; }
       if (_lpDrRoadLayer) { _lpDrRoadLayer.addTo(_lpDrMap); return; }
-      if (_lpDrRoadDone || !_lpDrPoly) return;
-      _lpDrRoadDone = true;
+      if (!_lpDrPoly) return;
       var ctr = _lpDrPoly.getBounds().getCenter();
-      var q = '[out:json][timeout:8];way(around:800,' + ctr.lat + ',' + ctr.lng
-            + ')[highway~"^(residential|unclassified|tertiary|secondary|primary|service|track|road)$"];out geom;';
-      fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: q })
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-          var best = null, bd = Infinity;
-          (d.elements || []).forEach(function(w) {
-            (w.geometry || []).forEach(function(p) {
-              var dd = _lpHav(ctr.lat, ctr.lng, p.lat, p.lon);
-              if (dd < bd) { bd = dd; best = p; }
-            });
-          });
-          if (!best) return;
-          _lpDrRoadLayer = L.layerGroup();
-          L.polyline([[ctr.lat, ctr.lng], [best.lat, best.lon]], { color: '#059669', weight: 3.5, dashArray: '7 6', opacity: 0.95 }).addTo(_lpDrRoadLayer);
-          L.circleMarker([best.lat, best.lon], { radius: 5, color: '#fff', weight: 2, fillColor: '#059669', fillOpacity: 1 }).addTo(_lpDrRoadLayer);
-          if (lpDrActive === 'road') _lpDrRoadLayer.addTo(_lpDrMap);
-          var descEl = document.getElementById('lpDrPanelDesc');
-          if (descEl && lpDrActive === 'road') descEl.textContent = 'A real line to the nearest mapped road — about ' + Math.round(bd) + ' m away. Road and power-line distances are measured, not guessed.';
-        }).catch(function() {});
+      var road = _LP_DR_ROAD_PT, dist = Math.round(_lpHav(ctr.lat, ctr.lng, road[0], road[1]));
+      _lpDrRoadLayer = L.layerGroup();
+      L.polyline([[ctr.lat, ctr.lng], road], { color: '#059669', weight: 3.5, dashArray: '7 6', opacity: 0.95 }).addTo(_lpDrRoadLayer);
+      L.circleMarker(road, { radius: 5, color: '#fff', weight: 2, fillColor: '#059669', fillOpacity: 1 }).addTo(_lpDrRoadLayer);
+      L.marker([(ctr.lat + road[0]) / 2, (ctr.lng + road[1]) / 2], { interactive: false, icon: L.divIcon({ className: 'll-cty-label', html: dist + ' m to nearest road', iconSize: [0, 0] }) }).addTo(_lpDrRoadLayer);
+      _lpDrRoadLayer.addTo(_lpDrMap);
     }
 
     // Re-trigger a CSS animation defined in the stylesheet on an element.
