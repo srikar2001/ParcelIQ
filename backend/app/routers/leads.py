@@ -13,7 +13,9 @@ supermarket / hospital / school / town) is enriched from free OSM Overpass on
 the final small lead set only.
 """
 import asyncio
+import json
 import math
+import os
 import random
 import re
 import time
@@ -23,6 +25,17 @@ import httpx
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
+# Bundled, simplified real FL county boundaries (Census TIGER, RDP-simplified) so
+# the Land Leads map draws true county borders — not bbox rectangles — for every
+# county instantly, with zero live geocoding / rate limits.
+_FL_COUNTY_POLYS: dict = {}
+try:
+    _cp = os.path.join(os.path.dirname(__file__), "..", "..", "data", "fl_counties.json")
+    with open(_cp, "r") as _f:
+        _FL_COUNTY_POLYS = json.load(_f)
+except Exception as _e:  # never let a missing file break the leads API
+    print(f"[Leads] county polygons unavailable: {_e}")
 
 from app.collectors.parcel_fl import URL as _CAD_URL, _CO_NO_TO_COUNTY
 from app.routers.batch import _screen_coordinate, _user_id_from_token, _AuthUnavailable
@@ -234,16 +247,36 @@ async def counties():
     return {"counties": sorted(_CO_NO_TO_COUNTY.values())}
 
 
+def _poly_bbox_center(poly: dict):
+    """[s,n,w,e] bbox + centroid-ish center from a bundled county polygon
+    ({'t','c'} where c is [lng,lat] rings)."""
+    rings = poly["c"] if poly["t"] == "Polygon" else [r for mp in poly["c"] for r in mp]
+    xs = [p[0] for r in rings for p in r]
+    ys = [p[1] for r in rings for p in r]
+    if not xs:
+        return None, None, None
+    w, e, s, n = min(xs), max(xs), min(ys), max(ys)
+    return [s, n, w, e], (s + n) / 2, (w + e) / 2
+
+
 @router.get("/county-geo")
 async def county_geo(names: str = ""):
-    """Center + bbox for the given counties (reuses the cached geocoder) so the
-    Land Leads map can highlight the selected counties and zoom to fit them."""
+    """Real county border polygon + bbox for each selected county, served from
+    the bundled boundaries so the Land Leads map draws true borders for ALL
+    selected counties instantly (even "select all"). Falls back to the cached
+    geocoder only for a typed area that isn't one of the 67 counties."""
     out, seen = [], set()
-    for nm in [n.strip() for n in names.split(",") if n.strip()][:12]:
+    for nm in [n.strip() for n in names.split(",") if n.strip()][:70]:
         k = nm.lower()
         if k in seen:
             continue
         seen.add(k)
+        poly = _FL_COUNTY_POLYS.get(nm)
+        if poly:
+            bbox, clat, clng = _poly_bbox_center(poly)
+            out.append({"name": nm, "lat": clat, "lng": clng, "bbox": bbox,
+                        "polygon": {"t": poly["t"], "c": poly["c"]}})
+            continue
         gf = await _geo_full(nm + " County, FL")
         if gf:
             out.append({"name": nm, "lat": gf["lat"], "lng": gf["lng"], "bbox": gf.get("bbox")})
@@ -256,14 +289,40 @@ async def land_types():
             "poi_types": [{"key": k, "label": v[1]} for k, v in _POI_SEL.items()]}
 
 
-async def _fetch_bbox_parcels(lat: float, lng: float, codes: set) -> list:
+def _uc_where(codes: set, f: "LeadFilters | None") -> str:
+    """Server-side attribute filter so each bbox page returns MATCHING vacant
+    parcels instead of mostly houses (DOR_UC is a string field, and different
+    counties zero-pad differently, so match both '9' and '09' forms). Acreage /
+    value push down as numeric ranges on the Double fields."""
+    vals = set()
+    for c in sorted(codes):
+        vals.add(f"'{c}'")
+        vals.add(f"'{c:02d}'")
+    where = "DOR_UC IN (" + ",".join(sorted(vals)) + ")"
+    if f is not None:
+        if f.acres_min:
+            where += f" AND LND_SQFOOT >= {int(f.acres_min * 43560)}"
+        if f.acres_max:
+            where += f" AND LND_SQFOOT <= {int(f.acres_max * 43560)}"
+        if f.value_min:
+            where += f" AND JV >= {int(f.value_min)}"
+        if f.value_max:
+            where += f" AND JV <= {int(f.value_max)}"
+    return where
+
+
+async def _fetch_bbox_parcels(lat: float, lng: float, codes: set,
+                              f: "LeadFilters | None" = None, use_filter: bool = True) -> list:
     w, s, e, n = lng - _BBOX_HALF, lat - _BBOX_HALF, lng + _BBOX_HALF, lat + _BBOX_HALF
+    where = _uc_where(codes, f) if use_filter else "1=1"
     params = {
-        "where": "1=1",
+        "where": where,
         "geometry": f"{w},{s},{e},{n}", "geometryType": "esriGeometryEnvelope",
         "inSR": "4326", "outSR": "4326", "spatialRel": "esriSpatialRelIntersects",
         "outFields": "PARCEL_ID,OWN_NAME,OWN_STATE,PHY_ADDR1,PHY_CITY,DOR_UC,JV,LND_SQFOOT",
-        "returnGeometry": "true", "resultRecordCount": "500", "f": "json",
+        # 2000-row pages so a bbox returns the real matching set, not the first
+        # 500 records (which under the old unfiltered scan were almost all houses).
+        "returnGeometry": "true", "resultRecordCount": "2000", "f": "json",
     }
     try:
         async with httpx.AsyncClient(timeout=_FETCH_TIMEOUT) as client:
@@ -275,8 +334,9 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set) -> list:
         return []
     if "error" in data:
         return []
+    feats = data.get("features", [])
     out = []
-    for feat in data.get("features", []):
+    for feat in feats:
         a = feat.get("attributes", {})
         try:
             luc = int(a.get("DOR_UC"))
@@ -560,27 +620,48 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
         gf = await _geo_full(f.location)
         if gf:
             points.append((gf["lat"], gf["lng"]))
-    for c in (f.counties or [])[:4]:
-        gf = await _geo_full(str(c) + " County, FL")
-        if gf:
-            points.extend(_grid_points(gf))
+    # Sample a grid across each selected county. Prefer the bundled REAL county
+    # extent (accurate, instant, no flaky geocode) and fall back to Nominatim
+    # only for a county we somehow don't have bundled.
+    sel_counties = (f.counties or [])[:8]
+    for c in sel_counties:
+        poly = _FL_COUNTY_POLYS.get(str(c))
+        if poly:
+            bbox, clat, clng = _poly_bbox_center(poly)
+            points.extend(_grid_points({"lat": clat, "lng": clng, "bbox": bbox}))
+        else:
+            gf = await _geo_full(str(c) + " County, FL")
+            if gf:
+                points.extend(_grid_points(gf))
     if not points:
         return {"leads": [], "error": "Pick a county (or type an area) to search."}
     random.shuffle(points)
-    points = points[:8]     # cap total bbox fetches per search
+    # Cap total bbox fetches for a bounded runtime, but scale up a little when
+    # several counties are selected so each still gets real coverage.
+    points = points[:min(16, 6 + 2 * max(1, len(sel_counties)))]
 
-    # Fetch every sample bbox concurrently, then dedupe + filter to candidates.
-    fetched = await asyncio.gather(*[_fetch_bbox_parcels(p[0], p[1], codes) for p in points])
-    seen_ids = set()
-    cands = []
-    for parcels in fetched:
-        for c in parcels:
-            pid = c.get("parcel_id")
-            if pid in seen_ids:
-                continue
-            seen_ids.add(pid)
-            if _match(c, f):
-                cands.append(c)
+    # Fetch every sample bbox concurrently with the tight server-side filter,
+    # then dedupe + filter to candidates.
+    async def _gather(use_filter: bool):
+        got = await asyncio.gather(*[_fetch_bbox_parcels(p[0], p[1], codes, f, use_filter) for p in points])
+        ids, cs = set(), []
+        for parcels in got:
+            for c in parcels:
+                pid = c.get("parcel_id")
+                if pid in ids:
+                    continue
+                ids.add(pid)
+                if _match(c, f):
+                    cs.append(c)
+        return cs
+
+    cands = await _gather(True)
+    # Safety net: if the server-side attribute filter matched nothing across the
+    # whole search (e.g. a county whose DOR_UC codes are zero-padded differently),
+    # fall back once to the unfiltered scan + client-side filtering. Guarantees a
+    # search never silently returns empty because of a where-clause mismatch.
+    if not cands:
+        cands = await _gather(False)
     # Screen the most buildable-looking parcels first. A real situs address and a
     # healthy value-per-acre both correlate with dry, road-accessible land; swamp
     # /wetland parcels are near-worthless and unaddressed. The old cheapest-first

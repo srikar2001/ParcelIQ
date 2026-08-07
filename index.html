@@ -1431,8 +1431,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     <div class="lp-stats-inner">
       <div class="lp-stat reveal"><div class="lp-stat-num"><span class="lp-stat-val" data-count="67">0</span></div><div class="lp-stat-label">Florida counties covered</div></div>
       <div class="lp-stat reveal" style="transition-delay:80ms"><div class="lp-stat-num"><span class="lp-stat-val" data-count="12">0</span></div><div class="lp-stat-label">live data sources per parcel</div></div>
-      <div class="lp-stat reveal" style="transition-delay:160ms"><div class="lp-stat-num"><span class="lp-stat-val" data-count="2">0</span></div><div class="lp-stat-label">verdicts — Kill or Pursue</div></div>
-      <div class="lp-stat reveal" style="transition-delay:240ms"><div class="lp-stat-num"><span class="lp-stat-val" data-count="0">0</span></div><div class="lp-stat-label">black boxes — every flag explained</div></div>
+      <div class="lp-stat reveal" style="transition-delay:160ms"><div class="lp-stat-num"><span class="lp-stat-val" data-count="2">0</span></div><div class="lp-stat-label">verdicts: Kill or Pursue</div></div>
+      <div class="lp-stat reveal" style="transition-delay:240ms"><div class="lp-stat-num"><span class="lp-stat-val" data-count="0">0</span></div><div class="lp-stat-label">black boxes. Every flag explained</div></div>
     </div>
   </section>
 
@@ -1532,7 +1532,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div class="lp-feature-card reveal" style="transition-delay:80ms">
           <div class="lp-feature-icon">🗺️</div>
           <div class="lp-feature-title">Deal Review workspace</div>
-          <div class="lp-feature-desc">Full-screen map per parcel — flood, wetlands, road, power, habitat, all drawn on it.</div>
+          <div class="lp-feature-desc">Full-screen map per parcel. Flood, wetlands, road, power, habitat, all drawn on it.</div>
         </div>
         <div class="lp-feature-card reveal" style="transition-delay:160ms">
           <div class="lp-feature-icon">📋</div>
@@ -1552,7 +1552,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         <div class="lp-feature-card reveal" style="transition-delay:400ms">
           <div class="lp-feature-icon">🔄</div>
           <div class="lp-feature-title">Re-screen anytime</div>
-          <div class="lp-feature-desc">Data updates. So do your results — one click per parcel.</div>
+          <div class="lp-feature-desc">Data updates. So do your results, one click per parcel.</div>
         </div>
       </div>
     </div>
@@ -1776,16 +1776,16 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     // matching what the real Deal Review map does per filter.
     var LP_DR_CHECKS = {
       flood:   { pill: '🌊 Flood Zone',    label: 'Zone X · outside floodplain', title: 'Flood Zone',
-                 desc: 'This parcel sits outside the FEMA-mapped floodplain (Zone X) — the lowest flood risk category. Zone, distance to the mapped boundary, and source all shown on the real map.',
+                 desc: 'The parcel sits in Zone X, outside the FEMA floodplain. That is the lowest flood risk there is. We show you the zone, the distance to the mapped boundary, and the source right on the map.',
                  verdict: 'PURSUE', score: 94 },
       road:    { pill: '🛣️ Road Access',   label: '40m to nearest road', title: 'Road Access',
-                 desc: 'A real line drawn to the nearest mapped road centerline, measured in meters — not a guess. Power line distance gets the same treatment.',
+                 desc: 'We draw a real line to the nearest road and measure it in feet. No guessing whether a lot is landlocked. Power lines get measured the same way.',
                  verdict: 'PURSUE', score: 94 },
       habitat: { pill: '🐢 Wildlife Habitat', label: '🐢 Gopher Tortoise on parcel', title: 'Wildlife Habitat',
-                 desc: 'Critical habitat records show a Gopher Tortoise burrow inside the parcel boundary. Species-level detail, not just "habitat nearby" — often enough to auto-kill a deal on its own.',
+                 desc: 'Records put a protected Gopher Tortoise burrow right inside this lot. We name the species, not just "habitat nearby." On its own that is often enough to kill a deal.',
                  verdict: 'KILL', score: 18 },
       evac:    { pill: '🚧 Evacuation Zone', label: 'Zone C evacuation', title: 'Evacuation Zone',
-                 desc: 'Zone C is a moderate hurricane evacuation risk — not immediate, but worth flagging for insurance and resale conversations.',
+                 desc: 'This lot falls in evacuation Zone C, a moderate hurricane risk. Not a dealbreaker, but worth knowing before insurance and resale come up.',
                  verdict: 'PURSUE', score: 94 },
     };
     var lpDrActive = 'flood';
@@ -1795,29 +1795,37 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     // 14718 NE 147th Ave, Waldo; APN 17151-001-000). We drop in satellite tiles
     // centered on it and draw its true boundary from the FL cadastral, then
     // recolor that outline per selected check — no faux-map art.
-    var _lpDrMap = null, _lpDrPoly = null, _lpDrFlood = null, _lpDrRoadLayer = null, _lpDrRoadDone = false, _lpDrZoomedIn = false;
+    var _lpDrMap = null, _lpDrPoly = null, _lpDrPolyCase = null, _lpDrFlood = null, _lpDrRoadLayer = null, _lpDrRoadDone = false, _lpDrZoomedIn = false;
     var _LP_DR_COLORS = { flood: '#2563EB', road: '#059669', habitat: '#EF4444', evac: '#F59E0B' };
     function _lpDrInitMap() {
       if (_lpDrMap || typeof L === 'undefined') return;
       var host = document.getElementById('lpDrMap'), el = document.getElementById('lpDrLeaflet');
       if (!host || !el) return;
       try {
-        _lpDrMap = L.map(el, { zoomControl: false, attributionControl: true, dragging: false,
-          scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false,
-          tap: false, touchZoom: false, zoomSnap: 0.1, zoomDelta: 0.5,
-          // Start pulled WAY back (regional) so the reveal is a real "fly down
-          // to the parcel" zoom-in, not a static frame.
+        // A REAL, fully interactive map — drag, zoom, pinch, explore. This is
+        // the live product's Deal Review map, not a static picture: the visitor
+        // can move around the parcel exactly like they would inside the app.
+        // (Scroll-wheel zoom stays off so the page still scrolls past it; the
+        // +/- buttons, double-click and pinch all zoom.)
+        _lpDrMap = L.map(el, { zoomControl: true, attributionControl: true, dragging: true,
+          scrollWheelZoom: false, doubleClickZoom: true, boxZoom: true, keyboard: false,
+          tap: true, touchZoom: true, zoomSnap: 0.25, minZoom: 4, maxZoom: 19,
           fadeAnimation: true, zoomAnimation: true }).setView([29.7906, -82.1659], 11);
-        // Street basemap (CARTO Voyager) — same "real map" style as the in-app
-        // Deal Review, not flat satellite. Clean, labeled, realistic.
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-          { maxZoom: 19, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO' }).addTo(_lpDrMap);
+        try { _lpDrMap.zoomControl.setPosition('topright'); } catch (e) {}
+        // High-resolution aerial imagery (Esri World Imagery) — the true
+        // satellite view of the actual parcel, the way the product really shows
+        // it, not a flat street sketch.
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          { maxZoom: 19, maxNativeZoom: 19, attribution: 'Imagery © Esri, Maxar, USDA FSA' }).addTo(_lpDrMap);
+        // Road + place labels floated on top so it still reads like a property map.
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png',
+          { maxZoom: 19, subdomains: 'abcd', opacity: 0.85 }).addTo(_lpDrMap);
         // FEMA NFHL flood zones overlay (tinted blue) so the showcase shows real
-        // flood data — the parcel sits OUTSIDE the mapped floodplain (Zone X).
+        // flood data: the parcel sits OUTSIDE the mapped floodplain (Zone X).
         try {
           var _Flood = L.GridLayer.extend({ createTile: function(coords, done) {
             var im = document.createElement('img');
-            im.style.cssText = 'width:256px;height:256px;filter:saturate(1.35) contrast(1.05);opacity:.5';
+            im.style.cssText = 'width:256px;height:256px;filter:saturate(1.4) contrast(1.05);opacity:.42';
             var bb = this._tileCoordsToBounds(coords);
             var bx = bb.getWest() + ',' + bb.getSouth() + ',' + bb.getEast() + ',' + bb.getNorth();
             im.onload = function() { done(null, im); }; im.onerror = function() { done(null, im); };
@@ -1849,7 +1857,10 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       ];
       var _pc = _LP_DR_COLORS[lpDrActive] || '#059669';
       try {
-        _lpDrPoly = L.polygon(_LP_DR_RINGS, { color: _pc, weight: 3, fillColor: _pc, fillOpacity: 0.18 }).addTo(_lpDrMap);
+        // White casing under a bright colored outline so the parcel pops on
+        // aerial imagery (the same treatment survey/GIS tools use).
+        _lpDrPolyCase = L.polygon(_LP_DR_RINGS, { color: '#fff', weight: 6, opacity: 0.9, fill: false, lineJoin: 'round' }).addTo(_lpDrMap);
+        _lpDrPoly = L.polygon(_LP_DR_RINGS, { color: _pc, weight: 3, fillColor: _pc, fillOpacity: 0.22, lineJoin: 'round' }).addTo(_lpDrMap);
       } catch (e) {}
       // Cinematic "fly down to the parcel" — animate from the wide regional view
       // to a tight frame on the real boundary, the way a user zooming a real map
@@ -1863,11 +1874,11 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           try {
             var b = _lpDrPoly && _lpDrPoly.getBounds();
             if (b && b.isValid()) {
-              // Cap the zoom so the parcel fills ~half the frame with real
-              // street context around it — not so close it becomes a blob.
-              _lpDrMap.flyToBounds(b, { padding: [70, 70], maxZoom: 16.5, duration: 2.0, easeLinearity: 0.2 });
+              // Settle close enough that the parcel and its aerial detail read
+              // clearly, with a little surrounding context.
+              _lpDrMap.flyToBounds(b, { padding: [56, 56], maxZoom: 18, duration: 2.0, easeLinearity: 0.2 });
             } else {
-              _lpDrMap.flyTo([29.79055, -82.16575], 16.3, { duration: 2.0, easeLinearity: 0.2 });
+              _lpDrMap.flyTo([29.79055, -82.16575], 17.6, { duration: 2.0, easeLinearity: 0.2 });
             }
           } catch (e) {
             try { _lpDrMap.fitBounds(_lpDrPoly.getBounds(), { padding: [70, 70], maxZoom: 16.5 }); } catch (e2) {}
@@ -12561,12 +12572,19 @@ async function _leadHighlightCounties() {
   names.forEach(n => {
     const c = _leadCountyGeoCache[n];
     if (!c) return;
-    const bb = c.bbox; // [south, north, west, east]
-    if (bb && bb.length === 4) {
-      L.rectangle([[bb[0], bb[2]], [bb[1], bb[3]]], { color: '#059669', weight: 1.5, fillColor: '#059669', fillOpacity: 0.12, interactive: false }).addTo(_leadCountyLayer);
-      bounds.push([bb[0], bb[2]], [bb[1], bb[3]]);
-    } else if (c.lat != null) {
-      bounds.push([c.lat, c.lng]);
+    if (c.polygon && c.polygon.c) {
+      // Draw the TRUE county border (real boundary polygon), not a bbox square.
+      const gj = L.geoJSON({ type: 'Feature', geometry: { type: c.polygon.t, coordinates: c.polygon.c } },
+        { interactive: false, style: { color: '#059669', weight: 1.8, opacity: 0.95, fillColor: '#059669', fillOpacity: 0.1, lineJoin: 'round' } }).addTo(_leadCountyLayer);
+      try { const b = gj.getBounds(); if (b.isValid()) { bounds.push(b.getSouthWest(), b.getNorthEast()); } } catch (e) {}
+    } else {
+      const bb = c.bbox; // [south, north, west, east]
+      if (bb && bb.length === 4) {
+        L.rectangle([[bb[0], bb[2]], [bb[1], bb[3]]], { color: '#059669', weight: 1.5, fillColor: '#059669', fillOpacity: 0.12, interactive: false }).addTo(_leadCountyLayer);
+        bounds.push([bb[0], bb[2]], [bb[1], bb[3]]);
+      } else if (c.lat != null) {
+        bounds.push([c.lat, c.lng]);
+      }
     }
     if (c.lat != null) L.marker([c.lat, c.lng], { interactive: false, icon: L.divIcon({ className: 'll-cty-label', html: escHtml(n), iconSize: [0, 0] }) }).addTo(_leadCountyLayer);
   });
@@ -12795,12 +12813,35 @@ async function _renderLeadsSidebar() {
       .order('created_at', { ascending: false }).limit(80);
     items = (data || []).filter(_isLeadBatch).slice(0, 25);
   } catch (e) { return; }
+  // The results-page sidebar is narrow, so leads render as the SAME compact
+  // .rsb-item row that Recents use (the old big .batch-card overflowed and got
+  // clipped, which is why saved leads looked "not visible"). The legacy
+  // dashboard keeps the roomier .batch-card.
+  const active = _currentBatchId;
+  const sidebarRows = items.map(b => {
+    const nm = escHtml(b.name || 'Leads');
+    const en = nm.replace(/'/g, '&#39;');
+    const n = b.pursues != null ? b.pursues : (b.total || 0);
+    return '<div class="rsb-item' + (b.id === active ? ' active' : '') + '" id="lbc-' + b.id + '" onclick="loadBatchResults(\'' + b.id + '\')" style="justify-content:space-between;padding:5px 10px">' +
+      '<span class="rsb-batch-name" title="' + en + '">' + nm + '</span>' +
+      '<span style="flex-shrink:0;display:flex;align-items:center;gap:6px">' +
+        '<span style="color:var(--green);font-size:11px;font-weight:700">' + n + '</span>' +
+        '<div class="rsb-3dot-wrap" onclick="event.stopPropagation()">' +
+          '<button class="rsb-3dot-btn" onclick="toggleBatchMenu(\'' + b.id + '\',event)" title="Options">⋮</button>' +
+          '<div class="rsb-3dot-menu" id="bm-' + b.id + '">' +
+            '<button onclick="renameBatch(\'' + b.id + '\',\'' + en + '\');closeBatchMenu()">✎ Rename</button>' +
+            '<button onclick="deleteBatch(\'' + b.id + '\');closeBatchMenu()" style="color:var(--red)">✕ Delete</button>' +
+          '</div>' +
+        '</div>' +
+      '</span>' +
+    '</div>';
+  }).join('');
   const cards = items.map(b => {
     const d = new Date(b.created_at);
     const nm = escHtml(b.name || 'Leads');
     const dt = d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const n = b.pursues != null ? b.pursues : (b.total || 0);
-    return '<div class="batch-card" id="lbc-' + b.id + '" onclick="loadBatchResults(\'' + b.id + '\')">' +
+    return '<div class="batch-card" id="lbcd-' + b.id + '" onclick="loadBatchResults(\'' + b.id + '\')">' +
       '<div class="batch-info"><div class="batch-name" title="' + nm + '">' + nm + '</div>' +
       '<div class="batch-date">' + dt + '</div></div>' +
       '<div class="batch-stats"><span style="color:var(--green)">■ ' + n + '</span></div>' +
@@ -12808,7 +12849,7 @@ async function _renderLeadsSidebar() {
       '<button class="batch-del" onclick="event.stopPropagation();deleteBatch(\'' + b.id + '\')" title="Delete">✕</button></div>';
   }).join('');
   const has = items.length > 0;
-  const rl = document.getElementById('rsbLeadsList'); if (rl) { rl.innerHTML = cards; rl.style.display = has ? 'flex' : 'none'; }
+  const rl = document.getElementById('rsbLeadsList'); if (rl) { rl.innerHTML = sidebarRows; rl.style.display = has ? 'flex' : 'none'; }
   const dl = document.getElementById('dashLeadsList'); if (dl) dl.innerHTML = cards;
   const rh = document.getElementById('rsbLeadsHdr'); if (rh) rh.style.display = has ? 'flex' : 'none';
   const ds2 = document.getElementById('dashLeadsSec'); if (ds2) ds2.style.display = has ? '' : 'none';
