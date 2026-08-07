@@ -387,6 +387,25 @@ async def admin_user_batches(user_id: str, request: Request, authorization: Opti
     return _ok({"batches": r.json() if r.status_code == 200 else []})
 
 
+@router.get("/batch/{batch_id}/parcels")
+async def admin_batch_parcels(batch_id: str, request: Request,
+                              authorization: Optional[str] = Header(None)):
+    """Every parcel a user actually screened in a given batch — the addresses,
+    verdicts, scores, and kill reasons — so an admin can see exactly what they
+    ran, not just batch-level counts. Read-only; the fetch itself is audited."""
+    denied, actor = await _require_admin(request, authorization)
+    if denied is not None:
+        return denied
+    r = await _sb_get("/rest/v1/parcel_results", {
+        "select": "address,verdict,score,auto_kill,auto_kill_reason,flags,created_at",
+        "batch_id": f"eq.{batch_id}",
+        "order": "verdict.asc,score.desc", "limit": "2000",
+    })
+    rows = r.json() if r.status_code == 200 else []
+    await _audit(actor, "view_batch_parcels", batch_id, {"count": len(rows)})
+    return _ok({"parcels": rows})
+
+
 class _UserPatch(BaseModel):
     plan: Optional[str] = None
     daily_limit: Optional[int] = None
