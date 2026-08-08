@@ -45,8 +45,8 @@ router = APIRouter(prefix="/api/leads")
 
 # Bounded concurrency for lead screening (a search only ever screens _MAX_SCREEN
 # parcels, so a modest bump over the batch path is safe for the DB).
-_SEM_LEADS = asyncio.Semaphore(8)
-_LEAD_CONCURRENCY = 8
+_SEM_LEADS = asyncio.Semaphore(14)
+_LEAD_CONCURRENCY = 14
 
 _VACANT_CODES = {0, 9, 10, 40, 70}
 # FL DOR use-code ranges -> the same broad categories the frontend shows, so the
