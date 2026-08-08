@@ -1178,6 +1178,9 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 /* Real Leaflet map behind the demo overlays; when it loads, hide the faux-map art. */
 #lpDrLeaflet{position:absolute;inset:0;z-index:0;background:#EEF2F6}
 #lpDrLeaflet .leaflet-control-attribution{font-size:9px;background:rgba(255,255,255,.82);color:#64748b}
+/* Landing Deal Review comp pins (numbered) + sale-price chip */
+.lp-dr-comp-pin{position:absolute;left:0;top:0;transform:translate(-50%,-50%);background:#F59E0B;color:#fff;font-size:11px;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 8px rgba(16,24,40,.4)}
+.lp-dr-comp-price{position:absolute;left:0;top:13px;transform:translateX(-50%);background:rgba(15,23,42,.92);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;white-space:nowrap;box-shadow:0 2px 6px rgba(16,24,40,.35)}
 .lp-dr-map-label{z-index:2}
 .lp-dr-mock-map.has-realmap{background:#EEF2F6}
 .lp-dr-mock-map.has-realmap::after{display:none}
@@ -1795,7 +1798,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     // 14718 NE 147th Ave, Waldo; APN 17151-001-000). We drop in satellite tiles
     // centered on it and draw its true boundary from the FL cadastral, then
     // recolor that outline per selected check — no faux-map art.
-    var _lpDrMap = null, _lpDrPoly = null, _lpDrPolyCase = null, _lpDrFlood = null, _lpDrRoadLayer = null, _lpDrRoadDone = false, _lpDrZoomedIn = false;
+    var _lpDrMap = null, _lpDrPoly = null, _lpDrFlood = null, _lpDrRoadLayer = null, _lpDrRoadDone = false, _lpDrZoomedIn = false, _lpDrCompLayer = null, _lpDrOverlaysDrawn = false;
     var _LP_DR_COLORS = { flood: '#2563EB', road: '#059669', habitat: '#EF4444', evac: '#F59E0B' };
     function _lpDrInitMap() {
       if (_lpDrMap || typeof L === 'undefined') return;
@@ -1812,20 +1815,15 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           tap: true, touchZoom: true, zoomSnap: 0.25, minZoom: 4, maxZoom: 19,
           fadeAnimation: true, zoomAnimation: true }).setView([29.7906, -82.1659], 11);
         try { _lpDrMap.zoomControl.setPosition('topright'); } catch (e) {}
-        // High-resolution aerial imagery (Esri World Imagery) — the true
-        // satellite view of the actual parcel, the way the product really shows
-        // it, not a flat street sketch.
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-          { maxZoom: 19, maxNativeZoom: 19, attribution: 'Imagery © Esri, Maxar, USDA FSA' }).addTo(_lpDrMap);
-        // Road + place labels floated on top so it still reads like a property map.
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png',
-          { maxZoom: 19, subdomains: 'abcd', opacity: 0.85 }).addTo(_lpDrMap);
-        // FEMA NFHL flood zones overlay (tinted blue) so the showcase shows real
-        // flood data: the parcel sits OUTSIDE the mapped floodplain (Zone X).
+        // Clean, labeled STREET basemap (CARTO Voyager) — the exact same
+        // real-map style as the in-app Deal Review. Not satellite.
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+          { maxZoom: 20, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO' }).addTo(_lpDrMap);
+        // FEMA NFHL flood zones overlay (real data; parcel sits outside Zone X).
         try {
           var _Flood = L.GridLayer.extend({ createTile: function(coords, done) {
             var im = document.createElement('img');
-            im.style.cssText = 'width:256px;height:256px;filter:saturate(1.4) contrast(1.05);opacity:.42';
+            im.style.cssText = 'width:256px;height:256px;filter:saturate(1.35);opacity:.4';
             var bb = this._tileCoordsToBounds(coords);
             var bx = bb.getWest() + ',' + bb.getSouth() + ',' + bb.getEast() + ',' + bb.getNorth();
             im.onload = function() { done(null, im); }; im.onerror = function() { done(null, im); };
@@ -1839,15 +1837,9 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         host.classList.add('has-realmap');
         setTimeout(function() { if (_lpDrMap) _lpDrMap.invalidateSize(); }, 250);
       } catch (e) { _lpDrMap = null; return; }
-      // The subject parcel's true center — used to frame the map tightly so the
-      // parcel is the clear focus, and as a guaranteed fallback marker if the
-      // live cadastral fetch is slow or fails (it must never leave the showcase
-      // as a blank, unfocused street map).
       // The subject parcel's TRUE boundary (14718 NE 147th Ave, Waldo; APN
-      // 17151-001-000), hardcoded from the FL statewide cadastral. Hardcoded on
-      // purpose: the live ArcGIS query is too flaky to gate the hero showcase on
-      // (same reason the nearest-road line is hardcoded) — the parcel must draw
-      // every single time.
+      // 17151-001-000), hardcoded from the FL statewide cadastral so it draws
+      // every time (the live query is too flaky to gate the hero on).
       var _LP_DR_RINGS = [
         [29.7903316, -82.1665437], [29.7907024, -82.1661485], [29.7908799, -82.1659593],
         [29.7909006, -82.1659372], [29.7911692, -82.1656841], [29.7911696, -82.1655676],
@@ -1855,35 +1847,52 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         [29.7903492, -82.1655654], [29.7903491, -82.1656441], [29.7903487, -82.1659597],
         [29.7903485, -82.1661486]
       ];
-      var _pc = _LP_DR_COLORS[lpDrActive] || '#059669';
-      try {
-        // White casing under a bright colored outline so the parcel pops on
-        // aerial imagery (the same treatment survey/GIS tools use).
-        _lpDrPolyCase = L.polygon(_LP_DR_RINGS, { color: '#fff', weight: 6, opacity: 0.9, fill: false, lineJoin: 'round' }).addTo(_lpDrMap);
-        _lpDrPoly = L.polygon(_LP_DR_RINGS, { color: _pc, weight: 3, fillColor: _pc, fillOpacity: 0.22, lineJoin: 'round' }).addTo(_lpDrMap);
-      } catch (e) {}
-      // Cinematic "fly down to the parcel" — animate from the wide regional view
-      // to a tight frame on the real boundary, the way a user zooming a real map
-      // would. Runs once, and only after the map is actually visible (Leaflet
-      // skips the animation on a hidden/zero-size map, which would make it jump).
+      var _LP_DR_PC = [29.79055, -82.16575];   // subject centroid
+      // Comparable land sales around the subject — the same "Map Comps" view the
+      // real Deal Review draws, each connected to the subject by a blue line.
+      var _LP_DR_COMPS = [
+        { ll: [29.79285, -82.16860], price: '$14,500', yr: '2024', ac: '1.02 ac' },
+        { ll: [29.78835, -82.16375], price: '$9,900',  yr: '2023', ac: '0.86 ac' },
+        { ll: [29.79185, -82.16235], price: '$18,000', yr: '2025', ac: '1.40 ac' },
+        { ll: [29.78760, -82.16965], price: '$12,000', yr: '2024', ac: '0.95 ac' },
+      ];
+      // Draw the parcel + comps + blue connector lines. DEFERRED until AFTER the
+      // fly-in settles so the vector overlay never smears into a blob mid-zoom.
+      function _lpDrDrawOverlays() {
+        if (_lpDrOverlaysDrawn || !_lpDrMap) return;
+        _lpDrOverlaysDrawn = true;
+        var c = _LP_DR_COLORS[lpDrActive] || '#2563EB';
+        try {
+          _lpDrPoly = L.polygon(_LP_DR_RINGS, { color: c, weight: 3, fillColor: c, fillOpacity: 0.2, lineJoin: 'round' }).addTo(_lpDrMap);
+          _lpDrPoly.bindTooltip('1.15 ac', { permanent: true, direction: 'center', className: 'sv-map-acres-label' });
+        } catch (e) {}
+        try {
+          _lpDrCompLayer = L.layerGroup().addTo(_lpDrMap);
+          _LP_DR_COMPS.forEach(function (cp, i) {
+            L.polyline([_LP_DR_PC, cp.ll], { color: '#2563EB', weight: 2, opacity: 0.8, dashArray: '5 6' }).addTo(_lpDrCompLayer);
+            L.marker(cp.ll, { interactive: true, icon: L.divIcon({ className: 'lp-dr-comp',
+              html: '<div class="lp-dr-comp-pin">' + (i + 1) + '</div><div class="lp-dr-comp-price">' + cp.price + '</div>', iconSize: [0, 0] }) })
+              .bindTooltip('Sold ' + cp.price + ' · ' + cp.yr + ' · ' + cp.ac, { direction: 'top', offset: [0, -12] })
+              .addTo(_lpDrCompLayer);
+          });
+        } catch (e) {}
+      }
+      // Fly from the wide view down to frame the subject WITH its comps, then
+      // draw the overlays crisply once the motion stops (no mid-zoom blob).
       function _lpDrFlyToParcel() {
         if (!_lpDrMap || _lpDrZoomedIn) return;
         _lpDrZoomedIn = true;
         try { _lpDrMap.invalidateSize(); } catch (e) {}
-        setTimeout(function() {
+        setTimeout(function () {
           try {
-            var b = _lpDrPoly && _lpDrPoly.getBounds();
-            if (b && b.isValid()) {
-              // Settle close enough that the parcel and its aerial detail read
-              // clearly, with a little surrounding context.
-              _lpDrMap.flyToBounds(b, { padding: [56, 56], maxZoom: 18, duration: 2.0, easeLinearity: 0.2 });
-            } else {
-              _lpDrMap.flyTo([29.79055, -82.16575], 17.6, { duration: 2.0, easeLinearity: 0.2 });
-            }
-          } catch (e) {
-            try { _lpDrMap.fitBounds(_lpDrPoly.getBounds(), { padding: [70, 70], maxZoom: 16.5 }); } catch (e2) {}
-          }
-        }, 420);
+            var b = L.latLngBounds([_LP_DR_PC].concat(_LP_DR_COMPS.map(function (cp) { return cp.ll; })));
+            _LP_DR_RINGS.forEach(function (p) { b.extend(p); });
+            _lpDrMap.flyToBounds(b, { padding: [46, 46], maxZoom: 16.5, duration: 2.0, easeLinearity: 0.2 });
+            _lpDrMap.once('moveend', function () { setTimeout(_lpDrDrawOverlays, 80); });
+          } catch (e) { _lpDrDrawOverlays(); }
+        }, 480);
+        // Safety net: draw overlays even if 'moveend' never fires.
+        setTimeout(_lpDrDrawOverlays, 3400);
       }
       // Kick the fly-in once the wide-zoom tiles have had a beat to paint.
       setTimeout(_lpDrFlyToParcel, 850);
@@ -2365,12 +2374,12 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       </div>
       </div>
       <!-- Generated Leads (separate from Recents; Recents = screening batches) -->
-      <div class="rsb-grp-lbl" id="rsbLeadsHdr" style="display:none;align-items:center;justify-content:space-between;cursor:pointer" onclick="_leadToggleSidebar('rsb')">
+      <div class="rsb-grp-lbl" id="rsbLeadsHdr" style="display:none;align-items:center;justify-content:space-between;cursor:pointer;flex-shrink:0" onclick="_leadToggleSidebar('rsb')">
         <span>🎯 Generated Leads</span><span id="rsbLeadsCaret" style="color:var(--t3);font-size:11px">▾</span>
       </div>
-      <div id="rsbLeadsList" style="display:none;flex-direction:column;gap:1px;overflow-y:auto;max-height:32vh"></div>
+      <div id="rsbLeadsList" style="display:none;flex-direction:column;gap:1px;overflow-y:auto;max-height:32vh;flex-shrink:0"></div>
       <!-- Recents (always open) -->
-      <div class="rsb-grp-lbl" id="rsbPrevHdr">Recents</div>
+      <div class="rsb-grp-lbl" id="rsbPrevHdr" style="flex-shrink:0">Recents</div>
       <div id="sidebarBatchList" style="overflow-y:auto;flex:1;min-height:216px;display:flex;flex-direction:column;gap:1px"></div>
       <!-- Footer -->
       <div class="rsb-footer">
@@ -3956,13 +3965,13 @@ async function router() {
   if (_baseHash(window.location.hash) === '#results') { window.location.replace('#dashboard'); return; }
   const rawHash = window.location.hash || '#landing';
   const hash = _baseHash(rawHash);
-  // If already logged in and navigating to a pure auth page, skip straight to dashboard.
-  // #landing is intentionally excluded — the logo should always reach the landing page.
-  const _authOnlyPages = new Set(['#login', '#signup', '#forgot', '', '#']);
+  // If already logged in and navigating to a pure LOGIN/SIGNUP page, skip
+  // straight to the dashboard. The empty/root hash and #landing are NOT here on
+  // purpose: a logged-in user who opens the site or clicks the logo stays on the
+  // marketing landing page (the landing nav shows a "Dashboard →" button for
+  // them). We never auto-yank anyone off landing anymore.
+  const _authOnlyPages = new Set(['#login', '#signup', '#forgot']);
   if (_authOnlyPages.has(hash) && currentSession) {
-    // Already signed in and on an auth/empty route → the dashboard, always
-    // (with #dashboard in the URL). #landing is excluded above, so the logo
-    // can still reach the marketing page on purpose.
     goTo('dashboard'); return;
   }
   if (PROTECTED.has(hash)) {
@@ -4304,15 +4313,11 @@ if (sb) {
     const _isBoot = !!_authResolve;
     // Resolve initial auth promise on the very first event (INITIAL_SESSION, SIGNED_IN, or SIGNED_OUT)
     if (_authResolve) { _authResolve(session); _authResolve = null; }
-    // Slow cold restore: initApp already fell back to the landing page from a
-    // bare URL before the session resolved. Now that it has, go to the
-    // dashboard (guarded to that fallback, so an explicit logo->landing is
-    // left alone). One hop → no double-load.
-    if (_isBoot && session && _bootBareLanding &&
-        document.getElementById('page-landing')?.classList.contains('active')) {
-      _bootBareLanding = false;
-      goTo('dashboard');
-    }
+    // A logged-in visitor who opens the bare URL now STAYS on the landing page
+    // (it's the product showcase) rather than being bounced to the dashboard on
+    // a late session restore. _bootBareLanding is retained only so nothing else
+    // reads a stale flag.
+    if (_isBoot && _bootBareLanding) { _bootBareLanding = false; }
     if (event === 'SIGNED_IN') {
       const incomingId = session?.user?.id;
       // Only clear stale data if a DIFFERENT user is signing in — not on same-user session restores
@@ -4469,17 +4474,13 @@ async function initApp() {
     // reloading the page was the one thing that DIDN'T pick up an admin's
     // limit override.
     _loadUsageLimit();
-    // Only auto-navigate from explicit login/signup pages, NOT from landing/root
+    // Only auto-navigate from explicit login/signup pages, NOT from landing/root.
+    // Opening the bare app URL keeps you on the landing page now (it's the real
+    // product showcase); the landing nav has a "Dashboard →" button to get to work.
     const _EXPLICIT_AUTH = new Set(['#login', '#signup', '#forgot']);
     const _h0 = window.location.hash;
     if (_EXPLICIT_AUTH.has(_h0)) {
       _runPendingOrResults();
-      return;
-    }
-    // Logged in and opening the bare app URL → go straight to the dashboard in
-    // one hop, with #dashboard in the address bar (never the plain landing).
-    if (_h0 === '' || _h0 === '#') {
-      goTo('dashboard');
       return;
     }
   }
