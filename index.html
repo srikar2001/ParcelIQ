@@ -1532,9 +1532,6 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
           <!-- Scrollable, full Deal Review panel (verdict → owner → facts → every
                check → comps), the same content the real Deal Review shows. -->
           <div class="lp-dr-mock-panel" id="lpDrPanel">
-            <div class="lp-dr-focus"><div class="lp-dr-panel-title" id="lpDrPanelTitle">Flood Zone</div>
-            <div class="lp-dr-panel-desc" id="lpDrPanelDesc"></div></div>
-
             <div class="lp-dr-verdict-box">
               <div class="lp-dr-vb-top"><b>PURSUE</b> · Score 86/100 · Confidence 100% · 12 of 12 checks</div>
               <div class="lp-dr-vb-narr">No major risk factors block this lot. Flood zone is clear (Zone X) and elevation is 144.4 ft, well above flood levels. Road access is confirmed about 64 m away. The open questions are wetlands within ~100 m and poorly drained soil, so septic may not be feasible without public sewer.</div>
@@ -1912,17 +1909,33 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       var _LP_DR_PC = [28.191630, -81.870382];   // subject centroid
       // Neighbouring rural lots (illustrative blue outlines) around the real
       // subject parcel, so the map reads like the in-app cadastral view.
-      var _LP_DR_NEIGHBORS = (function () {
-        var out = [], cy = 28.19163, cx = -81.87038, w = 0.00150, h = 0.00090, gap = 0.00010;
-        for (var gy = -2; gy <= 2; gy++) {
-          for (var gx = -2; gx <= 2; gx++) {
-            if (gy === 0 && gx >= -1 && gx <= 0) continue;  // subject occupies this band
-            var oy = cy + gy * (h + gap), ox = cx + gx * (w + gap);
-            out.push([[oy - h / 2, ox - w / 2], [oy - h / 2, ox + w / 2], [oy + h / 2, ox + w / 2], [oy + h / 2, ox - w / 2], [oy - h / 2, ox - w / 2]]);
-          }
-        }
-        return out;
-      })();
+      // REAL neighbouring parcels around the subject (FL cadastral, via the
+      // same explore data the in-app Deal Review uses) — each hoverable to show
+      // its address, acreage and county just-value.
+      var _LP_DR_NEIGHBORS = [
+        {r:[[28.191056,-81.865855],[28.191043,-81.86688],[28.191414,-81.866878],[28.191427,-81.865853],[28.191056,-81.865855]],a:'10536 Hartzog Rd',ac:1.02,jv:248202},
+        {r:[[28.19064,-81.869442],[28.192125,-81.869435],[28.192132,-81.868923],[28.19064,-81.869442]],a:'4333 Hagan Rd',ac:1.02,jv:49191},
+        {r:[[28.192309,-81.867898],[28.192297,-81.868922],[28.193204,-81.868918],[28.193217,-81.867894],[28.192309,-81.867898]],a:'4420 Hagan Rd',ac:2.5,jv:289342},
+        {r:[[28.190802,-81.869954],[28.190791,-81.870801],[28.191302,-81.870798],[28.191311,-81.870106],[28.192117,-81.870103],[28.192119,-81.869947],[28.190802,-81.869954]],a:'4319 Hagan Rd',ac:1.5,jv:115390},
+        {r:[[28.191302,-81.870798],[28.190791,-81.870801],[28.190802,-81.869954],[28.190634,-81.869954],[28.190643,-81.869209],[28.189588,-81.867755],[28.188848,-81.867563],[28.187043,-81.866721],[28.187041,-81.866898],[28.187955,-81.867444],[28.189845,-81.868376],[28.189402,-81.868377],[28.18937,-81.870993],[28.192106,-81.870981],[28.192109,-81.870794],[28.191302,-81.870798]],a:'10505 Fox Central',ac:11.62,jv:165889},
+        {r:[[28.191427,-81.865853],[28.191414,-81.866878],[28.191786,-81.866876],[28.191798,-81.865852],[28.191427,-81.865853]],a:'10610 Hartzog Rd',ac:1.02,jv:407311},
+        {r:[[28.190659,-81.867906],[28.190646,-81.86893],[28.192132,-81.868923],[28.192144,-81.867899],[28.190659,-81.867906]],a:'4409 Hagan Rd',ac:4.09,jv:346414},
+        {r:[[28.187955,-81.867444],[28.186695,-81.867456],[28.186854,-81.867792],[28.186852,-81.868101],[28.186118,-81.868113],[28.186115,-81.868393],[28.189845,-81.868376],[28.187955,-81.867444]],a:'4416 Foxtown N',ac:5.78,jv:412545},
+        {r:[[28.186085,-81.870823],[28.186083,-81.871009],[28.18937,-81.870993],[28.189402,-81.868377],[28.187215,-81.868383],[28.187185,-81.870817],[28.186085,-81.870823]],a:'10335 Fox Central',ac:15.95,jv:109170},
+        {r:[[28.190684,-81.865857],[28.190672,-81.866881],[28.191043,-81.86688],[28.191056,-81.865855],[28.190684,-81.865857]],a:'Hartzog Rd',ac:1.02,jv:30643},
+        {r:[[28.190665,-81.867393],[28.190659,-81.867906],[28.192144,-81.867899],[28.192151,-81.867387],[28.190665,-81.867393]],a:'4433 Hagan Rd',ac:2.04,jv:287044},
+        {r:[[28.192284,-81.869947],[28.192274,-81.870794],[28.193181,-81.870789],[28.193192,-81.869942],[28.192284,-81.869947]],a:'4320 Hagan Rd',ac:2.07,jv:279781},
+        {r:[[28.191798,-81.865852],[28.191786,-81.866876],[28.192157,-81.866874],[28.192169,-81.86585],[28.191798,-81.865852]],a:'4525 Hagan Rd',ac:1.02,jv:28880},
+        {r:[[28.192297,-81.868922],[28.192284,-81.869947],[28.193192,-81.869942],[28.193204,-81.868918],[28.192297,-81.868922]],a:'Hagan Rd',ac:2.5,jv:57000},
+        {r:[[28.192322,-81.866874],[28.192309,-81.867898],[28.193217,-81.867894],[28.19323,-81.866869],[28.192322,-81.866874]],a:'4510 Hagan Rd',ac:2.5,jv:357812},
+        {r:[[28.19064,-81.869442],[28.190634,-81.869954],[28.192119,-81.869947],[28.192125,-81.869435],[28.19064,-81.869442]],a:'4325 Hagan Rd',ac:2.04,jv:169996},
+        {r:[[28.191786,-81.866876],[28.190672,-81.866881],[28.190665,-81.867393],[28.192151,-81.867387],[28.192157,-81.866874],[28.191786,-81.866876]],a:'4505 Hagan Rd',ac:2.04,jv:325939},
+        {r:[[28.190646,-81.86893],[28.19064,-81.869442],[28.192132,-81.868923],[28.190646,-81.86893]],a:'Hagan Rd',ac:1.02,jv:23104},
+        {r:[[28.189641,-81.865862],[28.189588,-81.867755],[28.190643,-81.869209],[28.190684,-81.865857],[28.189641,-81.865862]],a:'10526 Hartzog Rd',ac:7.56,jv:190154},
+        {r:[[28.187961,-81.86587],[28.187945,-81.867173],[28.188848,-81.867563],[28.188869,-81.865865],[28.187961,-81.86587]],a:'10410 Hartzog Rd',ac:3.66,jv:170300},
+        {r:[[28.192335,-81.865849],[28.192322,-81.866874],[28.19323,-81.866869],[28.193242,-81.865845],[28.192335,-81.865849]],a:'10630 Hartzog Rd',ac:2.5,jv:291875},
+        {r:[[28.188869,-81.865865],[28.188848,-81.867563],[28.189588,-81.867755],[28.189612,-81.865862],[28.188869,-81.865865]],a:'10430 Hartzog Rd',ac:3.58,jv:142472}
+      ];
       // Nearby comparable land sales. Hover a pin to see its details (no numbers).
       var _LP_DR_COMPS = [
         { ll: [28.19360, -81.87215], addr: '4225 Hagan Rd',  price: '$30,000', yr: '2024', ac: '1.20 ac', dist: '235 m', ppa: '$25,000/ac' },
@@ -1936,8 +1949,12 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         // Neighbour parcel outlines.
         try {
           _lpDrNbLayer = L.layerGroup().addTo(_lpDrMap);
-          _LP_DR_NEIGHBORS.forEach(function (r) {
-            L.polygon(r, { color: '#2563EB', weight: 1, opacity: 0.45, fill: false, interactive: false }).addTo(_lpDrNbLayer);
+          _LP_DR_NEIGHBORS.forEach(function (nb) {
+            var poly = L.polygon(nb.r, { color: '#2563EB', weight: 1, opacity: 0.55, fillColor: '#2563EB', fillOpacity: 0 });
+            poly.bindTooltip('<b>' + nb.a + '</b><br>' + nb.ac + ' ac &middot; Just value $' + Number(nb.jv).toLocaleString(), { sticky: true, direction: 'top', className: 'lp-dr-comp-tip' });
+            poly.on('mouseover', function () { poly.setStyle({ weight: 2, fillOpacity: 0.18 }); });
+            poly.on('mouseout',  function () { poly.setStyle({ weight: 1, fillOpacity: 0 }); });
+            poly.addTo(_lpDrNbLayer);
           });
         } catch (e) {}
         // Subject parcel — highlighted, acreage label + pin.
