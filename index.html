@@ -2379,7 +2379,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 
       <div class="past-sec" id="dashLeadsSec" style="display:none">
         <div class="past-sec-hdr">
-          <div class="past-lbl">🎯 Generated Leads</div>
+          <div class="past-lbl">Generated Leads</div>
         </div>
         <div id="dashLeadsList"></div>
       </div>
@@ -2478,7 +2478,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       </div>
       <!-- Generated Leads (separate from Recents; Recents = screening batches) -->
       <div class="rsb-grp-lbl" id="rsbLeadsHdr" style="display:none;align-items:center;justify-content:space-between;cursor:pointer;flex-shrink:0" onclick="_leadToggleSidebar('rsb')">
-        <span>🎯 Generated Leads</span><span id="rsbLeadsCaret" style="color:var(--t3);font-size:11px">▾</span>
+        <span>Generated Leads</span><span id="rsbLeadsCaret" style="color:var(--t3);font-size:11px">▾</span>
       </div>
       <div id="rsbLeadsList" style="display:none;flex-direction:column;gap:1px;overflow-y:auto;max-height:32vh;flex-shrink:0"></div>
       <!-- Recents (always open) -->
@@ -12809,7 +12809,17 @@ async function runLeadSearch() {
     batchState.elapsed = 0;
     currentBatchResults = leads;
     if (status) status.textContent = '';
-    if (data.poi_degraded) toast('Nearby stores/hospitals unavailable right now — town proximity still applied');
+    // Surface the yield so you can see how hard the engine worked: leads FOUND
+    // vs parcels actually SCREENED (ran through all 12 checks), plus how many
+    // matched your filters before screening. hit rate = found / screened.
+    const _sc = data.screened, _cd = data.candidates;
+    if (_sc != null) {
+      const _rate = _sc ? Math.round(leads.length / _sc * 100) : 0;
+      toast(leads.length + ' leads · ' + _sc + ' parcels screened · ' + _rate + '% hit rate'
+        + (_cd != null ? ' · ' + _cd + ' matched your filters' : ''), 8000);
+    } else if (data.poi_degraded) {
+      toast('Nearby stores/hospitals unavailable right now — town proximity still applied');
+    }
     // Open the leads in the SAME results page as a batch: table → click a row →
     // full Deal Review (parcel-border "deal room"). No map-over-map.
     renderBatchResults();
@@ -12824,7 +12834,7 @@ async function runLeadSearch() {
     };
     const _leadRunId = batchState.runId;
     saveBatchToSupabase(batchState.name, { summary: _sum, results: leads })
-      .then(() => { _markLeadBatch(_leadRunId); if (typeof toast === 'function') toast('Saved ' + leads.length + ' leads'); _renderLeadsSidebar(); })
+      .then(() => { _markLeadBatch(_leadRunId); _renderLeadsSidebar(); })
       .catch(() => {});
   } catch (e) {
     if (status) status.textContent = (e.name === 'AbortError') ? 'That took too long — try one county or a tighter range.' : 'Something went wrong. Please try again.';
