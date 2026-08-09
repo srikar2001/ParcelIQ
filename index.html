@@ -1178,9 +1178,10 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 /* Real Leaflet map behind the demo overlays; when it loads, hide the faux-map art. */
 #lpDrLeaflet{position:absolute;inset:0;z-index:0;background:#EEF2F6}
 #lpDrLeaflet .leaflet-control-attribution{font-size:9px;background:rgba(255,255,255,.82);color:#64748b}
-/* Landing Deal Review comp pins (numbered) + sale-price chip */
-.lp-dr-comp-pin{position:absolute;left:0;top:0;transform:translate(-50%,-50%);background:#F59E0B;color:#fff;font-size:11px;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 8px rgba(16,24,40,.4)}
-.lp-dr-comp-price{position:absolute;left:0;top:13px;transform:translateX(-50%);background:rgba(15,23,42,.92);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;white-space:nowrap;box-shadow:0 2px 6px rgba(16,24,40,.35)}
+/* Landing Deal Review: numbered comp pins + subject pin (like the in-app map) */
+.lp-dr-comp-pin{width:24px;height:24px;border-radius:50%;background:#F59E0B;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 8px rgba(16,24,40,.45);cursor:pointer;transition:transform .12s}
+.lp-dr-comp-pin:hover{transform:scale(1.18)}
+.lp-dr-subj-pin{position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 2px 8px rgba(124,58,237,.6)}
 .lp-dr-map-label{z-index:2}
 .lp-dr-mock-map.has-realmap{background:#EEF2F6}
 .lp-dr-mock-map.has-realmap::after{display:none}
@@ -1800,7 +1801,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     // 14718 NE 147th Ave, Waldo; APN 17151-001-000). We drop in satellite tiles
     // centered on it and draw its true boundary from the FL cadastral, then
     // recolor that outline per selected check — no faux-map art.
-    var _lpDrMap = null, _lpDrPoly = null, _lpDrFlood = null, _lpDrRoadLayer = null, _lpDrRoadDone = false, _lpDrZoomedIn = false, _lpDrCompLayer = null, _lpDrOverlaysDrawn = false;
+    var _lpDrMap = null, _lpDrPoly = null, _lpDrFlood = null, _lpDrRoadLayer = null, _lpDrRoadDone = false, _lpDrZoomedIn = false, _lpDrCompLayer = null, _lpDrNbLayer = null, _lpDrOverlaysDrawn = false;
     var _LP_DR_COLORS = { flood: '#2563EB', road: '#059669', habitat: '#EF4444', evac: '#F59E0B' };
     function _lpDrInitMap() {
       if (_lpDrMap || typeof L === 'undefined') return;
@@ -1839,45 +1840,79 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         host.classList.add('has-realmap');
         setTimeout(function() { if (_lpDrMap) _lpDrMap.invalidateSize(); }, 250);
       } catch (e) { _lpDrMap = null; return; }
-      // The subject parcel's TRUE boundary (9960 Wilder Rd, Polk City; APN
-      // 24-26-36-000000-014040) — a clean rectangular 1.13-acre buildable lot,
-      // dry (minimal flood, no wetlands), real cadastral geometry, hardcoded.
-      var _LP_DR_RINGS = [
-        [28.180668, -81.860486], [28.180650, -81.861252], [28.181200, -81.861248],
-        [28.181218, -81.860485], [28.180668, -81.860486]
-      ];
+      // Real cadastral geometry, hardcoded so the showcase always draws:
+      // the subject parcel (9960 Wilder Rd, Polk City; APN 24-26-36-000000-014040),
+      // its neighbouring parcel boundaries, and nearby comparable-sale parcels.
+      var _LP_DR_RINGS = [[28.180668,-81.860486],[28.18065,-81.861252],[28.1812,-81.861248],[28.181218,-81.860485],[28.181197,-81.860485],[28.180922,-81.860484],[28.180668,-81.860486]];
       var _LP_DR_PC = [28.180932, -81.860704];   // subject centroid
-      // Comparable land sales around the subject — the same "Map Comps" view the
-      // real Deal Review draws, each connected to the subject by a blue line.
-      var _LP_DR_COMPS = [
-        { ll: [28.18295, -81.86285], price: '$32,000', yr: '2024', ac: '1.04 ac' },
-        { ll: [28.17895, -81.85875], price: '$27,500', yr: '2023', ac: '0.92 ac' },
-        { ll: [28.18300, -81.85880], price: '$41,000', yr: '2025', ac: '1.60 ac' },
-        { ll: [28.17890, -81.86285], price: '$24,900', yr: '2024', ac: '0.88 ac' },
+      var _LP_DR_NEIGHBORS = [
+        [[28.183441,-81.860398],[28.183434,-81.860631],[28.18254,-81.860638],[28.182441,-81.860639],[28.182412,-81.861621],[28.182401,-81.862424],[28.182402,-81.862452],[28.182415,-81.862452],[28.182478,-81.862453],[28.184236,-81.862458],[28.186084,-81.862464],[28.186108,-81.861881],[28.186161,-81.860609],[28.186171,-81.860377],[28.183441,-81.860398]],
+        [[28.179547,-81.860504],[28.179272,-81.860507],[28.178997,-81.860518],[28.178983,-81.860513],[28.178936,-81.860514],[28.178901,-81.860513],[28.178857,-81.860504],[28.178816,-81.860487],[28.178778,-81.860463],[28.178751,-81.862547],[28.178874,-81.862549],[28.179229,-81.862555],[28.179219,-81.863308],[28.178865,-81.863302],[28.178727,-81.8633],[28.178726,-81.86336],[28.178712,-81.864447],[28.179918,-81.864464],[28.179964,-81.861949],[28.179991,-81.860491],[28.179822,-81.86049],[28.179547,-81.860504]],
+        [[28.181472,-81.860484],[28.181218,-81.860485],[28.1812,-81.861248],[28.181183,-81.861967],[28.181124,-81.864481],[28.182247,-81.864497],[28.182312,-81.864498],[28.182313,-81.864431],[28.182305,-81.864387],[28.182304,-81.864077],[28.182306,-81.863767],[28.182307,-81.863456],[28.182309,-81.863146],[28.18231,-81.862835],[28.182312,-81.862525],[28.182313,-81.862271],[28.181858,-81.862282],[28.181854,-81.862049],[28.181419,-81.862059],[28.181422,-81.861411],[28.181996,-81.861398],[28.182,-81.862046],[28.182316,-81.862039],[28.182318,-81.861904],[28.182318,-81.861594],[28.18232,-81.861283],[28.18232,-81.860973],[28.182327,-81.860662],[28.182307,-81.86055],[28.182303,-81.860526],[28.18229,-81.86051],[28.182275,-81.860497],[28.182258,-81.860487],[28.182215,-81.860481],[28.182022,-81.860482],[28.181747,-81.860481],[28.181472,-81.860484]],
+        [[28.178746,-81.860436],[28.178709,-81.860436],[28.178695,-81.860436],[28.178695,-81.860458],[28.17869,-81.860824],[28.177732,-81.860833],[28.177737,-81.860445],[28.177091,-81.860451],[28.176255,-81.860458],[28.175418,-81.860466],[28.175396,-81.86244],[28.178738,-81.862441],[28.178764,-81.86047],[28.178764,-81.860452],[28.178746,-81.860436]],
+        [[28.181124,-81.864481],[28.180583,-81.864473],[28.180554,-81.865591],[28.182218,-81.865614],[28.182247,-81.864497],[28.181124,-81.864481]],
+        [[28.177722,-81.864433],[28.177676,-81.866254],[28.178666,-81.866273],[28.178712,-81.864447],[28.177722,-81.864433]],
+        [[28.183473,-81.859278],[28.18248,-81.859286],[28.182479,-81.85932],[28.182453,-81.860234],[28.182448,-81.860406],[28.183441,-81.860398],[28.183473,-81.859278]],
+        [[28.184236,-81.862458],[28.184188,-81.863831],[28.184163,-81.864524],[28.184283,-81.864603],[28.184602,-81.864857],[28.184986,-81.865301],[28.185209,-81.865431],[28.185729,-81.865575],[28.185983,-81.865719],[28.185983,-81.865693],[28.185996,-81.864668],[28.185997,-81.864551],[28.186084,-81.862464],[28.184236,-81.862458]],
+        [[28.182448,-81.860406],[28.182441,-81.860639],[28.18254,-81.860638],[28.183434,-81.860631],[28.183441,-81.860398],[28.182448,-81.860406]],
+        [[28.177343,-81.864427],[28.177516,-81.86443],[28.177722,-81.864433],[28.178712,-81.864447],[28.178726,-81.86336],[28.177357,-81.863341],[28.177343,-81.864427]],
+        [[28.175396,-81.86244],[28.175392,-81.862727],[28.178735,-81.862728],[28.178737,-81.862549],[28.178738,-81.862441],[28.175396,-81.86244]],
+        [[28.179964,-81.861949],[28.179918,-81.864464],[28.180583,-81.864473],[28.181124,-81.864481],[28.181183,-81.861967],[28.179964,-81.861949]],
+        [[28.177092,-81.858423],[28.177091,-81.860451],[28.177737,-81.860445],[28.178577,-81.860437],[28.178662,-81.860436],[28.178695,-81.860436],[28.178709,-81.860436],[28.178746,-81.860436],[28.178718,-81.860402],[28.178694,-81.860364],[28.178675,-81.860323],[28.178663,-81.860278],[28.178656,-81.860232],[28.178655,-81.860186],[28.178747,-81.858421],[28.178748,-81.858412],[28.177092,-81.858423]],
+        [[28.175389,-81.863014],[28.175373,-81.864413],[28.176897,-81.864421],[28.17731,-81.864427],[28.177343,-81.864427],[28.177357,-81.863341],[28.178726,-81.86336],[28.178727,-81.8633],[28.178731,-81.863015],[28.175389,-81.863014]],
+        [[28.178992,-81.856381],[28.178908,-81.85792],[28.178839,-81.859033],[28.178792,-81.860222],[28.178818,-81.860282],[28.178827,-81.860303],[28.178832,-81.860309],[28.178869,-81.860353],[28.178932,-81.860375],[28.181528,-81.860363],[28.181528,-81.860354],[28.18153,-81.860279],[28.181623,-81.856275],[28.180678,-81.856313],[28.179732,-81.856351],[28.179058,-81.856378],[28.178996,-81.85638],[28.178992,-81.856381]],
+        [[28.183115,-81.863816],[28.183091,-81.864509],[28.184163,-81.864524],[28.184188,-81.863831],[28.183115,-81.863816]],
+        [[28.180097,-81.860491],[28.179991,-81.860491],[28.179964,-81.861949],[28.181183,-81.861967],[28.1812,-81.861248],[28.18065,-81.861252],[28.180668,-81.860486],[28.180647,-81.860486],[28.180372,-81.860491],[28.180097,-81.860491]],
+        [[28.178888,-81.861478],[28.178879,-81.862192],[28.179419,-81.862187],[28.179428,-81.861474],[28.178888,-81.861478]],
+        [[28.177737,-81.860445],[28.177732,-81.860833],[28.17869,-81.860824],[28.178695,-81.860458],[28.178695,-81.860436],[28.178662,-81.860436],[28.178577,-81.860437],[28.177737,-81.860445]],
+        [[28.17731,-81.864427],[28.177263,-81.866246],[28.17747,-81.86625],[28.177676,-81.866254],[28.177722,-81.864433],[28.177516,-81.86443],[28.177343,-81.864427],[28.17731,-81.864427]],
+        [[28.183441,-81.860398],[28.186171,-81.860377],[28.186349,-81.856085],[28.184989,-81.85614],[28.184444,-81.856161],[28.184191,-81.856172],[28.183818,-81.856187],[28.183193,-81.856212],[28.182568,-81.856237],[28.18248,-81.859286],[28.183473,-81.859278],[28.183441,-81.860398]],
+        [[28.182105,-81.86036],[28.182246,-81.860359],[28.182271,-81.860361],[28.182295,-81.860367],[28.182319,-81.860377],[28.182341,-81.86039],[28.182362,-81.860407],[28.182448,-81.860406],[28.182453,-81.860234],[28.182479,-81.85932],[28.182135,-81.859323],[28.182108,-81.860257],[28.182106,-81.860349],[28.182105,-81.86036]],
+        [[28.178787,-81.856456],[28.17878,-81.857636],[28.178829,-81.856455],[28.178829,-81.856454],[28.178787,-81.856456]],
+        [[28.182415,-81.862452],[28.182402,-81.862452],[28.182403,-81.862525],[28.182398,-81.862836],[28.182394,-81.863146],[28.182392,-81.863457],[28.182391,-81.863767],[28.182386,-81.864077],[28.182393,-81.864388],[28.182513,-81.864455],[28.18274,-81.864504],[28.183091,-81.864509],[28.183115,-81.863816],[28.184188,-81.863831],[28.184236,-81.862458],[28.182478,-81.862453],[28.182415,-81.862452]],
+        [[28.182,-81.862046],[28.181996,-81.861398],[28.181422,-81.861411],[28.181419,-81.862059],[28.181854,-81.862049],[28.181858,-81.862282],[28.182313,-81.862271],[28.182314,-81.862214],[28.182316,-81.862039],[28.182,-81.862046]],
+        [[28.177093,-81.856486],[28.177092,-81.858423],[28.178748,-81.858412],[28.17878,-81.857636],[28.178787,-81.856456],[28.178284,-81.856476],[28.177093,-81.856486]],
+        [[28.175392,-81.862727],[28.175389,-81.863014],[28.178731,-81.863015],[28.178735,-81.862728],[28.175392,-81.862727]],
+        [[28.182606,-81.853269],[28.182618,-81.852278],[28.181682,-81.852326],[28.181623,-81.856275],[28.18153,-81.860279],[28.181528,-81.860354],[28.181528,-81.860363],[28.182105,-81.86036],[28.182106,-81.860349],[28.182108,-81.860257],[28.182135,-81.859323],[28.182479,-81.85932],[28.18248,-81.859286],[28.182568,-81.856237],[28.182606,-81.853269]],
+        [[28.178874,-81.862549],[28.178751,-81.862547],[28.178778,-81.860463],[28.178764,-81.860452],[28.178764,-81.86047],[28.178738,-81.862441],[28.178737,-81.862549],[28.178735,-81.862728],[28.178731,-81.863015],[28.178727,-81.8633],[28.178865,-81.863302],[28.179219,-81.863308],[28.179229,-81.862555],[28.178874,-81.862549]],
+        [[28.180583,-81.864473],[28.179918,-81.864464],[28.178712,-81.864447],[28.178666,-81.866273],[28.180016,-81.866299],[28.181284,-81.866323],[28.1822,-81.866341],[28.182218,-81.865614],[28.180554,-81.865591],[28.180583,-81.864473]]
       ];
-      // Draw the parcel + comps + blue connector lines. DEFERRED until AFTER the
-      // fly-in settles so the vector overlay never smears into a blob mid-zoom.
+      var _LP_DR_COMPS = [
+        { ll: [28.180487, -81.860935], price: '$28,500', yr: '2024', ac: '1.02 ac' },
+        { ll: [28.18227, -81.860205], price: '$34,000', yr: '2025', ac: '1.55 ac' },
+        { ll: [28.181949, -81.861981], price: '$26,900', yr: '2023', ac: '0.88 ac' },
+        { ll: [28.179156, -81.861718], price: '$31,500', yr: '2024', ac: '1.10 ac' },
+        { ll: [28.180456, -81.863214], price: '$22,000', yr: '2023', ac: '0.74 ac' }
+      ];
+      // Layered like the in-app Deal Review: thin blue neighbour outlines, the
+      // subject highlighted with an acreage label + pin, and numbered orange
+      // comp pins you can hover (no dotted connector lines).
       function _lpDrDrawOverlays() {
         if (_lpDrOverlaysDrawn || !_lpDrMap) return;
         _lpDrOverlaysDrawn = true;
+        try {
+          _lpDrNbLayer = L.layerGroup().addTo(_lpDrMap);
+          _LP_DR_NEIGHBORS.forEach(function (r) {
+            L.polygon(r, { color: '#2563EB', weight: 1, opacity: 0.5, fill: false, interactive: false }).addTo(_lpDrNbLayer);
+          });
+        } catch (e) {}
         var c = _LP_DR_COLORS[lpDrActive] || '#2563EB';
         try {
-          _lpDrPoly = L.polygon(_LP_DR_RINGS, { color: c, weight: 3, fillColor: c, fillOpacity: 0.2, lineJoin: 'round' }).addTo(_lpDrMap);
+          _lpDrPoly = L.polygon(_LP_DR_RINGS, { color: c, weight: 3, fillColor: c, fillOpacity: 0.28, lineJoin: 'round' }).addTo(_lpDrMap);
           _lpDrPoly.bindTooltip('1.13 ac', { permanent: true, direction: 'center', className: 'sv-map-acres-label' });
+          L.marker(_LP_DR_PC, { interactive: false, icon: L.divIcon({ className: 'lp-dr-subj', html: '<div class="lp-dr-subj-pin"></div>', iconSize: [0, 0] }) }).addTo(_lpDrMap);
         } catch (e) {}
         try {
           _lpDrCompLayer = L.layerGroup().addTo(_lpDrMap);
           _LP_DR_COMPS.forEach(function (cp, i) {
-            L.polyline([_LP_DR_PC, cp.ll], { color: '#2563EB', weight: 2, opacity: 0.8, dashArray: '5 6' }).addTo(_lpDrCompLayer);
-            L.marker(cp.ll, { interactive: true, icon: L.divIcon({ className: 'lp-dr-comp',
-              html: '<div class="lp-dr-comp-pin">' + (i + 1) + '</div><div class="lp-dr-comp-price">' + cp.price + '</div>', iconSize: [0, 0] }) })
-              .bindTooltip('Sold ' + cp.price + ' · ' + cp.yr + ' · ' + cp.ac, { direction: 'top', offset: [0, -12] })
+            L.marker(cp.ll, { riseOnHover: true, icon: L.divIcon({ className: 'lp-dr-comp', html: '<div class="lp-dr-comp-pin">' + (i + 1) + '</div>', iconSize: [24, 24], iconAnchor: [12, 12] }) })
+              .bindTooltip('<b>' + cp.price + '</b> &middot; ' + cp.yr + ' &middot; ' + cp.ac, { direction: 'top', offset: [0, -10] })
               .addTo(_lpDrCompLayer);
           });
         } catch (e) {}
       }
-      // Land DIRECTLY on the parcel + its comps — no zoom-in animation. Frame the
-      // subject with its comparables and draw the overlays immediately.
+      // Land DIRECTLY on the parcel (no zoom-in). Frame the subject tightly with
+      // its immediate comps so it is clearly the focus.
       function _lpDrShowParcel() {
         if (!_lpDrMap || _lpDrZoomedIn) return;
         _lpDrZoomedIn = true;
@@ -1885,11 +1920,10 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         try {
           var b = L.latLngBounds([_LP_DR_PC].concat(_LP_DR_COMPS.map(function (cp) { return cp.ll; })));
           _LP_DR_RINGS.forEach(function (p) { b.extend(p); });
-          _lpDrMap.fitBounds(b, { padding: [40, 40], maxZoom: 17, animate: false });
-        } catch (e) { try { _lpDrMap.setView(_LP_DR_PC, 15, { animate: false }); } catch (e2) {} }
+          _lpDrMap.fitBounds(b, { padding: [34, 34], maxZoom: 17.5, animate: false });
+        } catch (e) { try { _lpDrMap.setView(_LP_DR_PC, 17, { animate: false }); } catch (e2) {} }
         _lpDrDrawOverlays();
       }
-      // Show it as soon as the map has a size (no fly, no delay theatre).
       setTimeout(_lpDrShowParcel, 120);
     }
     // Recolor the real parcel outline to match the active check.
@@ -12856,11 +12890,15 @@ async function _renderLeadsSidebar() {
       '<button class="batch-del" onclick="event.stopPropagation();deleteBatch(\'' + b.id + '\')" title="Delete">✕</button></div>';
   }).join('');
   const has = items.length > 0;
-  const rl = document.getElementById('rsbLeadsList'); if (rl) { rl.innerHTML = sidebarRows; rl.style.display = has ? 'flex' : 'none'; }
+  // Respect the user's collapse choice: re-rendering (e.g. after clicking a
+  // Recents batch) must NOT force the Generated Leads dropdown back open.
+  const rl = document.getElementById('rsbLeadsList'); if (rl) { rl.innerHTML = sidebarRows; rl.style.display = (has && !_rsbLeadsCollapsed) ? 'flex' : 'none'; }
   const dl = document.getElementById('dashLeadsList'); if (dl) dl.innerHTML = cards;
   const rh = document.getElementById('rsbLeadsHdr'); if (rh) rh.style.display = has ? 'flex' : 'none';
+  const rc = document.getElementById('rsbLeadsCaret'); if (rc) rc.textContent = _rsbLeadsCollapsed ? '▸' : '▾';
   const ds2 = document.getElementById('dashLeadsSec'); if (ds2) ds2.style.display = has ? '' : 'none';
 }
+let _rsbLeadsCollapsed = false;
 function _leadToggleSidebar(prefix) {
   const list = document.getElementById(prefix + 'LeadsList');
   const caret = document.getElementById(prefix + 'LeadsCaret');
@@ -12868,6 +12906,7 @@ function _leadToggleSidebar(prefix) {
   const open = list.style.display !== 'none';
   list.style.display = open ? 'none' : 'flex';
   if (caret) caret.textContent = open ? '▸' : '▾';
+  if (prefix === 'rsb') _rsbLeadsCollapsed = open;  // remember it stays closed
 }
 
 // ── Saved lead searches (this user's "Land Leads …" batches) ─────────────────
