@@ -1488,7 +1488,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       </div>
       <div class="lp-dr-mock reveal" style="transition-delay:100ms">
         <div class="lp-dr-mock-top">
-          <div class="lp-dr-mock-addr-line">4438 Emerald Palms Ln, Winter Haven, FL 33884</div>
+          <div class="lp-dr-mock-addr-line">9960 Wilder Rd, Polk City, FL 33868</div>
           <div class="lp-dr-mock-badges"><span class="lp-dr-verdict" id="lpDrVerdict">PURSUE</span><span class="lp-dr-score" id="lpDrScore">94</span></div>
         </div>
         <div class="lp-dr-mock-body">
@@ -1503,10 +1503,12 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
             <div class="lp-dr-panel-title" id="lpDrPanelTitle">Flood Zone</div>
             <div class="lp-dr-panel-desc" id="lpDrPanelDesc"></div>
             <div class="lp-dr-facts">
-              <div><span>APN</span><b>26-29-12-687522-000060</b></div>
-              <div><span>Acreage</span><b>0.39 ac</b></div>
+              <div><span>APN</span><b>24-26-36-000000-014040</b></div>
+              <div><span>Acreage</span><b>1.13 ac</b></div>
               <div><span>County</span><b>Polk</b></div>
-              <div><span>Type of Land</span><b>Residential</b></div>
+              <div><span>Type of Land</span><b>Vacant Residential</b></div>
+              <div><span>Owner</span><b>Roberts, Jeffery W.</b></div>
+              <div><span>Just Value</span><b>$30,997</b></div>
             </div>
           </div>
         </div>
@@ -1781,7 +1783,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       flood:   { pill: '🌊 Flood Zone',    label: 'Zone X · outside floodplain', title: 'Flood Zone',
                  desc: 'The parcel sits in Zone X, outside the FEMA floodplain. That is the lowest flood risk there is. We show you the zone, the distance to the mapped boundary, and the source right on the map.',
                  verdict: 'PURSUE', score: 94 },
-      road:    { pill: '🛣️ Road Access',   label: '30m to Lake Ruby Rd', title: 'Road Access',
+      road:    { pill: '🛣️ Road Access',   label: '29m to Wilder Rd', title: 'Road Access',
                  desc: 'We draw a real line to the nearest road and measure it in feet. No guessing whether a lot is landlocked. Power lines get measured the same way.',
                  verdict: 'PURSUE', score: 94 },
       habitat: { pill: '🐢 Wildlife Habitat', label: '🐢 Gopher Tortoise on parcel', title: 'Wildlife Habitat',
@@ -1813,7 +1815,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         _lpDrMap = L.map(el, { zoomControl: true, attributionControl: true, dragging: true,
           scrollWheelZoom: false, doubleClickZoom: true, boxZoom: true, keyboard: false,
           tap: true, touchZoom: true, zoomSnap: 0.25, minZoom: 4, maxZoom: 19,
-          fadeAnimation: true, zoomAnimation: true }).setView([27.969148, -81.670413], 15);
+          fadeAnimation: true, zoomAnimation: true }).setView([28.180932, -81.860704], 16);
         try { _lpDrMap.zoomControl.setPosition('topright'); } catch (e) {}
         // Clean, labeled STREET basemap (CARTO Voyager) — the exact same
         // real-map style as the in-app Deal Review. Not satellite.
@@ -1837,21 +1839,21 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         host.classList.add('has-realmap');
         setTimeout(function() { if (_lpDrMap) _lpDrMap.invalidateSize(); }, 250);
       } catch (e) { _lpDrMap = null; return; }
-      // The subject parcel's TRUE boundary (4438 Emerald Palms Ln, Winter Haven;
-      // APN 26-29-12-687522-000060) — a clean rectangular buildable lot, real
-      // cadastral geometry, hardcoded so it draws every time.
+      // The subject parcel's TRUE boundary (9960 Wilder Rd, Polk City; APN
+      // 24-26-36-000000-014040) — a clean rectangular 1.13-acre buildable lot,
+      // dry (minimal flood, no wetlands), real cadastral geometry, hardcoded.
       var _LP_DR_RINGS = [
-        [27.968948, -81.670234], [27.968946, -81.670590], [27.969348, -81.670593],
-        [27.969350, -81.670237], [27.968948, -81.670234]
+        [28.180668, -81.860486], [28.180650, -81.861252], [28.181200, -81.861248],
+        [28.181218, -81.860485], [28.180668, -81.860486]
       ];
-      var _LP_DR_PC = [27.969148, -81.670413];   // subject centroid
+      var _LP_DR_PC = [28.180932, -81.860704];   // subject centroid
       // Comparable land sales around the subject — the same "Map Comps" view the
       // real Deal Review draws, each connected to the subject by a blue line.
       var _LP_DR_COMPS = [
-        { ll: [27.97105, -81.67255], price: '$44,000', yr: '2024', ac: '0.42 ac' },
-        { ll: [27.96760, -81.66880], price: '$37,500', yr: '2023', ac: '0.35 ac' },
-        { ll: [27.97120, -81.66900], price: '$52,000', yr: '2025', ac: '0.55 ac' },
-        { ll: [27.96730, -81.67270], price: '$34,900', yr: '2024', ac: '0.31 ac' },
+        { ll: [28.18295, -81.86285], price: '$32,000', yr: '2024', ac: '1.04 ac' },
+        { ll: [28.17895, -81.85875], price: '$27,500', yr: '2023', ac: '0.92 ac' },
+        { ll: [28.18300, -81.85880], price: '$41,000', yr: '2025', ac: '1.60 ac' },
+        { ll: [28.17890, -81.86285], price: '$24,900', yr: '2024', ac: '0.88 ac' },
       ];
       // Draw the parcel + comps + blue connector lines. DEFERRED until AFTER the
       // fly-in settles so the vector overlay never smears into a blob mid-zoom.
@@ -1861,7 +1863,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         var c = _LP_DR_COLORS[lpDrActive] || '#2563EB';
         try {
           _lpDrPoly = L.polygon(_LP_DR_RINGS, { color: c, weight: 3, fillColor: c, fillOpacity: 0.2, lineJoin: 'round' }).addTo(_lpDrMap);
-          _lpDrPoly.bindTooltip('0.39 ac', { permanent: true, direction: 'center', className: 'sv-map-acres-label' });
+          _lpDrPoly.bindTooltip('1.13 ac', { permanent: true, direction: 'center', className: 'sv-map-acres-label' });
         } catch (e) {}
         try {
           _lpDrCompLayer = L.layerGroup().addTo(_lpDrMap);
@@ -1883,7 +1885,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
         try {
           var b = L.latLngBounds([_LP_DR_PC].concat(_LP_DR_COMPS.map(function (cp) { return cp.ll; })));
           _LP_DR_RINGS.forEach(function (p) { b.extend(p); });
-          _lpDrMap.fitBounds(b, { padding: [46, 46], maxZoom: 16.5, animate: false });
+          _lpDrMap.fitBounds(b, { padding: [40, 40], maxZoom: 17, animate: false });
         } catch (e) { try { _lpDrMap.setView(_LP_DR_PC, 15, { animate: false }); } catch (e2) {} }
         _lpDrDrawOverlays();
       }
@@ -1906,7 +1908,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
     // mapped road, just like the in-app Deal Review — not just a recolor. The
     // demo parcel's nearest OSM road (~49 m) is drawn directly so the line is
     // always there; live Overpass is too flaky to depend on for the showcase.
-    var _LP_DR_ROAD_PT = [27.969318, -81.670712];
+    var _LP_DR_ROAD_PT = [28.180808, -81.860438];
     function _lpDrShowRoad(on) {
       if (!_lpDrMap) return;
       if (!on) { if (_lpDrRoadLayer) { try { _lpDrMap.removeLayer(_lpDrRoadLayer); } catch (e) {} } return; }
