@@ -2482,7 +2482,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
       </div>
       <div id="rsbLeadsList" style="display:none;flex-direction:column;gap:1px;overflow-y:auto;max-height:32vh;flex-shrink:0"></div>
       <!-- Recents (always open) -->
-      <div class="rsb-grp-lbl" id="rsbPrevHdr" style="flex-shrink:0">Recents</div>
+      <div class="rsb-grp-lbl" id="rsbPrevHdr" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="_toggleRecents()"><span>Recents</span><span id="rsbRecentsCaret" style="color:var(--t3);font-size:11px">▾</span></div>
       <div id="sidebarBatchList" style="overflow-y:auto;flex:1;min-height:216px;display:flex;flex-direction:column;gap:1px"></div>
       <!-- Footer -->
       <div class="rsb-footer">
@@ -12981,6 +12981,16 @@ function _leadToggleSidebar(prefix) {
   list.style.display = open ? 'none' : 'flex';
   if (caret) caret.textContent = open ? '▸' : '▾';
   if (prefix === 'rsb') _rsbLeadsCollapsed = open;  // remember it stays closed
+}
+// Collapse/expand the Recents (batches) list in the results sidebar.
+let _rsbRecentsCollapsed = false;
+function _toggleRecents() {
+  const list = document.getElementById('sidebarBatchList');
+  const caret = document.getElementById('rsbRecentsCaret');
+  if (!list) return;
+  _rsbRecentsCollapsed = list.style.display !== 'none';
+  list.style.display = _rsbRecentsCollapsed ? 'none' : 'flex';
+  if (caret) caret.textContent = _rsbRecentsCollapsed ? '▸' : '▾';
 }
 
 // ── Saved lead searches (this user's "Land Leads …" batches) ─────────────────
