@@ -753,6 +753,26 @@ body.on-results .detail-panel{top:0}
 
 .sv-data-panel{width:min(46%,600px);min-width:420px;flex-shrink:0;overflow-y:auto;padding:20px 24px 20px 0;background:var(--card)}
 @media(max-width:900px){.sv-main{flex-direction:column;overflow-y:auto;padding:10px;gap:10px}.sv-map-zone{height:min(50vh,420px);flex:none}.sv-data-panel{width:auto;padding:16px}}
+/* Phone: a clean, compact Deal Review header (was overflowing badly). */
+@media(max-width:760px){
+  body.sv-open .mob-hamb{display:none!important}       /* the story view has its own back button */
+  #storyView.open{position:fixed;inset:0;z-index:1300;height:100vh;height:100dvh}
+  .sv-header{padding:12px 14px 10px!important;gap:9px!important;align-items:center!important;flex-wrap:wrap}
+  .sv-section-label{display:none}
+  .sv-jump-box{display:none!important}                 /* search box: redundant with Back on mobile */
+  .sv-head-mid{flex:1 1 100%!important;order:2}
+  .sv-back.icon-only{order:1;padding:8px 12px;font-size:16px}
+  .sv-addr-row{flex-wrap:wrap;gap:6px 8px!important}
+  .sv-addr{font-size:18px!important;white-space:normal!important;line-height:1.25!important;flex:1 1 100%;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  #svVerdictBadge{order:2}
+  #svScoreNum{order:3;font-size:15px!important}
+  .sv-rescreen-btn{font-size:11px!important;padding:5px 9px!important}
+  .sv-apn{font-size:10px!important;margin-top:3px}
+  /* Map/pill overlays a touch smaller so they don't cover the parcel. */
+  .sv-map-btn{font-size:10.5px;padding:5px 9px}
+  .sv-map-pill2{font-size:11px;padding:5px 10px 5px 9px}
+  .sv-map-zone{height:min(46vh,380px)}
+}
 
 /* Section A — verdict block */
 .sv-hero{padding:14px 16px;border-radius:14px;background:var(--bg);border:1px solid var(--b);border-left:4px solid var(--vc,var(--b));margin-bottom:18px}
@@ -1021,7 +1041,7 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
   .stats-row{grid-template-columns:1fr 1fr}
   .dash-qs-grid{grid-template-columns:1fr 1fr}
   .ptier-grid{grid-template-columns:1fr}
-  .res-main{padding:16px 12px 60px}
+  .res-main{padding:62px 12px 60px}   /* leave room for the fixed mobile hamburger */
   .time-banner{flex-direction:column;gap:8px}
   .mock-wrap{margin:36px auto 0}
   .mock-tags{display:none}
@@ -11169,6 +11189,7 @@ function renderStoryView(r) {
   // of the batch). Same rich Deal Review, but batch-only controls (re-screen /
   // star / prev-next / jump) are hidden and Back returns to your deal.
   const explore = !shared && !!(r && r._explore);
+  document.body.classList.add('sv-open');   // hides the mobile results hamburger while the Deal Review is up
 
   sv.innerHTML =
     '<div class="sv-wrap">' +
@@ -11181,9 +11202,9 @@ function renderStoryView(r) {
             ? '<button class="sv-back icon-only" onclick="svExitExplore()" title="Back to your deal">←</button>'
             : '<button class="sv-back icon-only" onclick="closeStoryView()" title="Back to Results">←</button>' +
               '<button id="svSidebarOpenBtn" class="sv-back icon-only" onclick="_svToggleSidebar()" title="Show sidebar" style="display:' + (sidebarCurrentlyHidden ? 'inline-flex' : 'none') + '"><svg width="16" height="14" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>') +
-        '<div style="min-width:0;flex:1">' +
+        '<div class="sv-head-mid" style="min-width:0;flex:1">' +
           '<div class="sv-section-label">' + (shared ? 'Deal Review · shared, view only' : explore ? 'Deal Review · exploring nearby' : 'Deal Review') + '</div>' +
-          '<div style="display:flex;align-items:center;gap:10px;min-width:0">' +
+          '<div class="sv-addr-row" style="display:flex;align-items:center;gap:10px;min-width:0">' +
             '<div class="sv-addr">' + escHtml(r.address || '') + '</div>' +
             '<span id="svVerdictBadge" class="verdict-badge ' + verdictClass(ev) + '" style="flex-shrink:0">' + escHtml(ev) + '</span>' +
             (r.score != null ? '<span id="svScoreNum" style="font-size:16px;font-weight:800;color:' + vColor + ';flex-shrink:0">' + r.score + '</span>' : '<span id="svScoreNum" style="flex-shrink:0"></span>') +
@@ -12494,6 +12515,7 @@ function openStoryView() {
 
 function closeStoryView() {
   const sv = document.getElementById('storyView');
+  document.body.classList.remove('sv-open');
   if (!sv) return;
   sv.classList.remove('open');
   const main = document.querySelector('#page-results .res-main');
