@@ -382,6 +382,13 @@ body.on-results .detail-panel{top:0}
 .rsb-item:hover{background:var(--b);color:var(--t1)}
 .rsb-item.active{background:var(--b);color:var(--t1);font-weight:500}
 .rsb-grp-lbl{font-size:13px;font-weight:600;color:var(--t1);padding:14px 10px 5px;letter-spacing:.01em}
+/* Boxed sections so Generated Leads / Recents read as contained cards, not text
+   floating in whitespace. */
+.rsb-card{background:var(--card-h);border:1px solid var(--b);border-radius:14px;padding:2px 6px 6px;display:flex;flex-direction:column;min-height:0;flex-shrink:0}
+.rsb-card-grow{flex:1 1 auto}
+.rsb-card .rsb-grp-lbl{padding:9px 8px 6px}
+.rsb-card .rsb-item{border-radius:8px}
+[data-theme='light'] .rsb-card{background:#F7F9FC}
 .rsb-count{display:none;margin-left:7px;font-size:11px;font-weight:700;color:var(--t2);background:var(--card-h);border:1px solid var(--b);border-radius:99px;padding:1px 7px;vertical-align:middle}
 .rsb-count.show{display:inline-block}
 .rsb-pick-card{margin:4px 2px 0;padding:9px 10px;background:rgba(255,200,0,.07);border:1px solid rgba(212,168,0,.25);border-radius:var(--rs);cursor:pointer;transition:all .15s}
@@ -2551,13 +2558,17 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
       </div>
       </div>
       <!-- Generated Leads (separate from Recents; Recents = screening batches) -->
-      <div class="rsb-grp-lbl" id="rsbLeadsHdr" style="display:none;align-items:center;justify-content:space-between;cursor:pointer;flex-shrink:0" onclick="_leadToggleSidebar('rsb')">
-        <span>Generated Leads<span class="rsb-count" id="rsbLeadsCount"></span></span><span id="rsbLeadsCaret" style="color:var(--t3);font-size:11px">▾</span>
+      <div class="rsb-card" id="rsbLeadsCard" style="display:none">
+        <div class="rsb-grp-lbl" id="rsbLeadsHdr" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="_leadToggleSidebar('rsb')">
+          <span>Generated Leads<span class="rsb-count" id="rsbLeadsCount"></span></span><span id="rsbLeadsCaret" style="color:var(--t3);font-size:11px">▾</span>
+        </div>
+        <div id="rsbLeadsList" style="display:none;flex-direction:column;gap:1px;overflow-y:auto;max-height:32vh"></div>
       </div>
-      <div id="rsbLeadsList" style="display:none;flex-direction:column;gap:1px;overflow-y:auto;max-height:32vh;flex-shrink:0"></div>
       <!-- Recents (always open) -->
-      <div class="rsb-grp-lbl" id="rsbPrevHdr" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="_toggleRecents()"><span>Recents<span class="rsb-count" id="rsbRecentsCount"></span></span><span id="rsbRecentsCaret" style="color:var(--t3);font-size:11px">▾</span></div>
-      <div id="sidebarBatchList" style="overflow-y:auto;flex:1;min-height:216px;display:flex;flex-direction:column;gap:1px"></div>
+      <div class="rsb-card rsb-card-grow" id="rsbRecentsCard">
+        <div class="rsb-grp-lbl" id="rsbPrevHdr" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="_toggleRecents()"><span>Recents<span class="rsb-count" id="rsbRecentsCount"></span></span><span id="rsbRecentsCaret" style="color:var(--t3);font-size:11px">▾</span></div>
+        <div id="sidebarBatchList" style="overflow-y:auto;flex:1;min-height:0;display:flex;flex-direction:column;gap:1px"></div>
+      </div>
       <!-- Footer -->
       <div class="rsb-footer">
         <div style="display:flex;gap:4px;padding:4px 2px 6px;text-align:center">
@@ -13078,7 +13089,7 @@ async function _renderLeadsSidebar() {
   // Recents batch) must NOT force the Generated Leads dropdown back open.
   const rl = document.getElementById('rsbLeadsList'); if (rl) { rl.innerHTML = sidebarRows; rl.style.display = (has && !_rsbLeadsCollapsed) ? 'flex' : 'none'; }
   const dl = document.getElementById('dashLeadsList'); if (dl) dl.innerHTML = cards;
-  const rh = document.getElementById('rsbLeadsHdr'); if (rh) rh.style.display = has ? 'flex' : 'none';
+  const rcard = document.getElementById('rsbLeadsCard'); if (rcard) rcard.style.display = has ? 'flex' : 'none';
   const rc = document.getElementById('rsbLeadsCaret'); if (rc) rc.textContent = _rsbLeadsCollapsed ? '▸' : '▾';
   const lcnt = document.getElementById('rsbLeadsCount'); if (lcnt) { lcnt.textContent = items.length; lcnt.classList.toggle('show', has); }
   const ds2 = document.getElementById('dashLeadsSec'); if (ds2) ds2.style.display = has ? '' : 'none';
