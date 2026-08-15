@@ -993,6 +993,20 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 .shared-banner{background:rgba(245,158,11,.08);border-bottom:1px solid rgba(245,158,11,.25);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--amber)}
 
 /* RESPONSIVE */
+/* ── Touch-device hygiene: single-tap activation (no double-tap), instant taps,
+   and no controls hidden behind a :hover that touch can never trigger. ── */
+button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
+.rsb-nav-item, .sv-cat-row, .sv-map-btn, .sv-map-pill2, .lead-chip, .flag-pill,
+.verdict-badge, .res-tab, .dp-check-row{touch-action:manipulation}
+@media (hover: none) and (pointer: coarse){
+  /* Kill sticky-hover backgrounds so the FIRST tap acts instead of just
+     "selecting" (applying the hover state). */
+  .res-trow:hover, .batch-card:hover, .rsb-item:hover, .rsb-nav-item:hover,
+  .sv-cat-row:hover{background:inherit}
+  /* Reveal every hover-gated control so it's actually tappable on a phone. */
+  .rsb-3dot-wrap, .rsb-batch-acts, .batch-icon-btn, .batch-del, .rescreen-icon{opacity:1!important}
+  a, button, [onclick], .res-trow, .batch-card, .rsb-item{-webkit-tap-highlight-color:rgba(5,150,105,.14)}
+}
 /* Mobile hamburger + sidebar drawer (hidden on desktop) */
 .mob-hamb{display:none}
 .mob-sb-backdrop{display:none}
@@ -9923,6 +9937,10 @@ document.addEventListener('click', function(e) {
   if (e.target === modal) closeMapModal();
 });
 document.addEventListener('DOMContentLoaded', () => closeDetailPanel());
+// iOS Safari: an empty touchstart listener makes taps on elements that carry a
+// :hover style register as a click on the FIRST tap instead of only applying
+// the hover state (the "have to tap twice" bug on phones).
+document.addEventListener('touchstart', function () {}, { passive: true });
 let _suppressPanelClose = false;
 document.addEventListener('click', function(e) {
   if (_suppressPanelClose) { _suppressPanelClose = false; return; }
