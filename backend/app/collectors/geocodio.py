@@ -65,6 +65,57 @@ _STATE_NAMES = {
 }
 
 
+# ── Address normalization ────────────────────────────────────────────────────
+# ParcelIQ is Florida-only, so any address that doesn't already name a state can
+# be biased to FL. This turns the sloppy addresses clients actually send —
+# "1432 coral ridge drive punta gorda" — into clean, correctly-resolved parcels
+# without the user hand-completing them, and stops the geocoder from wandering
+# to a same-named street in another state (e.g. "1432 coral ridge dr" → NY).
+_STATE_ABBRS = set(_STATE_NAMES.keys()) | {"FL"}
+_STATE_FULLNAMES = {v.lower() for v in _STATE_NAMES.values()} | {"florida"}
+
+
+def _has_state(s: str) -> bool:
+    """True if the address already names a US state (full name, or a 2-letter
+    code sitting in the state position — after a comma, or right before a ZIP)."""
+    low = s.lower()
+    for name in _STATE_FULLNAMES:
+        if re.search(r"\b" + re.escape(name) + r"\b", low):
+            return True
+    # 2-letter code after a comma ("…, FL"), before a ZIP ("…FL 33950"), or as
+    # the trailing token ("… atlanta ga"). Exclude NE/NW/SE/SW which are far more
+    # likely a trailing street directional than Nebraska.
+    _DIR2 = {"NE", "NW", "SE", "SW"}
+    cands = re.findall(r",\s*([A-Za-z]{2})\b", s) + re.findall(r"\b([A-Za-z]{2})\.?\s+\d{5}\b", s)
+    tail = re.search(r"\b([A-Za-z]{2})\s*$", s)
+    if tail:
+        cands.append(tail.group(1))
+    for m in cands:
+        u = m.upper()
+        if u in _STATE_ABBRS and (u not in _DIR2 or f", {u}" in s.upper()):
+            return True
+    return False
+
+
+def _clean_address(address: str) -> str:
+    """Tidy raw user input before geocoding: collapse whitespace, trim stray
+    trailing punctuation. Cheap, lossless, applied to every lookup."""
+    s = re.sub(r"\s+", " ", (address or "").strip())
+    return s.strip(" ,;\t")
+
+
+def _needs_fl(s: str) -> bool:
+    """We can safely bias to FL when the address carries neither a ZIP nor a
+    state — those are the ones that mis-resolve out of state."""
+    if re.search(r"\b\d{5}(?:-\d{4})?\b", s):
+        return False
+    return not _has_state(s)
+
+
+def _with_fl(s: str) -> str:
+    return s.rstrip(" ,;") + ", FL"
+
+
 def _classify(candidates: list) -> dict:
     """Apply accuracy/type/state rules to a list of Geocodio candidates.
 
@@ -123,16 +174,14 @@ def _classify(candidates: list) -> dict:
     return {"status": "low_confidence", "suggestions": suggestions}
 
 
-async def geocode(address: str) -> dict:
-    """Geocode one address. Always returns a dict with a "status" key."""
-    if not looks_like_address(address):
-        return {"status": "invalid"}  # skip the paid lookup for obvious junk
+async def _geocode_raw(query: str) -> dict:
+    """One Geocodio call + classification. No normalization."""
     try:
         api_key = os.environ['GEOCODIO_API_KEY']
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(
                 "https://api.geocod.io/v1.7/geocode",
-                params={"q": address, "api_key": api_key, "limit": 5},
+                params={"q": query, "api_key": api_key, "limit": 5},
             )
             resp.raise_for_status()
             data = resp.json()
@@ -142,47 +191,91 @@ async def geocode(address: str) -> dict:
         return {"status": "not_found"}
 
 
-async def geocode_batch(addresses: list[str]) -> dict[str, dict]:
-    """Geocode up to 10,000 addresses in a single API call.
+async def geocode(address: str) -> dict:
+    """Geocode one address, auto-completing sloppy input. Always returns a dict
+    with a "status" key.
 
-    Returns {input_address: classified_dict} — every input address gets an
-    entry with a "status" key (ok / wrong_state / low_confidence / not_found).
-    """
-    if not addresses:
+    We clean the text, try it as-is, and — for a Florida-only product — retry
+    biased to FL when the input names no state and the first pass didn't land a
+    confident FL match. That rescues partial addresses ("… punta gorda") and
+    blocks wrong-state guesses without the user completing anything."""
+    address = _clean_address(address)
+    if not looks_like_address(address):
+        return {"status": "invalid"}  # skip the paid lookup for obvious junk
+    res = await _geocode_raw(address)
+    if res.get("status") == "ok":
+        return res
+    if _needs_fl(address):
+        res_fl = await _geocode_raw(_with_fl(address))
+        if res_fl.get("status") == "ok":
+            return res_fl
+    return res
+
+
+async def _batch_call(queries: list[str]) -> dict[str, dict]:
+    """POST a list of query strings to Geocodio's batch endpoint (one call for
+    up to 10,000). Returns {query: classified_dict}, one entry per query."""
+    if not queries:
         return {}
-    # Split off obvious junk locally so it never costs an API credit — only
-    # plausible addresses are sent to the paid batch endpoint.
-    valid: list[str] = []
-    out: dict[str, dict] = {}
-    for a in addresses:
-        if looks_like_address(a):
-            valid.append(a)
-        else:
-            out[a] = {"status": "invalid"}
-    if not valid:
-        return out
     try:
         api_key = os.environ['GEOCODIO_API_KEY']
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
                 "https://api.geocod.io/v1.7/geocode",
                 params={"api_key": api_key, "limit": 5},
-                json=valid,
+                json=queries,
             )
             resp.raise_for_status()
             data = resp.json()
-
-        results = data.get("results", [])
-        for i, item in enumerate(results):
-            # Geocodio echoes the query string; fall back to positional order
-            # (batch responses preserve input order) if it ever normalizes it.
-            query = item.get("query") or (valid[i] if i < len(valid) else "")
+        out: dict[str, dict] = {}
+        for i, item in enumerate(data.get("results", [])):
+            query = item.get("query") or (queries[i] if i < len(queries) else "")
             hits = item.get("response", {}).get("results", [])
             out[query] = _classify(hits)
+        for q in queries:
+            out.setdefault(q, {"status": "not_found"})
         return out
     except Exception as e:
         print(f"[Geocodio Batch] Error: {e}")
-        # Keep the locally-flagged invalids; mark the plausible ones not_found.
-        for a in valid:
-            out.setdefault(a, {"status": "not_found"})
+        return {q: {"status": "not_found"} for q in queries}
+
+
+async def geocode_batch(addresses: list[str]) -> dict[str, dict]:
+    """Geocode many addresses at once, auto-completing sloppy input.
+
+    Returns {ORIGINAL_input_address: classified_dict} — every input keeps its
+    exact original string as the key (callers look results up by it). Each
+    address is cleaned, geocoded as-is, then a single Florida-biased retry batch
+    rescues the ones that named no state and didn't land a confident FL match.
+    At most two batch calls total, so speed stays flat even for big uploads."""
+    if not addresses:
+        return {}
+    out: dict[str, dict] = {}
+    cleaned: dict[str, str] = {}          # original -> cleaned
+    for a in addresses:
+        ca = _clean_address(a)
+        if looks_like_address(ca):
+            cleaned[a] = ca
+        else:
+            out[a] = {"status": "invalid"}
+    if not cleaned:
         return out
+
+    # Pass 1 — geocode the cleaned addresses (dedup identical queries).
+    r1 = await _batch_call(list({ca for ca in cleaned.values()}))
+    for a, ca in cleaned.items():
+        out[a] = r1.get(ca, {"status": "not_found"})
+
+    # Pass 2 — one FL-biased retry for the misses that can safely take FL.
+    retry: dict[str, list[str]] = {}      # "<addr>, FL" -> [original addresses]
+    for a, ca in cleaned.items():
+        if out[a].get("status") != "ok" and _needs_fl(ca):
+            retry.setdefault(_with_fl(ca), []).append(a)
+    if retry:
+        r2 = await _batch_call(list(retry.keys()))
+        for fq, origs in retry.items():
+            res = r2.get(fq)
+            if res and res.get("status") == "ok":
+                for a in origs:
+                    out[a] = res
+    return out
