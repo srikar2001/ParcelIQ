@@ -382,6 +382,8 @@ body.on-results .detail-panel{top:0}
 .rsb-item:hover{background:var(--b);color:var(--t1)}
 .rsb-item.active{background:var(--b);color:var(--t1);font-weight:500}
 .rsb-grp-lbl{font-size:13px;font-weight:600;color:var(--t1);padding:14px 10px 5px;letter-spacing:.01em}
+.rsb-count{display:none;margin-left:7px;font-size:11px;font-weight:700;color:var(--t2);background:var(--card-h);border:1px solid var(--b);border-radius:99px;padding:1px 7px;vertical-align:middle}
+.rsb-count.show{display:inline-block}
 .rsb-pick-card{margin:4px 2px 0;padding:9px 10px;background:rgba(255,200,0,.07);border:1px solid rgba(212,168,0,.25);border-radius:var(--rs);cursor:pointer;transition:all .15s}
 .rsb-pick-card:hover{background:rgba(255,200,0,.13);border-color:rgba(212,168,0,.45)}
 .rsb-pick-addr{font-size:12px;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:5px}
@@ -557,9 +559,12 @@ body.on-results .detail-panel{top:0}
 .dp-pos-row:last-child{border-bottom:none}
 .sumchip:hover{border-color:var(--bh);color:var(--t1)}
 .sumchip.on{background:var(--t1);color:#fff;border-color:var(--t1)}
-.sumchip.kill.on{background:var(--red);color:#fff;border-color:var(--red)}
-.sumchip.review.on{background:var(--amber);color:#fff;border-color:var(--amber)}
-.sumchip.pursue.on{background:var(--green);color:#fff;font-weight:700;border-color:var(--green)}
+/* Active verdict chips use SATURATED fills (not the theme's text-red, which is a
+   light salmon in dark mode) so the white label keeps strong contrast in both
+   themes — the dark-mode "Kill" was washing out to near-white. */
+.sumchip.kill.on{background:#DC2626;color:#fff;border-color:#DC2626}
+.sumchip.review.on{background:#D97706;color:#fff;border-color:#D97706}
+.sumchip.pursue.on{background:#059669;color:#fff;font-weight:700;border-color:#059669}
 
 /* Results Table */
 .res-table-wrap{border:1px solid var(--b);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
@@ -2545,11 +2550,11 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
       </div>
       <!-- Generated Leads (separate from Recents; Recents = screening batches) -->
       <div class="rsb-grp-lbl" id="rsbLeadsHdr" style="display:none;align-items:center;justify-content:space-between;cursor:pointer;flex-shrink:0" onclick="_leadToggleSidebar('rsb')">
-        <span>Generated Leads</span><span id="rsbLeadsCaret" style="color:var(--t3);font-size:11px">▾</span>
+        <span>Generated Leads<span class="rsb-count" id="rsbLeadsCount"></span></span><span id="rsbLeadsCaret" style="color:var(--t3);font-size:11px">▾</span>
       </div>
       <div id="rsbLeadsList" style="display:none;flex-direction:column;gap:1px;overflow-y:auto;max-height:32vh;flex-shrink:0"></div>
       <!-- Recents (always open) -->
-      <div class="rsb-grp-lbl" id="rsbPrevHdr" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="_toggleRecents()"><span>Recents</span><span id="rsbRecentsCaret" style="color:var(--t3);font-size:11px">▾</span></div>
+      <div class="rsb-grp-lbl" id="rsbPrevHdr" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="_toggleRecents()"><span>Recents<span class="rsb-count" id="rsbRecentsCount"></span></span><span id="rsbRecentsCaret" style="color:var(--t3);font-size:11px">▾</span></div>
       <div id="sidebarBatchList" style="overflow-y:auto;flex:1;min-height:216px;display:flex;flex-direction:column;gap:1px"></div>
       <!-- Footer -->
       <div class="rsb-footer">
@@ -5835,6 +5840,8 @@ function _renderSidebarBatches(batches) {
   // localStorage predates the [Re-screen] filtering), so re-filter here
   // rather than trusting every path upstream.
   batches = _realBatches(batches);
+  const _rcnt = document.getElementById('rsbRecentsCount');
+  if (_rcnt) { _rcnt.textContent = batches.length; _rcnt.classList.toggle('show', batches.length > 0); }
   if (!batches.length) {
     list.innerHTML = '<div style="font-size:12px;color:var(--t3);padding:4px 8px">No batches yet</div>';
     return;
@@ -13040,18 +13047,16 @@ async function _renderLeadsSidebar() {
     const nm = escHtml(b.name || 'Leads');
     const en = nm.replace(/'/g, '&#39;');
     const n = b.pursues != null ? b.pursues : (b.total || 0);
+    // Same markup as a Recents row so the two lists look identical.
     return '<div class="rsb-item' + (b.id === active ? ' active' : '') + '" id="lbc-' + b.id + '" onclick="loadBatchResults(\'' + b.id + '\')" style="justify-content:space-between;padding:5px 10px">' +
       '<span class="rsb-batch-name" title="' + en + '">' + nm + '</span>' +
-      '<span style="flex-shrink:0;display:flex;align-items:center;gap:6px">' +
-        '<span style="color:var(--green);font-size:11px;font-weight:700">' + n + '</span>' +
-        '<div class="rsb-3dot-wrap" onclick="event.stopPropagation()">' +
-          '<button class="rsb-3dot-btn" onclick="toggleBatchMenu(\'' + b.id + '\',event)" title="Options">⋮</button>' +
-          '<div class="rsb-3dot-menu" id="bm-' + b.id + '">' +
-            '<button onclick="renameBatch(\'' + b.id + '\',\'' + en + '\');closeBatchMenu()">✎ Rename</button>' +
-            '<button onclick="deleteBatch(\'' + b.id + '\');closeBatchMenu()" style="color:var(--red)">✕ Delete</button>' +
-          '</div>' +
+      '<div class="rsb-3dot-wrap" onclick="event.stopPropagation()">' +
+        '<button class="rsb-3dot-btn" onclick="toggleBatchMenu(\'' + b.id + '\',event)" title="Options">⋮</button>' +
+        '<div class="rsb-3dot-menu" id="bm-' + b.id + '">' +
+          '<button onclick="renameBatch(\'' + b.id + '\',\'' + en + '\');closeBatchMenu()">✎ Rename</button>' +
+          '<button onclick="deleteBatch(\'' + b.id + '\');closeBatchMenu()" style="color:var(--red)">✕ Delete</button>' +
         '</div>' +
-      '</span>' +
+      '</div>' +
     '</div>';
   }).join('');
   const cards = items.map(b => {
@@ -13073,6 +13078,7 @@ async function _renderLeadsSidebar() {
   const dl = document.getElementById('dashLeadsList'); if (dl) dl.innerHTML = cards;
   const rh = document.getElementById('rsbLeadsHdr'); if (rh) rh.style.display = has ? 'flex' : 'none';
   const rc = document.getElementById('rsbLeadsCaret'); if (rc) rc.textContent = _rsbLeadsCollapsed ? '▸' : '▾';
+  const lcnt = document.getElementById('rsbLeadsCount'); if (lcnt) { lcnt.textContent = items.length; lcnt.classList.toggle('show', has); }
   const ds2 = document.getElementById('dashLeadsSec'); if (ds2) ds2.style.display = has ? '' : 'none';
 }
 let _rsbLeadsCollapsed = false;
