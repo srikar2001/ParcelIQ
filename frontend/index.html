@@ -2565,9 +2565,9 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
         <div id="rsbLeadsList" style="display:none;flex-direction:column;gap:1px;overflow-y:auto;max-height:32vh"></div>
       </div>
       <!-- Recents (always open) -->
-      <div class="rsb-card rsb-card-grow" id="rsbRecentsCard">
+      <div class="rsb-card" id="rsbRecentsCard">
         <div class="rsb-grp-lbl" id="rsbPrevHdr" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="_toggleRecents()"><span>Recents<span class="rsb-count" id="rsbRecentsCount"></span></span><span id="rsbRecentsCaret" style="color:var(--t3);font-size:11px">▾</span></div>
-        <div id="sidebarBatchList" style="overflow-y:auto;flex:1;min-height:0;display:flex;flex-direction:column;gap:1px"></div>
+        <div id="sidebarBatchList" style="overflow-y:auto;max-height:38vh;display:flex;flex-direction:column;gap:1px"></div>
       </div>
       <!-- Footer -->
       <div class="rsb-footer">
