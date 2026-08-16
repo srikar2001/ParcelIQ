@@ -4289,8 +4289,28 @@ async function _loadMostRecentBatch() {
     const { data } = await sb.from('batches').select('id').eq('user_id', currentUser.id)
       .order('created_at', { ascending: false }).limit(1).single();
     if (data?.id) { loadBatchResults(data.id); }
-    else { goTo('landing'); }
-  } catch(e) { goTo('landing'); }
+    else { _showEmptyResults(); }
+  } catch(e) { _showEmptyResults(); }
+}
+
+// A signed-in user (incl. a guest) with no batches yet should land IN the app
+// with a clear place to start — NOT get bounced back to the landing page, which
+// read as an "Open app" loop.
+function _showEmptyResults() {
+  showScreen('page-results');
+  try { _loadSidebarBatches(); } catch (e) {}
+  const setT = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setT('resTitleCount', 'Ready to screen');
+  setT('resCountSuffix', '');
+  setT('resMeta', '');
+  const wrap = document.getElementById('resTableWrap');
+  const tbody = wrap && wrap.querySelector('tbody');
+  if (tbody) tbody.innerHTML =
+    '<tr><td colspan="8" style="text-align:center;padding:56px 20px">' +
+      '<div style="font-size:16px;font-weight:700;color:var(--t1);margin-bottom:6px">No screenings yet</div>' +
+      '<div style="font-size:13px;color:var(--t3);margin-bottom:18px">Upload or paste Florida addresses to run your first screen.</div>' +
+      '<button class="btn-p" onclick="openUploadModal()" style="padding:10px 22px;font-size:14px">↑ Upload addresses</button>' +
+    '</td></tr>';
 }
 
 // ── NAV — FIX 6: consistent auth-aware nav
@@ -4492,7 +4512,7 @@ function _runPendingOrResults() {
   }
   const lastBatch = sessionStorage.getItem('piq-last-batch');
   if (lastBatch) { goTo('dashboard'); return; }
-  goTo('landing');
+  _showEmptyResults();
 }
 
 // _authReadyPromise resolves on the FIRST onAuthStateChange event (session restore or null).
