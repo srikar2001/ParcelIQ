@@ -3661,6 +3661,11 @@ try {
 } catch(e) {}
 
 // ── GLOBAL AUTH STATE — FIX 2
+// GUEST_MODE: login is removed for now. Every visitor silently gets a real
+// (guest) Supabase account so the app is fully usable with no login screen, and
+// each one is counted as a user in the admin page. Flip to false to restore the
+// normal login flow.
+const GUEST_MODE = true;
 let currentSession = null;
 let currentUser = null;
 let userProfile = null;
@@ -4309,10 +4314,20 @@ function updateNav() {
   updateLpNav();
 }
 
+// A silently-created guest (login removed for now), vs. a real signed-up user.
+function _isGuestUser() {
+  return GUEST_MODE && /@guest\.parceliq\.app$/i.test((currentUser && currentUser.email) || '');
+}
+
 function updateLpNav() {
   const el = document.getElementById('lpNavActions');
   if (!el) return;
   if (currentUser) {
+    // Guests (login removed) get a clean nav — no UUID email, no sign-out.
+    if (_isGuestUser()) {
+      el.innerHTML = '<button class="lp-btn-primary" style="padding:8px 20px;font-size:14px" onclick="window.location.hash=\'#dashboard\'">Open app →</button>';
+      return;
+    }
     const name = (userProfile?.full_name || currentUser.email || '').split(/[\s@]/)[0] || 'Account';
     el.innerHTML =
       '<span style="font-size:13px;font-weight:600;color:#0F1729;margin-right:6px">Hi, ' + name + '</span>' +
@@ -4526,7 +4541,7 @@ if (sb) {
       // the boot session-restore (initApp handles that) or restores on
       // protected pages.
       const h = window.location.hash;
-      if (!_isBoot && (_AUTH_PAGES.has(h) || h.includes('access_token='))) _runPendingOrResults();
+      if (!_isBoot && !window._guestSigningIn && (_AUTH_PAGES.has(h) || h.includes('access_token='))) _runPendingOrResults();
     } else if (event === 'TOKEN_REFRESHED') {
       currentSession = session;
       updateNav();
@@ -4534,8 +4549,14 @@ if (sb) {
       _clearUserData();
       _lastSignedInUserId = null;
       currentSession = null; currentUser = null; userProfile = null; window.userProfile = null;
-      updateNav();
-      goTo('landing');
+      if (GUEST_MODE) {
+        // Login removed for now: never leave the app in a logged-out state that
+        // would re-expose the login screen — re-establish the guest session.
+        _ensureGuestSession().then(() => { updateNav(); updateLpNav(); loadUserProfile(); goTo('landing'); });
+      } else {
+        updateNav();
+        goTo('landing');
+      }
     } else if (event === 'PASSWORD_RECOVERY') {
       currentSession = session;
       currentUser = session?.user || null;
@@ -4607,6 +4628,47 @@ function _showUpdateBanner() {
   document.body.appendChild(b);
 }
 
+// Guest access (login removed for now). Reuse this browser's guest account
+// across visits; mint a fresh one the first time. Email confirmation is off, so
+// signUp returns a live session immediately — no verification step.
+async function _ensureGuestSession() {
+  if (currentSession) return currentSession;
+  if (!sb) return null;
+  // Flag the sign-in so the SIGNED_IN handler doesn't ALSO navigate — initApp's
+  // router() owns the boot destination. Cleared shortly after the event fires.
+  window._guestSigningIn = true;
+  setTimeout(() => { window._guestSigningIn = false; }, 1200);
+  const _apply = (data) => {
+    currentSession = data.session;
+    currentUser = data.user || (data.session && data.session.user) || null;
+    return data.session;
+  };
+  const rnd = () => (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : (Date.now() + '-' + Math.random().toString(16).slice(2));
+  // 1) Reuse this browser's existing guest login.
+  try {
+    const email = localStorage.getItem('piq-guest-email');
+    const pw = localStorage.getItem('piq-guest-pw');
+    if (email && pw) {
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+      if (!error && data && data.session) return _apply(data);
+    }
+  } catch (e) {}
+  // 2) Otherwise create a fresh guest account.
+  try {
+    const email = 'guest-' + rnd() + '@guest.parceliq.app';
+    const pw = 'Gx' + rnd().replace(/-/g, '') + '9!';
+    const { data, error } = await sb.auth.signUp({ email, password: pw });
+    if (!error && data && data.session) {
+      try { localStorage.setItem('piq-guest-email', email); localStorage.setItem('piq-guest-pw', pw); } catch (e) {}
+      return _apply(data);
+    }
+    if (error) console.warn('[guest] signUp failed:', error.message);
+  } catch (e) { console.warn('[guest] error:', e); }
+  return null;
+}
+
 async function initApp() {
   // OAuth callback: access_token in hash — Supabase auto-processes it, then fires SIGNED_IN.
   // Password-recovery links also carry access_token but must land on #reset-password
@@ -4648,10 +4710,15 @@ async function initApp() {
   }
   // Wait for Supabase to restore session (onAuthStateChange fires before getSession is reliable)
   // 800ms timeout — Supabase restores from localStorage in ~100-200ms; long wait only needed if init fails
-  const session = await Promise.race([
+  let session = await Promise.race([
     _authReadyPromise,
     new Promise(r => setTimeout(() => r(currentSession), 800)),
   ]);
+  // Login removed for now: if nobody's signed in, silently sign in as a guest
+  // so the whole app works without a login screen (guests are counted in admin).
+  if (GUEST_MODE && !session) {
+    session = await _ensureGuestSession();
+  }
   updateNav();
   updateLpNav();
   _watchForUpdates();  // gentle refresh nudge when a new build deploys
@@ -5031,7 +5098,7 @@ async function loadUserProfile() {
       updateUIWithProfile();
       return;
     }
-    const name = currentUser.email.split('@')[0];
+    const name = _isGuestUser() ? 'Guest' : currentUser.email.split('@')[0];
     const { data: created } = await sb
       .from('profiles')
       .upsert({ id: currentUser.id, email: currentUser.email,
@@ -5050,14 +5117,16 @@ async function loadUserProfile() {
 function updateUIWithProfile() {
   const p = userProfile;
   if (!p) return;
-  const firstName = (p.full_name || p.email || '').split(/[\s@]/)[0] || '—';
-  const initial   = (p.full_name || p.email || '?').charAt(0).toUpperCase();
+  const guest     = _isGuestUser();
+  const firstName = guest ? 'Guest' : ((p.full_name || p.email || '').split(/[\s@]/)[0] || '—');
+  const initial   = guest ? 'G' : ((p.full_name || p.email || '?').charAt(0).toUpperCase());
+  const nameVal   = guest ? 'Guest' : (p.full_name || p.email?.split('@')[0] || '—');
   const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  setEl('dashWelcome', 'Welcome back, ' + firstName);
+  setEl('dashWelcome', guest ? 'Welcome' : ('Welcome back, ' + firstName));
   setEl('dashAvatar',    initial);
-  setEl('dashName',      p.full_name || p.email?.split('@')[0] || '—');
+  setEl('dashName',      nameVal);
   setEl('rsbAvatar',     initial);
-  setEl('rsbProfileName', p.full_name || p.email?.split('@')[0] || '—');
+  setEl('rsbProfileName', nameVal);
 }
 
 // FIX 3: DOR code descriptions
