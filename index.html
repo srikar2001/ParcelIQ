@@ -4164,8 +4164,11 @@ async function router() {
   // purpose: a logged-in user who opens the site or clicks the logo stays on the
   // marketing landing page (the landing nav shows a "Dashboard →" button for
   // them). We never auto-yank anyone off landing anymore.
+  // Guests (login removed for now) are still allowed to reach the login screen —
+  // that's how a real account (e.g. the admin) signs in to replace the guest
+  // session. Only a real signed-in user is bounced off the auth pages.
   const _authOnlyPages = new Set(['#login', '#signup', '#forgot']);
-  if (_authOnlyPages.has(hash) && currentSession) {
+  if (_authOnlyPages.has(hash) && currentSession && !_isGuestUser()) {
     goTo('dashboard'); return;
   }
   if (PROTECTED.has(hash)) {
@@ -4373,6 +4376,9 @@ async function doLogin() {
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
     if (error) throw error;
+    // Logged in with a REAL account — drop this browser's guest identity so a
+    // later sign-out doesn't silently re-enter the old guest.
+    try { localStorage.removeItem('piq-guest-email'); localStorage.removeItem('piq-guest-pw'); } catch (e) {}
     currentSession = data.session; currentUser = data.user;
     updateNav();
     loadUserProfile(); // fire-and-forget — never blocks navigation
