@@ -4539,6 +4539,17 @@ if (sb) {
   sb.auth.onAuthStateChange(async (event, session) => {
     currentSession = session;
     currentUser = session?.user || null;
+    // Guest mode is off: a leftover guest session must NEVER stick — sign it out
+    // the moment it restores (whatever the event/timing), so the real login
+    // screen comes back. Runs before anything else and stops here.
+    if (!GUEST_MODE && session && _GUEST_EMAIL_RE.test((session.user && session.user.email) || '')) {
+      if (_authResolve) { _authResolve(null); _authResolve = null; }
+      try { localStorage.removeItem('piq-guest-email'); localStorage.removeItem('piq-guest-pw'); } catch (e) {}
+      currentSession = null; currentUser = null;
+      try { await sb.auth.signOut(); } catch (e) {}
+      updateNav(); updateLpNav();
+      return;
+    }
     // The VERY FIRST event is the boot session-restore. initApp() owns the boot
     // destination, so this handler must not ALSO navigate then — doing both
     // painted the landing page and then overrode it a moment later, which read
