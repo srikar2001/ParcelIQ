@@ -3661,11 +3661,10 @@ try {
 } catch(e) {}
 
 // ── GLOBAL AUTH STATE — FIX 2
-// GUEST_MODE: login is removed for now. Every visitor silently gets a real
-// (guest) Supabase account so the app is fully usable with no login screen, and
-// each one is counted as a user in the admin page. Flip to false to restore the
-// normal login flow.
-const GUEST_MODE = true;
+// GUEST_MODE: when true, login is removed and every visitor silently gets a real
+// (guest) Supabase account. Now OFF — the normal login flow is back.
+const GUEST_MODE = false;
+const _GUEST_EMAIL_RE = /@guest\.parceliq\.app$/i;
 let currentSession = null;
 let currentUser = null;
 let userProfile = null;
@@ -4339,7 +4338,7 @@ function updateNav() {
 
 // A silently-created guest (login removed for now), vs. a real signed-up user.
 function _isGuestUser() {
-  return GUEST_MODE && /@guest\.parceliq\.app$/i.test((currentUser && currentUser.email) || '');
+  return GUEST_MODE && _GUEST_EMAIL_RE.test((currentUser && currentUser.email) || '');
 }
 
 function updateLpNav() {
@@ -4744,8 +4743,14 @@ async function initApp() {
     _authReadyPromise,
     new Promise(r => setTimeout(() => r(currentSession), 800)),
   ]);
-  // Login removed for now: if nobody's signed in, silently sign in as a guest
-  // so the whole app works without a login screen (guests are counted in admin).
+  // Guest mode is off now: drop any leftover guest session from when it was on,
+  // so the normal login screen comes back instead of a stale guest account.
+  if (!GUEST_MODE && session && _GUEST_EMAIL_RE.test((session.user && session.user.email) || '')) {
+    try { localStorage.removeItem('piq-guest-email'); localStorage.removeItem('piq-guest-pw'); } catch (e) {}
+    try { await sb.auth.signOut(); } catch (e) {}
+    currentSession = null; currentUser = null; session = null;
+  }
+  // (When GUEST_MODE is on, a missing session auto-creates a guest here.)
   if (GUEST_MODE && !session) {
     session = await _ensureGuestSession();
   }
