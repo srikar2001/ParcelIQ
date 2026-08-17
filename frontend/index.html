@@ -4383,6 +4383,10 @@ async function doLogin() {
     updateNav();
     loadUserProfile(); // fire-and-forget — never blocks navigation
     toast('Signed in successfully');
+    // Came here from the admin URL? Go straight back to the admin page.
+    let _adminIntent = false;
+    try { _adminIntent = sessionStorage.getItem('piq-admin-intent') === '1'; sessionStorage.removeItem('piq-admin-intent'); } catch (e) {}
+    if (_adminIntent) { window.location.hash = '#_sys_c9f2a'; return; }
     _runPendingOrResults();
   } catch(e) {
     err.textContent = e.message || 'Login failed.'; err.classList.add('show');
@@ -10610,7 +10614,18 @@ function _admHdrs() {
 async function _guardAdminRoute() {
   try {
     const r = await fetch(API + '/api/admin/check', { headers: _admHdrs() });
-    if (!r.ok) { goTo(currentSession ? 'dashboard' : 'landing'); return; }
+    if (!r.ok) {
+      // Opening the admin URL while not an admin (e.g. as a guest, since login is
+      // removed) → send them to sign in with a real admin account, then bring
+      // them back to the admin page automatically.
+      if (!currentSession || _isGuestUser()) {
+        try { sessionStorage.setItem('piq-admin-intent', '1'); } catch (e) {}
+        window.location.hash = '#login';
+      } else {
+        goTo('dashboard');
+      }
+      return;
+    }
     showScreen('page-admin');
     loadAdminPage();
   } catch(e) { goTo('landing'); }
