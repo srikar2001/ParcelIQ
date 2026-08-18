@@ -4544,6 +4544,11 @@ if (sb) {
     // screen comes back. Runs before anything else and stops here.
     if (!GUEST_MODE && session && _GUEST_EMAIL_RE.test((session.user && session.user.email) || '')) {
       if (_authResolve) { _authResolve(null); _authResolve = null; }
+      // Mark this as an eviction so the SIGNED_OUT it triggers doesn't force a
+      // goTo('landing') that would override a click to #login (the "clicking
+      // login goes to landing" race).
+      window._evictingGuest = true;
+      setTimeout(() => { window._evictingGuest = false; }, 2500);
       try { localStorage.removeItem('piq-guest-email'); localStorage.removeItem('piq-guest-pw'); } catch (e) {}
       currentSession = null; currentUser = null;
       try { await sb.auth.signOut(); } catch (e) {}
@@ -4593,6 +4598,10 @@ if (sb) {
         // Login removed for now: never leave the app in a logged-out state that
         // would re-expose the login screen — re-establish the guest session.
         _ensureGuestSession().then(() => { updateNav(); updateLpNav(); loadUserProfile(); goTo('landing'); });
+      } else if (window._evictingGuest) {
+        // Auto-eviction of a leftover guest — do NOT force navigation, or it
+        // overrides a click to #login. Leave the user where they are.
+        updateNav(); updateLpNav();
       } else {
         updateNav();
         goTo('landing');
