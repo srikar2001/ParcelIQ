@@ -4504,7 +4504,10 @@ async function startScreening() {
   if (analyzeBtn) analyzeBtn.innerHTML = '<span class="lp-spinner"></span>Screening…';
   try {
     const session = await initAuth();
-    if (!session) { goTo('login'); return; }
+    // A "Start screening free" click is a NEW visitor — send them to sign up
+    // (not the "Welcome back" login wall). Any pasted addresses are already in
+    // lp_pending and run automatically once the account is created.
+    if (!session) { goTo('signup'); return; }
     _runPendingOrResults();
   } catch(e) {
     ctaBtns.forEach(b => { b.disabled = false; });
@@ -4752,9 +4755,14 @@ async function initApp() {
   if (!window.location.hash) {
     try {
       const savedHash = sessionStorage.getItem('piq_hash');
-      // replaceState (not location.hash=) so we don't fire a hashchange that
-      // runs router() a second time — that was the "loads/reloads twice" flicker.
-      if (savedHash) history.replaceState(null, '', savedHash);
+      // Restore the last view on a bare URL — but NEVER an auth/landing hash.
+      // Restoring #login/#signup/#landing trapped logged-out users on the login
+      // screen (reload → login → reload → login) and made the boot destination
+      // feel random. replaceState (not location.hash=) avoids a double router run.
+      const _noRestore = ['#login', '#signup', '#forgot', '#reset-password', '#landing'];
+      if (savedHash && !_noRestore.includes(_baseHash(savedHash))) {
+        history.replaceState(null, '', savedHash);
+      }
     } catch(e) {}
   }
   // Wait for Supabase to restore session (onAuthStateChange fires before getSession is reliable)
@@ -11914,7 +11922,7 @@ function _svInitMap(r) {
   // Acreage label drawn directly on the parcel, real county acreage data —
   // not a fake/estimated figure, the same value shown in Parcel Facts.
   const svAcreage = getAcreage(r);
-  const acreLabel = svAcreage != null ? svAcreage + ' ac' : null;
+  const acreLabel = svAcreage != null ? (Math.round(svAcreage * 10) / 10) + ' ac' : null;
   if (coords && coords.length > 2) {
     const poly = L.polygon(coords, { color: '#38BDF8', weight: 3, fillColor: '#38BDF8', fillOpacity: 0.15 }).addTo(_svMap);
     _svLayers['parcel'] = poly;
