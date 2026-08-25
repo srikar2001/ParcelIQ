@@ -2363,6 +2363,7 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
         <div class="dsb-nav-item active">Dashboard</div>
         <div class="dsb-nav-item" onclick="window.location.hash='#explore'">🗺 Map Comps</div>
         <div class="dsb-nav-item" onclick="window.location.hash='#leads'">🎯 Land Leads</div>
+        <div class="dsb-nav-item" onclick="window.location.hash='#pipeline'">🗂 Pipeline</div>
         <div class="dsb-nav-item" onclick="window.location.hash='#pricing'" style="display:none">Pricing</div><!-- PRICING_HIDDEN, re-enable for launch -->
         <div class="dsb-nav-item" onclick="window.location.hash='#settings'">Settings</div>
       </nav>
@@ -2555,6 +2556,11 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
       <div class="rsb-nav-item" onclick="window.location.hash='#leads'">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5.5"/><circle cx="7" cy="7" r="2.2"/><line x1="7" y1="0.5" x2="7" y2="2.5"/><line x1="7" y1="11.5" x2="7" y2="13.5"/><line x1="0.5" y1="7" x2="2.5" y2="7"/><line x1="11.5" y1="7" x2="13.5" y2="7"/></svg>
         Land Leads
+      </div>
+      <!-- Deal Pipeline -->
+      <div class="rsb-nav-item" onclick="window.location.hash='#pipeline'">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="3.2" height="10.5" rx="1"/><rect x="5.4" y="2" width="3.2" height="7" rx="1"/><rect x="9.8" y="2" width="3.2" height="4.5" rx="1"/></svg>
+        Pipeline
       </div>
       </div>
       <!-- Generated Leads (separate from Recents; Recents = screening batches) -->
@@ -2783,7 +2789,7 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
     </div>
   </div>
   <div class="dp-actions">
-    <button class="dp-btn" id="dpBookmarkBtn" onclick="toast('Bookmarks coming soon')">Bookmark</button>
+    <button class="dp-btn" id="dpTrackBtn" onclick="trackDealFromPanel()">＋ Track deal</button>
     <button class="dp-btn" onclick="nextParcel()">Next →</button>
   </div>
 </div>
@@ -3340,6 +3346,86 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
 .ex-map-btn.active{background:var(--green);color:#fff;border-color:var(--green)}
 @media(max-width:640px){.ex-panel{width:100%}.ex-hint{font-size:11px;bottom:14px}}
 </style>
+
+<!-- ═══════════════ DEAL PIPELINE ═══════════════ -->
+<style>
+#page-pipeline.active{display:block}
+#page-pipeline{padding-top:58px;min-height:100vh;background:var(--bg)}
+.pipe-wrap{max-width:1440px;margin:0 auto;padding:22px 24px 70px}
+.pipe-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pipe-title{font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--t1)}
+.pipe-head-actions{margin-left:auto;display:flex;gap:8px}
+.pipe-sub{font-size:13px;color:var(--t3);margin:4px 0 18px}
+.pipe-board{display:flex;gap:14px;overflow-x:auto;padding-bottom:14px;align-items:flex-start}
+.pipe-col{flex:0 0 268px;background:var(--card-h);border:1px solid var(--b);border-radius:12px;padding:8px;min-height:110px;transition:background .15s,border-color .15s}
+.pipe-col.drag-over{background:var(--gbg);border-color:var(--green)}
+.pipe-col-hd{display:flex;align-items:center;justify-content:space-between;padding:5px 8px 9px;font-size:11.5px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em}
+.pipe-col-hd .cnt{background:var(--card);border:1px solid var(--b);color:var(--t2);border-radius:99px;font-size:11px;padding:1px 8px;font-weight:700}
+.pipe-col-body{display:flex;flex-direction:column;gap:8px;min-height:36px}
+.pipe-card{background:var(--card);border:1px solid var(--b);border-left:3px solid var(--t3);border-radius:10px;padding:10px 12px;cursor:pointer;box-shadow:var(--sh-sm);transition:box-shadow .15s,transform .1s}
+.pipe-card:hover{box-shadow:var(--sh);transform:translateY(-1px)}
+.pipe-card.pursue{border-left-color:var(--green)}
+.pipe-card.kill{border-left-color:var(--red)}
+.pipe-card.review{border-left-color:var(--amber)}
+.pipe-card-addr{font-size:13.5px;font-weight:700;color:var(--t1);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pipe-card-meta{font-size:12px;color:var(--t3)}
+.pipe-card-row2{display:flex;align-items:center;gap:7px;margin-top:7px;flex-wrap:wrap}
+.pipe-vb{font-size:10px;font-weight:800;letter-spacing:.4px;padding:1px 7px;border-radius:99px}
+.pipe-vb.pursue{background:var(--gbg);color:var(--green)}
+.pipe-vb.kill{background:var(--rbg);color:var(--red)}
+.pipe-vb.review{background:var(--abg);color:var(--amber)}
+.pipe-offer{font-size:12px;font-weight:700;color:var(--green)}
+.pipe-next{font-size:11px;color:var(--t3)}
+.pipe-empty{text-align:center;padding:70px 20px;color:var(--t3);max-width:460px;margin:0 auto}
+.pipe-empty h3{font-size:18px;color:var(--t1);margin-bottom:8px}
+.pipe-empty p{font-size:14px;line-height:1.6;margin-bottom:18px}
+.deal-drawer{position:fixed;top:0;right:0;height:100vh;width:420px;max-width:92vw;background:var(--card);border-left:1px solid var(--b);box-shadow:var(--sh-lg);z-index:10000;transform:translateX(103%);transition:transform .24s cubic-bezier(.22,1,.36,1);display:none;flex-direction:column;overflow-y:auto}
+.deal-drawer.open{display:flex;transform:translateX(0)}
+.deal-dr-hd{padding:16px 18px 14px;border-bottom:1px solid var(--b);position:relative}
+.deal-dr-close{position:absolute;top:12px;right:12px;background:none;border:none;font-size:16px;color:var(--t3);cursor:pointer;line-height:1}
+.deal-dr-addr{font-size:16px;font-weight:800;color:var(--t1);padding-right:22px;line-height:1.25}
+.deal-dr-sub{font-size:12.5px;color:var(--t3);margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.deal-dr-body{padding:16px 18px;display:flex;flex-direction:column;gap:14px;flex:1}
+.deal-fld{display:flex;flex-direction:column;gap:4px}
+.deal-fld label{font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em}
+.deal-fld input,.deal-fld select,.deal-fld textarea{width:100%;font-family:inherit;font-size:14px;padding:9px 11px;background:var(--card);border:1px solid var(--b);border-radius:8px;color:var(--t1);outline:none;transition:border-color .12s,box-shadow .12s}
+.deal-fld input:focus,.deal-fld select:focus,.deal-fld textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gbg)}
+.deal-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.deal-sec-t{font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin:2px 0 -2px}
+.deal-note{background:var(--card-h);border:1px solid var(--b);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--t2)}
+.deal-note .t{font-size:11px;color:var(--t3);margin-top:3px}
+.deal-copy{cursor:pointer;color:var(--green);font-weight:600}
+.deal-dr-actions{padding:14px 18px;border-top:1px solid var(--b);display:flex;gap:8px;position:sticky;bottom:0;background:var(--card)}
+@media(max-width:640px){.deal-drawer{width:100%;max-width:100%}.pipe-col{flex-basis:82vw}.pipe-wrap{padding:18px 14px 60px}}
+</style>
+<div id="page-pipeline" class="screen">
+  <div class="pipe-wrap">
+    <div class="pipe-head">
+      <button class="btn-o btn-sm" onclick="window.location.hash='#dashboard'">← Dashboard</button>
+      <div class="pipe-title">🗂 Pipeline</div>
+      <div class="pipe-head-actions">
+        <button class="btn-o btn-sm" onclick="addManualDeal()">＋ Add deal</button>
+      </div>
+    </div>
+    <div class="pipe-sub">Track every parcel from lead to close — drag a card between columns to change its stage. Add deals with <b>＋ Track deal</b> from any Deal Review.</div>
+    <div id="pipeBoard" class="pipe-board"></div>
+  </div>
+</div>
+
+<!-- Deal drawer (slide-over) -->
+<div id="dealDrawer" class="deal-drawer">
+  <div class="deal-dr-hd">
+    <button class="deal-dr-close" onclick="closeDealDrawer()">✕</button>
+    <div class="deal-dr-addr" id="ddAddr"></div>
+    <div class="deal-dr-sub" id="ddSub"></div>
+  </div>
+  <div class="deal-dr-body" id="ddBody"></div>
+  <div class="deal-dr-actions">
+    <button class="btn-o btn-sm" style="flex:1" onclick="_openDealReview(_openDealId)">⛶ Deal Review</button>
+    <button class="btn-o btn-sm" style="color:var(--red);border-color:var(--b)" onclick="_deleteDealFromDrawer()">Delete</button>
+  </div>
+</div>
+
 <div id="page-explore" class="screen">
   <div class="ex-wrap">
     <div id="exMap"></div>
@@ -3805,6 +3891,7 @@ const HASH_MAP = {
   '#results': 'page-results', '#pricing': 'page-pricing',
   '#explore': 'page-explore',
   '#leads': 'page-leads',
+  '#pipeline': 'page-pipeline',
   '#settings': 'page-settings', '#picks': 'page-picks',
   '#terms': 'page-terms', '#privacy': 'page-privacy', '#contact': 'page-contact',
   // Admin route uses an unguessable hash instead of '#admin' - real gate is
@@ -3835,7 +3922,7 @@ function resetBatchState() {
   currentBatchResults = [];
   try { sessionStorage.removeItem('piq-last-batch'); } catch(e) {}
 }
-const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings', '#explore', '#leads']);
+const PROTECTED = new Set(['#dashboard', '#results', '#processing', '#settings', '#explore', '#leads', '#pipeline']);
 
 // ── DEEP-LINK SUB-HASH HELPERS ──────────────────────────────────────────
 // A hash can now carry a sub-path/query beyond the base page, e.g.
@@ -4263,6 +4350,7 @@ async function router() {
   showScreen(HASH_MAP[hash] || 'page-landing');
   if (hash === '#explore' && typeof initExplore === 'function') setTimeout(initExplore, 30);
   if (hash === '#leads' && typeof initLeads === 'function') setTimeout(initLeads, 30);
+  if (hash === '#pipeline' && typeof initPipeline === 'function') setTimeout(initPipeline, 30);
   // Settings section restore must run after showScreen() above — scrolling
   // to a section inside a still-hidden (display:none) page is a no-op in
   // most browsers, so this can't live in the '#settings' branch earlier,
@@ -13287,6 +13375,227 @@ function _exHeaders() {
   const h = {};
   if (currentSession && currentSession.access_token) h['Authorization'] = 'Bearer ' + currentSession.access_token;
   return h;
+}
+
+// ═══════════════════ DEAL PIPELINE ═══════════════════
+const _PIPE_STAGES = ['New', 'Contacted', 'Negotiating', 'Under Contract', 'Closed', 'Passed'];
+let _deals = [];
+let _dealsBackend = null;   // 'supabase' | 'local' (auto-detected; local fallback if the table isn't created yet)
+let _openDealId = null;
+
+function _dealNewId() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('d' + Date.now() + Math.random().toString(16).slice(2)); }
+function _dealsSaveLocal() { try { localStorage.setItem('piq-deals', JSON.stringify(_deals)); } catch (e) {} }
+// Keep only the fields the pipeline shows — drop bulky geometry so localStorage
+// (the fallback store) never blows its quota; the full Deal Review reloads the batch.
+function _dealTrimPi(pi) {
+  if (!pi) return {};
+  const keep = ['county', 'parcel_id', 'apn', 'acreage', 'owner', 'owner_mailing_address', 'county_address_on_file', 'land_use_code', 'just_value', 'assessed_value', 'elevation_ft', 'flood_zone', 'evac_zone'];
+  const o = {}; keep.forEach(k => { if (pi[k] != null) o[k] = pi[k]; }); return o;
+}
+
+async function _dealsLoad() {
+  if (currentUser && sb && _dealsBackend !== 'local') {
+    try {
+      const { data, error } = await sb.from('deals').select('*')
+        .eq('user_id', currentUser.id)
+        .order('sort_order', { ascending: true }).order('created_at', { ascending: false });
+      if (error) throw error;
+      _dealsBackend = 'supabase';
+      _deals = data || [];
+      return _deals;
+    } catch (e) { _dealsBackend = 'local'; }  // table missing / offline → localStorage
+  }
+  try { _deals = JSON.parse(localStorage.getItem('piq-deals') || '[]'); } catch (e) { _deals = []; }
+  if (!_dealsBackend) _dealsBackend = 'local';
+  return _deals;
+}
+async function _dealSave(deal) {
+  deal.updated_at = new Date().toISOString();
+  const i = _deals.findIndex(d => d.id === deal.id);
+  if (i >= 0) _deals[i] = deal; else _deals.unshift(deal);
+  if (_dealsBackend === 'supabase' && currentUser) {
+    try {
+      const payload = Object.assign({}, deal, { user_id: currentUser.id });
+      const { data, error } = await sb.from('deals').upsert(payload, { onConflict: 'id' }).select().single();
+      if (error) throw error;
+      const j = _deals.findIndex(d => d.id === deal.id); if (j >= 0 && data) _deals[j] = data;
+      return (j >= 0 ? _deals[j] : deal);
+    } catch (e) { _dealsBackend = 'local'; }
+  }
+  _dealsSaveLocal();
+  return deal;
+}
+async function _dealDelete(id) {
+  _deals = _deals.filter(d => d.id !== id);
+  if (_dealsBackend === 'supabase' && currentUser) { try { await sb.from('deals').delete().eq('id', id).eq('user_id', currentUser.id); } catch (e) {} }
+  _dealsSaveLocal();
+}
+
+// Create a deal from a screening result row (the "＋ Track deal" action).
+async function trackDeal(r, opts) {
+  opts = opts || {};
+  if (!r) return;
+  if (!currentUser) { toast('Sign in to track deals'); return; }
+  if (_dealsBackend === null) await _dealsLoad();
+  const pi = r.parcel_info || {};
+  const addr = r.address || pi.address || 'Parcel';
+  const apn = pi.parcel_id || pi.apn || null;
+  const dup = _deals.find(d => (d.address || '') === addr && (d.apn || null) === apn);
+  if (dup) { toast('Already in your pipeline'); if (opts.open) openDealDrawer(dup.id); return dup; }
+  const acr = (typeof getAcreage === 'function') ? getAcreage(r) : pi.acreage;
+  const deal = {
+    id: _dealNewId(),
+    address: addr, apn: apn, county: pi.county || null,
+    acreage: acr != null ? acr : null,
+    verdict: ((typeof effectiveVerdict === 'function') ? effectiveVerdict(r) : r.verdict) || null,
+    score: r.score != null ? r.score : null,
+    lat: r._lat != null ? r._lat : (pi.lat != null ? pi.lat : null),
+    lng: r._lng != null ? r._lng : (pi.lng != null ? pi.lng : null),
+    owner_name: pi.owner || null, owner_phone: null, owner_email: null,
+    owner_mailing: pi.owner_mailing_address || pi.county_address_on_file || null,
+    parcel_info: _dealTrimPi(pi), source_batch_id: _currentBatchId || null,
+    stage: 'New', offer_amount: null, next_action_at: null, tags: [], notes: [],
+    sort_order: Date.now(), created_at: new Date().toISOString(),
+  };
+  await _dealSave(deal);
+  toast('Added to pipeline →');
+  if (_onPipelinePage()) renderPipeline();
+  if (opts.open) openDealDrawer(deal.id);
+  return deal;
+}
+function trackDealFromPanel() { if (typeof _openParcel !== 'undefined' && _openParcel) trackDeal(_openParcel); else toast('Open a parcel first'); }
+function _onPipelinePage() { const p = document.getElementById('page-pipeline'); return p && p.classList.contains('active'); }
+
+async function initPipeline() { await _dealsLoad(); renderPipeline(); }
+
+function _dealVerdictClass(v) { v = (v || '').toUpperCase(); return v === 'PURSUE' ? 'pursue' : v === 'KILL' ? 'kill' : v === 'REVIEW' ? 'review' : ''; }
+function _pipeCard(d) {
+  const vc = _dealVerdictClass(d.verdict);
+  const meta = [d.acreage != null ? (Math.round(d.acreage * 10) / 10) + ' ac' : '', d.county ? d.county + ' County' : ''].filter(Boolean).join(' · ');
+  const bits = [];
+  if (d.verdict) bits.push('<span class="pipe-vb ' + vc + '">' + escHtml(d.verdict) + (d.score != null ? ' ' + d.score : '') + '</span>');
+  if (d.offer_amount != null && d.offer_amount !== '') bits.push('<span class="pipe-offer">' + fmt$(d.offer_amount) + '</span>');
+  const nx = d.next_action_at ? '<div class="pipe-next">⏰ ' + escHtml(String(d.next_action_at)) + '</div>' : '';
+  return '<div class="pipe-card ' + vc + '" draggable="true" ondragstart="_dealDragStart(event,\'' + d.id + '\')" onclick="openDealDrawer(\'' + d.id + '\')">' +
+    '<div class="pipe-card-addr" title="' + escHtml(d.address || '') + '">' + escHtml(d.address || 'Parcel') + '</div>' +
+    (meta ? '<div class="pipe-card-meta">' + escHtml(meta) + '</div>' : '') +
+    (bits.length ? '<div class="pipe-card-row2">' + bits.join('') + '</div>' : '') + nx +
+    '</div>';
+}
+function renderPipeline() {
+  const board = document.getElementById('pipeBoard');
+  if (!board) return;
+  if (!_deals.length) {
+    board.innerHTML = '<div class="pipe-empty"><h3>No deals yet</h3>' +
+      '<p>Open any parcel’s Deal Review and hit <b>＋ Track deal</b> to start working it — then drag it from New → Contacted → Negotiating → Under Contract → Closed as it moves.</p>' +
+      '<button class="btn-p btn-sm" onclick="window.location.hash=\'#dashboard\'">Go to results</button></div>';
+    return;
+  }
+  const byStage = {}; _PIPE_STAGES.forEach(s => byStage[s] = []);
+  _deals.forEach(d => { const s = _PIPE_STAGES.includes(d.stage) ? d.stage : 'New'; byStage[s].push(d); });
+  board.innerHTML = _PIPE_STAGES.map(stage => {
+    const items = byStage[stage];
+    const cards = items.map(_pipeCard).join('') || '<div style="font-size:12px;color:var(--t3);padding:10px 8px;text-align:center">—</div>';
+    return '<div class="pipe-col" data-stage="' + escHtml(stage) + '" ' +
+      'ondragover="event.preventDefault();this.classList.add(\'drag-over\')" ondragleave="this.classList.remove(\'drag-over\')" ondrop="_dealDrop(event,\'' + escHtml(stage) + '\')">' +
+      '<div class="pipe-col-hd"><span>' + escHtml(stage) + '</span><span class="cnt">' + items.length + '</span></div>' +
+      '<div class="pipe-col-body">' + cards + '</div></div>';
+  }).join('');
+}
+function _dealDragStart(ev, id) { try { ev.dataTransfer.setData('text/plain', id); ev.dataTransfer.effectAllowed = 'move'; } catch (e) {} }
+async function _dealDrop(ev, stage) {
+  ev.preventDefault();
+  document.querySelectorAll('.pipe-col').forEach(c => c.classList.remove('drag-over'));
+  let id = ''; try { id = ev.dataTransfer.getData('text/plain'); } catch (e) {}
+  const d = _deals.find(x => x.id === id);
+  if (!d || d.stage === stage) return;
+  d.stage = stage; await _dealSave(d); renderPipeline();
+}
+
+function openDealDrawer(id) {
+  const d = _deals.find(x => x.id === id);
+  if (!d) return;
+  _openDealId = id;
+  const vc = _dealVerdictClass(d.verdict);
+  document.getElementById('ddAddr').textContent = d.address || 'Parcel';
+  document.getElementById('ddSub').innerHTML =
+    (d.verdict ? '<span class="pipe-vb ' + vc + '">' + escHtml(d.verdict) + (d.score != null ? ' ' + d.score : '') + '</span>' : '') +
+    (d.acreage != null ? '<span>' + (Math.round(d.acreage * 10) / 10) + ' ac</span>' : '') +
+    (d.county ? '<span>' + escHtml(d.county) + ' County</span>' : '') +
+    (d.apn ? '<span>APN ' + escHtml(d.apn) + '</span>' : '');
+  const notes = (d.notes || []).slice().reverse().map(n =>
+    '<div class="deal-note">' + escHtml(n.text) + '<div class="t">' + escHtml(new Date(n.ts).toLocaleString()) + '</div></div>').join('') || '<div style="font-size:12.5px;color:var(--t3)">No activity yet.</div>';
+  const stageOpts = _PIPE_STAGES.map(s => '<option ' + (s === d.stage ? 'selected' : '') + '>' + s + '</option>').join('');
+  document.getElementById('ddBody').innerHTML =
+    '<div class="deal-2col">' +
+      '<div class="deal-fld"><label>Stage</label><select onchange="_dealField(\'stage\',this.value)">' + stageOpts + '</select></div>' +
+      '<div class="deal-fld"><label>Offer ($)</label><input type="number" value="' + (d.offer_amount != null ? d.offer_amount : '') + '" placeholder="—" onchange="_dealField(\'offer_amount\',this.value===\'\'?null:+this.value)"></div>' +
+    '</div>' +
+    '<div class="deal-fld"><label>Next action</label><input type="date" value="' + (d.next_action_at || '') + '" onchange="_dealField(\'next_action_at\',this.value||null)"></div>' +
+    '<div class="deal-sec-t">Owner / contact</div>' +
+    '<div class="deal-fld"><label>Owner</label><input value="' + escHtml(d.owner_name || '') + '" onchange="_dealField(\'owner_name\',this.value)"></div>' +
+    '<div class="deal-2col">' +
+      '<div class="deal-fld"><label>Phone</label><input value="' + escHtml(d.owner_phone || '') + '" placeholder="skip-trace →" onchange="_dealField(\'owner_phone\',this.value)"></div>' +
+      '<div class="deal-fld"><label>Email</label><input value="' + escHtml(d.owner_email || '') + '" placeholder="skip-trace →" onchange="_dealField(\'owner_email\',this.value)"></div>' +
+    '</div>' +
+    '<div class="deal-fld"><label>Mailing address ' + (d.owner_mailing ? '<span class="deal-copy" onclick="_dealCopyMailing()">⎘ copy</span>' : '') + '</label><input value="' + escHtml(d.owner_mailing || '') + '" onchange="_dealField(\'owner_mailing\',this.value)"></div>' +
+    '<div class="deal-sec-t">Activity</div>' +
+    '<div class="deal-fld"><textarea id="ddNoteInput" rows="2" placeholder="Log a call, offer, or note…"></textarea><button class="btn-o btn-sm" style="margin-top:6px;align-self:flex-start" onclick="_dealAddNote()">＋ Add note</button></div>' +
+    '<div id="ddNotes" style="display:flex;flex-direction:column;gap:8px">' + notes + '</div>';
+  const dr = document.getElementById('dealDrawer'); dr.classList.add('open');
+}
+function closeDealDrawer() { const dr = document.getElementById('dealDrawer'); if (dr) dr.classList.remove('open'); _openDealId = null; }
+async function _dealField(field, val) {
+  const d = _deals.find(x => x.id === _openDealId);
+  if (!d) return;
+  d[field] = val; await _dealSave(d);
+  if (['stage', 'offer_amount', 'next_action_at', 'verdict'].includes(field)) renderPipeline();
+}
+async function _dealAddNote() {
+  const d = _deals.find(x => x.id === _openDealId);
+  const ta = document.getElementById('ddNoteInput');
+  if (!d || !ta) return;
+  const text = ta.value.trim(); if (!text) return;
+  d.notes = d.notes || []; d.notes.push({ ts: new Date().toISOString(), text: text });
+  await _dealSave(d); ta.value = ''; openDealDrawer(d.id);
+}
+function _dealCopyMailing() {
+  const d = _deals.find(x => x.id === _openDealId);
+  if (!d || !d.owner_mailing) return;
+  navigator.clipboard.writeText(d.owner_mailing).then(() => toast('Mailing address copied'));
+}
+async function _deleteDealFromDrawer() {
+  if (!_openDealId) return;
+  if (!confirm('Remove this deal from your pipeline?')) return;
+  await _dealDelete(_openDealId); closeDealDrawer(); renderPipeline(); toast('Removed');
+}
+async function addManualDeal() {
+  const addr = prompt('Address or parcel to track:');
+  if (!addr || !addr.trim()) return;
+  if (_dealsBackend === null) await _dealsLoad();
+  const deal = {
+    id: _dealNewId(), address: addr.trim(), apn: null, county: null, acreage: null,
+    verdict: null, score: null, lat: null, lng: null, owner_name: null, owner_phone: null,
+    owner_email: null, owner_mailing: null, parcel_info: {}, source_batch_id: null,
+    stage: 'New', offer_amount: null, next_action_at: null, tags: [], notes: [],
+    sort_order: Date.now(), created_at: new Date().toISOString(),
+  };
+  await _dealSave(deal); renderPipeline(); openDealDrawer(deal.id);
+}
+function _openDealReview(id) {
+  const d = _deals.find(x => x.id === id);
+  if (!d) return;
+  if (typeof _currentDisplayed !== 'undefined' && _currentDisplayed && _currentDisplayed.some(r => (r.address || '') === d.address)) {
+    closeDealDrawer(); goTo('dashboard');
+    setTimeout(() => { try { _openResultByAddress(d.address); } catch (e) {} }, 320);
+    return;
+  }
+  if (d.source_batch_id && typeof loadBatchResults === 'function') {
+    closeDealDrawer(); loadBatchResults(d.source_batch_id);
+    setTimeout(() => { try { _openResultByAddress(d.address); } catch (e) {} }, 1600);
+    return;
+  }
+  toast('The full Deal Review lives in the original screening for this parcel.');
 }
 
 function initExplore() {
