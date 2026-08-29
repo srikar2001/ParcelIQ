@@ -251,12 +251,17 @@ def _grid_points(gf: dict) -> list:
     # — vast searches, not a few windows. Jitter each cell ±5% of the county span
     # so two searches explore DIFFERENT areas (variety) instead of the same points.
     grid = (0.12, 0.31, 0.5, 0.69, 0.88)   # 5x5 = 25 cells — even broader coverage
+    # Small ±4% jitter: enough that the exact windows move run-to-run (variety),
+    # but not so much that a cell over the productive interior drifts out into
+    # the water/Everglades (which made one run hit the coast → 0, the next hit
+    # the dry SW → 46). Run-to-run VARIETY comes mainly from the dry-candidate
+    # shuffle at screen time; coverage stays consistent here.
     for fy in grid:
         for fx in grid:
-            jy = (random.random() - 0.5) * dy * 0.09
-            jx = (random.random() - 0.5) * dx * 0.09
+            jy = (random.random() - 0.5) * dy * 0.04
+            jx = (random.random() - 0.5) * dx * 0.04
             pts.append((s + dy * fy + jy, w + dx * fx + jx))
-    random.shuffle(pts)   # so the window CAP below samples a varied subset each run
+    random.shuffle(pts)
     return pts
 
 
@@ -850,13 +855,17 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     geo_targets = [l for l in leads
                    if l.get("_lat") is not None
                    and isinstance(l.get("address"), str)
-                   and ("-acre lot" in l["address"] or l["address"].startswith("Vacant lot"))]
+                   and ("-acre lot" in l["address"] or l["address"].startswith("Vacant lot"))][:24]
     if geo_targets:
+        _rg_sem = asyncio.Semaphore(8)   # throttle so a big batch doesn't get rate-limited
+
+        async def _rg(l):
+            async with _rg_sem:
+                return await _reverse_geocode(l["_lat"], l["_lng"])
         try:
             geos = await asyncio.wait_for(
-                asyncio.gather(*[_reverse_geocode(l["_lat"], l["_lng"]) for l in geo_targets],
-                               return_exceptions=True),
-                timeout=9.0)
+                asyncio.gather(*[_rg(l) for l in geo_targets], return_exceptions=True),
+                timeout=14.0)
         except Exception:
             geos = []
         for l, g in zip(geo_targets, geos):
