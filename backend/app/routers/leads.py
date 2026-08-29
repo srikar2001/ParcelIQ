@@ -446,7 +446,10 @@ async def _reverse_geocode(lat: float, lng: float) -> Optional[str]:
         return cached                # so a transient miss doesn't blank forever
     addr = None
     try:
-        async with httpx.AsyncClient(timeout=6.0) as client:
+        # A real User-Agent — the default httpx UA gets blocked server-side (same
+        # trap as Overpass), which is why reverse-geo silently failed from Railway.
+        async with httpx.AsyncClient(timeout=6.0,
+                                     headers={"User-Agent": "ParcelIQ/1.0 (+leads)"}) as client:
             r = await client.get("https://photon.komoot.io/reverse",
                                   params={"lat": lat, "lon": lng, "lang": "en"})
             props = ((r.json().get("features") or [{}])[0]).get("properties") or {}
@@ -720,7 +723,7 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     # county now uses up to ~16 windows, not ~8) so the search is VAST — it covers
     # much more of the county, and the shuffle above means a different subset each
     # run → two people searching the same county get different lots.
-    points = points[:min(26, 16 + 4 * len(sel_counties))]
+    points = points[:min(30, 20 + 5 * len(sel_counties))]
 
     # Fetch every sample bbox concurrently with the tight server-side filter,
     # then dedupe + filter to candidates.
