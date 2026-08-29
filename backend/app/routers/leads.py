@@ -38,6 +38,7 @@ except Exception as _e:  # never let a missing file break the leads API
     print(f"[Leads] county polygons unavailable: {_e}")
 
 from app.collectors.parcel_fl import URL as _CAD_URL, _CO_NO_TO_COUNTY
+from app.collectors.flood import get_flood_zone
 from app.routers.batch import _screen_coordinate, _user_id_from_token, _AuthUnavailable
 from app.core.cache import get_cached_result, save_cached_result
 
@@ -61,6 +62,7 @@ _CATEGORY_CODES = {
 }
 _BBOX_HALF = 0.03                # ±0.03deg ≈ 6.5km box per center — stays fast
 _MAX_SCREEN = 24                 # hard cap on fresh screens per search
+_FLOOD_PRECHECK = 60             # candidates to cheaply flood-check before screening
 _TARGET_LEADS = 30
 _SCREEN_TIMEOUT = 20.0           # drop a parcel that's slow to screen
 _DEADLINE_S = 34.0               # overall screening budget — always return by here
@@ -165,6 +167,17 @@ def _clean_situs(addr: Optional[str]) -> Optional[str]:
     return a
 
 
+_CITY_JUNK = {"UNINCORPORATED COUNTY", "UNINCORPORATED", "UNINCORP",
+              "UNINCORPORATED AREA", "NONE", "N/A", "NULL"}
+
+
+def _clean_city(city) -> Optional[str]:
+    """Drop non-city PHY_CITY values (Miami-Dade stores 'UNINCORPORATED COUNTY')
+    so a row reads '17900 SW 174 ST' instead of '..., Unincorporated County'."""
+    c = (city or "").strip()
+    return None if (not c or c.upper() in _CITY_JUNK) else c
+
+
 def _codes_for(land_types) -> set:
     if not land_types:
         return set(_VACANT_CODES)
@@ -231,14 +244,16 @@ def _grid_points(gf: dict) -> list:
     s, n, w, e = bb
     dy, dx = (n - s), (e - w)
     pts = []
-    # Jitter each cell by ±7% of the county span so repeated searches explore
-    # DIFFERENT areas (not the same 9 fixed points, which often land on water /
-    # town centers) — more variety and a better shot at real vacant lots.
-    for fy in (0.22, 0.5, 0.78):
-        for fx in (0.22, 0.5, 0.78):
-            jy = (random.random() - 0.5) * dy * 0.06
-            jx = (random.random() - 0.5) * dx * 0.06
+    # 4x4 = 16 cells across the county (was 3x3) so we cover far MORE of the county
+    # — vast searches, not a few windows. Jitter each cell ±5% of the county span
+    # so two searches explore DIFFERENT areas (variety) instead of the same points.
+    grid = (0.14, 0.38, 0.62, 0.86)
+    for fy in grid:
+        for fx in grid:
+            jy = (random.random() - 0.5) * dy * 0.10
+            jx = (random.random() - 0.5) * dx * 0.10
             pts.append((s + dy * fy + jy, w + dx * fx + jx))
+    random.shuffle(pts)   # so the window CAP below samples a varied subset each run
     return pts
 
 
@@ -365,7 +380,7 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set,
             "lat": center[0], "lng": center[1],
             "geometry": geom,
             "address": _clean_situs(a.get("PHY_ADDR1")),
-            "city": (a.get("PHY_CITY") or "").strip() or None,
+            "city": _clean_city(a.get("PHY_CITY")),
             "owner": (a.get("OWN_NAME") or "").strip() or None,
             "owner_state": (a.get("OWN_STATE") or "").strip().upper() or None,
             "acreage": round(sq / 43560, 4) if sq else None,
@@ -666,9 +681,11 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     if not points:
         return {"leads": [], "error": "Pick a county (or type an area) to search."}
     random.shuffle(points)
-    # Cap total bbox fetches for a bounded runtime, but scale up a little when
-    # several counties are selected so each still gets real coverage.
-    points = points[:min(16, 6 + 2 * max(1, len(sel_counties)))]
+    # Cap total bbox fetches for a bounded runtime. Wider than before (a single
+    # county now uses up to ~16 windows, not ~8) so the search is VAST — it covers
+    # much more of the county, and the shuffle above means a different subset each
+    # run → two people searching the same county get different lots.
+    points = points[:min(22, 12 + 4 * len(sel_counties))]
 
     # Fetch every sample bbox concurrently with the tight server-side filter,
     # then dedupe + filter to candidates.
@@ -714,6 +731,28 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     if not cands:
         _log_search(f, 0, 0, [], None)
         return {"leads": [], "screened": 0, "candidates": 0, "degraded": None}
+
+    # De-flood pre-filter. The screen budget is small (~24 parcels), so SPEND IT ON
+    # DRY LAND. The flood layer is in-house (fast), so cheaply check the top
+    # candidates and screen non-flood ones FIRST — otherwise a coastal county
+    # (Miami-Dade, the Keys) burns every screen on Flood-AE lots and returns
+    # all-KILL. Shuffle within each bucket so two searches surface DIFFERENT lots.
+    head = cands[:_FLOOD_PRECHECK]
+    try:
+        fzs = await asyncio.wait_for(
+            asyncio.gather(*[get_flood_zone(c["lat"], c["lng"]) for c in head],
+                           return_exceptions=True),
+            timeout=8.0)
+    except Exception:
+        fzs = []
+    if len(fzs) != len(head):
+        fzs = [None] * len(head)
+    dry, wet = [], []
+    for c, fz in zip(head, fzs):
+        (wet if (isinstance(fz, dict) and fz.get("sfha") is True) else dry).append(c)
+    random.shuffle(dry)
+    random.shuffle(wet)
+    cands = dry + wet + cands[_FLOOD_PRECHECK:]
 
     # How many leads to generate (user-chosen; deadline still bounds the work).
     target = max(1, min(int(f.limit or _TARGET_LEADS), 50))

@@ -1960,8 +1960,8 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
         try { _lpDrMap.zoomControl.setPosition('topright'); } catch (e) {}
         // Clean, labeled STREET basemap (CARTO Voyager) — the exact same
         // real-map style as the in-app Deal Review. Not satellite.
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-          { maxZoom: 20, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO' }).addTo(_lpDrMap);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          { maxZoom: 19, subdomains: 'abc', attribution: '© OpenStreetMap' }).addTo(_lpDrMap);
         // FEMA NFHL flood zones overlay (real data; parcel sits outside Zone X).
         try {
           var _Flood = L.GridLayer.extend({ createTile: function(coords, done) {
@@ -12923,8 +12923,8 @@ function _initLeadsMap() {
   try {
     _leadsMap = L.map(el, { zoomControl: true, attributionControl: true });
     // Light street basemap (visible, "white") the user works over.
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-      { maxZoom: 20, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO' }).addTo(_leadsMap);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 19, subdomains: 'abc', attribution: '© OpenStreetMap' }).addTo(_leadsMap);
     _leadMarkers = L.layerGroup().addTo(_leadsMap);
     _leadPoiMarkers = L.layerGroup().addTo(_leadsMap);
     // Start focused on Florida (the only state we cover) + keep panning near it.
