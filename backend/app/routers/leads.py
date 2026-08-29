@@ -41,6 +41,8 @@ from app.collectors.parcel_fl import URL as _CAD_URL, _CO_NO_TO_COUNTY
 from app.collectors.flood import get_flood_zone
 from app.routers.batch import _screen_coordinate, _user_id_from_token, _AuthUnavailable
 from app.core.cache import get_cached_result, save_cached_result
+from app.core import lead_inventory as inv_lib
+from app.core.lead_inventory import inv_count, inv_query, inv_upsert
 
 router = APIRouter(prefix="/api/leads")
 
@@ -385,6 +387,7 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set,
         out.append({
             "parcel_id": a.get("PARCEL_ID"),
             "co_no": a.get("CO_NO"),
+            "dor_uc": luc,
             "lat": center[0], "lng": center[1],
             "geometry": geom,
             "address": _clean_situs(a.get("PHY_ADDR1")),
@@ -523,6 +526,9 @@ async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
         pi["county_address_on_file"] = None
     res["parcel_info"] = pi
     res["_folio"] = pid
+    res["_dor_uc"] = cand.get("dor_uc")
+    res["_owner_state"] = cand.get("owner_state")
+    res["_co_no"] = cand.get("co_no")
     res["address"] = _lead_label(cand, pi)
     return res
 
@@ -556,6 +562,52 @@ def _cand_stub(cand: dict) -> dict:
            "parcel_info": pi, "_lat": cand["lat"], "_lng": cand["lng"], "_folio": cand.get("parcel_id")}
     res["address"] = _lead_label(cand, pi)
     return res
+
+
+def _category_of(dor_uc) -> Optional[str]:
+    """Map a DOR use code to the land-type category the frontend shows, so a
+    banked lot is servable by the same land-type filter that found it."""
+    try:
+        c = int(dor_uc)
+    except (TypeError, ValueError):
+        return None
+    for name, cs in _CATEGORY_CODES.items():
+        if c in cs:
+            return name
+    return None
+
+
+def _to_inv_row(res: dict) -> Optional[dict]:
+    """A screened lead -> a lead_inventory row (bankable + servable as-is).
+    Returns None for anything without a real verdict/parcel_id (stubs, errors)."""
+    pid = res.get("_folio") or (res.get("parcel_info") or {}).get("parcel_id")
+    verdict = res.get("verdict")
+    if not pid or verdict in (None, "ERROR"):
+        return None
+    pi = res.get("parcel_info") or {}
+    county = None
+    if res.get("_co_no") is not None:
+        try:
+            county = _CO_NO_TO_COUNTY.get(int(res["_co_no"]))
+        except (TypeError, ValueError):
+            county = None
+    county = county or pi.get("county")
+    return {
+        "parcel_id": str(pid),
+        "county": county,
+        "land_type": _category_of(res.get("_dor_uc")),
+        "verdict": verdict,
+        "score": res.get("score"),
+        "acreage": pi.get("acreage"),
+        "just_value": pi.get("just_value"),
+        "owner_biz": _is_business(pi.get("owner")),
+        "owner_state": res.get("_owner_state"),
+        "has_road": pi.get("road_distance_m") is not None,
+        "address": res.get("address"),
+        "lat": res.get("_lat"),
+        "lng": res.get("_lng"),
+        "lead_json": res,
+    }
 
 
 def _log_search(f: LeadFilters, candidates: int, screened: int, leads: list, degraded) -> None:
@@ -700,6 +752,36 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
         return denied
 
     codes = _codes_for(f.land_types)
+    sel_counties = (f.counties or [])[:8]
+    target = max(1, min(int(f.limit or _TARGET_LEADS), 50))
+
+    # SERVE-FIRST. Once a county is warm (enough already-screened lots banked in
+    # the shared inventory), return INSTANTLY from it — zero live cadastral hits,
+    # which is the path that rate-limits under load. Skip for POI / typed-area
+    # searches (those enrich/geocode a freshly screened set).
+    inv_counties = [str(c) for c in sel_counties]
+    inv_types = list(f.land_types or ["Vacant Land"])
+    owner_type = (f.owner_type or ("individual" if f.individual_only else None))
+    if inv_counties and not f.poi_types and not f.location:
+        try:
+            pool = await inv_count(inv_counties, inv_types, f.exclude_kills)
+        except Exception:
+            pool = 0
+        if pool >= inv_lib.POOL_MIN:
+            served = await inv_query(
+                counties=inv_counties, land_types=inv_types, target=target,
+                exclude_kills=f.exclude_kills,
+                acres_min=f.acres_min, acres_max=f.acres_max,
+                value_min=f.value_min, value_max=f.value_max,
+                owner_type=owner_type, out_of_state=f.out_of_state,
+                road_access=f.road_access)
+            # Serve when the inventory can fill the request (or has a solid batch);
+            # otherwise fall through to a live search that ALSO banks + grows the pool.
+            if served and (len(served) >= target or len(served) >= 20):
+                _log_search(f, len(served), 0, served[:target], "inventory")
+                return {"leads": served[:target], "screened": 0,
+                        "candidates": len(served), "poi_degraded": False,
+                        "poi_points": {}, "degraded": None, "source": "inventory"}
 
     # Resolve sample points — a grid across each county (so we hit the rural
     # areas where vacant land actually is), plus any free-text area.
@@ -711,7 +793,6 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     # Sample a grid across each selected county. Prefer the bundled REAL county
     # extent (accurate, instant, no flaky geocode) and fall back to Nominatim
     # only for a county we somehow don't have bundled.
-    sel_counties = (f.counties or [])[:8]
     for c in sel_counties:
         poly = _FL_COUNTY_POLYS.get(str(c))
         if poly:
@@ -798,7 +879,7 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     cands = dry + wet + cands[_FLOOD_PRECHECK:]
 
     # How many leads to generate (user-chosen; deadline still bounds the work).
-    target = max(1, min(int(f.limit or _TARGET_LEADS), 50))
+    # `target` is computed up top for the serve-first check.
     max_screen = min(max(target + 8, _MAX_SCREEN), 60)
 
     # Screen with a hard wall-clock deadline so we always return.
@@ -872,6 +953,17 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
             if isinstance(g, str) and g:
                 cty = (l.get("parcel_info") or {}).get("county")
                 l["address"] = g + (f" · {cty} County" if (cty and cty.lower() not in g.lower()) else "")
+
+    # BANK everything we screened (PURSUE + KILL + REVIEW) into the shared
+    # inventory so this county warms up and future searches serve instantly.
+    # Fire-and-forget so it never adds latency to the response.
+    if screened_all:
+        rows = [r for r in (_to_inv_row(x) for x in screened_all) if r]
+        if rows:
+            try:
+                asyncio.create_task(inv_upsert(rows))
+            except Exception:
+                pass
 
     _log_search(f, len(cands), max_screen - budget["n"], leads, degraded)
     return {"leads": leads, "screened": max_screen - budget["n"],
