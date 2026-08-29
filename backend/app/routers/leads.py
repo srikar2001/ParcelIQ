@@ -298,6 +298,7 @@ def _uc_where(codes: set, f: "LeadFilters | None") -> str:
     for c in sorted(codes):
         vals.add(f"'{c}'")
         vals.add(f"'{c:02d}'")
+        vals.add(f"'{c:03d}'")   # DOR_UC is stored 3-char zero-padded ('009','040','070')
     where = "DOR_UC IN (" + ",".join(sorted(vals)) + ")"
     if f is not None:
         if f.acres_min:
@@ -319,7 +320,7 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set,
         "where": where,
         "geometry": f"{w},{s},{e},{n}", "geometryType": "esriGeometryEnvelope",
         "inSR": "4326", "outSR": "4326", "spatialRel": "esriSpatialRelIntersects",
-        "outFields": "PARCEL_ID,OWN_NAME,OWN_STATE,PHY_ADDR1,PHY_CITY,DOR_UC,JV,LND_SQFOOT",
+        "outFields": "PARCEL_ID,CO_NO,OWN_NAME,OWN_STATE,PHY_ADDR1,PHY_CITY,DOR_UC,JV,LND_SQFOOT",
         # 2000-row pages so a bbox returns the real matching set, not the first
         # 500 records (which under the old unfiltered scan were almost all houses).
         "returnGeometry": "true", "resultRecordCount": "2000", "f": "json",
@@ -360,6 +361,7 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set,
         sq = a.get("LND_SQFOOT")
         out.append({
             "parcel_id": a.get("PARCEL_ID"),
+            "co_no": a.get("CO_NO"),
             "lat": center[0], "lng": center[1],
             "geometry": geom,
             "address": _clean_situs(a.get("PHY_ADDR1")),
@@ -476,6 +478,34 @@ def _keep_lead(res: dict, f: LeadFilters) -> bool:
     if f.road_access and (res.get("parcel_info") or {}).get("road_distance_m") is None:
         return False
     return True
+
+
+def _cand_stub(cand: dict) -> dict:
+    """A matching parcel we didn't get to fully screen — shaped as a minimal lead
+    so the user still sees the real lot (verdict/score resolve when they open it)."""
+    county = None
+    try:
+        if cand.get("co_no") is not None:
+            county = _CO_NO_TO_COUNTY.get(int(cand["co_no"]))
+    except (TypeError, ValueError):
+        pass
+    pi = {
+        "county": county, "parcel_id": cand.get("parcel_id"),
+        "acreage": cand.get("acreage"), "owner": cand.get("owner"),
+        "just_value": cand.get("just_value"), "geometry": cand.get("geometry"),
+    }
+    res = {"verdict": None, "score": None, "flags": [], "positives": [], "sources": [],
+           "parcel_info": pi, "_lat": cand["lat"], "_lng": cand["lng"], "_folio": cand.get("parcel_id")}
+    res["address"] = _lead_label(cand, pi)
+    return res
+
+
+def _log_search(f: LeadFilters, candidates: int, screened: int, leads: list, degraded) -> None:
+    """One line per search so a 0-result is a diagnosable event, not a mystery."""
+    pursue = sum(1 for l in leads if (l.get("verdict") == "PURSUE"))
+    print(f"[Leads] counties={f.counties} types={f.land_types} "
+          f"exclude_kills={f.exclude_kills} candidates={candidates} screened={screened} "
+          f"pursue={pursue} kept={len(leads)} degraded={degraded}")
 
 
 async def _overpass_places(op_types: list, bbox: tuple):
@@ -662,21 +692,28 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     # search never silently returns empty because of a where-clause mismatch.
     if not cands:
         cands = await _gather(False)
-    # Screen the most buildable-looking parcels first. A real situs address and a
-    # healthy value-per-acre both correlate with dry, road-accessible land; swamp
-    # /wetland parcels are near-worthless and unaddressed. The old cheapest-first
-    # order systematically surfaced that junk → mostly KILL verdicts (and empty
-    # results in wetland-heavy counties). Cheaper total value is the tiebreak.
+    # Rank the parcels we'll screen. For pure vacant-land searches, screen the most
+    # buildable-looking first (a real situs address + healthy $/acre correlate with
+    # dry, road-accessible land; swamp/wetland is near-worthless + unaddressed). But
+    # that heuristic is HOSTILE to agricultural / large-acreage plays (rural land is
+    # unaddressed and low $/acre), so when the search includes those, rank by size —
+    # biggest & cheapest first — so those lots actually get screened instead of
+    # sinking below the screen budget and returning nothing.
+    lt = set(f.land_types or [])
+    buildable_first = (not lt) or lt == {"Vacant Land"}
     def _cand_rank(c: dict):
         ac = c.get("acreage") or 0.0
         jv = c.get("just_value") or 0.0
-        vpa = (jv / ac) if ac > 0 else 0.0
-        has_addr = 1 if c.get("address") else 0
-        return (-has_addr, -min(vpa, 40000.0), jv)
+        if buildable_first:
+            vpa = (jv / ac) if ac > 0 else 0.0
+            has_addr = 1 if c.get("address") else 0
+            return (-has_addr, -min(vpa, 40000.0), jv)
+        return (-ac, jv)   # ag / mixed: biggest lots first, cheapest as tiebreak
     cands.sort(key=_cand_rank)
 
     if not cands:
-        return {"leads": [], "screened": 0, "candidates": 0}
+        _log_search(f, 0, 0, [], None)
+        return {"leads": [], "screened": 0, "candidates": 0, "degraded": None}
 
     # How many leads to generate (user-chosen; deadline still bounds the work).
     target = max(1, min(int(f.limit or _TARGET_LEADS), 50))
@@ -684,6 +721,7 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
 
     # Screen with a hard wall-clock deadline so we always return.
     leads = []
+    screened_all = []
     budget = {"n": max_screen}
     t0 = time.monotonic()
     for i in range(0, len(cands), _LEAD_CONCURRENCY):
@@ -696,10 +734,28 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
         except asyncio.TimeoutError:
             break
         for res in results:
-            if res and _keep_lead(res, f):
+            if not res:
+                continue
+            screened_all.append(res)
+            if _keep_lead(res, f):
                 leads.append(res)
         if len(leads) >= target or budget["n"] <= 0 or (time.monotonic() - t0) > _DEADLINE_S:
             break
+
+    # NEVER a dead end. If the PURSUE-only filter left nothing (e.g. a wetland-heavy
+    # county where everything we checked flags), surface what we DID screen with
+    # their real verdicts; if the deadline hit before anything screened, shape the
+    # top matching parcels as unscreened leads. Either way the user sees real lots
+    # (the frontend shows a "nothing fully cleared" note for the degraded case).
+    degraded = None
+    if not leads:
+        if screened_all:
+            screened_all.sort(key=lambda x: x.get("score") or -1, reverse=True)
+            leads = screened_all
+            degraded = "no_pursue"
+        elif cands:
+            leads = [_cand_stub(c) for c in cands[:target]]
+            degraded = "unscreened"
 
     # Optional: keep only leads near a chosen public place (+ points to map).
     poi_degraded = False
@@ -708,6 +764,8 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
         leads, poi_ok, poi_points = await _enrich_poi(leads, f.poi_types, f.poi_radius_mi)
         poi_degraded = not poi_ok
 
-    leads.sort(key=lambda x: x.get("score") or 0, reverse=True)
+    leads.sort(key=lambda x: x.get("score") or -1, reverse=True)
+    _log_search(f, len(cands), max_screen - budget["n"], leads, degraded)
     return {"leads": leads[:target], "screened": max_screen - budget["n"],
-            "candidates": len(cands), "poi_degraded": poi_degraded, "poi_points": poi_points}
+            "candidates": len(cands), "poi_degraded": poi_degraded,
+            "poi_points": poi_points, "degraded": degraded}

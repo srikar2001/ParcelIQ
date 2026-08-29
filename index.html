@@ -3567,9 +3567,9 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
       <div class="ll-field">
         <label>Type of land</label>
         <div class="leads-chips" id="leadLandTypes">
-          <label class="leads-chip on"><input type="checkbox" value="Vacant Land" checked onchange="_leadChip(this)">🌳 Vacant Land</label>
-          <label class="leads-chip"><input type="checkbox" value="Agricultural" onchange="_leadChip(this)">🚜 Agricultural</label>
-          <label class="leads-chip"><input type="checkbox" value="Residential" onchange="_leadChip(this)">🏠 Residential</label>
+          <label class="leads-chip on"><input type="checkbox" value="Vacant Land" checked onchange="_leadLandTypeChip(this)">🌳 Vacant Land</label>
+          <label class="leads-chip"><input type="checkbox" value="Agricultural" onchange="_leadLandTypeChip(this)">🚜 Agricultural</label>
+          <label class="leads-chip"><input type="checkbox" value="Residential" onchange="_leadLandTypeChip(this)">🏠 Residential</label>
         </div>
       </div>
       <div class="ll-field">
@@ -13054,6 +13054,16 @@ function _leadChip(input, isAvoid) {
   lab.classList.toggle('on', input.checked);
   if (isAvoid) lab.classList.toggle('avoid', input.checked);
 }
+// Land-type chips: never let the user deselect the LAST one. That was the
+// "select vacant land → it asks me to pick a type" trap — Vacant Land ships
+// pre-checked, so clicking it (to "select" it) actually toggled it OFF and left
+// zero types selected. Now clicking the only-selected type keeps it on.
+function _leadLandTypeChip(input) {
+  if (!input.checked && document.querySelectorAll('#leadLandTypes input:checked').length === 0) {
+    input.checked = true;
+  }
+  _leadChip(input);
+}
 // Owner segmented control.
 function _leadSeg(btn) {
   document.querySelectorAll('#leadOwnerType .leads-seg-opt').forEach(b => b.classList.toggle('active', b === btn));
@@ -13092,8 +13102,8 @@ async function runLeadSearch() {
   const g = id => document.getElementById(id);
   const acLo = +g('leadAcLo').value, acHi = +g('leadAcHi').value, acMax = +g('leadAcHi').max;
   const vLo = +g('leadValLo').value, vHi = +g('leadValHi').value, vMax = +g('leadValHi').max;
-  const landTypes = [...document.querySelectorAll('#leadLandTypes input:checked')].map(el => el.value);
-  if (!landTypes.length) { if (status) status.textContent = 'Pick at least one type of land.'; return; }
+  let landTypes = [...document.querySelectorAll('#leadLandTypes input:checked')].map(el => el.value);
+  if (!landTypes.length) landTypes = ['Vacant Land'];   // never block — vacant is the default
   const ownerType = (document.querySelector('#leadOwnerType .leads-seg-opt.active') || {}).dataset ?
     document.querySelector('#leadOwnerType .leads-seg-opt.active').dataset.owner : 'any';
   const poiTypes = [...document.querySelectorAll('#leadPois input:checked')].map(el => el.value);
@@ -13150,14 +13160,16 @@ async function runLeadSearch() {
     batchState.elapsed = 0;
     currentBatchResults = leads;
     if (status) status.textContent = '';
-    // Surface the yield so you can see how hard the engine worked: leads FOUND
-    // vs parcels actually SCREENED (ran through all 12 checks), plus how many
-    // matched your filters before screening. hit rate = found / screened.
-    const _sc = data.screened, _cd = data.candidates;
-    if (_sc != null) {
-      // "screened" counts fresh screens this run; cached parcels are reused for
-      // free, so we report raw counts (found vs freshly screened vs matched) and
-      // let the hit rate never exceed 100%.
+    // Never a dead end: when nothing fully cleared (or nothing screened in time),
+    // the backend still returns the matching lots — say so plainly.
+    if (data.degraded === 'no_pursue') {
+      toast('No lots fully cleared in this search — showing the ' + leads.length + ' closest we checked (each has a flag). Open one to see why.', 9000);
+    } else if (data.degraded === 'unscreened') {
+      toast('Showing ' + leads.length + ' matching lots — open one to run the full 12-point check.', 9000);
+    } else if (data.screened != null) {
+      // Surface the yield: leads FOUND vs parcels freshly SCREENED (all 12 checks),
+      // plus how many matched your filters. hit rate = found / screened (≤100%).
+      const _sc = data.screened, _cd = data.candidates;
       const _rate = _sc ? Math.min(100, Math.round(leads.length / _sc * 100)) : 0;
       toast(leads.length + ' leads · ' + _sc + ' freshly screened' + (_sc ? ' (' + _rate + '% kept)' : '')
         + (_cd != null ? ' · ' + _cd + ' matched your filters' : ''), 8000);
