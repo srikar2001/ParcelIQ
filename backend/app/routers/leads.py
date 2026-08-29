@@ -46,8 +46,8 @@ router = APIRouter(prefix="/api/leads")
 
 # Bounded concurrency for lead screening (a search only ever screens _MAX_SCREEN
 # parcels, so a modest bump over the batch path is safe for the DB).
-_SEM_LEADS = asyncio.Semaphore(14)
-_LEAD_CONCURRENCY = 14
+_SEM_LEADS = asyncio.Semaphore(18)
+_LEAD_CONCURRENCY = 18
 
 _VACANT_CODES = {0, 9, 10, 40, 70}
 # FL DOR use-code ranges -> the same broad categories the frontend shows, so the
@@ -61,11 +61,14 @@ _CATEGORY_CODES = {
     "Industrial": set(range(41, 50)),
 }
 _BBOX_HALF = 0.03                # ±0.03deg ≈ 6.5km box per center — stays fast
-_MAX_SCREEN = 24                 # hard cap on fresh screens per search
-_FLOOD_PRECHECK = 60             # candidates to cheaply flood-check before screening
+_MAX_SCREEN = 40                 # hard cap on fresh screens per search (was 24 —
+                                 # too low to fill a 50-lead request in leaner counties)
+_FLOOD_PRECHECK = 80             # candidates to cheaply flood-check before screening
 _TARGET_LEADS = 30
 _SCREEN_TIMEOUT = 20.0           # drop a parcel that's slow to screen
-_DEADLINE_S = 34.0               # overall screening budget — always return by here
+_DEADLINE_S = 48.0               # overall screening budget — always return by here
+                                 # (frontend aborts at 90s; loop still stops early
+                                 # once the requested lead count is reached)
 _FETCH_TIMEOUT = 12.0            # per sample-bbox fetch (slow ones are dropped)
 _BIZ_MARKERS = ("LLC", "L.L.C", "INC", "CORP", "LTD", "TRUST", "PROPERTIES",
                 "HOLDINGS", "INVESTMENT", "CAPITAL", "GROUP", "ENTERPRISE",
@@ -428,6 +431,37 @@ def _lead_label(cand: dict, pi: dict) -> str:
     cty = pi.get("county")
     lead = (f"{ac:g}-acre lot" if ac else "Vacant lot")
     return f"{lead} · {cty} County" if cty else lead
+
+
+async def _reverse_geocode(lat: float, lng: float) -> Optional[str]:
+    """A real street reference for a lot with NO situs address, via Photon (free,
+    OSM-based) — cached. Street-level only (no house number) so we never imply a
+    specific building on a vacant lot: 'SW 313th St, Homestead'."""
+    key = f"revgeo:{round(lat, 5)},{round(lng, 5)}"
+    try:
+        cached = await get_cached_result(key)
+    except Exception:
+        cached = None
+    if cached is not None:
+        return cached or None
+    addr = None
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            r = await client.get("https://photon.komoot.io/reverse",
+                                  params={"lat": lat, "lon": lng, "lang": "en"})
+            props = ((r.json().get("features") or [{}])[0]).get("properties") or {}
+        st = props.get("street") or props.get("name")
+        city = (props.get("city") or props.get("town") or props.get("village")
+                or props.get("locality"))
+        parts = [p for p in (st, city) if p]
+        addr = ", ".join(parts) if parts else None
+    except Exception:
+        addr = None
+    try:
+        asyncio.create_task(save_cached_result(key, addr or ""))
+    except Exception:
+        pass
+    return addr
 
 
 async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
@@ -804,7 +838,29 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
         poi_degraded = not poi_ok
 
     leads.sort(key=lambda x: x.get("score") or -1, reverse=True)
+    leads = leads[:target]
+
+    # Give addressless vacant leads a real street reference (free reverse-geo,
+    # cached) so a row reads "SW 313th St, Homestead · Miami-Dade County" instead
+    # of just "5-acre lot · Miami-Dade County". Bounded to the returned leads.
+    geo_targets = [l for l in leads
+                   if l.get("_lat") is not None
+                   and isinstance(l.get("address"), str)
+                   and ("-acre lot" in l["address"] or l["address"].startswith("Vacant lot"))]
+    if geo_targets:
+        try:
+            geos = await asyncio.wait_for(
+                asyncio.gather(*[_reverse_geocode(l["_lat"], l["_lng"]) for l in geo_targets],
+                               return_exceptions=True),
+                timeout=9.0)
+        except Exception:
+            geos = []
+        for l, g in zip(geo_targets, geos):
+            if isinstance(g, str) and g:
+                cty = (l.get("parcel_info") or {}).get("county")
+                l["address"] = g + (f" · {cty} County" if (cty and cty.lower() not in g.lower()) else "")
+
     _log_search(f, len(cands), max_screen - budget["n"], leads, degraded)
-    return {"leads": leads[:target], "screened": max_screen - budget["n"],
+    return {"leads": leads, "screened": max_screen - budget["n"],
             "candidates": len(cands), "poi_degraded": poi_degraded,
             "poi_points": poi_points, "degraded": degraded}
