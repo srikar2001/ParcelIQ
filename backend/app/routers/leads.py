@@ -250,11 +250,11 @@ def _grid_points(gf: dict) -> list:
     # 4x4 = 16 cells across the county (was 3x3) so we cover far MORE of the county
     # — vast searches, not a few windows. Jitter each cell ±5% of the county span
     # so two searches explore DIFFERENT areas (variety) instead of the same points.
-    grid = (0.14, 0.38, 0.62, 0.86)
+    grid = (0.12, 0.31, 0.5, 0.69, 0.88)   # 5x5 = 25 cells — even broader coverage
     for fy in grid:
         for fx in grid:
-            jy = (random.random() - 0.5) * dy * 0.10
-            jx = (random.random() - 0.5) * dx * 0.10
+            jy = (random.random() - 0.5) * dy * 0.09
+            jx = (random.random() - 0.5) * dx * 0.09
             pts.append((s + dy * fy + jy, w + dx * fx + jx))
     random.shuffle(pts)   # so the window CAP below samples a varied subset each run
     return pts
@@ -442,25 +442,26 @@ async def _reverse_geocode(lat: float, lng: float) -> Optional[str]:
         cached = await get_cached_result(key)
     except Exception:
         cached = None
-    if cached is not None:
-        return cached or None
+    if cached:                       # non-empty hit only — never cache a failure,
+        return cached                # so a transient miss doesn't blank forever
     addr = None
     try:
         async with httpx.AsyncClient(timeout=6.0) as client:
             r = await client.get("https://photon.komoot.io/reverse",
                                   params={"lat": lat, "lon": lng, "lang": "en"})
             props = ((r.json().get("features") or [{}])[0]).get("properties") or {}
-        st = props.get("street") or props.get("name")
+        st = props.get("street") or props.get("name") or props.get("district")
         city = (props.get("city") or props.get("town") or props.get("village")
-                or props.get("locality"))
+                or props.get("locality") or props.get("county"))
         parts = [p for p in (st, city) if p]
         addr = ", ".join(parts) if parts else None
     except Exception:
         addr = None
-    try:
-        asyncio.create_task(save_cached_result(key, addr or ""))
-    except Exception:
-        pass
+    if addr:
+        try:
+            asyncio.create_task(save_cached_result(key, addr))
+        except Exception:
+            pass
     return addr
 
 
@@ -719,7 +720,7 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     # county now uses up to ~16 windows, not ~8) so the search is VAST — it covers
     # much more of the county, and the shuffle above means a different subset each
     # run → two people searching the same county get different lots.
-    points = points[:min(22, 12 + 4 * len(sel_counties))]
+    points = points[:min(26, 16 + 4 * len(sel_counties))]
 
     # Fetch every sample bbox concurrently with the tight server-side filter,
     # then dedupe + filter to candidates.
