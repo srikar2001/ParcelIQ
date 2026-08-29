@@ -258,8 +258,8 @@ def _grid_points(gf: dict) -> list:
     # shuffle at screen time; coverage stays consistent here.
     for fy in grid:
         for fx in grid:
-            jy = (random.random() - 0.5) * dy * 0.04
-            jx = (random.random() - 0.5) * dx * 0.04
+            jy = (random.random() - 0.5) * dy * 0.06
+            jx = (random.random() - 0.5) * dx * 0.06
             pts.append((s + dy * fy + jy, w + dx * fx + jx))
     random.shuffle(pts)
     return pts
