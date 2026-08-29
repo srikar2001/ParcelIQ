@@ -84,21 +84,31 @@ async def inv_count(counties, land_types, exclude_kills=True) -> int:
     return 0
 
 
+_SAMPLE_CAP = 500   # superset size to random-sample the served target from
+
+
 async def inv_query(*, counties, land_types, target, exclude_kills=True,
                     acres_min=None, acres_max=None, value_min=None, value_max=None,
                     owner_type=None, out_of_state=False, road_access=False):
-    """Serve up to `target` banked leads, RANDOM-sampled for variety."""
+    """Serve up to `target` banked leads, RANDOM-sampled for real variety.
+
+    Two-stage so repeated searches return DIFFERENT lots: (1) a random `rand`
+    threshold picks a rotating window of up to _SAMPLE_CAP matching rows across
+    the pool (so even a huge county rotates, not just its smallest-rand rows),
+    then (2) we random.sample the target out of that window in Python — so two
+    searches over an 85-lot pool don't both return the same 30.
+    """
     if not _URL or not counties:
         return []
     base = [("select", "lead_json")] + _filters(
         counties, land_types, exclude_kills, acres_min, acres_max,
         value_min, value_max, owner_type, out_of_state, road_access)
     r = random.random()
-    rows, _ = await _get(base + [("rand", f"gte.{r}"), ("order", "rand.asc"), ("limit", str(target))])
-    if len(rows) < target:   # wrap around the random threshold
-        more, _ = await _get(base + [("rand", f"lt.{r}"), ("order", "rand.desc"), ("limit", str(target - len(rows)))])
+    rows, _ = await _get(base + [("rand", f"gte.{r}"), ("order", "rand.asc"), ("limit", str(_SAMPLE_CAP))])
+    if len(rows) < _SAMPLE_CAP:   # wrap below the threshold to top up the window
+        more, _ = await _get(base + [("rand", f"lt.{r}"), ("order", "rand.desc"), ("limit", str(_SAMPLE_CAP - len(rows)))])
         rows += more
-    out = []
+    parsed = []
     seen = set()
     for row in rows:
         lj = row.get("lead_json")
@@ -107,13 +117,16 @@ async def inv_query(*, counties, land_types, target, exclude_kills=True,
                 lj = json.loads(lj)
             except Exception:
                 continue
-        if isinstance(lj, dict):
-            a = lj.get("address")
-            if a in seen:
-                continue
-            seen.add(a)
-            out.append(lj)
-    return out
+        if not isinstance(lj, dict):
+            continue
+        key = lj.get("_folio") or lj.get("address")   # distinct parcels (adjacent lots can share a street label)
+        if key in seen:
+            continue
+        seen.add(key)
+        parsed.append(lj)
+    if len(parsed) > target:
+        parsed = random.sample(parsed, target)
+    return parsed
 
 
 async def inv_upsert(rows):
