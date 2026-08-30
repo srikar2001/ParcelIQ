@@ -1047,14 +1047,22 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     leads.sort(key=lambda x: x.get("score") or -1, reverse=True)
     leads = leads[:need]
 
-    # Give every addressless lot a real street address (Geocodio reverse, cached +
-    # banked) so a row reads "12345 NW County Road 125, Macclenny" instead of a
-    # bare "5-acre lot, Baker County". Covers all the fresh leads we're returning.
-    geo_targets = [l for l in leads
-                   if l.get("_lat") is not None
-                   and isinstance(l.get("address"), str)
-                   and ("-acre lot" in l["address"] or l["address"].startswith("Vacant lot"))]
-    await _resolve_addresses(geo_targets)
+    # Give every screened lot a REAL street address (Geocodio reverse + Photon,
+    # cached) so a row reads "12345 NW County Road 125, Macclenny" instead of a
+    # bare "5-acre lot, Baker County". Resolve across everything we SCREENED — not
+    # just the returned subset — so the rows we BANK serve real addresses too when
+    # a later search pulls them from inventory (they're the same objects, so the
+    # returned leads update at the same time).
+    to_resolve, seen_ids = [], set()
+    for l in screened_all + leads:
+        if id(l) in seen_ids:
+            continue
+        seen_ids.add(id(l))
+        a = l.get("address")
+        if (l.get("_lat") is not None and isinstance(a, str)
+                and ("-acre lot" in a or a.startswith("Vacant lot"))):
+            to_resolve.append(l)
+    await _resolve_addresses(to_resolve)
 
     # BANK everything we screened (PURSUE + KILL + REVIEW) into the shared
     # inventory so this county warms up and future searches serve instantly.
