@@ -525,7 +525,7 @@ async def _resolve_addresses(leads: list) -> None:
     coords = [p[2] for p in pending]
 
     try:
-        gc = await asyncio.wait_for(reverse_geocode_batch(coords), timeout=25.0)
+        gc = await asyncio.wait_for(reverse_geocode_batch(coords), timeout=28.0)
     except Exception:
         gc = {}
 

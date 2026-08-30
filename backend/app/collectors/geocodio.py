@@ -250,18 +250,22 @@ async def reverse_geocode_batch(coords: list) -> dict:
     if not coords:
         return {}
     queries = [f"{lat},{lng}" for lat, lng in coords]
-    try:
-        api_key = os.environ['GEOCODIO_API_KEY']
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                "https://api.geocod.io/v1.7/reverse",
-                params={"api_key": api_key, "limit": 1},
-                json=queries,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-    except Exception as e:
-        print(f"[Geocodio Reverse] Error: {e}")
+    data = None
+    for attempt in range(2):          # one retry — a single transient must not blank the batch
+        try:
+            api_key = os.environ['GEOCODIO_API_KEY']
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                resp = await client.post(
+                    "https://api.geocod.io/v1.7/reverse",
+                    params={"api_key": api_key, "limit": 1},
+                    json=queries,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+            break
+        except Exception as e:
+            print(f"[Geocodio Reverse] attempt {attempt + 1} error: {e}")
+    if data is None:
         return {}
     out: dict = {}
     for i, item in enumerate(data.get("results", [])):
