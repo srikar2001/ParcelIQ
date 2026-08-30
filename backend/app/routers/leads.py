@@ -41,8 +41,7 @@ from app.collectors.parcel_fl import URL as _CAD_URL, _CO_NO_TO_COUNTY
 from app.collectors.flood import get_flood_zone
 from app.routers.batch import _screen_coordinate, _user_id_from_token, _AuthUnavailable
 from app.core.cache import get_cached_result, save_cached_result
-from app.core import lead_inventory as inv_lib
-from app.core.lead_inventory import inv_count, inv_query, inv_upsert
+from app.core.lead_inventory import inv_query, inv_upsert
 
 router = APIRouter(prefix="/api/leads")
 
@@ -155,6 +154,46 @@ _ADDR_JUNK = ("UNASSIGNED", "NO SITUS", "NOSITUS", "NOT ASSIGNED", "UNKNOWN",
               "NO NAME", "NONE", "N/A", "TBD", "NO ADDRESS", "NO STREET",
               "VACANT", "MULTIPLE")
 
+# Keep compass directions + a few unit tokens correctly cased when we title-case
+# the ALL-CAPS DOR strings, so "17900 SW 174TH ST" -> "17900 SW 174th St".
+_DIRECTIONALS = {"N", "S", "E", "W", "NE", "NW", "SE", "SW",
+                 "NNE", "ENE", "ESE", "SSE", "SSW", "WSW", "WNW", "NNW"}
+_ORDINAL_RE = re.compile(r"(\d)(St|Nd|Rd|Th)\b")
+
+
+def _pretty_addr(s: Optional[str]) -> Optional[str]:
+    """Turn a shouty DOR string ("10486 RAY GIVENS RD") into a clean, consistent
+    "10486 Ray Givens Rd" — title-cased, but compass directions stay upper and
+    ordinals stay lower ("174th", not "174Th")."""
+    if not s:
+        return s
+    out = []
+    for tok in str(s).split():
+        u = tok.upper()
+        if u.strip(".") in _DIRECTIONALS:
+            out.append(u)
+            continue
+        t = tok.title()
+        t = _ORDINAL_RE.sub(lambda m: m.group(1) + m.group(2).lower(), t)
+        out.append(t)
+    return " ".join(out)
+
+
+def _fmt_acres(ac) -> Optional[str]:
+    """Clean acreage label: whole numbers for big lots (no "549.15"), one/two
+    decimals only for small lots."""
+    if ac is None:
+        return None
+    try:
+        ac = float(ac)
+    except (TypeError, ValueError):
+        return None
+    if ac >= 10:
+        return f"{round(ac)}"
+    if ac >= 1:
+        return f"{ac:.1f}".rstrip("0").rstrip(".")
+    return f"{ac:.2f}".rstrip("0").rstrip(".")
+
 
 def _clean_situs(addr: Optional[str]) -> Optional[str]:
     """Real deliverable street address, or None for the DOR placeholder junk that
@@ -169,7 +208,7 @@ def _clean_situs(addr: Optional[str]) -> Optional[str]:
     m = re.match(r"^(\d+)\b", a)
     if not m or int(m.group(1)) == 0:      # a real situs needs a house number > 0
         return None
-    return a
+    return _pretty_addr(a)
 
 
 _CITY_JUNK = {"UNINCORPORATED COUNTY", "UNINCORPORATED", "UNINCORP",
@@ -180,7 +219,7 @@ def _clean_city(city) -> Optional[str]:
     """Drop non-city PHY_CITY values (Miami-Dade stores 'UNINCORPORATED COUNTY')
     so a row reads '17900 SW 174 ST' instead of '..., Unincorporated County'."""
     c = (city or "").strip()
-    return None if (not c or c.upper() in _CITY_JUNK) else c
+    return None if (not c or c.upper() in _CITY_JUNK) else _pretty_addr(c)
 
 
 def _codes_for(land_types) -> set:
@@ -431,14 +470,15 @@ def _lead_label(cand: dict, pi: dict) -> str:
     """A human address for the row. Real street address when the parcel has one;
     otherwise a descriptive label (vacant land usually has no situs address) so
     the table never shows a bare folio number."""
+    cty = pi.get("county")
+    county_loc = f"{cty} County" if cty else None
     addr = (cand.get("address") or "").strip()
     if addr:
-        city = (cand.get("city") or "").strip()
+        city = (cand.get("city") or "").strip() or county_loc
         return f"{addr}, {city}" if city else addr
-    ac = pi.get("acreage")
-    cty = pi.get("county")
-    lead = (f"{ac:g}-acre lot" if ac else "Vacant lot")
-    return f"{lead} · {cty} County" if cty else lead
+    ac = _fmt_acres(pi.get("acreage"))
+    lead = f"{ac}-acre lot" if ac else "Vacant lot"
+    return f"{lead}, {county_loc}" if county_loc else lead
 
 
 async def _reverse_geocode(lat: float, lng: float) -> Optional[str]:
@@ -461,9 +501,12 @@ async def _reverse_geocode(lat: float, lng: float) -> Optional[str]:
             r = await client.get("https://photon.komoot.io/reverse",
                                   params={"lat": lat, "lon": lng, "lang": "en"})
             props = ((r.json().get("features") or [{}])[0]).get("properties") or {}
-        st = props.get("street") or props.get("name") or props.get("district")
-        city = (props.get("city") or props.get("town") or props.get("village")
-                or props.get("locality") or props.get("county"))
+        # A REAL street only — never a place/hamlet name (Photon returns "Sapp"
+        # as name/district for a lot in the middle of nowhere, which reads like a
+        # bogus street). No street -> keep the clean "N-acre lot, County" label.
+        st = _pretty_addr(props.get("street"))
+        city = _pretty_addr(props.get("city") or props.get("town")
+                            or props.get("village") or props.get("locality"))
         parts = [p for p in (st, city) if p]
         addr = ", ".join(parts) if parts else None
     except Exception:
@@ -608,6 +651,20 @@ def _to_inv_row(res: dict) -> Optional[dict]:
         "lng": res.get("_lng"),
         "lead_json": res,
     }
+
+
+def _merge_leads(inv_served: list, live: list, target: int) -> list:
+    """Combine inventory-served + freshly screened leads, dedupe by parcel id,
+    order best-score-first, and trim to the requested count."""
+    out, seen = [], set()
+    for l in list(inv_served) + list(live):
+        key = l.get("_folio") or l.get("address")
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(l)
+    out.sort(key=lambda x: x.get("score") or -1, reverse=True)
+    return out[:target]
 
 
 def _log_search(f: LeadFilters, candidates: int, screened: int, leads: list, degraded) -> None:
@@ -755,33 +812,37 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     sel_counties = (f.counties or [])[:8]
     target = max(1, min(int(f.limit or _TARGET_LEADS), 50))
 
-    # SERVE-FIRST. Once a county is warm (enough already-screened lots banked in
-    # the shared inventory), return INSTANTLY from it — zero live cadastral hits,
-    # which is the path that rate-limits under load. Skip for POI / typed-area
-    # searches (those enrich/geocode a freshly screened set).
+    # SERVE-FIRST + TOP-UP. Serve whatever the shared inventory already has for
+    # this filter (instant, zero cadastral), and screen live only for the
+    # REMAINDER — so a county fills toward the FULL requested count over a couple
+    # of searches, then serves entirely from cache. The live top-up banks what it
+    # screens, so the pool keeps growing. Skip for POI / typed-area searches
+    # (those enrich/geocode a freshly screened set).
+    inv_served = []
     inv_counties = [str(c) for c in sel_counties]
     inv_types = list(f.land_types or ["Vacant Land"])
     owner_type = (f.owner_type or ("individual" if f.individual_only else None))
     if inv_counties and not f.poi_types and not f.location:
         try:
-            pool = await inv_count(inv_counties, inv_types, f.exclude_kills)
-        except Exception:
-            pool = 0
-        if pool >= inv_lib.POOL_MIN:
-            served = await inv_query(
+            inv_served = await inv_query(
                 counties=inv_counties, land_types=inv_types, target=target,
                 exclude_kills=f.exclude_kills,
                 acres_min=f.acres_min, acres_max=f.acres_max,
                 value_min=f.value_min, value_max=f.value_max,
                 owner_type=owner_type, out_of_state=f.out_of_state,
                 road_access=f.road_access)
-            # Serve when the inventory can fill the request (or has a solid batch);
-            # otherwise fall through to a live search that ALSO banks + grows the pool.
-            if served and (len(served) >= target or len(served) >= 20):
-                _log_search(f, len(served), 0, served[:target], "inventory")
-                return {"leads": served[:target], "screened": 0,
-                        "candidates": len(served), "poi_degraded": False,
-                        "poi_points": {}, "degraded": None, "source": "inventory"}
+        except Exception:
+            inv_served = []
+        if len(inv_served) >= target:      # fully served — instant, no live hit
+            _log_search(f, len(inv_served), 0, inv_served[:target], "inventory")
+            return {"leads": inv_served[:target], "screened": 0,
+                    "candidates": len(inv_served), "poi_degraded": False,
+                    "poi_points": {}, "degraded": None, "source": "inventory"}
+
+    # How many MORE leads we still need to screen live to fill the request, and
+    # which parcels the inventory already covered (so live doesn't re-serve them).
+    need = max(1, target - len(inv_served))
+    served_ids = {l.get("_folio") for l in inv_served if l.get("_folio")}
 
     # Resolve sample points — a grid across each county (so we hit the rural
     # areas where vacant land actually is), plus any free-text area.
@@ -819,7 +880,7 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
         for parcels in got:
             for c in parcels:
                 pid = c.get("parcel_id")
-                if pid in ids:
+                if pid in ids or pid in served_ids:   # skip lots the inventory already served
                     continue
                 ids.add(pid)
                 if _match(c, f):
@@ -853,8 +914,11 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     cands.sort(key=_cand_rank)
 
     if not cands:
-        _log_search(f, 0, 0, [], None)
-        return {"leads": [], "screened": 0, "candidates": 0, "degraded": None}
+        merged = _merge_leads(inv_served, [], target)
+        _log_search(f, 0, 0, merged, None)
+        return {"leads": merged, "screened": 0, "candidates": len(inv_served),
+                "poi_degraded": False, "poi_points": {}, "degraded": None,
+                "source": ("inventory" if inv_served else None)}
 
     # De-flood pre-filter. The screen budget is small (~24 parcels), so SPEND IT ON
     # DRY LAND. The flood layer is in-house (fast), so cheaply check the top
@@ -878,9 +942,11 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     random.shuffle(wet)
     cands = dry + wet + cands[_FLOOD_PRECHECK:]
 
-    # How many leads to generate (user-chosen; deadline still bounds the work).
-    # `target` is computed up top for the serve-first check.
-    max_screen = min(max(target + 8, _MAX_SCREEN), 60)
+    # Screen enough to fill what the inventory couldn't (`need`), with headroom
+    # for the KILL/REVIEW parcels that won't pass the PURSUE filter (~40-60% of a
+    # county screens as PURSUE), capped so runtime stays bounded. The deadline is
+    # the real guard; the loop stops the moment `need` leads are found.
+    max_screen = min(max(int(need * 2.2), _MAX_SCREEN), 90)
 
     # Screen with a hard wall-clock deadline so we always return.
     leads = []
@@ -902,7 +968,7 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
             screened_all.append(res)
             if _keep_lead(res, f):
                 leads.append(res)
-        if len(leads) >= target or budget["n"] <= 0 or (time.monotonic() - t0) > _DEADLINE_S:
+        if len(leads) >= need or budget["n"] <= 0 or (time.monotonic() - t0) > _DEADLINE_S:
             break
 
     # NEVER a dead end. If the PURSUE-only filter left nothing (e.g. a wetland-heavy
@@ -911,13 +977,13 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     # top matching parcels as unscreened leads. Either way the user sees real lots
     # (the frontend shows a "nothing fully cleared" note for the degraded case).
     degraded = None
-    if not leads:
+    if not leads and not inv_served:
         if screened_all:
             screened_all.sort(key=lambda x: x.get("score") or -1, reverse=True)
             leads = screened_all
             degraded = "no_pursue"
         elif cands:
-            leads = [_cand_stub(c) for c in cands[:target]]
+            leads = [_cand_stub(c) for c in cands[:need]]
             degraded = "unscreened"
 
     # Optional: keep only leads near a chosen public place (+ points to map).
@@ -928,17 +994,17 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
         poi_degraded = not poi_ok
 
     leads.sort(key=lambda x: x.get("score") or -1, reverse=True)
-    leads = leads[:target]
+    leads = leads[:need]
 
     # Give addressless vacant leads a real street reference (free reverse-geo,
-    # cached) so a row reads "SW 313th St, Homestead · Miami-Dade County" instead
-    # of just "5-acre lot · Miami-Dade County". Bounded to the returned leads.
+    # cached) so a row reads "SW 313th St, Homestead" instead of just
+    # "5-acre lot, Miami-Dade County". Covers all the fresh leads we're returning.
     geo_targets = [l for l in leads
                    if l.get("_lat") is not None
                    and isinstance(l.get("address"), str)
-                   and ("-acre lot" in l["address"] or l["address"].startswith("Vacant lot"))][:24]
+                   and ("-acre lot" in l["address"] or l["address"].startswith("Vacant lot"))][:need]
     if geo_targets:
-        _rg_sem = asyncio.Semaphore(8)   # throttle so a big batch doesn't get rate-limited
+        _rg_sem = asyncio.Semaphore(10)   # throttle so a big batch doesn't get rate-limited
 
         async def _rg(l):
             async with _rg_sem:
@@ -946,13 +1012,17 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
         try:
             geos = await asyncio.wait_for(
                 asyncio.gather(*[_rg(l) for l in geo_targets], return_exceptions=True),
-                timeout=14.0)
+                timeout=18.0)
         except Exception:
             geos = []
         for l, g in zip(geo_targets, geos):
             if isinstance(g, str) and g:
                 cty = (l.get("parcel_info") or {}).get("county")
-                l["address"] = g + (f" · {cty} County" if (cty and cty.lower() not in g.lower()) else "")
+                # g is "Street, City" or just "Street" — add ", County County"
+                # only when there's no city yet, for a clean "primary, locality".
+                if "," not in g and cty and cty.lower() not in g.lower():
+                    g = f"{g}, {cty} County"
+                l["address"] = g
 
     # BANK everything we screened (PURSUE + KILL + REVIEW) into the shared
     # inventory so this county warms up and future searches serve instantly.
@@ -965,7 +1035,12 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
             except Exception:
                 pass
 
-    _log_search(f, len(cands), max_screen - budget["n"], leads, degraded)
-    return {"leads": leads, "screened": max_screen - budget["n"],
+    # MERGE the instantly-served inventory leads with the freshly screened ones
+    # (deduped, best-first) and trim to the requested count.
+    merged = _merge_leads(inv_served, leads, target)
+
+    _log_search(f, len(cands), max_screen - budget["n"], merged, degraded)
+    return {"leads": merged, "screened": max_screen - budget["n"],
             "candidates": len(cands), "poi_degraded": poi_degraded,
-            "poi_points": poi_points, "degraded": degraded}
+            "poi_points": poi_points, "degraded": degraded,
+            "source": ("inventory" if inv_served else None)}
