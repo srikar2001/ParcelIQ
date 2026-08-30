@@ -240,6 +240,46 @@ async def _batch_call(queries: list[str]) -> dict[str, dict]:
         return {q: {"status": "not_found"} for q in queries}
 
 
+async def reverse_geocode_batch(coords: list) -> dict:
+    """Reverse-geocode many (lat, lng) points in ONE Geocodio call. Returns
+    {(lat, lng): {"street": str|None, "city": str|None}} for the nearest real
+    address to each point — so a vacant/ag lot with no situs address still shows
+    a clean street address instead of a bare acreage label. Best-effort: returns
+    {} on any failure (caller keeps its fallback label). Keyed by the exact tuple
+    passed in, and results come back in input order (matched by index)."""
+    if not coords:
+        return {}
+    queries = [f"{lat},{lng}" for lat, lng in coords]
+    try:
+        api_key = os.environ['GEOCODIO_API_KEY']
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://api.geocod.io/v1.7/reverse",
+                params={"api_key": api_key, "limit": 1},
+                json=queries,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as e:
+        print(f"[Geocodio Reverse] Error: {e}")
+        return {}
+    out: dict = {}
+    for i, item in enumerate(data.get("results", [])):
+        if i >= len(coords):
+            break
+        hits = (item.get("response", {}) or {}).get("results", [])
+        if not hits:
+            continue
+        comp = hits[0].get("address_components", {}) or {}
+        num = (comp.get("number") or "").strip()
+        street = (comp.get("formatted_street") or "").strip()
+        street_line = (f"{num} {street}".strip()) if street else None
+        city = (comp.get("city") or "").strip() or None
+        if street_line or city:
+            out[coords[i]] = {"street": street_line, "city": city}
+    return out
+
+
 async def geocode_batch(addresses: list[str]) -> dict[str, dict]:
     """Geocode many addresses at once, auto-completing sloppy input.
 

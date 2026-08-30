@@ -39,6 +39,7 @@ except Exception as _e:  # never let a missing file break the leads API
 
 from app.collectors.parcel_fl import URL as _CAD_URL, _CO_NO_TO_COUNTY
 from app.collectors.flood import get_flood_zone
+from app.collectors.geocodio import reverse_geocode_batch
 from app.routers.batch import _screen_coordinate, _user_id_from_token, _AuthUnavailable
 from app.core.cache import get_cached_result, save_cached_result
 from app.core.lead_inventory import inv_query, inv_upsert
@@ -481,42 +482,92 @@ def _lead_label(cand: dict, pi: dict) -> str:
     return f"{lead}, {county_loc}" if county_loc else lead
 
 
-async def _reverse_geocode(lat: float, lng: float) -> Optional[str]:
-    """A real street reference for a lot with NO situs address, via Photon (free,
-    OSM-based) — cached. Street-level only (no house number) so we never imply a
-    specific building on a vacant lot: 'SW 313th St, Homestead'."""
-    key = f"revgeo:{round(lat, 5)},{round(lng, 5)}"
+async def _photon_street(lat: float, lng: float):
+    """Nearest NAMED ROAD to a point via Photon (free, OSM) — often the county
+    road a remote timber tract fronts, which Geocodio (nearest addressed point)
+    reduces to just a town. Returns (street, city) or (None, None)."""
     try:
-        cached = await get_cached_result(key)
-    except Exception:
-        cached = None
-    if cached:                       # non-empty hit only — never cache a failure,
-        return cached                # so a transient miss doesn't blank forever
-    addr = None
-    try:
-        # A real User-Agent — the default httpx UA gets blocked server-side (same
-        # trap as Overpass), which is why reverse-geo silently failed from Railway.
         async with httpx.AsyncClient(timeout=6.0,
                                      headers={"User-Agent": "ParcelIQ/1.0 (+leads)"}) as client:
             r = await client.get("https://photon.komoot.io/reverse",
                                   params={"lat": lat, "lon": lng, "lang": "en"})
             props = ((r.json().get("features") or [{}])[0]).get("properties") or {}
-        # A REAL street only — never a place/hamlet name (Photon returns "Sapp"
-        # as name/district for a lot in the middle of nowhere, which reads like a
-        # bogus street). No street -> keep the clean "N-acre lot, County" label.
-        st = _pretty_addr(props.get("street"))
+        st = _pretty_addr(props.get("street"))   # a real street only, never a hamlet name
         city = _pretty_addr(props.get("city") or props.get("town")
                             or props.get("village") or props.get("locality"))
-        parts = [p for p in (st, city) if p]
-        addr = ", ".join(parts) if parts else None
+        return st, city
     except Exception:
-        addr = None
-    if addr:
+        return None, None
+
+
+async def _resolve_addresses(leads: list) -> None:
+    """Give every addressless lot a REAL street address, in place. Geocodio
+    reverse (paid, reliable) gets the nearest real address in ONE batch call;
+    Photon fills in the nearest named road for remote tracts Geocodio can only
+    place in a town. Cached per coordinate (and banked) so we never re-pay. A lot
+    keeps its "<acres>-acre lot" label only if nothing resolves at all."""
+    if not leads:
+        return
+    pending = []                     # (lead, cache_key, (lat, lng))
+    for l in leads:
+        key = f"revgeo:{round(l['_lat'], 5)},{round(l['_lng'], 5)}"
+        cached = None
         try:
-            asyncio.create_task(save_cached_result(key, addr))
+            cached = await get_cached_result(key)
         except Exception:
-            pass
-    return addr
+            cached = None
+        if cached:
+            l["address"] = cached
+        else:
+            pending.append((l, key, (l["_lat"], l["_lng"])))
+    if not pending:
+        return
+    coords = [p[2] for p in pending]
+
+    try:
+        gc = await asyncio.wait_for(reverse_geocode_batch(coords), timeout=25.0)
+    except Exception:
+        gc = {}
+
+    # Photon fallback only for the coords Geocodio couldn't put on a street.
+    no_street = [c for c in coords if not (gc.get(c) or {}).get("street")]
+    ph: dict = {}
+    if no_street:
+        _sem = asyncio.Semaphore(10)
+
+        async def _one(c):
+            async with _sem:
+                return c, await _photon_street(c[0], c[1])
+        try:
+            got = await asyncio.wait_for(
+                asyncio.gather(*[_one(c) for c in no_street], return_exceptions=True),
+                timeout=18.0)
+        except Exception:
+            got = []
+        for item in got:
+            if isinstance(item, tuple) and len(item) == 2:
+                c, (st, city) = item[0], item[1]
+                ph[c] = {"street": st, "city": city}
+
+    for l, key, c in pending:
+        g = gc.get(c) or {}
+        p = ph.get(c) or {}
+        cty = (l.get("parcel_info") or {}).get("county")
+        street = g.get("street") or p.get("street")
+        place = g.get("city") or p.get("city")
+        if street:
+            city = place or (f"{cty} County" if cty else None)
+            addr = f"{street}, {city}" if city else street
+        elif place:                  # no street anywhere → at least a real place
+            addr = f"{place}, {cty} County" if cty else place
+        else:
+            addr = None              # keep the existing "<acres>-acre lot" label
+        if addr:
+            l["address"] = addr
+            try:
+                asyncio.create_task(save_cached_result(key, addr))
+            except Exception:
+                pass
 
 
 async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
@@ -996,33 +1047,14 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     leads.sort(key=lambda x: x.get("score") or -1, reverse=True)
     leads = leads[:need]
 
-    # Give addressless vacant leads a real street reference (free reverse-geo,
-    # cached) so a row reads "SW 313th St, Homestead" instead of just
-    # "5-acre lot, Miami-Dade County". Covers all the fresh leads we're returning.
+    # Give every addressless lot a real street address (Geocodio reverse, cached +
+    # banked) so a row reads "12345 NW County Road 125, Macclenny" instead of a
+    # bare "5-acre lot, Baker County". Covers all the fresh leads we're returning.
     geo_targets = [l for l in leads
                    if l.get("_lat") is not None
                    and isinstance(l.get("address"), str)
-                   and ("-acre lot" in l["address"] or l["address"].startswith("Vacant lot"))][:need]
-    if geo_targets:
-        _rg_sem = asyncio.Semaphore(10)   # throttle so a big batch doesn't get rate-limited
-
-        async def _rg(l):
-            async with _rg_sem:
-                return await _reverse_geocode(l["_lat"], l["_lng"])
-        try:
-            geos = await asyncio.wait_for(
-                asyncio.gather(*[_rg(l) for l in geo_targets], return_exceptions=True),
-                timeout=18.0)
-        except Exception:
-            geos = []
-        for l, g in zip(geo_targets, geos):
-            if isinstance(g, str) and g:
-                cty = (l.get("parcel_info") or {}).get("county")
-                # g is "Street, City" or just "Street" — add ", County County"
-                # only when there's no city yet, for a clean "primary, locality".
-                if "," not in g and cty and cty.lower() not in g.lower():
-                    g = f"{g}, {cty} County"
-                l["address"] = g
+                   and ("-acre lot" in l["address"] or l["address"].startswith("Vacant lot"))]
+    await _resolve_addresses(geo_targets)
 
     # BANK everything we screened (PURSUE + KILL + REVIEW) into the shared
     # inventory so this county warms up and future searches serve instantly.
