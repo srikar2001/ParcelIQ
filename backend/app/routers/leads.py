@@ -63,14 +63,17 @@ _CATEGORY_CODES = {
     "Industrial": set(range(41, 50)),
 }
 _BBOX_HALF = 0.03                # ±0.03deg ≈ 6.5km box per center — stays fast
-_MAX_SCREEN = 40                 # hard cap on fresh screens per search (was 24 —
-                                 # too low to fill a 50-lead request in leaner counties)
-_FLOOD_PRECHECK = 80             # candidates to cheaply flood-check before screening
+_MAX_SCREEN = 40                 # floor on fresh screens per search (scales up with
+                                 # the requested count — see max_screen in search())
+_FLOOD_PRECHECK = 140            # candidates to cheaply flood-check before screening
+                                 # (so we screen DRY land first even at high budgets)
 _TARGET_LEADS = 30
 _SCREEN_TIMEOUT = 20.0           # drop a parcel that's slow to screen
-_DEADLINE_S = 48.0               # overall screening budget — always return by here
+_DEADLINE_S = 52.0               # overall screening budget — always return by here
                                  # (frontend aborts at 90s; loop still stops early
                                  # once the requested lead count is reached)
+_WARM_BUDGET = 200               # background screens per county warm-up pass
+_WARM_DEADLINE_S = 150.0         # background warm-up wall-clock cap
 _FETCH_TIMEOUT = 12.0            # per sample-bbox fetch (slow ones are dropped)
 _BIZ_MARKERS = ("LLC", "L.L.C", "INC", "CORP", "LTD", "TRUST", "PROPERTIES",
                 "HOLDINGS", "INVESTMENT", "CAPITAL", "GROUP", "ENTERPRISE",
@@ -113,6 +116,7 @@ _FL_PLACES = [
 ]
 
 _county_center_cache: dict = {}
+_warming: set = set()          # county keys with a background warm-up in flight
 
 
 class LeadFilters(BaseModel):
@@ -280,7 +284,7 @@ async def _geo_full(q: str):
 
 
 def _grid_points(gf: dict) -> list:
-    """Sample a 3x3 grid of centers across a county's bounding box so we cover
+    """Sample a dense grid of centers across a county's bounding box so we cover
     the RURAL parts (where vacant land is), not just the developed county seat.
     Falls back to the single center when no bbox is available."""
     bb = (gf or {}).get("bbox")
@@ -289,10 +293,10 @@ def _grid_points(gf: dict) -> list:
     s, n, w, e = bb
     dy, dx = (n - s), (e - w)
     pts = []
-    # 4x4 = 16 cells across the county (was 3x3) so we cover far MORE of the county
-    # — vast searches, not a few windows. Jitter each cell ±5% of the county span
-    # so two searches explore DIFFERENT areas (variety) instead of the same points.
-    grid = (0.12, 0.31, 0.5, 0.69, 0.88)   # 5x5 = 25 cells — even broader coverage
+    # 6x6 = 36 cells across the county so we surface FAR more candidates (a leaner,
+    # coastal county like Bay only yielded ~200 candidates at 5x5 — not enough to
+    # pull 50 PURSUE). Jitter each cell so two searches explore DIFFERENT areas.
+    grid = (0.1, 0.26, 0.42, 0.58, 0.74, 0.9)   # 6x6 = 36 cells — broad coverage
     # Small ±4% jitter: enough that the exact windows move run-to-run (variety),
     # but not so much that a cell over the productive interior drifts out into
     # the water/Everglades (which made one run hit the coast → 0, the next hit
@@ -525,7 +529,7 @@ async def _resolve_addresses(leads: list) -> None:
     coords = [p[2] for p in pending]
 
     try:
-        gc = await asyncio.wait_for(reverse_geocode_batch(coords), timeout=28.0)
+        gc = await asyncio.wait_for(reverse_geocode_batch(coords), timeout=18.0)
     except Exception:
         gc = {}
 
@@ -541,7 +545,7 @@ async def _resolve_addresses(leads: list) -> None:
         try:
             got = await asyncio.wait_for(
                 asyncio.gather(*[_one(c) for c in no_street], return_exceptions=True),
-                timeout=18.0)
+                timeout=12.0)
         except Exception:
             got = []
         for item in got:
@@ -853,6 +857,45 @@ async def _enrich_poi(leads: list, poi_types, radius_mi):
     return kept, ok, poi_points
 
 
+async def _warm_county(cands: list, f: "LeadFilters", key: str) -> None:
+    """Background pass: keep screening a county's remaining candidates and bank the
+    PURSUE ones, so the NEXT search can serve the full requested count even in a
+    lean county. Bounded (budget + wall-clock) and guarded (one per county key) so
+    it never piles up or hammers the cadastral. Best-effort — errors are swallowed."""
+    try:
+        budget = {"n": _WARM_BUDGET}
+        screened = []
+        t0 = time.monotonic()
+        for i in range(0, len(cands), _LEAD_CONCURRENCY):
+            if budget["n"] <= 0 or (time.monotonic() - t0) > _WARM_DEADLINE_S:
+                break
+            chunk = cands[i:i + _LEAD_CONCURRENCY]
+            try:
+                results = await asyncio.wait_for(
+                    asyncio.gather(*[_screen_candidate(c, budget) for c in chunk]),
+                    timeout=40.0)
+            except asyncio.TimeoutError:
+                break
+            screened.extend([r for r in results if r])
+        # Resolve real addresses first so banked rows serve clean, then bank all.
+        to_resolve = [l for l in screened
+                      if l.get("_lat") is not None and isinstance(l.get("address"), str)
+                      and ("-acre lot" in l["address"] or l["address"].startswith("Vacant lot"))]
+        try:
+            await _resolve_addresses(to_resolve)
+        except Exception:
+            pass
+        rows = [r for r in (_to_inv_row(x) for x in screened) if r]
+        if rows:
+            await inv_upsert(rows)
+            print(f"[Leads] warm {key}: banked {len(rows)} more "
+                  f"({sum(1 for x in screened if x.get('verdict') == 'PURSUE')} pursue)")
+    except Exception as e:
+        print(f"[Leads] warm error {key}: {e}")
+    finally:
+        _warming.discard(key)
+
+
 @router.post("/search")
 async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     denied = await _require_auth(authorization)
@@ -921,7 +964,7 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     # county now uses up to ~16 windows, not ~8) so the search is VAST — it covers
     # much more of the county, and the shuffle above means a different subset each
     # run → two people searching the same county get different lots.
-    points = points[:min(30, 20 + 5 * len(sel_counties))]
+    points = points[:min(48, 30 + 8 * len(sel_counties))]
 
     # Fetch every sample bbox concurrently with the tight server-side filter,
     # then dedupe + filter to candidates.
@@ -997,7 +1040,7 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     # for the KILL/REVIEW parcels that won't pass the PURSUE filter (~40-60% of a
     # county screens as PURSUE), capped so runtime stays bounded. The deadline is
     # the real guard; the loop stops the moment `need` leads are found.
-    max_screen = min(max(int(need * 2.2), _MAX_SCREEN), 90)
+    max_screen = min(max(int(need * 3), _MAX_SCREEN), 150)
 
     # Screen with a hard wall-clock deadline so we always return.
     leads = []
@@ -1029,7 +1072,10 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     # (the frontend shows a "nothing fully cleared" note for the degraded case).
     degraded = None
     if not leads and not inv_served:
-        if screened_all:
+        # Only fall back to screened KILL/REVIEW lots if the user is OK with kills.
+        # With "exclude kills" ON (the default), NEVER dump KILLs — surface the top
+        # matching lots as unscreened candidates instead (verdict resolves on open).
+        if screened_all and not f.exclude_kills:
             screened_all.sort(key=lambda x: x.get("score") or -1, reverse=True)
             leads = screened_all
             degraded = "no_pursue"
@@ -1047,20 +1093,23 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     leads.sort(key=lambda x: x.get("score") or -1, reverse=True)
     leads = leads[:need]
 
-    # Give every screened lot a REAL street address (Geocodio reverse + Photon,
+    # Give every SERVABLE lot a REAL street address (Geocodio reverse + Photon,
     # cached) so a row reads "12345 NW County Road 125, Macclenny" instead of a
-    # bare "5-acre lot, Baker County". Resolve across everything we SCREENED — not
-    # just the returned subset — so the rows we BANK serve real addresses too when
-    # a later search pulls them from inventory (they're the same objects, so the
-    # returned leads update at the same time).
+    # bare "5-acre lot, Baker County". Resolve the returned leads AND the kept
+    # (PURSUE) rows we bank — so a later inventory serve is clean too — but skip
+    # KILLs (never served), which keeps the reverse-geo scope bounded at high
+    # screen budgets. Same objects flow into `leads`, so both update at once.
+    leads_ids = {id(l) for l in leads}
     to_resolve, seen_ids = [], set()
     for l in screened_all + leads:
         if id(l) in seen_ids:
             continue
         seen_ids.add(id(l))
         a = l.get("address")
-        if (l.get("_lat") is not None and isinstance(a, str)
+        if not (l.get("_lat") is not None and isinstance(a, str)
                 and ("-acre lot" in a or a.startswith("Vacant lot"))):
+            continue
+        if id(l) in leads_ids or _keep_lead(l, f):
             to_resolve.append(l)
     await _resolve_addresses(to_resolve)
 
@@ -1078,6 +1127,20 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     # MERGE the instantly-served inventory leads with the freshly screened ones
     # (deduped, best-first) and trim to the requested count.
     merged = _merge_leads(inv_served, leads, target)
+
+    # EXPAND-IN-THE-SYSTEM: if this search couldn't fill the request, keep screening
+    # the rest of the county's candidates in the BACKGROUND and bank the PURSUE ones
+    # (addresses resolved), so a repeat search serves the full count even in a lean
+    # county. One warm-up per county key at a time; never blocks the response.
+    remaining = cands[max_screen:]
+    warm_key = "|".join(sorted(inv_counties)) + "::" + "|".join(sorted(inv_types))
+    if (len(merged) < target and remaining and not f.poi_types
+            and warm_key not in _warming):
+        _warming.add(warm_key)
+        try:
+            asyncio.create_task(_warm_county(remaining, f, warm_key))
+        except Exception:
+            _warming.discard(warm_key)
 
     _log_search(f, len(cands), max_screen - budget["n"], merged, degraded)
     return {"leads": merged, "screened": max_screen - budget["n"],
