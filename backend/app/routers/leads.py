@@ -624,6 +624,9 @@ async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
         # No real situs on the selected parcel → don't let screening's own
         # placeholder ("NO SITUS, OCALA") leak into the Deal Review either.
         pi["county_address_on_file"] = None
+    # Make sure land_use_code is properly set in parcel_info for display
+    if cand.get("dor_uc") is not None:
+        pi["land_use_code"] = cand.get("dor_uc")
     res["parcel_info"] = pi
     res["_folio"] = pid
     res["_dor_uc"] = cand.get("dor_uc")
