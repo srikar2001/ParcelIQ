@@ -135,6 +135,8 @@ class LeadFilters(BaseModel):
     poi_types: Optional[list] = None       # subset of _POI_SEL keys
     poi_radius_mi: Optional[float] = None   # required nearness radius (miles)
     limit: Optional[int] = None             # how many leads to generate (1..50)
+    mobile_home_zone: Optional[bool] = None  # True = only mobile home eligible, False = exclude
+    sold_within_months: Optional[int] = None # N = properties sold within N months
 
 
 async def _require_auth(authorization: Optional[str]) -> Optional[JSONResponse]:
@@ -924,7 +926,9 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
                 acres_min=f.acres_min, acres_max=f.acres_max,
                 value_min=f.value_min, value_max=f.value_max,
                 owner_type=owner_type, out_of_state=f.out_of_state,
-                road_access=f.road_access)
+                road_access=f.road_access,
+                mobile_home_zone=f.mobile_home_zone,
+                sold_within_months=f.sold_within_months)
         except Exception:
             inv_served = []
         if len(inv_served) >= target:      # fully served — instant, no live hit
