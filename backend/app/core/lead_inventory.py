@@ -28,7 +28,8 @@ def _inlist(vals) -> str:
 
 
 def _filters(counties, land_types, exclude_kills, acres_min, acres_max,
-             value_min, value_max, owner_type, out_of_state, road_access):
+             value_min, value_max, owner_type, out_of_state, road_access,
+             mobile_home_zone=None, sold_within_months=None):
     q = [("county", _inlist(counties))]
     if land_types:
         q.append(("land_type", _inlist(land_types)))
@@ -51,6 +52,21 @@ def _filters(counties, land_types, exclude_kills, acres_min, acres_max,
         q.append(("owner_state", "neq.FL"))
     if road_access:
         q.append(("has_road", "is.true"))
+    # Mobile Home zone filter - checks lead_json for mobile home eligibility
+    if mobile_home_zone is not None:
+        # Assuming lead_json has a field 'mobile_home_zone' that is boolean or text
+        # Adjust the field name and value as needed for your data structure
+        q.append(("lead_json->>mobile_home_zone", f"eq.{str(mobile_home_zone).lower()}"))
+    # Sold within filter - checks lead_json for recent sale date
+    if sold_within_months is not None and sold_within_months > 0:
+        # Calculate cutoff date (N months ago)
+        from datetime import datetime, timedelta
+        cutoff_date = (datetime.now() - timedelta(days=30 * sold_within_months)).strftime('%Y-%m-%d')
+        # Assuming lead_json has a field 'last_sale_date' in ISO format (YYYY-MM-DD)
+        # Adjust the field name as needed for your data structure
+        q.append(("lead_json->>last_sale_date", f"gte.{cutoff_date}"))
+    # ALWAYS exclude archived leads from active queries to save Supabase storage
+    q.append(("archived", "eq.false"))
     return q
 
 
@@ -65,12 +81,17 @@ async def _get(params):
     return [], None
 
 
-async def inv_count(counties, land_types, exclude_kills=True) -> int:
+async def inv_count(counties, land_types, exclude_kills=True,
+                    acres_min=None, acres_max=None, value_min=None, value_max=None,
+                    owner_type=None, out_of_state=False, road_access=False,
+                    mobile_home_zone=None, sold_within_months=None) -> int:
     """How many matching leads are already banked for these counties."""
     if not _URL or not counties:
         return 0
     params = [("select", "parcel_id"), ("limit", "1")] + \
-        _filters(counties, land_types, exclude_kills, None, None, None, None, None, False, False)
+        _filters(counties, land_types, exclude_kills, acres_min, acres_max,
+                 value_min, value_max, owner_type, out_of_state, road_access,
+                 mobile_home_zone, sold_within_months)
     try:
         async with httpx.AsyncClient(timeout=6.0) as c:
             r = await c.get(_TABLE, params=params,
@@ -89,7 +110,8 @@ _SAMPLE_CAP = 500   # superset size to random-sample the served target from
 
 async def inv_query(*, counties, land_types, target, exclude_kills=True,
                     acres_min=None, acres_max=None, value_min=None, value_max=None,
-                    owner_type=None, out_of_state=False, road_access=False):
+                    owner_type=None, out_of_state=False, road_access=False,
+                    mobile_home_zone=None, sold_within_months=None):
     """Serve up to `target` banked leads, RANDOM-sampled for real variety.
 
     Two-stage so repeated searches return DIFFERENT lots: (1) a random `rand`
@@ -102,7 +124,8 @@ async def inv_query(*, counties, land_types, target, exclude_kills=True,
         return []
     base = [("select", "lead_json")] + _filters(
         counties, land_types, exclude_kills, acres_min, acres_max,
-        value_min, value_max, owner_type, out_of_state, road_access)
+        value_min, value_max, owner_type, out_of_state, road_access,
+        mobile_home_zone, sold_within_months)
     r = random.random()
     rows, _ = await _get(base + [("rand", f"gte.{r}"), ("order", "rand.asc"), ("limit", str(_SAMPLE_CAP))])
     if len(rows) < _SAMPLE_CAP:   # wrap below the threshold to top up the window
