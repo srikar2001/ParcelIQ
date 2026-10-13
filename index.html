@@ -3468,7 +3468,20 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
           <button type="button" data-n="50" onclick="_leadCountSel(this)">50</button>
         </div>
       </div>
+      <div class="ll-field">
+        <label>Sold Within</label>
+        <select id="leadSoldWithin" class="ll-select" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg-quiet);color:var(--txt);font-size:14px">
+          <option value="" selected>Any time</option>
+          <option value="1">Past month</option>
+          <option value="3">Past 3 months</option>
+          <option value="6">Past 6 months</option>
+          <option value="12">Past year</option>
+          <option value="24">Past 2 years</option>
+        </select>
+        <div class="lr-val" id="leadSoldWithinVal" style="margin-top:6px;display:none">Any time</div>
+      </div>
       <div class="leads-toggles">
+        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Mobile Home Zone Eligible</div></div><input type="checkbox" id="leadMobileHome"><span class="lt-sw"></span></label>
         <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Out-of-state owners</div></div><input type="checkbox" id="leadOutState"><span class="lt-sw"></span></label>
         <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Road access confirmed</div></div><input type="checkbox" id="leadRoadAccess"><span class="lt-sw"></span></label>
         <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Exclude auto-kills</div></div><input type="checkbox" id="leadExcludeKills" checked><span class="lt-sw"></span></label>
@@ -12815,6 +12828,9 @@ function initLeads() {
     (a, b, mn, mx) => (a <= mn && b >= mx) ? 'any size' : (a + '–' + (b >= mx ? b + '+' : b) + ' ac'));
   _leadRange('leadValLo', 'leadValHi', 'leadValFill', 'leadValVal',
     (a, b, mn, mx) => (a <= mn && b >= mx) ? 'any budget' : (_leadMoney(a) + '–' + (b >= mx ? _leadMoney(b) + '+' : _leadMoney(b))));
+  const soldSel = document.getElementById('leadSoldWithin');
+  if (soldSel) soldSel.addEventListener('change', _leadSoldWithinLabel);
+  _leadSoldWithinLabel();
   _leadLoadHistory();
 }
 
@@ -12912,6 +12928,15 @@ function _leadPoiRad() {
   if (lbl) lbl.textContent = any ? ('within ' + (r ? r.value : 10) + ' mi') : 'off';
 }
 
+function _leadSoldWithinLabel() {
+  const sel = document.getElementById('leadSoldWithin');
+  const lbl = document.getElementById('leadSoldWithinVal');
+  if (!sel || !lbl) return;
+  const txt = (sel.options[sel.selectedIndex] || {}).text || 'Any time';
+  lbl.textContent = sel.value ? txt : '';
+  lbl.style.display = sel.value ? 'block' : 'none';
+}
+
 function _leadBatchName(body, n) {
   const parts = [];
   if (body.counties && body.counties.length) parts.push(body.counties.slice(0, 3).join(', ') + (body.counties.length > 3 ? '…' : ''));
@@ -12950,6 +12975,8 @@ async function runLeadSearch() {
     poi_types: poiTypes,
     poi_radius_mi: poiTypes.length ? +g('leadPoiRad').value : null,
     limit: _leadCountN,
+    mobile_home_zone: g('leadMobileHome').checked ? true : null,
+    sold_within_months: g('leadSoldWithin').value ? +g('leadSoldWithin').value : null,
   };
   _leadsBusy = true;
   const btn = g('leadSearchBtn');
