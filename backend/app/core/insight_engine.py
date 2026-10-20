@@ -4,7 +4,18 @@ from app.models.schema import BuildabilityScore, Insight, PropertyReport
 
 SFHA_ZONES = {"AE", "VE", "V", "AO", "AH"}
 AGRI_CODES = {"50", "51", "52", "53", "54", "55", "56", "57", "58", "59"}
-PUBLIC_CODES = {"86", "87", "88", "89", "99"}
+# FL DOR use codes 086-089 = county / state / federal / municipal ownership.
+# (099 is "acreage not ag classified" — private land, not public.)
+PUBLIC_CODES = {86, 87, 88, 89}
+
+
+def _dor_code(code) -> int | None:
+    """FL DOR_UC arrives as a zero-padded 3-char string ('088'); compare as int
+    so '088', '88' and 88 all match."""
+    try:
+        return int(str(code).strip())
+    except (TypeError, ValueError):
+        return None
 
 
 def score_parcel(
@@ -74,7 +85,7 @@ def score_parcel(
         auto_kill = True
 
     land_use = str(parcel.get("land_use_code") or "")
-    if land_use in PUBLIC_CODES:
+    if _dor_code(land_use) in PUBLIC_CODES:
         reason = "Public/conservation land"
         flags.append(reason)
         if not auto_kill:
