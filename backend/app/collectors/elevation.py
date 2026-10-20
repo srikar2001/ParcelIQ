@@ -1,12 +1,20 @@
 import time
 
+import httpx
+
 from app.core.http import pooled_client
 
 DEFAULT = {'elevation_ft': None, 'source': 'Open-Meteo (Copernicus DEM)'}
 
 # Open-Meteo's elevation API (Copernicus GLO-90 DEM) is free, needs no key, and
-# returns in ~0.5s — vs the USGS EPQS service which routinely took 4-6s and was
-# the single slowest collector, dominating every parcel's total screen time.
+# returns in ~0.1s — vs the USGS EPQS service which often takes 2-6s.
+#
+# But GLO-90 is a 90 m SURFACE model (rooftops, tree canopy) rounded to whole
+# metres, so on low ground it reads far too high: Miami Beach 19.7 ft vs 5.8 ft
+# bare-earth lidar, Key West 9.8 vs 3.0, Crystal River 13.1 vs 4.4 — exactly the
+# lots the <5 ft storm-surge flags exist for. So Open-Meteo is only trusted on
+# high ground (where no flag can change); anything that reads lower is re-measured
+# with USGS 3DEP lidar (EPQS), and Open-Meteo is the fallback if EPQS fails.
 _URL = 'https://api.open-meteo.com/v1/elevation'
 _M_TO_FT = 3.28084
 
@@ -18,6 +26,10 @@ _M_TO_FT = 3.28084
 # cooldown instead of burning a doomed call per parcel.
 _EPQS_URL = 'https://epqs.nationalmap.gov/v1/json'
 _COOLDOWN_S = 60.0
+# Worst surface-vs-ground bias seen is ~41 ft (canopy, Brooksville 187 vs 146);
+# 50 ft also covers mangrove canopy over sea-level ground. Above it the reading
+# can only be "good elevation" (>=20 ft) either way, so skip the slow EPQS call.
+_BARE_EARTH_CHECK_FT = 50.0
 _open_meteo_paused_until = 0.0
 
 
@@ -41,9 +53,19 @@ async def _open_meteo(lat: float, lng: float) -> float | None:
 
 
 async def _epqs(lat: float, lng: float) -> float | None:
-    async with pooled_client(timeout=6.0) as client:
-        resp = await client.get(_EPQS_URL, params={
-            'x': lng, 'y': lat, 'units': 'Feet', 'wkid': 4326, 'includeDate': 'false'})
+    # EPQS is bimodal: most calls answer in <1-2 s, the rest hang well past 6 s.
+    # A hung call rarely recovers, but an immediate retry usually lands on a good
+    # backend (42 golden pts: 32/42 inside 3 s on the first try, 40/42 on the second).
+    resp = None
+    for attempt in range(2):
+        try:
+            async with pooled_client(timeout=3.0) as client:
+                resp = await client.get(_EPQS_URL, params={
+                    'x': lng, 'y': lat, 'units': 'Feet', 'wkid': 4326, 'includeDate': 'false'})
+            break
+        except httpx.TimeoutException:
+            if attempt:
+                raise
     try:
         val = float(resp.json().get('value'))
     except (ValueError, TypeError, AttributeError):
@@ -52,17 +74,20 @@ async def _epqs(lat: float, lng: float) -> float | None:
 
 
 async def get_elevation(lat: float, lng: float) -> dict:
+    om_ft = None
     if time.monotonic() >= _open_meteo_paused_until:
         try:
-            ft = await _open_meteo(lat, lng)
-            if ft is not None:
-                return {'elevation_ft': round(ft, 1), 'source': 'Open-Meteo (Copernicus DEM)'}
+            om_ft = await _open_meteo(lat, lng)
         except Exception as e:
             print(f'[Elevation] Open-Meteo error: {e}')
+    if om_ft is not None and om_ft >= _BARE_EARTH_CHECK_FT:
+        return {'elevation_ft': round(om_ft, 1), 'source': 'Open-Meteo (Copernicus DEM)'}
     try:
         ft = await _epqs(lat, lng)
         if ft is not None:
             return {'elevation_ft': round(ft, 1), 'source': 'USGS 3DEP (EPQS)'}
     except Exception as e:
-        print(f'[Elevation] EPQS error: {e}')
+        print(f'[Elevation] EPQS error: {type(e).__name__} {e}')
+    if om_ft is not None:
+        return {'elevation_ft': round(om_ft, 1), 'source': 'Open-Meteo (Copernicus DEM)'}
     return DEFAULT
