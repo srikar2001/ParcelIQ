@@ -933,6 +933,40 @@ body.on-results .detail-panel{top:0}
 .sv-dd-office .nm{font-size:12px;font-weight:700;color:var(--t1)}
 .sv-dd-office .hd{font-size:11px;color:var(--t3);line-height:1.4}
 .sv-dd-note{padding:10px 14px 12px;font-size:10.5px;color:var(--t3);line-height:1.5;border-top:1px solid var(--b)}
+/* Offer helper: suggested offer range + owner offer letter. */
+.sv-of-head{display:flex;align-items:flex-end;gap:10px;padding:12px 14px 8px;flex-wrap:wrap}
+.sv-of-big .lbl{display:block;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);margin-bottom:2px}
+.sv-of-big b{font-size:22px;font-weight:800;color:var(--t1);letter-spacing:-.3px}
+.sv-of-conf{margin-left:auto;font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.sv-of-conf.high{background:var(--gbg);color:var(--green)}
+.sv-of-conf.medium{background:var(--abg);color:var(--amber)}
+.sv-of-conf.low{background:var(--rbg,var(--abg));color:var(--red,var(--amber))}
+.sv-of-chips{display:flex;gap:6px;padding:0 14px 12px;flex-wrap:wrap}
+.sv-of-chip{padding:6px 11px;border-radius:99px;border:1px solid var(--b);background:var(--card);color:var(--t2);font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.sv-of-chip span{font-weight:600;color:var(--t3)}
+.sv-of-chip:hover{border-color:var(--bh);color:var(--t1)}
+.sv-of-chip.on{background:#059669;border-color:#059669;color:#fff}
+.sv-of-chip.on span{color:rgba(255,255,255,.85)}
+.sv-of-mv{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--b)}
+.sv-of-mv>div{padding:10px 14px}
+.sv-of-mv>div+div{border-left:1px solid var(--b)}
+.sv-of-mv .k{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--t3)}
+.sv-of-mv .v{font-size:16px;font-weight:800;color:var(--t1);margin-top:2px}
+.sv-of-sub{font-size:11px;color:var(--t3);margin-top:1px}
+.sv-of-basis{padding:9px 14px;font-size:11.5px;color:var(--t2);line-height:1.5;border-top:1px solid var(--b)}
+.sv-of-letter{border-top:1px solid var(--b)}
+.sv-of-letter summary{padding:11px 14px;font-size:12.5px;font-weight:700;color:var(--green);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}
+.sv-of-letter summary::-webkit-details-marker{display:none}
+.sv-of-letter summary::before{content:'▸';font-size:11px;transition:transform .15s ease}
+.sv-of-letter[open] summary::before{transform:rotate(90deg)}
+.sv-of-to{margin:0 14px 10px;font-size:11.5px;color:var(--t2);line-height:1.5}
+.sv-of-to.warn{color:var(--amber)}
+.sv-of-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:0 14px}
+.sv-of-f{display:flex;flex-direction:column;gap:3px;min-width:0}
+.sv-of-f span{font-size:11px;font-weight:700;color:var(--t2)}
+.sv-of-f .inp{width:100%;box-sizing:border-box}
+.sv-of-actions{display:flex;gap:8px;align-items:center;padding:12px 14px 14px;flex-wrap:wrap}
+@media (max-width:640px){.sv-of-grid{grid-template-columns:1fr}.sv-of-f .inp{font-size:16px}.sv-of-conf{margin-left:0}}
 .ex-comp.sv-comp-hover{background:var(--card-h);box-shadow:inset 3px 0 0 var(--green)}
 .leaflet-tooltip.sv-nb-tip{background:#0F1420;color:#E5E7EB;border:1px solid #2A3346;box-shadow:0 4px 14px rgba(0,0,0,.5);font-size:12px;line-height:1.55;padding:7px 11px;border-radius:8px;white-space:nowrap}
 .leaflet-tooltip.sv-nb-tip::before{border-top-color:#2A3346}
@@ -11507,7 +11541,12 @@ function _svDataPanelHtml(r) {
     '<div class="sv-sec-title" style="margin-top:2px">Nearby Comparable Sales</div>' +
     (window._sharedViewOnly
       ? '<div class="sv-comps-wrap"><div class="sv-comps-msg">Create a free account to see recent comparable sales.</div></div>'
-      : '<div id="svCompsSlot" class="sv-comps-wrap"><div class="sv-comps-msg">Finding recent sales nearby…</div></div>')
+      : '<div id="svCompsSlot" class="sv-comps-wrap"><div class="sv-comps-msg">Finding recent sales nearby…</div></div>') +
+
+    '<div class="sv-sec-title" style="margin-top:2px">Offer Helper</div>' +
+    (window._sharedViewOnly
+      ? '<div class="sv-dd-wrap"><div class="sv-comps-msg">Create a free account to get a suggested offer and an offer letter.</div></div>'
+      : '<div id="svOfferSlot" class="sv-dd-wrap"><div class="sv-comps-msg">Pricing an offer from nearby sales…</div></div>')
   );
 }
 
@@ -12251,7 +12290,7 @@ async function svFetchComps(r) {
   const slot = document.getElementById('svCompsSlot');
   if (!slot || window._sharedViewOnly) return;
   const lat = r._lat, lng = r._lng;
-  if (lat == null || lng == null) { slot.innerHTML = '<div class="sv-comps-msg">Comps unavailable for this parcel.</div>'; return; }
+  if (lat == null || lng == null) { slot.innerHTML = '<div class="sv-comps-msg">Comps unavailable for this parcel.</div>'; svComputeOffer(r, []); return; }
   const lu = (r.parcel_info || {}).land_use_code || '';
   try {
     const hdrs = {};
@@ -12259,9 +12298,179 @@ async function svFetchComps(r) {
     const res = await fetch(API + '/api/explore/comps?lat=' + lat + '&lng=' + lng + '&land_use=' + encodeURIComponent(lu), { headers: hdrs });
     const d = await res.json();
     _svRenderComps(d.comps || []);
+    svComputeOffer(r, d.comps || []);
   } catch (e) {
     const s = document.getElementById('svCompsSlot'); if (s) s.innerHTML = '<div class="sv-comps-msg">Could not load comps.</div>';
+    svComputeOffer(r, []);
   }
+}
+
+// ── Offer helper (B4) ───────────────────────────────────────────────────────
+// Suggested offer range from the nearby land sales above (size-adjusted,
+// new-builds and bulk sales dropped server-side), falling back to the
+// county land value when there are too few. Plus a downloadable offer
+// letter to the owner's mailing address. "Your details" for the letter are a
+// per-viewer convenience in localStorage.
+let _svOffer = null;          // { r, comps, preset, data }
+const _OFFER_PRESETS = [['conservative', 'Conservative', '25–35%'], ['standard', 'Standard', '30–50%'], ['aggressive', 'Aggressive', '50–70%']];
+function _svOfferMe() {
+  try { return JSON.parse(localStorage.getItem('piq_offer_me') || '{}') || {}; } catch (e) { return {}; }
+}
+function _svOfferSaveMe() {
+  const me = {};
+  ['name', 'company', 'phone', 'email'].forEach(k => { const el = document.getElementById('svOf_' + k); if (el && el.value.trim()) me[k] = el.value.trim().slice(0, 120); });
+  try { localStorage.setItem('piq_offer_me', JSON.stringify(me)); } catch (e) {}
+  return me;
+}
+async function svComputeOffer(r, comps, preset) {
+  const slot = document.getElementById('svOfferSlot');
+  if (!slot || !r) return;
+  preset = preset || (_svOffer && _svOffer.r === r && _svOffer.preset) || 'standard';
+  const pi = r.parcel_info || {};
+  const lite = (comps || []).map(c => ({ acreage: c.acreage, sale_price: c.sale_price, sale_year: c.sale_year, price_per_acre: c.price_per_acre,
+    distance_m: c.distance_m, address: c.address, qualified: c.qualified, improved_at_sale: c.improved_at_sale, multi_parcel: c.multi_parcel }));
+  _svOffer = { r: r, comps: comps || [], preset: preset, data: null };
+  try {
+    const res = await fetch(API + '/api/offer', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acreage: pi.acreage, land_value: pi.land_value, just_value: pi.just_value, preset: preset, comps: lite }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!_svOffer || _svOffer.r !== r) return;   // viewer moved on
+    _svOffer.data = d;
+    _svRenderOffer();
+  } catch (e) {
+    const sl = document.getElementById('svOfferSlot');
+    if (sl) sl.innerHTML = '<div class="sv-comps-msg">Could not price an offer. <a href="#" onclick="svComputeOffer(_svOffer.r,_svOffer.comps);return false" style="color:var(--green);font-weight:700">Retry</a></div>';
+  }
+}
+function svOfferPreset(p) { if (_svOffer) svComputeOffer(_svOffer.r, _svOffer.comps, p); }
+function _svRenderOffer() {
+  const slot = document.getElementById('svOfferSlot');
+  if (!slot || !_svOffer || !_svOffer.data) return;
+  const d = _svOffer.data, r = _svOffer.r, pi = r.parcel_info || {};
+  if (!d.ok) { slot.innerHTML = '<div class="sv-comps-msg">' + escHtml(d.note || 'No offer estimate for this parcel.') + '</div>'; return; }
+  const mid = Math.round((d.offer.low + d.offer.high) / 2 / 100) * 100;
+  const conf = d.confidence;
+  const confTxt = conf === 'high' ? 'High confidence' : conf === 'medium' ? 'Medium confidence' : 'Low confidence';
+  const basis = d.basis === 'comps'
+    ? 'From ' + d.comps_used + ' nearby land sale' + (d.comps_used === 1 ? '' : 's') + (d.qualified_only ? ' (DOR-qualified)' : '') + ', scaled to ' + d.acreage + ' ac' +
+      (d.outliers_dropped ? ', ' + d.outliers_dropped + ' outlier' + (d.outliers_dropped === 1 ? '' : 's') + ' dropped' : '') + (d.size_matched ? '' : ' — few similar-size sales, so the range is wide') + '.'
+    : 'Too few nearby land sales — based on the county ' + (d.basis === 'land_value' ? 'land value' : 'just value') + ' (' + fmt$(d.county_value) + '). Comp it by hand before you mail.';
+  const mv = d.market_value;
+  const vsCounty = (d.basis === 'comps' && d.county_value) ? '<div class="sv-of-sub">County land value: ' + fmt$(d.county_value) + '</div>' : '';
+  const chips = _OFFER_PRESETS.map(p =>
+    '<button class="sv-of-chip' + (_svOffer.preset === p[0] ? ' on' : '') + '" onclick="svOfferPreset(\'' + p[0] + '\')" aria-pressed="' + (_svOffer.preset === p[0]) + '">' + p[1] + ' <span>' + p[2] + '</span></button>').join('');
+  const me = _svOfferMe();
+  const mail = pi.owner_mailing || {};
+  const hasMail = !!(mail.street || pi.owner_mailing_address);
+  const prevAmt = document.getElementById('svOf_amount'), prevDays = document.getElementById('svOf_days');
+  const amt = prevAmt && prevAmt.dataset.touched ? prevAmt.value : mid;
+  const days = prevDays ? prevDays.value : 30;
+  const inp = (k, label, ph, type) => '<label class="sv-of-f"><span>' + label + '</span><input class="inp" id="svOf_' + k + '" type="' + (type || 'text') + '" placeholder="' + ph + '" value="' + escHtml(me[k] || '') + '" onchange="_svOfferSaveMe()" autocomplete="' + ({ name: 'name', company: 'organization', phone: 'tel', email: 'email' })[k] + '"></label>';
+  slot.innerHTML =
+    '<div class="sv-of-head">' +
+      '<div class="sv-of-big"><span class="lbl">Suggested offer</span><b>' + fmt$(d.offer.low) + ' – ' + fmt$(d.offer.high) + '</b></div>' +
+      '<span class="sv-of-conf ' + conf + '">' + confTxt + '</span>' +
+    '</div>' +
+    '<div class="sv-of-chips" role="group" aria-label="Offer as a share of market value">' + chips + '</div>' +
+    '<div class="sv-of-mv">' +
+      '<div><div class="k">Est. market value</div><div class="v">' + fmt$(mv.mid) + '</div><div class="sv-of-sub">range ' + fmt$(mv.low) + ' – ' + fmt$(mv.high) + '</div></div>' +
+      '<div><div class="k">Per acre</div><div class="v">' + fmt$(d.price_per_acre.mid) + '</div>' + vsCounty + '</div>' +
+    '</div>' +
+    '<div class="sv-of-basis">' + escHtml(basis) + '</div>' +
+    '<details class="sv-of-letter"' + (_svOffer.open ? ' open' : '') + ' ontoggle="_svOffer.open=this.open">' +
+      '<summary>Offer letter to the owner</summary>' +
+      (hasMail ? '<div class="sv-of-to"><b>To:</b> ' + escHtml(pi.owner || 'Property owner') + (pi.owner_name2 ? ', ' + escHtml(pi.owner_name2) : '') + ' · ' + escHtml(pi.owner_mailing_address || [mail.street, mail.city, mail.state, mail.zip].filter(Boolean).join(', ')) + '</div>'
+               : '<div class="sv-of-to warn">No owner mailing address on file — the letter will be addressed to "Current Owner" at the parcel.</div>') +
+      '<div class="sv-of-grid">' +
+        '<label class="sv-of-f"><span>Offer amount ($)</span><input class="inp" id="svOf_amount" type="number" min="0" step="100" inputmode="numeric" value="' + escHtml(String(amt)) + '" oninput="this.dataset.touched=1"></label>' +
+        '<label class="sv-of-f"><span>Close within (days)</span><input class="inp" id="svOf_days" type="number" min="7" max="180" inputmode="numeric" value="' + escHtml(String(days)) + '"></label>' +
+        inp('name', 'Your name', 'Jane Buyer') + inp('company', 'Company (optional)', 'Sunshine Land LLC') +
+        inp('phone', 'Phone', '(555) 555-0100', 'tel') + inp('email', 'Email', 'you@example.com', 'email') +
+      '</div>' +
+      '<div class="sv-of-actions"><button class="btn btn-p btn-sm" onclick="svOfferLetterPdf()">Download letter (PDF)</button><button class="sv-dd-copy" style="margin-left:0" onclick="svOfferLetterCopy()">Copy text</button></div>' +
+    '</details>' +
+    '<div class="sv-dd-note">An opening-offer guide from public FL DOR sale records, not an appraisal. Land investors usually open at 25–50% of market value to cover holding, closing and resale costs.</div>';
+}
+function _svOfferLetter() {
+  const r = _svOffer.r, pi = r.parcel_info || {}, mail = pi.owner_mailing || {};
+  const me = _svOfferSaveMe();
+  const amt = Math.max(0, Math.round(Number((document.getElementById('svOf_amount') || {}).value) || 0));
+  const days = Math.min(180, Math.max(7, Math.round(Number((document.getElementById('svOf_days') || {}).value) || 30)));
+  const today = new Date(), valid = new Date(today.getTime() + 30 * 864e5);
+  const dstr = dt => dt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const owner = pi.owner || 'Current Owner';
+  const toLines = [owner];
+  if (pi.owner_name2) toLines.push(pi.owner_name2);
+  if (mail.street) { toLines.push(mail.street); toLines.push([mail.city, [mail.state, mail.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')); }
+  else if (pi.owner_mailing_address) toLines.push(pi.owner_mailing_address);
+  else if (r.address) toLines.push(r.address);
+  const prop = [pi.parcel_id ? 'Parcel ID ' + pi.parcel_id : null, pi.county ? pi.county + ' County, FL' : null, pi.acreage ? pi.acreage + ' acres' : null].filter(Boolean).join(' · ');
+  // DOR owner names are 'LAST FIRST' / entity names — a neutral greeting reads better.
+  const greet = 'Dear Property Owner,';
+  const sig = [me.name || '[Your name]', me.company, me.phone, me.email].filter(Boolean);
+  return {
+    date: dstr(today), to: toLines.filter(Boolean),
+    re: 'Re: Offer to purchase your land' + (r.address ? ' at ' + r.address : ''), prop: prop, greet: greet,
+    body: [
+      'I am writing because I would like to buy your property described above. I buy land in Florida and can make a simple, all-cash offer.',
+      'My offer is ' + fmt$(amt) + ' cash for the property as-is.',
+      'Here is what that means for you:',
+      '•  No real estate commissions or listing fees.',
+      '•  I pay the normal closing costs, and closing is handled by a licensed title company.',
+      '•  We can close within ' + days + ' days, or on a date that works for you.',
+      '•  No need to clean up, survey, or make any repairs to the land.',
+      'This offer is valid until ' + dstr(valid) + '. If you are interested, or would like to talk it over, please call or email me. If the property is no longer yours or you are not interested, please disregard this letter.',
+    ],
+    close: 'Sincerely,', sig: sig,
+    text: function () {
+      return [this.date, '', ...this.to, '', this.re, this.prop, '', this.greet, '', ...this.body.flatMap((p, i) => (p.startsWith('•') || (this.body[i + 1] || '').startsWith('•')) ? [p] : [p, '']), '', this.close, '', ...this.sig].join('\n');
+    },
+  };
+}
+function svOfferLetterCopy() {
+  if (!_svOffer) return;
+  const txt = _svOfferLetter().text();
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => toast('Offer letter copied'), () => toast('Could not copy'));
+  else toast('Could not copy');
+}
+function svOfferLetterPdf() {
+  if (!_svOffer) return;
+  const L = _svOfferLetter();
+  const go = () => {
+    const JS = window.jspdf && window.jspdf.jsPDF;
+    if (!JS) { toast('Could not load the PDF engine — check your connection'); return; }
+    const doc = new JS({ unit: 'pt', format: 'letter' });
+    const M = 72, W = 612 - 2 * M;
+    let y = M;
+    const line = (t, opts) => {
+      opts = opts || {};
+      doc.setFont('helvetica', opts.bold ? 'bold' : 'normal'); doc.setFontSize(opts.size || 11);
+      // Core PDF fonts are WinAnsi: en/em dashes don't render, so plain hyphens.
+      const parts = doc.splitTextToSize(String(t).replace(/[\u2013\u2014]/g, '-'), W - (opts.indent || 0));
+      if (opts.dot) doc.circle(M + 4, y - 3.6, 1.7, 'F');
+      parts.forEach(p => { if (y > 720) { doc.addPage(); y = M; } doc.text(p, M + (opts.indent || 0), y); y += (opts.size || 11) * 1.45; });
+    };
+    if (L.sig.length && L.sig[0] !== '[Your name]') { line(L.sig.join('  ·  '), { size: 9 }); y += 14; }
+    line(L.date); y += 12;
+    L.to.forEach(t => line(t)); y += 12;
+    line(L.re, { bold: true });
+    if (L.prop) line(L.prop, { size: 10 });
+    y += 12; line(L.greet); y += 6;
+    L.body.forEach((p, i) => {
+      const bullet = p.startsWith('•');
+      line(bullet ? p.replace(/^•\s*/, '') : p, { indent: bullet ? 14 : 0, dot: bullet, bold: i === 1 });
+      if (!bullet && !(L.body[i + 1] || '').startsWith('•')) y += 8;
+    });
+    y += 10; line(L.close); y += 26;
+    L.sig.forEach((s, i) => line(s, { bold: i === 0 }));
+    const pi = _svOffer.r.parcel_info || {};
+    doc.save('offer-letter-' + String(pi.parcel_id || 'parcel').replace(/[^a-z0-9-]+/gi, '_').slice(0, 40) + '.pdf');
+    toast('Offer letter downloaded');
+  };
+  _ensurePdfLibs(go);
 }
 
 // ── Due-diligence checklist (B5) ─────────────────────────────────────────

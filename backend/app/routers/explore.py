@@ -223,7 +223,10 @@ async def comps(
         "geometryType": "esriGeometryEnvelope",
         "inSR": "4326", "outSR": "4326",
         "spatialRel": "esriSpatialRelIntersects",
-        "outFields": "PARCEL_ID,PHY_ADDR1,PHY_CITY,SALE_PRC1,SALE_YR1,LND_SQFOOT,DOR_UC",
+        # QUAL_CD1 '01' = DOR-qualified arm's-length sale; VI_CD1 'I' = the lot
+        # was already improved when it sold (a new-build on a still-'vacant'
+        # roll code); M_PAR_SAL1 set = one price covering several parcels.
+        "outFields": "PARCEL_ID,PHY_ADDR1,PHY_CITY,SALE_PRC1,SALE_YR1,LND_SQFOOT,DOR_UC,QUAL_CD1,VI_CD1,M_PAR_SAL1",
         # Centroid only (not full polygons) — ~2x faster and all we need for the
         # distance + the map pin.
         "returnGeometry": "false",
@@ -270,6 +273,9 @@ async def comps(
                 "acreage": acre,
                 "price_per_acre": ppa,
                 "land_use_category": cat,
+                "qualified": str(a.get("QUAL_CD1") or "").strip() == "01",
+                "improved_at_sale": str(a.get("VI_CD1") or "").strip().upper() == "I",
+                "multi_parcel": bool(str(a.get("M_PAR_SAL1") or "").strip()),
                 "lat": cen[0], "lng": cen[1],
                 "distance_m": round(_haversine_m(lat, lng, cen[0], cen[1])),
             })
@@ -277,6 +283,12 @@ async def comps(
         if subj_cat:
             same = [c for c in rows if c["land_use_category"] == subj_cat]
             rows = same if len(same) >= 3 else rows
+        # Land subjects: a lot that sold with a house on it, or a bulk
+        # multi-parcel price, isn't a land comp — drop them when enough clean
+        # sales remain.
+        if subj_cat in ("Vacant Land", "Agricultural"):
+            clean = [c for c in rows if not c["improved_at_sale"] and not c["multi_parcel"]]
+            rows = clean if len(clean) >= 3 else rows
         rows.sort(key=lambda c: c["distance_m"])
         return {"comps": rows[:_COMPS_RETURN], "category": subj_cat}
     except Exception as ex:
