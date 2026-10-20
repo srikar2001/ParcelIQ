@@ -641,6 +641,22 @@ body.on-results .detail-panel{top:0}
 .res-table th{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--t1);padding:10px 14px;text-align:left;border-bottom:1px solid var(--b);white-space:nowrap}
 .res-trow{cursor:pointer;border-bottom:1px solid var(--b);transition:background .12s}
 .res-trow:hover{background:var(--card-h)}
+/* Rows carry the verdict badge class (vb-*); on desktop show it as a thin
+   left accent instead of tinting the whole row pink/green. */
+@media(min-width:761px){
+  .res-trow.vb-kill,.res-trow.vb-pursue,.res-trow.vb-review{background:transparent;color:inherit;border:0;border-bottom:1px solid var(--b)}
+  .res-trow.vb-kill:hover,.res-trow.vb-pursue:hover,.res-trow.vb-review:hover{background:var(--card-h)}
+  .res-trow.vb-kill>td:first-child{box-shadow:inset 3px 0 0 #EF4444}
+  .res-trow.vb-pursue>td:first-child{box-shadow:inset 3px 0 0 #10B981}
+  .res-trow.vb-review>td:first-child{box-shadow:inset 3px 0 0 #F59E0B}
+}
+.ll-back{display:inline-block;font-size:13px;font-weight:600;color:var(--green);text-decoration:none;margin-bottom:10px}
+.ll-back:hover{text-decoration:underline}
+/* U11: white on #10B981 is ~2.5:1 in dark — use the deeper emerald fill */
+:root:not([data-theme='light']) .btn-p{background:#047857}
+:root:not([data-theme='light']) .btn-p:hover{background:#065F46}
+/* U12: <16px inputs make iOS Safari zoom on focus */
+@media(max-width:640px){.inp,input[type=text],input[type=email],input[type=search],input[type=number],select,textarea{font-size:16px}}
 .res-trow.expanded{background:var(--card-h)}
 .res-trow td{padding:11px 14px;vertical-align:middle}
 .tbl-parcel{font-size:13px;font-weight:600;color:var(--t1);max-width:200px;position:relative}
@@ -1717,7 +1733,7 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
             </div>
 
             <div class="lp-dr-sec-lbl">Owner</div>
-            <div class="lp-dr-owner"><b>Powell, Donna S.</b><div class="lp-dr-owner-sub">📞 Phone — Coming Soon<br>✉️ Email — Coming Soon</div></div>
+            <div class="lp-dr-owner"><b>Powell, Donna S.</b><div class="lp-dr-owner-sub">Mailing address on file</div></div>
 
             <div class="lp-dr-sec-lbl">Parcel facts</div>
             <div class="lp-dr-facts">
@@ -3567,6 +3583,7 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
 <div id="page-leads" class="screen">
   <div class="ll-shell">
     <aside class="ll-panel">
+      <a class="ll-back" href="#dashboard">← Back to batches</a>
       <div class="ll-title">🎯 Land Leads</div>
       <div class="ll-subtitle">Generate new prospects. Saved searches live in the sidebar under <b>Generated Leads</b>.</div>
       <div class="lh-wrap" id="leadHunter" style="display:none"></div>
@@ -4403,10 +4420,17 @@ window.addEventListener('hashchange', () => {
 // that's what broke back-then-forward navigation. hashchange alone covers
 // every hash transition, including history buttons.
 
+// Page scroll must not be hijacked by a map: the wheel zooms only after the
+// user clicks into it, and stops again once the pointer leaves.
+function _wheelAfterClick(m) {
+  m.on('click focus', () => m.scrollWheelZoom.enable());
+  m.on('mouseout', () => m.scrollWheelZoom.disable());
+}
+
 async function _loadMostRecentBatch() {
   if (!sb || !currentUser) { goTo('landing'); return; }
   try {
-    const { data } = await sb.from('batches').select('id').eq('user_id', currentUser.id)
+    const { data } = await sb.from('batches').select('id').eq('user_id', currentUser.id).neq('name', '[Re-screen]')
       .order('created_at', { ascending: false }).limit(1).single();
     if (data?.id) { loadBatchResults(data.id); }
     else { _showEmptyResults(); }
@@ -8771,7 +8795,8 @@ function initParcelMap(r) {
   if (controls)    controls.style.display = 'flex';
   if (expBtn)      expBtn.style.display = '';
 
-  _map = L.map('parcel-map', { zoomControl: true }).setView([lat, lng], 14);
+  _map = L.map('parcel-map', { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], 14);
+  _wheelAfterClick(_map);
   window._parcelMap = _map;
 
   _mapLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -11482,10 +11507,6 @@ function _svDataPanelHtml(r) {
       (hasOwner ? '<div class="sv-owner-name">' + escHtml(pi.owner) + '</div>' : '<div class="sv-owner-name empty">Unknown Owner</div>') +
       (hasOwner && pi.owner_name2 ? '<div class="sv-owner-mail">' + escHtml(pi.owner_name2) + '</div>' : '') +
       (mailsElsewhere ? '<div class="sv-owner-mail">Mails to: ' + escHtml(pi.owner_mailing_address) + '</div>' : '') +
-      '<div class="sv-owner-contact">' +
-        '<div class="sv-owner-contact-row">📞 Phone — <em>Coming Soon</em></div>' +
-        '<div class="sv-owner-contact-row">✉️ Email — <em>Coming Soon</em></div>' +
-      '</div>' +
     '</div>' +
 
     (facts.length ? '<div class="sv-sec-title">Parcel Facts</div><div class="sv-card-sec sv-fact-grid">' + facts.join('') + '</div>' : '') +
@@ -12091,7 +12112,8 @@ function _svInitMap(r) {
   _svActiveFilters = new Set();
   const pi = r.parcel_info || {};
   const lat = r._lat || 28.0, lng = r._lng || -81.5;
-  _svMap = L.map('svMap', { zoomControl: false }).setView([lat, lng], 15);
+  _svMap = L.map('svMap', { zoomControl: false, scrollWheelZoom: false }).setView([lat, lng], 15);
+  _wheelAfterClick(_svMap);
   L.control.zoom({ position: 'topright' }).addTo(_svMap);
   _svLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_svMap);
   _svLayers['_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri', maxZoom: 19 });
@@ -12116,12 +12138,6 @@ function _svInitMap(r) {
   _svLayers['flood']    = _makeFemaLayer(0.5);
   _svLayers['wetlands'] = _makeWetlandsLayer(0.5);
 
-  const seed = (r.address || '') + (pi.parcel_id || '');
-  const stOff = _svSeedOffset(seed, 10);
-  const stMarker = L.marker([lat + stOff.dLat, lng + stOff.dLng], { icon: _svPinIcon('#a855f7') });
-  stMarker.bindPopup('Owner Contact (Coming Soon)');
-  stMarker.addTo(_svMap);
-  _svLayers['skipTrace'] = stMarker;
 
   // Click-to-explore: draw nearby parcel boundaries and let a click on any of
   // them open that parcel's Deal Review in place. The parcels are individually
