@@ -174,9 +174,11 @@ async def _weekly_usage(user_id: str) -> int:
     except Exception:
         return 0
 
-_FLOOD_DEFAULT     = {"zone": "UNKNOWN", "sfha": False, "source": "FEMA NFHL"}
-_WETLANDS_DEFAULT  = {"wetland_on_parcel": False, "wetland_nearby": False, "wetland_type": None, "wetland_code": None, "source": "USFWS NWI"}
-_HABITAT_DEFAULT   = {"habitat_found": False, "species": [], "source": "USFWS Critical Habitat"}
+# Kill-check fallbacks are only used when the collector timed out or raised, so
+# they carry the collector's own error shape — a timeout must never read as "clean".
+_FLOOD_DEFAULT     = {"zone": "ERROR", "sfha": False, "source": "FEMA NFHL"}
+_WETLANDS_DEFAULT  = {"wetland_on_parcel": None, "wetland_nearby": None, "wetland_type": None, "wetland_code": None, "source": "USFWS NWI", "error": True}
+_HABITAT_DEFAULT   = {"habitat_found": False, "species": [], "source": "USFWS Critical Habitat", "data_available": False}
 _EPA_DEFAULT       = {"contamination_found": False, "sites": [], "source": "EPA ECHO Superfund"}
 _ROADS_DEFAULT     = {"road_found": None, "road_surface": "error", "road_type": None, "road_name": None, "road_distance_m": None, "road_private": None, "road_nearest_lat": None, "road_nearest_lng": None, "source": "US Census TIGER"}
 _PARCEL_DEFAULT    = {"found": False, "source": "FL DOR Cadastral", "geometry": []}
