@@ -47,7 +47,8 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [ ] TODO U9 (from qa) `#pricing` is hidden in nav (PRICING_HIDDEN) but still renders "Simple, flat pricing." plans when the hash is typed directly — while beta is free, route #pricing to #landing (or show a beta note). Repro: https://parcel-iq-nine.vercel.app/#pricing logged out.
 - [ ] IN REVIEW (agent/ux-polisher/landing-polish) U1 Landing page
 - [ ] TODO U10 (from ux) Global `.bulk-bar` and other app chrome sit in the DOM on every screen; audit offscreen/hidden controls app-wide for tab-order leaks (fixed bulk-bar in U1).
-- [ ] TODO U2 Auth screens · U3 Dashboard · U4 Results table · U5 Deal Review · U6 Land Leads · U7 Settings/Admin · U8 Mobile pass
+- [ ] IN PROGRESS (ux-polisher, 2026-10-20) U2 Auth screens
+- [ ] TODO U3 Dashboard · U4 Results table · U5 Deal Review · U6 Land Leads · U7 Settings/Admin · U8 Mobile pass
 
 ## Growth (growth-analyst)
 - [ ] TODO G1 Weekly aggregate report → `ops/reports/YYYY-MM-DD.md`: signups, activation (signed up → ran a batch), batches, leads searches, retention. Counts only, no personal data.
