@@ -3357,6 +3357,29 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
 .ll-histbtn{font-size:11.5px;color:var(--t3);cursor:pointer;text-decoration:underline;margin-bottom:12px;display:inline-block}
 .ll-poi-ico{display:flex;align-items:center;justify-content:center;font-size:15px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 @media(max-width:760px){.ll-shell{flex-direction:column;height:auto}.ll-panel{width:100%;height:auto;border-right:none;border-bottom:1px solid var(--b)}.ll-map-wrap{height:64vh}}
+/* 3D land view (MapLibre overlay over the 2D map; loaded only when toggled) */
+.m3d-wrap{position:absolute;inset:0;z-index:300;background:#0b1220;overflow:hidden;border-radius:inherit}
+.m3d-map{position:absolute;inset:0}
+.m3d-load{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#0b1220;color:#E5E7EB;font-size:13.5px;font-weight:700}
+.m3d-bar{position:absolute;left:50%;transform:translateX(-50%);bottom:30px;z-index:4;display:flex;align-items:center;gap:4px;background:rgba(15,20,32,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.14);border-radius:99px;padding:4px 5px 4px 11px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.m3d-lbl{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#CBD5E1;margin-right:3px}
+.m3d-chip{font-family:inherit;font-size:11.5px;font-weight:800;color:#E5E7EB;background:transparent;border:none;border-radius:99px;padding:5px 9px;cursor:pointer;min-width:30px;transition:background .12s,color .12s}
+.m3d-chip.active{background:#059669;color:#fff}
+.m3d-spin{border-left:1px solid rgba(255,255,255,.18);border-radius:0 99px 99px 0;margin-left:2px}
+.m3d-chip:not(.active):hover{background:rgba(255,255,255,.12)}
+.m3d-hint{position:absolute;left:50%;transform:translateX(-50%);top:12px;z-index:4;font-size:10.5px;font-weight:700;color:#fff;background:rgba(15,20,32,.6);border-radius:99px;padding:3px 10px;white-space:nowrap;pointer-events:none}
+.m3d-wrap .maplibregl-ctrl-attrib{font-size:9.5px}
+.m3d-wrap .maplibregl-ctrl-top-right{top:48px}
+/* Deal Review: the 2D-only layer chips/overlays step aside while 3D is on. */
+.sv-3d-on .sv-map-btn:not([data-svlayer="3d"]),.sv-3d-on .sv-map-overlay{display:none}
+.sv-map-btn[data-svlayer="3d"]{letter-spacing:.03em}
+/* Land Leads: 3D toggle sits beside Leaflet's zoom control. */
+.ll-3d-btn{position:absolute;top:10px;left:54px;z-index:610;font-family:inherit;font-size:12px;font-weight:800;letter-spacing:.03em;color:var(--t1);background:var(--card);border:1px solid var(--b);border-radius:99px;padding:7px 13px;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.25);display:inline-flex;align-items:center;gap:6px}
+.ll-3d-btn svg{width:14px;height:14px}
+.ll-3d-btn.active{background:#059669;color:#fff;border-color:#059669}
+.ll-3d-btn.active .ll-3d-on{display:inline}.ll-3d-btn .ll-3d-on{display:none}
+.ll-3d-btn.active .ll-3d-off{display:none}
+@media(max-width:600px){.m3d-hint{display:none}}
 .leads-title{font-size:30px;font-weight:800;margin:0 0 8px;letter-spacing:-.02em}
 .leads-sub{font-size:14px;color:var(--t2);line-height:1.6;margin:0 0 26px}
 .leads-form{background:var(--card);border:1px solid var(--b);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:22px}
@@ -3498,6 +3521,7 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
     <div class="ll-map-wrap">
       <div class="ll-map-inner">
         <div id="leadsMap"></div>
+        <button type="button" class="ll-3d-btn" id="lead3dBtn" onclick="leadToggle3d()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l6-11 4 6 3-4 5 9z"/></svg><span class="ll-3d-off">3D</span><span class="ll-3d-on">Exit 3D</span></button>
         <div class="ll-map-badge" id="leadMapBadge"></div>
         <div class="ll-legend" id="leadLegend"></div>
         <div class="ll-loading" id="leadLoading">
@@ -11366,6 +11390,7 @@ function renderStoryView(r) {
             '<button class="sv-map-btn" data-svlayer="flood" onclick="svToggleLayer(this)">Flood Zones</button>' +
             '<button class="sv-map-btn" data-svlayer="wetlands" onclick="svToggleLayer(this)">Wetlands</button>' +
             '<button class="sv-map-btn" data-svlayer="satellite" onclick="svToggleLayer(this)">Satellite</button>' +
+            '<button class="sv-map-btn" data-svlayer="3d" onclick="svToggleLayer(this)">3D</button>' +
           '</div>' +
           '<div class="sv-map-overlay" id="svMapOverlay"></div>' +
           ((shared || explore) ? '' :
@@ -11856,6 +11881,9 @@ function _svPinIcon(color) {
 function _svInitMap(r) {
   const mapDiv = document.getElementById('svMap');
   if (!mapDiv || typeof L === 'undefined') return;
+  // A 3D view left open on the previous parcel re-opens on this one.
+  const _was3d = m3dIsOpen('sv');
+  m3dClose('sv', true);
   if (_svMap) { try { _svMap.remove(); } catch(e) {} _svMap = null; }
   Object.keys(_svLayers).forEach(k => delete _svLayers[k]);
   _svAnnotationLayers = {};
@@ -11873,6 +11901,7 @@ function _svInitMap(r) {
   // not a fake/estimated figure, the same value shown in Parcel Facts.
   const svAcreage = getAcreage(r);
   const acreLabel = svAcreage != null ? (Math.round(svAcreage * 10) / 10) + ' ac' : null;
+  _sv3dSrc = { coords: coords, lat: lat, lng: lng, acreLabel: acreLabel };
   if (coords && coords.length > 2) {
     const poly = L.polygon(coords, { color: '#38BDF8', weight: 3, fillColor: '#38BDF8', fillOpacity: 0.15 }).addTo(_svMap);
     _svLayers['parcel'] = poly;
@@ -11907,6 +11936,10 @@ function _svInitMap(r) {
   }
 
   setTimeout(() => { if (_svMap) _svMap.invalidateSize(); }, 250);
+  if (_was3d) {
+    const b3 = document.querySelector('#storyView .sv-map-btn[data-svlayer="3d"]');
+    if (b3) setTimeout(() => _svToggle3d(b3), 0);
+  }
 }
 
 // ── Deal Review click-to-explore (mini Map Comps, in place) ──────────────────
@@ -12179,6 +12212,7 @@ function _svMapOverlayHtml(r) {
 // always-on-map; Satellite swaps the base tile layer instead of adding one).
 function svToggleLayer(btn) {
   const key = btn.dataset.svlayer;
+  if (key === '3d') { _svToggle3d(btn); return; }
   if (!_svMap) return;
   if (key === 'satellite') {
     const satOn = btn.classList.contains('active');
@@ -12189,6 +12223,221 @@ function svToggleLayer(btn) {
   if (!_svLayers[key]) return;
   if (_svMap.hasLayer(_svLayers[key])) { _svMap.removeLayer(_svLayers[key]); btn.classList.remove('active'); }
   else { _svMap.addLayer(_svLayers[key]); btn.classList.add('active'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// 3D LAND VIEW — satellite imagery draped on real terrain, tilt + rotate.
+// MapLibre GL (pinned) is loaded lazily on the first "3D" click so the 2D
+// Leaflet maps stay the default and nobody pays for it until they ask.
+// Free + keyless: Esri World Imagery, AWS Open Data terrain tiles (terrarium).
+// ══════════════════════════════════════════════════════════════════════════
+const _M3D_VER = '4.7.1';
+const _M3D_RELIEF = [1, 3, 6];      // Florida is flat — default 3× so relief reads
+let _m3dLoading = null, _m3dRelief = 3;
+const _m3d = {};                    // key -> { map, wrap, hideEl, onClose }
+function _m3dLoad() {
+  if (window.maplibregl) return Promise.resolve(window.maplibregl);
+  if (_m3dLoading) return _m3dLoading;
+  _m3dLoading = new Promise((res, rej) => {
+    const base = 'https://unpkg.com/maplibre-gl@' + _M3D_VER + '/dist/';
+    if (!document.getElementById('m3dCss')) {
+      const css = document.createElement('link');
+      css.id = 'm3dCss'; css.rel = 'stylesheet'; css.href = base + 'maplibre-gl.css';
+      document.head.appendChild(css);
+    }
+    const s = document.createElement('script');
+    s.src = base + 'maplibre-gl.js';
+    s.onload = () => window.maplibregl ? res(window.maplibregl) : rej(new Error('maplibre missing'));
+    s.onerror = () => { _m3dLoading = null; s.remove(); rej(new Error('maplibre load failed')); };
+    document.head.appendChild(s);
+  });
+  return _m3dLoading;
+}
+function _m3dSupported() {
+  try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; }
+}
+function _m3dStyle() {
+  const dem = { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+    tileSize: 256, maxzoom: 15, encoding: 'terrarium' };
+  return {
+    version: 8,
+    sources: {
+      sat: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+        tileSize: 256, maxzoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' },
+      // Separate DEM sources for terrain + hillshade (MapLibre recommends it).
+      dem: Object.assign({ attribution: 'Terrain: AWS Open Data / Mapzen (USGS 3DEP)' }, dem),
+      demh: Object.assign({}, dem),
+      feat: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+    },
+    layers: [
+      { id: 'sat', type: 'raster', source: 'sat' },
+      { id: 'hill', type: 'hillshade', source: 'demh', paint: { 'hillshade-exaggeration': 0.3, 'hillshade-shadow-color': '#0b1a12' } },
+      { id: 'f-fill', type: 'fill', source: 'feat', filter: ['==', ['geometry-type'], 'Polygon'],
+        paint: { 'fill-color': ['coalesce', ['get', 'color'], '#38BDF8'], 'fill-opacity': 0.18 } },
+      { id: 'f-line', type: 'line', source: 'feat', filter: ['==', ['geometry-type'], 'Polygon'],
+        paint: { 'line-color': ['coalesce', ['get', 'color'], '#38BDF8'], 'line-width': 3 } },
+      { id: 'f-pts', type: 'circle', source: 'feat', filter: ['==', ['geometry-type'], 'Point'],
+        paint: { 'circle-radius': 8, 'circle-color': ['coalesce', ['get', 'color'], '#22C55E'],
+          'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-pitch-alignment': 'map' } },
+    ],
+    terrain: { source: 'dem', exaggeration: _m3dRelief },
+  };
+}
+// [[lat,lng],...] Leaflet ring → GeoJSON polygon feature.
+function _m3dPoly(ring, props) {
+  if (!ring || ring.length < 3) return null;
+  const c = ring.map(p => [+p[1], +p[0]]).filter(p => isFinite(p[0]) && isFinite(p[1]));
+  if (c.length < 3) return null;
+  const a = c[0], z = c[c.length - 1];
+  if (a[0] !== z[0] || a[1] !== z[1]) c.push(a);
+  return { type: 'Feature', properties: props || {}, geometry: { type: 'Polygon', coordinates: [c] } };
+}
+function _m3dBounds(fc) {
+  let w = 180, s = 90, e = -180, n = -90, any = false;
+  (fc.features || []).forEach(f => {
+    const g = f.geometry, pts = g.type === 'Point' ? [g.coordinates] : g.coordinates[0];
+    pts.forEach(p => { any = true; w = Math.min(w, p[0]); e = Math.max(e, p[0]); s = Math.min(s, p[1]); n = Math.max(n, p[1]); });
+  });
+  return any ? [[w, s], [e, n]] : null;
+}
+// opts: { center:[lat,lng], zoom (Leaflet zoom), data: FeatureCollection, fit: bool, maxZoom,
+//         label: {lngLat, text}, onPointClick(i), onClose(center[lat,lng], leafletZoom) }
+async function m3dOpen(key, host, hideEl, opts) {
+  if (!host) return false;
+  if (!_m3dSupported()) { toast('3D needs WebGL, which this browser has turned off'); return false; }
+  m3dClose(key, true);
+  const coarse = window.matchMedia && matchMedia('(pointer:coarse)').matches;
+  const wrap = document.createElement('div');
+  wrap.className = 'm3d-wrap';
+  wrap.innerHTML =
+    '<div class="m3d-map"></div>' +
+    '<div class="m3d-load"><div class="ll-load-spin"></div><div>Loading 3D terrain…</div></div>' +
+    '<div class="m3d-bar">' +
+      '<span class="m3d-lbl">Relief</span>' +
+      _M3D_RELIEF.map(x => '<button type="button" class="m3d-chip' + (x === _m3dRelief ? ' active' : '') + '" data-x="' + x + '">' + x + '×</button>').join('') +
+      '<button type="button" class="m3d-chip m3d-spin">Rotate</button>' +
+    '</div>' +
+    '<div class="m3d-hint">' + (coarse ? 'Two fingers: tilt &amp; rotate' : 'Right-drag or Ctrl-drag: tilt &amp; rotate') + '</div>';
+  host.appendChild(wrap);
+  const st = { map: null, wrap, hideEl, onClose: opts.onClose };
+  _m3d[key] = st;
+  let gl;
+  try { gl = await _m3dLoad(); } catch (e) { m3dClose(key, true); toast('Could not load the 3D view — check your connection'); return false; }
+  if (_m3d[key] !== st) return false;           // closed while loading
+  const c = opts.center || [28, -81.5];
+  let map;
+  try {
+    map = new gl.Map({
+      container: wrap.querySelector('.m3d-map'), style: _m3dStyle(),
+      center: [c[1], c[0]], zoom: Math.max(0, (opts.zoom || 14) - 1),   // MapLibre zoom = Leaflet zoom − 1
+      pitch: 60, bearing: -20, maxPitch: 80, maxZoom: 18.5,
+      attributionControl: { compact: true },
+    });
+  } catch (e) { m3dClose(key, true); toast('3D view is not available on this device'); return false; }
+  st.map = map;
+  if (hideEl) hideEl.style.visibility = 'hidden';
+  map.addControl(new gl.NavigationControl({ visualizePitch: true }), 'top-right');
+  // Don't hold the spinner for every last terrain tile on a slow connection.
+  setTimeout(() => { const ld = wrap.querySelector('.m3d-load'); if (ld) ld.remove(); }, 5000);
+  map.on('load', () => {
+    if (_m3d[key] !== st) return;
+    try { map.getSource('feat').setData(opts.data || { type: 'FeatureCollection', features: [] }); } catch (e) {}
+    const b = opts.fit && _m3dBounds(opts.data || {});
+    if (b) { try { map.fitBounds(b, { padding: 60, maxZoom: opts.maxZoom || 16.5, pitch: 60, bearing: -20, duration: 0 }); } catch (e) {} }
+    if (opts.label && opts.label.text) {
+      const el = document.createElement('div');
+      el.className = 'sv-map-acres-label'; el.textContent = opts.label.text;
+      st.label = new gl.Marker({ element: el }).setLngLat(opts.label.lngLat).addTo(map);
+    }
+    const ld = wrap.querySelector('.m3d-load'); if (ld) ld.remove();
+    // Start the attribution collapsed to its (i) button so it never covers the
+    // relief chips on a phone; one tap expands it.
+    const at = wrap.querySelector('.maplibregl-ctrl-attrib'); if (at) at.classList.remove('maplibregl-compact-show');
+    // A slow quarter-orbit so the terrain reads as 3D straight away.
+    map.easeTo({ bearing: map.getBearing() + 35, duration: 2600 });
+  });
+  map.on('click', 'f-pts', e => {
+    const f = e.features && e.features[0];
+    if (f && opts.onPointClick && f.properties.i != null) opts.onPointClick(+f.properties.i);
+  });
+  map.on('mouseenter', 'f-pts', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'f-pts', () => { map.getCanvas().style.cursor = ''; });
+  map.on('error', () => {});                    // a missing tile shouldn't spam the console
+  wrap.querySelector('.m3d-bar').addEventListener('click', ev => {
+    const btn = ev.target.closest('button'); if (!btn) return;
+    if (btn.classList.contains('m3d-spin')) { map.easeTo({ bearing: map.getBearing() + 90, duration: 900 }); return; }
+    _m3dRelief = +btn.dataset.x || 3;
+    try { map.setTerrain({ source: 'dem', exaggeration: _m3dRelief }); } catch (e) {}
+    wrap.querySelectorAll('.m3d-chip[data-x]').forEach(b => b.classList.toggle('active', b === btn));
+  });
+  return true;
+}
+function m3dSetData(key, fc) {
+  const st = _m3d[key];
+  if (!st || !st.map) return;
+  try { const s = st.map.getSource('feat'); if (s) s.setData(fc); } catch (e) {}
+}
+// silent=true: tear down without syncing the 2D view back (re-render / failure).
+function m3dClose(key, silent) {
+  const st = _m3d[key];
+  if (!st) return;
+  delete _m3d[key];
+  if (st.map && !silent && st.onClose) {
+    try { const ct = st.map.getCenter(); st.onClose([ct.lat, ct.lng], st.map.getZoom() + 1); } catch (e) {}
+  }
+  if (st.map) { try { st.map.remove(); } catch (e) {} }
+  if (st.wrap) st.wrap.remove();
+  if (st.hideEl) st.hideEl.style.visibility = '';
+}
+function m3dIsOpen(key) { return !!_m3d[key]; }
+
+// Deal Review: "3D" chip next to Parcel / Flood / Wetlands / Satellite.
+let _sv3dSrc = null;
+async function _svToggle3d(btn) {
+  const zone = btn.closest('.sv-map-zone');
+  const setOn = on => { btn.classList.toggle('active', on); btn.textContent = on ? 'Exit 3D' : '3D'; if (zone) zone.classList.toggle('sv-3d-on', on); };
+  if (m3dIsOpen('sv')) { m3dClose('sv'); setOn(false); return; }
+  const s = _sv3dSrc || {};
+  const poly = _m3dPoly(s.coords, { color: '#38BDF8' });
+  const fc = { type: 'FeatureCollection', features: poly ? [poly] :
+    (s.lat != null ? [{ type: 'Feature', properties: { color: '#38BDF8' }, geometry: { type: 'Point', coordinates: [s.lng, s.lat] } }] : []) };
+  setOn(true);
+  const c = _svMap ? _svMap.getCenter() : { lat: s.lat, lng: s.lng };
+  const ok = await m3dOpen('sv', zone, document.getElementById('svMap'), {
+    center: [c.lat, c.lng], zoom: _svMap ? _svMap.getZoom() : 16, data: fc, fit: !!poly, maxZoom: 17,
+    label: s.acreLabel ? { lngLat: [s.lng, s.lat], text: s.acreLabel } : null,
+    onClose: (ct, z) => { if (_svMap) { try { _svMap.setView(ct, Math.round(z)); } catch (e) {} } },
+  });
+  if (!ok) setOn(false);
+}
+
+// Land Leads: "3D" button on the map; leads + their parcel outlines on terrain.
+let _lead3dLeads = [];
+function _lead3dData(leads) {
+  const feats = [];
+  (leads || []).forEach((r, i) => {
+    if (r._lat == null || r._lng == null) return;
+    const ev = (typeof effectiveVerdict === 'function') ? effectiveVerdict(r) : r.verdict;
+    const col = ev === 'KILL' ? '#EF4444' : ev === 'REVIEW' ? '#F59E0B' : '#22C55E';
+    const ring = extractPolygonCoords((r.parcel_info || {}).geometry);
+    const poly = _m3dPoly(ring, { color: col });
+    if (poly) feats.push(poly);
+    feats.push({ type: 'Feature', properties: { color: col, i: i }, geometry: { type: 'Point', coordinates: [+r._lng, +r._lat] } });
+  });
+  return { type: 'FeatureCollection', features: feats };
+}
+async function leadToggle3d() {
+  const btn = document.getElementById('lead3dBtn');
+  if (m3dIsOpen('leads')) { m3dClose('leads'); if (btn) btn.classList.remove('active'); return; }
+  if (!_leadsMap) _initLeadsMap();
+  if (btn) btn.classList.add('active');
+  const c = _leadsMap ? _leadsMap.getCenter() : { lat: 28, lng: -81.5 };
+  const ok = await m3dOpen('leads', document.querySelector('.ll-map-inner'), document.getElementById('leadsMap'), {
+    center: [c.lat, c.lng], zoom: _leadsMap ? _leadsMap.getZoom() : 7, data: _lead3dData(_lead3dLeads),
+    onPointClick: i => _leadOpenLead(i),
+    onClose: (ct, z) => { if (_leadsMap) { try { _leadsMap.setView(ct, Math.round(z)); } catch (e) {} } },
+  });
+  if (!ok && btn) btn.classList.remove('active');
 }
 
 // All / Risks / Clear filter for the check rows — pure display toggling,
@@ -13078,6 +13327,8 @@ function _leadPlotResults(leads, poiPoints) {
   if (!_leadsMap) _initLeadsMap();
   if (!_leadsMap) return;
   _leadClearMarkers();
+  _lead3dLeads = leads || [];
+  m3dSetData('leads', _lead3dData(_lead3dLeads));
   const bounds = [];
   leads.forEach((r, i) => {
     if (r._lat == null || r._lng == null) return;
