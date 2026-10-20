@@ -8016,6 +8016,7 @@ function openDetailPanel(absIdx, event) {
     // (a different mailing address is a skip-tracing signal; the same one is noise)
     if (pi.owner && pi.owner !== 'N/A') {
       let ownerHtml = escHtml(pi.owner);
+      if (pi.owner_name2) ownerHtml += '<div class="dp-grid-sub">' + escHtml(pi.owner_name2) + '</div>';
       const mail = _normAddr(pi.owner_mailing_address);
       const situs = _normAddr(pi.county_address_on_file || r.address);
       if (pi.owner_mailing_address && mail && situs && !mail.startsWith(situs.slice(0, 18))) {
@@ -9928,7 +9929,7 @@ function hideExportModal() {
 
 function exportCSV() {
   const rows = [['Address','Verdict','Score','Auto Kill','Kill Reason','Flags','Positives',
-    'APN','County','Owner','Owner Mailing Address','Acreage','Land Use',
+    'APN','County','Owner','Owner Name 2','Owner Mailing Address','Mail Street','Mail City','Mail State','Mail ZIP','Acreage','Land Use',
     'Assessed Value','Land Value','Last Sale','Sale Year',
     'Flood Zone','Elevation (ft)','Soil Drainage','Septic Feasible','Evac Zone','Power Nearby','Road']];
   batchState.results.forEach(r => {
@@ -9943,7 +9944,12 @@ function exportCSV() {
       pi.parcel_id || '',
       pi.county || '',
       pi.owner || '',
+      pi.owner_name2 || '',
       pi.owner_mailing_address || '',
+      (pi.owner_mailing || {}).street || '',
+      (pi.owner_mailing || {}).city || '',
+      (pi.owner_mailing || {}).state || '',
+      (pi.owner_mailing || {}).zip || '',
       pi.acreage != null ? pi.acreage : '',
       pi.land_use_code ? getLandUseCategory(pi.land_use_code) : '',
       pi.assessed_value != null ? pi.assessed_value : '',
@@ -9989,7 +9995,12 @@ function exportExcel() {
       'APN': pi.parcel_id || '',
       'County': pi.county || '',
       'Owner': pi.owner || '',
+      'Owner Name 2': pi.owner_name2 || '',
       'Owner Mailing Address': pi.owner_mailing_address || '',
+      'Mail Street': (pi.owner_mailing || {}).street || '',
+      'Mail City': (pi.owner_mailing || {}).city || '',
+      'Mail State': (pi.owner_mailing || {}).state || '',
+      'Mail ZIP': (pi.owner_mailing || {}).zip || '',
       'Acreage': pi.acreage ?? '',
       'Land Use': pi.land_use_code ? getLandUseCategory(pi.land_use_code) : '',
       'Assessed Value': pi.assessed_value ?? '',
@@ -11396,6 +11407,7 @@ function _svDataPanelHtml(r) {
     '<div class="sv-sec-title">Owner</div>' +
     '<div class="sv-card-sec">' +
       (hasOwner ? '<div class="sv-owner-name">' + escHtml(pi.owner) + '</div>' : '<div class="sv-owner-name empty">Unknown Owner</div>') +
+      (hasOwner && pi.owner_name2 ? '<div class="sv-owner-mail">' + escHtml(pi.owner_name2) + '</div>' : '') +
       (mailsElsewhere ? '<div class="sv-owner-mail">Mails to: ' + escHtml(pi.owner_mailing_address) + '</div>' : '') +
       '<div class="sv-owner-contact">' +
         '<div class="sv-owner-contact-row">📞 Phone — <em>Coming Soon</em></div>' +

@@ -39,7 +39,8 @@ try:
 except Exception as _e:  # never let a missing file break the leads API
     print(f"[Leads] county polygons unavailable: {_e}")
 
-from app.collectors.parcel_fl import URL as _CAD_URL, _CO_NO_TO_COUNTY
+from app.collectors.parcel_fl import (URL as _CAD_URL, _CO_NO_TO_COUNTY, clean_owner_name,
+                                      normalize_owner_fields, owner_mailing)
 from app.collectors.flood import get_flood_zone
 from app.collectors.geocodio import reverse_geocode_batch
 from app.routers.batch import _screen_coordinate, _user_id_from_token, _AuthUnavailable
@@ -393,7 +394,8 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set,
         "where": where,
         "geometry": f"{w},{s},{e},{n}", "geometryType": "esriGeometryEnvelope",
         "inSR": "4326", "outSR": "4326", "spatialRel": "esriSpatialRelIntersects",
-        "outFields": "PARCEL_ID,CO_NO,OWN_NAME,OWN_STATE,PHY_ADDR1,PHY_CITY,DOR_UC,JV,LND_SQFOOT",
+        "outFields": ("PARCEL_ID,CO_NO,OWN_NAME,OWN_ADDR1,OWN_ADDR2,OWN_CITY,OWN_STATE,OWN_ZIPCD,"
+                      "PHY_ADDR1,PHY_CITY,DOR_UC,JV,LND_SQFOOT"),
         # 2000-row pages so a bbox returns the real matching set, not the first
         # 500 records (which under the old unfiltered scan were almost all houses).
         "returnGeometry": "true", "resultRecordCount": "2000", "f": "json",
@@ -440,8 +442,9 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set,
             "geometry": geom,
             "address": _clean_situs(a.get("PHY_ADDR1")),
             "city": _clean_city(a.get("PHY_CITY")),
-            "owner": (a.get("OWN_NAME") or "").strip() or None,
+            "owner": clean_owner_name(a.get("OWN_NAME")),
             "owner_state": (a.get("OWN_STATE") or "").strip().upper() or None,
+            **owner_mailing(a),
             "acreage": round(sq / 43560, 4) if sq else None,
             "just_value": a.get("JV"),
         })
@@ -612,6 +615,12 @@ async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
     pi["parcel_id"] = pid or pi.get("parcel_id")
     if cand.get("owner"):
         pi["owner"] = cand["owner"]
+        # Mailing address belongs with the owner of the SELECTED parcel, so take
+        # it from the same cadastral record (old cached screens get re-parsed).
+        if "owner_mailing" in cand:
+            for k in ("owner_name2", "owner_mailing", "owner_mailing_address"):
+                pi[k] = cand.get(k)
+    normalize_owner_fields(pi)
     if cand.get("acreage") is not None:
         pi["acreage"] = cand["acreage"]
     if cand.get("just_value") is not None:
@@ -661,6 +670,8 @@ def _cand_stub(cand: dict) -> dict:
     pi = {
         "county": county, "parcel_id": cand.get("parcel_id"),
         "acreage": cand.get("acreage"), "owner": cand.get("owner"),
+        "owner_name2": cand.get("owner_name2"), "owner_mailing": cand.get("owner_mailing"),
+        "owner_mailing_address": cand.get("owner_mailing_address"),
         "just_value": cand.get("just_value"), "geometry": cand.get("geometry"),
     }
     res = {"verdict": None, "score": None, "flags": [], "positives": [], "sources": [],
@@ -936,6 +947,9 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
                 sold_within_months=f.sold_within_months)
         except Exception:
             inv_served = []
+        # Banked rows predate the owner/mailing parser — normalize on serve.
+        for l in inv_served:
+            normalize_owner_fields(l.get("parcel_info"))
         if len(inv_served) >= target:      # fully served — instant, no live hit
             _log_search(f, len(inv_served), 0, inv_served[:target], "inventory")
             return {"leads": inv_served[:target], "screened": 0,
