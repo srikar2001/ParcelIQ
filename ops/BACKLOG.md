@@ -23,7 +23,7 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - Ideas inbox (any agent may add; builder/chief promote): 
 
 ## QA (qa-bugfixer)
-- [ ] TODO Q1 Golden set: snapshot ~40 diverse FL coordinates' current verdict+score into `tests/golden.json`; each run compare and investigate any drift.
+- [ ] IN PROGRESS (qa-bugfixer, 2026-10-19) Q1 Golden set: snapshot ~40 diverse FL coordinates' current verdict+score into `tests/golden.json`; each run compare and investigate any drift.
 - [ ] TODO Q2 Logged-out live sweep: landing, signup/login pages, shared links, mobile; console errors; broken links.
 - [ ] TODO Q3 Check frontend/index.html == index.html on every run.
 
