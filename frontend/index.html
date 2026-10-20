@@ -302,6 +302,33 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .batch-del{background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;padding:4px 7px;border-radius:var(--rs);transition:all .15s;flex-shrink:0;opacity:0}
 .batch-card:hover .batch-del{opacity:1}
 .batch-del:hover{color:var(--red);background:var(--rbg)}
+/* U3 dashboard polish: labelled verdict counts, persistent (dimmed) row actions, keyboard focus */
+.batch-stats{gap:6px;align-items:center}
+.bs-pill{display:inline-flex;align-items:baseline;gap:4px;font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bs-pill b{font-weight:700}
+.bs-pursue{color:var(--gd,#047857);background:var(--gbg,rgba(5,150,105,.1))}
+.bs-kill{color:var(--red);background:var(--rbg,rgba(220,38,38,.08))}
+:root:not([data-theme='light']) .bs-pursue{color:#34D399;background:rgba(16,185,129,.12)}
+:root:not([data-theme='light']) .bs-kill{color:#F87171;background:rgba(248,113,113,.12)}
+.batch-cb{opacity:.5}
+.batch-icon-btn,.batch-del{opacity:.75;color:var(--t2);min-width:32px;min-height:32px}
+.up-tab:not(.active){color:var(--t2)}
+.batch-card:focus-within .batch-cb,.batch-card:focus-within .batch-icon-btn,.batch-card:focus-within .batch-del{opacity:1}
+.batch-card:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.batch-cb:focus-visible,.batch-icon-btn:focus-visible,.batch-del:focus-visible,.up-tab:focus-visible,.dsb-nav-item:focus-visible,.state-sel:focus-visible,.up-drop-zone:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.up-tab{white-space:nowrap}
+a.dsb-nav-item{display:block;text-decoration:none}
+.past-empty{border:1px dashed var(--bh);border-radius:var(--r);padding:28px 20px;color:var(--t2);line-height:1.55}
+.past-empty-t{font-size:15px;font-weight:600;color:var(--t1);margin-bottom:4px}
+@media (max-width:640px){
+  .batch-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;column-gap:10px;row-gap:8px;align-items:center;padding:12px 12px 12px 14px}
+  .batch-card .batch-cb{grid-column:1;grid-row:1/span 2}
+  .batch-card .batch-info{grid-column:2;grid-row:1}
+  .batch-card .batch-stats{grid-column:2;grid-row:2}
+  .batch-card .batch-icon-btn{grid-column:3;grid-row:1/span 2}
+  .batch-card .batch-del{grid-column:4;grid-row:1/span 2}
+  .batch-card:hover{transform:none}
+}
 
 /* ══════════════════ PROCESSING ══════════════════ */
 .proc-wrap{text-align:center;padding:40px 24px;width:100%}
@@ -2483,15 +2510,15 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
       <div class="dash-uname" id="dashName">—</div>
       <div class="dash-plan">Beta · Free</div>
       <div class="dsb-divider"></div>
-      <nav class="dsb-nav">
-        <div class="dsb-nav-item active">Dashboard</div>
-        <div class="dsb-nav-item" onclick="window.location.hash='#leads'">🎯 Land Leads<span class="hunt-nav-badge" style="display:none"></span></div>
-        <div class="dsb-nav-item" onclick="window.location.hash='#pricing'" style="display:none">Pricing</div><!-- PRICING_HIDDEN, re-enable for launch -->
-        <div class="dsb-nav-item" onclick="window.location.hash='#settings'">Settings</div>
+      <nav class="dsb-nav" aria-label="Dashboard">
+        <a class="dsb-nav-item active" href="#dashboard" aria-current="page">Dashboard</a>
+        <a class="dsb-nav-item" href="#leads">🎯 Land Leads<span class="hunt-nav-badge" style="display:none"></span></a>
+        <a class="dsb-nav-item" href="#pricing" style="display:none">Pricing</a><!-- PRICING_HIDDEN, re-enable for launch -->
+        <a class="dsb-nav-item" href="#settings">Settings</a>
       </nav>
       <div class="dsb-usage">
         <div class="dsb-usage-top">
-          <span class="dsb-usage-lbl">This week</span>
+          <span class="dsb-usage-lbl">Parcels screened this week</span>
           <span class="dsb-usage-val"><span id="dashUsed">0</span> / 1,000</span>
         </div>
         <div class="dsb-usage-track">
@@ -2504,9 +2531,9 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
       <div class="dash-form-card">
         <div class="dash-lbl">New Batch Screen</div>
         <div style="display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid var(--b);padding-bottom:16px;align-items:center;flex-wrap:wrap">
-          <div class="up-tabs" style="margin-bottom:0">
-            <button class="up-tab active" id="dTabBatch" onclick="switchDashTab('batch')">Batch Screen</button>
-            <button class="up-tab" id="dTabSingle" onclick="switchDashTab('single')">Single Parcel</button>
+          <div class="up-tabs" style="margin-bottom:0" role="tablist" aria-label="Screen type">
+            <button class="up-tab active" id="dTabBatch" role="tab" aria-selected="true" aria-controls="dashBatchForm" onclick="switchDashTab('batch')">Batch Screen</button>
+            <button class="up-tab" id="dTabSingle" role="tab" aria-selected="false" aria-controls="dashSingleParcel" onclick="switchDashTab('single')">Single Parcel</button>
           </div>
         </div>
         <!-- Single Parcel Search (Task 27) -->
@@ -2514,7 +2541,7 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
           <div class="dash-title">Single Parcel Search</div>
           <div class="dash-sub">Search by address or APN (parcel number)</div>
           <div style="display:flex;gap:8px;margin-bottom:8px">
-            <input class="inp" id="singleParcelInput" placeholder="123 Main St, Tampa FL  or  27-30-02-000000-012030" style="flex:1;background:var(--bg)" onkeydown="if(event.key==='Enter')searchSingleParcel()">
+            <input class="inp" id="singleParcelInput" aria-label="Address or parcel ID" placeholder="123 Main St, Tampa FL  or  27-30-02-000000-012030" style="flex:1;background:var(--bg)" onkeydown="if(event.key==='Enter')searchSingleParcel()">
             <button class="btn-p" id="singleParcelBtn" onclick="searchSingleParcel()">Search →</button>
           </div>
           <div class="src-hint">Search by address or FL parcel ID (APN)</div>
@@ -2523,16 +2550,16 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
         <div id="dashBatchForm">
         <div class="dash-title">Screen your parcels</div>
         <div class="dash-sub">Florida statewide · Kill / Pursue in seconds</div>
-        <label style="font-size:12px;color:var(--t2);font-weight:500;display:block;margin-bottom:6px">Batch name (optional)</label>
+        <label for="batchNameInput" style="font-size:12px;color:var(--t2);font-weight:500;display:block;margin-bottom:6px">Batch name (optional)</label>
         <input type="text" id="batchNameInput" class="inp" placeholder="e.g. Polk County June leads" style="margin-bottom:12px;background:var(--bg)">
         <!-- Upload tabs (Task 22) -->
-        <div class="up-tabs">
-          <button class="up-tab active" id="tabPaste" onclick="switchUpTab('paste')">Paste addresses</button>
-          <button class="up-tab" id="tabFile" onclick="switchUpTab('file')">Upload file</button>
+        <div class="up-tabs" role="tablist" aria-label="Address input">
+          <button class="up-tab active" id="tabPaste" role="tab" aria-selected="true" aria-controls="upPasteMode" onclick="switchUpTab('paste')">Paste addresses</button>
+          <button class="up-tab" id="tabFile" role="tab" aria-selected="false" aria-controls="upFileMode" onclick="switchUpTab('file')">Upload file</button>
         </div>
         <!-- Paste mode -->
         <div id="upPasteMode">
-          <textarea id="batchInput" class="addr-box" placeholder="Paste addresses here, one per line:
+          <textarea id="batchInput" class="addr-box" aria-label="Addresses to screen, one per line" placeholder="Paste addresses here, one per line:
 
 123 Main St, Tampa FL 33601
 456 Oak Ave, Orlando FL 32801
@@ -2542,8 +2569,9 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
         <!-- File upload mode -->
         <div id="upFileMode" style="display:none">
           <input type="file" id="csvUpload" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleFileUpload(event)">
-          <div class="up-drop-zone" id="dropZone"
+          <div class="up-drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Upload a CSV or Excel file"
             onclick="document.getElementById('csvUpload').click()"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"
             ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
             <div class="up-drop-icon">☁</div>
             <div class="up-drop-title">Drop your CSV or Excel file anywhere on this page</div>
@@ -2554,8 +2582,8 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
           <div id="filePreview" style="display:none"></div>
           <div id="fileError" style="display:none;font-size:13px;color:var(--red);margin-top:8px"></div>
         </div>
-        <select class="state-sel">
-          <option value="FL">Florida ▾</option>
+        <select class="state-sel" aria-label="State">
+          <option value="FL">Florida</option>
           <option disabled>Other states coming soon</option>
         </select>
         <div id="limitBanner" class="limit-banner"></div>
@@ -5837,7 +5865,7 @@ async function loadPastBatches() {
 
 function showEmptyBatchState() {
   const el = document.getElementById('pastBatches');
-  if (el) el.innerHTML = '<div class="past-empty">No batches yet. Screen your first batch above.</div>';
+  if (el) el.innerHTML = '<div class="past-empty"><div class="past-empty-t">No batches yet</div><div>Paste a few Florida addresses above and hit <b>Screen Parcels</b> — your results will be saved here.</div></div>';
   const btn = document.getElementById('batchSelAllBtn');
   if (btn) btn.style.display = 'none';
   _dashEmptyState();
@@ -5852,21 +5880,22 @@ function renderPastBatches(batches) {
   _updateBatchBulkBar();
   el.innerHTML = batches.map(b => {
     const d  = new Date(b.created_at);
-    const ds = d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    const ds = d.toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' }) + ' · ' + d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
     const name = escHtml(b.name || 'Batch · ' + d.toLocaleDateString());
     const id   = b.id;
-    return '<div class="batch-card" id="bc-' + id + '" onclick="_batchCardClick(event,\'' + id + '\')">' +
-      '<input type="checkbox" class="batch-cb" id="bcb-' + id + '" onclick="event.stopPropagation();toggleBatchSelect(\'' + id + '\')">' +
+    const nP = Number(b.pursues) || 0, nK = Number(b.kills) || 0;
+    return '<div class="batch-card" id="bc-' + id + '" tabindex="0" aria-label="Open batch ' + name + '" onclick="_batchCardClick(event,\'' + id + '\')" onkeydown="if((event.key===\'Enter\'||event.key===\' \')&&event.target===this){event.preventDefault();_batchCardClick(event,\'' + id + '\')}">' +
+      '<input type="checkbox" class="batch-cb" id="bcb-' + id + '" aria-label="Select batch ' + name + '" onclick="event.stopPropagation();toggleBatchSelect(\'' + id + '\')">' +
       '<div class="batch-info">' +
         '<div class="batch-name" title="' + name + '">' + name + '</div>' +
         '<div class="batch-date">' + ds + '</div>' +
       '</div>' +
       '<div class="batch-stats">' +
-        '<span style="color:var(--red)">■ ' + (b.kills||0) + '</span>' +
-        '<span style="color:var(--green)">■ ' + (b.pursues||0) + '</span>' +
+        '<span class="bs-pill bs-pursue"><b>' + nP.toLocaleString() + '</b> Pursue</span>' +
+        '<span class="bs-pill bs-kill"><b>' + nK.toLocaleString() + '</b> Kill</span>' +
       '</div>' +
-      '<button class="batch-icon-btn" onclick="event.stopPropagation();renameBatch(\'' + id + '\',\'' + name.replace(/'/g,'\\\'') + '\')" title="Rename">✎</button>' +
-      '<button class="batch-del" onclick="event.stopPropagation();deleteBatch(\'' + id + '\')" title="Delete">✕</button>' +
+      '<button class="batch-icon-btn" onclick="event.stopPropagation();renameBatch(\'' + id + '\',\'' + name.replace(/'/g,'\\\'') + '\')" title="Rename" aria-label="Rename batch">✎</button>' +
+      '<button class="batch-del" onclick="event.stopPropagation();deleteBatch(\'' + id + '\')" title="Delete" aria-label="Delete batch">✕</button>' +
       '</div>';
   }).join('');
 }
@@ -9253,11 +9282,13 @@ function switchDashTab(mode) {
     if (single) single.style.display = 'none';
     if (tB) tB.classList.add('active');
     if (tS) tS.classList.remove('active');
+    tB?.setAttribute('aria-selected','true'); tS?.setAttribute('aria-selected','false');
   } else {
     if (batch)  batch.style.display  = 'none';
     if (single) single.style.display = '';
     if (tB) tB.classList.remove('active');
     if (tS) tS.classList.add('active');
+    tB?.setAttribute('aria-selected','false'); tS?.setAttribute('aria-selected','true');
     const inp = document.getElementById('singleParcelInput');
     if (inp) setTimeout(() => inp.focus(), 80);
   }
@@ -9273,11 +9304,13 @@ function switchUpTab(mode) {
     if (file)  file.style.display  = 'none';
     if (tabP)  tabP.classList.add('active');
     if (tabF)  tabF.classList.remove('active');
+    tabP?.setAttribute('aria-selected','true'); tabF?.setAttribute('aria-selected','false');
   } else {
     if (paste) paste.style.display = 'none';
     if (file)  file.style.display  = '';
     if (tabP)  tabP.classList.remove('active');
     if (tabF)  tabF.classList.add('active');
+    tabP?.setAttribute('aria-selected','false'); tabF?.setAttribute('aria-selected','true');
   }
 }
 
