@@ -20,7 +20,7 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 
 ## Build (product-builder)
 - [x] DONE (2026-10-20, merged 4c2513c; agent/product-builder/3d-land-view) B1 3D land view: free 3D terrain + satellite toggle on the Deal Review map and Land Leads map (e.g. MapLibre GL JS + free terrain-RGB tiles such as AWS Terrain Tiles "terrarium", Esri World Imagery with attribution). Parcel outline draped on terrain, tilt/rotate, works on mobile.
-- [ ] TODO B2 Lead Hunter: saved "buy box" searches that re-run nightly and surface NEW matching PURSUE lots in-app (badge + list). Email later (needs a free provider — owner decision).
+- [ ] IN PROGRESS (product-builder, 2026-10-20) B2 Lead Hunter: saved "buy box" searches that re-run nightly and surface NEW matching PURSUE lots in-app (badge + list). Email later (needs a free provider — owner decision).
 - [ ] TODO B5 Due-diligence checklist per county for PURSUE lots (who to call for zoning/permits/septic, what to ask).
 - [ ] TODO B3 (needs LLM key — after S7+S1 and owner key) Deal Analyst: per-parcel Q&A in Deal Review grounded ONLY in that parcel's screening data, with sources; per-user daily cap.
 - [ ] TODO B4 (after L3) Offer helper: suggested offer range from nearby sales (`/api/explore/comps`) + downloadable offer letter (needs L3 mailing address).
