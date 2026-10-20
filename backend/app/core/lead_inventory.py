@@ -19,6 +19,12 @@ _KEY = (os.environ.get("SUPABASE_ANON_KEY")
 _TABLE = f"{_URL}/rest/v1/lead_inventory"
 _H = {"apikey": _KEY, "Authorization": f"Bearer {_KEY}"}
 
+# Archiving (`archived` column) is an optional migration. If the column isn't
+# there, filtering on it makes PostgREST 400 EVERY read, which silently turned
+# inventory serving off (0 served, every search went live). Detect that once and
+# drop the filter until the column exists.
+_ARCHIVED_COL = True
+
 POOL_MIN = 80   # keep screening a county live until its pool is at least this big,
                 # so served results have real variety (not the same N every time)
 
@@ -67,17 +73,36 @@ def _filters(counties, land_types, exclude_kills, acres_min, acres_max,
         # Assuming lead_json has a field 'last_sale_date' in ISO format (YYYY-MM-DD)
         # Adjust the field name as needed for your data structure
         q.append(("lead_json->>last_sale_date", f"gte.{cutoff_date}"))
-    # ALWAYS exclude archived leads from active queries to save Supabase storage
-    q.append(("archived", "eq.false"))
+    # Exclude archived leads (only when the optional `archived` column exists).
+    if _ARCHIVED_COL:
+        q.append(("archived", "eq.false"))
     return q
+
+
+def _missing_archived(r) -> bool:
+    """True (and remembers it) if PostgREST rejected the `archived` filter
+    because the column doesn't exist (Postgres 42703 undefined_column)."""
+    global _ARCHIVED_COL
+    if r is not None and r.status_code == 400 and "archived" in r.text and "42703" in r.text:
+        _ARCHIVED_COL = False
+        print("[Inv] lead_inventory.archived missing — serving without the archive filter")
+        return True
+    return False
+
+
+def _strip_archived(params):
+    return [p for p in params if p[0] != "archived"]
 
 
 async def _get(params):
     try:
         async with pooled_client(timeout=6.0) as c:
             r = await c.get(_TABLE, params=params, headers=_H)
+            if _missing_archived(r):
+                r = await c.get(_TABLE, params=_strip_archived(params), headers=_H)
         if r.status_code == 200:
             return r.json(), r
+        print(f"[Inv] get HTTP {r.status_code}: {r.text[:160]}")
     except Exception as e:
         print(f"[Inv] get error: {e}")
     return [], None
@@ -96,8 +121,10 @@ async def inv_count(counties, land_types, exclude_kills=True,
                  mobile_home_zone, sold_within_months)
     try:
         async with pooled_client(timeout=6.0) as c:
-            r = await c.get(_TABLE, params=params,
-                            headers={**_H, "Prefer": "count=exact", "Range": "0-0"})
+            hdr = {**_H, "Prefer": "count=exact", "Range": "0-0"}
+            r = await c.get(_TABLE, params=params, headers=hdr)
+            if _missing_archived(r):
+                r = await c.get(_TABLE, params=_strip_archived(params), headers=hdr)
         cr = r.headers.get("content-range", "")   # "0-0/1234"
         if "/" in cr:
             tot = cr.split("/")[-1]
