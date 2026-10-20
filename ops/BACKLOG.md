@@ -25,6 +25,7 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [ ] TODO S15 (from owner live test 2026-10-20) Wetland verdict vs Buildable card contradict: 10303 Lightner Bridge Dr, Tampa (APN 17281505L000001000020U) is auto-KILL 'Freshwater pond confirmed on this parcel' while B6 Buildable says wetland 0.00 ac / 100% clear. Make the wetland kill use the same parcel-polygon intersection as buildable (or explain the buffer in both places).
 
 ## Land Leads (leads-engineer)
+- [ ] TODO L5 (owner ideas 2026-10-20) County picker: search box + one-click regions (Panhandle / North / Central / Tampa Bay / SW / SE) instead of scrolling 67 checkboxes.
 - [ ] IN REVIEW (agent/leads-engineer/l5-sold-within) L5 (from L1; TOP — live UI offers these filters today and they silently do nothing) Mobile-home-zone + sold-within filters are no-ops: nothing in the backend sets `mobile_home_zone` / `last_sale_date`; the live path ignores both filters and the inventory filter checks `lead_json->>mobile_home_zone` (top level) so ticking "Mobile home zone" serves 0 from inventory and unfiltered live lots. Needs a real data source (county zoning / DOR SALE_YR1+SALE_MO1) before the UI promises it.
 - [ ] IN REVIEW (agent/leads-engineer/l11-county-bounds) L11 (from leads 2026-10-20) County searches returned NEIGHBOR-county lots: grid windows near a county line had no CO_NO filter (Lake vacant 46% of candidates Marion/Seminole, Citrus ag 19%, Highlands/Gulf 6%); Monroe's bbox grid missed the Keys entirely (0 candidates). Fix: CO_NO IN (...) server-side + only windows overlapping the county polygon.
 - [ ] TODO L12 (from L11) Duplicate addresses: ~1/25 leads per cold run share a reverse-geocoded address with a neighbor lot (Citrus ag '12350 S Old Jones Rd' x2, Monroe 1/25). Disambiguate (append APN/acreage or prefer situs) or drop the duplicate address.
@@ -40,6 +41,9 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [x] DONE (2026-10-20, merged 94b071a; agent/leads-engineer/l3-owner-mailing) L3 Pull owner name line 2 + owner mailing address (OWN_NAME2, OWN_ADDR1/CITY/STATE/ZIPCD) into parcel_info, leads table and exports. Unblocks B4.
 
 ## Build (product-builder)
+- [ ] TODO B8 (owner ideas 2026-10-20) Deal Review keyboard nav: J/K or ←/→ moves to next/prev parcel in the batch, S stars, Esc back to table.
+- [ ] TODO B9 (owner ideas 2026-10-20) Neighbour compare: shift-click 2-3 parcels on the Deal Review map → side-by-side score/acres/value/flags card.
+- [ ] TODO B10 (owner ideas 2026-10-20) Server-side cache for /api/explore/parcels (LRU by rounded bbox, ~10 min) — every pan re-hits the county ArcGIS; also cache /api/explore/comps per parcel.
 - [ ] IN REVIEW (agent/product-builder/offer-helper) B4 (UNBLOCKED — L3 merged 94b071a; note owner removed the Map Comps UI in 29ebfc6 — /api/explore/comps still exists (auth, 401 logged-out), so reuse the endpoint but keep the offer range inside Deal Review, not a new comps map) Offer helper: suggested offer range from nearby sales (`/api/explore/comps`) + downloadable offer letter (needs L3 mailing address).
 - [ ] TODO B4b (from B4) Offer helper phase 2: bulk offers — add Suggested Offer Low/High columns to Land Leads + batch CSV/Excel exports and a "Download offer letters" (one PDF, one page per PURSUE lot) for mail campaigns; needs comps per lead (cache /api/explore/comps per county/area at bank time in lead_inventory to stay inside FL DOR limits).
 - [ ] TODO B7 (promoted from Ideas by chief-of-staff 2026-10-20) Road frontage + landlocked flag: length of parcel boundary within ~15 m of a public road (OSM/TIGER already in roads collectors), "No frontage — check access easement" chip in Deal Review; Land Leads filter "has road frontage" later. Evidence: Regrid land-acquisition case study screens buy boxes on road frontage + slope; B5 checklist already asks for legal access when road >30 m.
@@ -54,6 +58,7 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
   - (product-builder 2026-10-20) County market grade: green/yellow/red per county (and later zip) from FL DOR sales already used for comps — # vacant-land sales last 12 mo, median $/ac, trend — shown on Land Leads + Deal Review. Evidence: Land Insights comping tool grades "market risk" green/yellow/red alongside parcel risk.
 
 ## QA (qa-bugfixer)
+- [ ] TODO Q8 (owner 2026-10-20) Live-verify on a triangle/sliver lot that hovering neighbours never lights a rectangle (placeholder shapes now filtered server-side + small lots drawn on top).
 - [ ] TODO Q6 (UNBLOCKED — S6 merged 0a6c513, S10 merged 94b071a; do next) Re-snapshot tests/golden.json: on main+all READY branches golden shows the expected drift Pensacola 100->88, downtown Jax 99->74 (EPA now real), plus Fort Lauderdale [37] parcel_id transient (S9). Also expect the 3 S10 PURSUE→KILL flips (Ocala NF, Chipley, Palatka). If Q7 merges first, snapshot after it.
 - [x] DONE eb6b491 (agent/qa-bugfixer/elevation-fallback) Q7 Elevation silently fails under load: golden run 08:38 had 33/42 points drop elevation (Open-Meteo returned no 'elevation' w/o exception, retry also failed → likely free-tier rate limit 600/min shared by every batch on one Railway IP); the 'Very low elevation' kill flag vanishes (Cedar Key 6→26, Naples 2→22). Add USGS EPQS fallback + cooldown on 429.
 - [ ] TODO Q3 Check frontend/index.html == index.html on every run. (2026-10-19, 2026-10-20 x3: identical)
@@ -63,6 +68,8 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [x] DONE (2026-10-20, merged 0a6c513; agent/qa-bugfixer/shared-link-open-tab) Q5 Shared links (#p/<token>, #shared/<token>) opened in a tab where the app is already loaded (paste into address bar / in-app link) show the landing page or dashboard instead of the shared view — boot-only routing; router() treats them as unknown hashes.
 
 ## UX (ux-polisher) — rotate through, one per run
+- [ ] TODO U14 (owner ideas 2026-10-20) Results table: tiny parcel-shape thumbnail per row + sticky header; empty-state illustration with 'Paste addresses' CTA.
+- [ ] TODO U15 (owner 2026-10-20) Perf: lazy-load Leaflet/MapLibre/xlsx only on the screens that need them; measure first paint before/after (Lighthouse).
 - [ ] TODO U14 (from ux) Settings sidebar (#page-settings ~3250) uses the same div+onclick .dsb-nav-item links as the old dashboard nav — not keyboard-reachable; convert to <a>/<button> in U7.
 - [x] DONE (owner session, main) U12 (from ux) Global `.inp` is 14px → iOS Safari zooms on focus in every form outside auth (fixed for auth only in U2); bump to 16px under 640px app-wide.
 - [x] DONE (owner session, main) U11 (from ux) Dark theme: white text on `.btn-p` (--green #10B981) is ~2.5:1 — app-wide primary buttons fail AA in dark; darken dark --green for button fills (e.g. #059669) or use dark text.
