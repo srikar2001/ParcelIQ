@@ -332,7 +332,7 @@ async def _collect_all(lat: float, lng: float) -> tuple:
         _safe(lambda: get_epa_superfund(lat, lng), _EPA_DEFAULT, _SEM_EPA,
               timeout=16.0, retry_if=lambda r: r.get("error") is True, name="epa"),
         _safe(lambda: get_parcel_data(lat, lng), _PARCEL_DEFAULT, _SEM_FLDOR,
-              timeout=16.0, retry_if=lambda r: not r.get("found"), name="parcel"),
+              timeout=16.0, retry_if=lambda r: r.get("error") is True, name="parcel"),
         _safe(lambda: get_road_access(lat, lng), _ROADS_DEFAULT, _SEM_TIGER,
               timeout=16.0, retry_if=lambda r: r.get("road_surface") == "error", name="roads"),
         _osm_best_effort(lat, lng),
@@ -441,6 +441,10 @@ async def _screen_coordinate(address: str, geo: dict, lat: float, lng: float) ->
                 else None
             ),
             "geometry": parcel_data.get("geometry", []),
+            # "nearest" = the point hit no parcel (road/canal); this is the
+            # closest one within 30 m — UI should ask the user to confirm the APN.
+            "parcel_match": parcel_data.get("match"),
+            "parcel_match_distance_m": parcel_data.get("match_distance_m"),
             "elevation_ft": elevation.get("elevation_ft"),
             "soil_drainage": soil.get("soil_drainage"),
             "soil_name": soil.get("soil_name"),

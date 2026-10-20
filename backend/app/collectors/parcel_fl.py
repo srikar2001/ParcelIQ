@@ -1,3 +1,4 @@
+import math
 import re
 
 import httpx
@@ -202,7 +203,94 @@ def convert_rings_to_latlng(rings: list) -> list:
         return []
 
 
-async def get_parcel_data(lat: float, lng: float) -> dict:
+# Point geocodes often land on a road centerline, canal or unmapped ROW gap,
+# where the point-intersect query finds nothing. Fall back to the nearest real
+# parcel within this radius and flag it (match="nearest") so scoring treats it
+# as a caveat, never as a confirmed fact.
+NEAREST_RADIUS_M = 30
+_NEAREST_MAX_FEATURES = 60  # condo stacks return hundreds of identical shapes
+_ROW_CODES = {94}           # DOR 094 = right-of-way/streets: last resort only
+
+
+def _is_placeholder(attrs: dict) -> bool:
+    """Blank/'REFERENCE ONLY' features the layer returns alongside real ones."""
+    pid = str(attrs.get("PARCEL_ID") or "").strip()
+    return not pid or "REFERENCE" in pid.upper() or "REFERENCE ONLY" in str(attrs.get("OWN_NAME") or "").upper()
+
+
+def _dor_int(code):
+    try:
+        return int(str(code).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _dist_to_rings_m(lat: float, lng: float, rings: list) -> float:
+    """Metres from (lat,lng) to a polygon given as [lng,lat] rings (EPSG:4326);
+    0 when inside. Local equirectangular projection — fine at <1 km."""
+    kx = 111320.0 * math.cos(math.radians(lat))
+    ky = 110540.0
+    inside = False
+    best = float("inf")
+    for ring in rings:
+        pts = [((p[0] - lng) * kx, (p[1] - lat) * ky) for p in ring if len(p) >= 2]
+        n = len(pts)
+        for i in range(n):
+            (x1, y1), (x2, y2) = pts[i], pts[(i + 1) % n]
+            if (y1 > 0) != (y2 > 0) and 0 < (x2 - x1) * (0 - y1) / (y2 - y1) + x1:
+                inside = not inside
+            dx, dy = x2 - x1, y2 - y1
+            L = dx * dx + dy * dy
+            t = 0.0 if L == 0 else max(0.0, min(1.0, -(x1 * dx + y1 * dy) / L))
+            best = min(best, math.hypot(x1 + t * dx, y1 + t * dy))
+    return 0.0 if inside else best
+
+
+async def _nearest_feature(client, lat: float, lng: float, out_fields: str):
+    """Nearest non-placeholder parcel within NEAREST_RADIUS_M → (feature, metres)
+    with its rings already in [lat,lng], or (None, None)."""
+    params = {
+        "where": "1=1",
+        "geometry": f"{lng},{lat}",
+        "geometryType": "esriGeometryPoint",
+        "inSR": "4326",
+        "spatialRel": "esriSpatialRelIntersects",
+        "distance": str(NEAREST_RADIUS_M),
+        "units": "esriSRUnit_Meter",
+        "outFields": out_fields,
+        "returnGeometry": "true",
+        "outSR": "4326",
+        "resultRecordCount": str(_NEAREST_MAX_FEATURES),
+        "f": "json",
+    }
+    resp = await client.get(URL, params=params)
+    resp.raise_for_status()
+    data = resp.json()
+    if "error" in data:
+        raise RuntimeError(f"cadastral error: {data['error']}")
+    scored = []
+    for f in data.get("features") or []:
+        attrs = f.get("attributes") or {}
+        rings = (f.get("geometry") or {}).get("rings") or []
+        if _is_placeholder(attrs) or not rings:
+            continue
+        d = _dist_to_rings_m(lat, lng, rings)
+        is_row = _dor_int(attrs.get("DOR_UC")) in _ROW_CODES
+        scored.append((is_row, d, f))
+    if not scored:
+        return None, None
+    _, d, f = min(scored, key=lambda x: (x[0], x[1]))
+    rings = (f.get("geometry") or {}).get("rings") or []
+    f = dict(f)
+    f["_latlng_rings"] = [[[p[1], p[0]] for p in r if len(p) >= 2] for r in rings]
+    return f, round(d, 1)
+
+
+async def get_parcel_data(lat: float, lng: float, nearest: bool = True) -> dict:
+    """Parcel attributes at a point. With `nearest`, a point that intersects no
+    parcel (road/canal/ROW) falls back to the nearest parcel ≤30 m, returned
+    with match='nearest' + match_distance_m. Transport errors set error=True
+    so callers can tell an outage from a genuine no-parcel."""
     try:
         params = {
             "where": "1=1",
@@ -216,27 +304,34 @@ async def get_parcel_data(lat: float, lng: float) -> dict:
             "returnGeometry": "true",
             "f": "json",
         }
+        match, match_dist = "point", None
         async with pooled_client(timeout=15.0) as client:
             resp = await client.get(URL, params=params)
             resp.raise_for_status()
             data = resp.json()
+            if "error" in data:
+                return {**DEFAULT, "error": True}
+            # Skip blank / 'REFERENCE ONLY' placeholder features (they can come
+            # back first, ahead of the real parcel).
+            features = [f for f in data.get("features", [])
+                        if not _is_placeholder(f.get("attributes") or {})]
+            feature = features[0] if features else None
+            if feature is None and nearest:
+                feature, match_dist = await _nearest_feature(client, lat, lng, params["outFields"])
+                if feature is not None:
+                    match = "nearest"
 
-        if "error" in data:
+        if feature is None:
             return DEFAULT
 
-        features = data.get("features", [])
-        if not features:
-            return DEFAULT
-
-        feature = features[0]
         attrs = feature.get("attributes", {})
         sq_footage = attrs.get("LND_SQFOOT")
         acreage = round(sq_footage / 43560, 4) if sq_footage is not None else None
 
         # Extract and convert geometry
-        geometry_rings = []
+        geometry_rings = feature.get("_latlng_rings") or []
         raw_geo = feature.get("geometry", {})
-        if raw_geo and "rings" in raw_geo:
+        if not geometry_rings and raw_geo and "rings" in raw_geo:
             geometry_rings = convert_rings_to_latlng(raw_geo["rings"])
 
         co_no = attrs.get("CO_NO")
@@ -276,8 +371,10 @@ async def get_parcel_data(lat: float, lng: float) -> dict:
             "prior_sale_price": attrs.get("SALE_PRC2"),
             "prior_sale_year": attrs.get("SALE_YR2"),
             "geometry": geometry_rings,
+            "match": match,
+            "match_distance_m": match_dist,
             "source": "FL DOR Cadastral",
         }
     except Exception as e:
-        print(f"[ParcelFL] Error: {e}")
-        return DEFAULT
+        print(f"[ParcelFL] Error: {e!r}")
+        return {**DEFAULT, "error": True}

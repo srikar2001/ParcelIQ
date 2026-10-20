@@ -85,7 +85,13 @@ def score_parcel(
         auto_kill = True
 
     land_use = str(parcel.get("land_use_code") or "")
-    if _dor_code(land_use) in PUBLIC_CODES:
+    _nearest = parcel.get("match") == "nearest"
+    if _nearest and _dor_code(land_use) in PUBLIC_CODES:
+        # The point hit no parcel; the closest one is government-owned (often a
+        # city hall / federal building next to a downtown geocode). Not proof
+        # the target lot is public — caveat, don't auto-kill.
+        flags.append("Closest parcel is government-owned. Confirm this is the right lot")
+    elif _dor_code(land_use) in PUBLIC_CODES:
         reason = "Public/conservation land"
         flags.append(reason)
         if not auto_kill:
@@ -178,6 +184,12 @@ def score_parcel(
     if not parcel.get("found"):
         score -= 5
         flags.append("County data unavailable")
+    elif parcel.get("match") == "nearest":
+        score -= 3
+        d = parcel.get("match_distance_m")
+        flags.append(f"Parcel matched by proximity ({d:.0f} m from the point). Confirm the APN"
+                     if isinstance(d, (int, float)) else
+                     "Parcel matched by proximity. Confirm the APN")
 
     # FIX 3 — Nearby wetlands penalty reduced
     if wetlands.get("wetland_nearby") is True:

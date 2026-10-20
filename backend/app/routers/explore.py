@@ -111,7 +111,8 @@ async def parcel_at(lat: float, lng: float, authorization: Optional[str] = Heade
     denied = await _require_auth(authorization)
     if denied is not None:
         return denied
-    data = await get_parcel_data(lat, lng)
+    # Map click: show exactly what was clicked, no nearest-parcel guess.
+    data = await get_parcel_data(lat, lng, nearest=False)
     if data.get("found"):
         data["land_use_category"] = _lu_category(data.get("land_use_code"))
         data["click_lat"] = lat
