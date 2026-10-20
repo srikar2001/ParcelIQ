@@ -4286,7 +4286,12 @@ async function router() {
   // that already has the app loaded is a same-document hash change, so without
   // this it fell through to landing/dashboard. Reload to take the boot path.
   if (/^#(shared|p)\//.test(window.location.hash)) { window.location.reload(); return; }
+  // closeDetailPanel() syncs the URL down to the bare batch hash, which wiped a
+  // '#dashboard/<id>/parcel/<addr>' deep link before it was ever read — reloads
+  // and opened parcel links always landed on the batch. Put the hash back.
+  const _hashAtEntry = window.location.hash;
   closeDetailPanel(true);
+  if (window.location.hash !== _hashAtEntry) history.replaceState(null, '', _hashAtEntry);
   // Legacy alias: the batch table is now the Dashboard
   if (_baseHash(window.location.hash) === '#results') { window.location.replace('#dashboard'); return; }
   const rawHash = window.location.hash || '#landing';
@@ -4339,6 +4344,16 @@ async function router() {
       return;
     }
     goTo('landing'); return;
+  }
+  // Batch already loaded and the URL names a parcel (back/forward, or a parcel
+  // link pasted into this tab): open it instead of leaving the bare table.
+  if (hash === '#dashboard' && batchState.results.length && currentSession) {
+    const sub = _parseSubHash(rawHash);
+    if (sub.segments[0] && sub.segments[1] === 'parcel' && sub.segments[2]) {
+      _pendingHashRestore = sub;
+      loadBatchResults(sub.segments[0]);
+      return;
+    }
   }
   // #processing is only meaningful while a batch is actually running.
   // Forward-navigating back to it after the batch moved on used to strand the
