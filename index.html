@@ -5016,6 +5016,9 @@ async function loadSharedParcel(token) {
   const host = document.createElement('div');
   host.id = 'storyView';
   host.style.height = '100vh';
+  // #storyView is display:none until .open, so the loading/error messages
+  // below would render invisibly (blank page for an expired link) without this.
+  host.style.display = 'block';
   document.body.appendChild(host);
   host.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:var(--t2)">Loading Deal Review…</div>';
   try {
@@ -5038,6 +5041,7 @@ async function loadSharedParcel(token) {
     _openParcel = r;
     try {
       renderStoryView(r);
+      host.style.display = '';
       host.classList.add('open');
       setTimeout(() => { if (_svMap) { try { _svMap.invalidateSize(); } catch(e) {} } }, 300);
     } catch(err) {
@@ -5045,6 +5049,7 @@ async function loadSharedParcel(token) {
       // back to the simple summary so the link still shows signals + facts.
       console.error('Shared story render failed, using summary:', err);
       host.classList.remove('open');
+      host.style.display = 'block';
       host.style.height = 'auto';
       host.innerHTML = '<div style="max-width:860px;margin:0 auto;padding:24px">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;padding:0 0 20px;border-bottom:1px solid var(--b);margin-bottom:24px">'
@@ -5054,6 +5059,8 @@ async function loadSharedParcel(token) {
       renderSharedParcel(r, document.getElementById('sp-content'));
     }
   } catch(e) {
+    host.classList.remove('open');
+    host.style.display = 'block';
     host.innerHTML = '<div style="text-align:center;padding:80px 24px"><h2>Could not load this Deal Review.</h2><p>Check your connection.</p></div>';
   }
 }
