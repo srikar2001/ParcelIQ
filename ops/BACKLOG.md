@@ -61,13 +61,14 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [x] DONE (2026-10-20, merged 0a6c513; agent/qa-bugfixer/shared-link-open-tab) Q5 Shared links (#p/<token>, #shared/<token>) opened in a tab where the app is already loaded (paste into address bar / in-app link) show the landing page or dashboard instead of the shared view — boot-only routing; router() treats them as unknown hashes.
 
 ## UX (ux-polisher) — rotate through, one per run
+- [ ] TODO U14 (from ux) Settings sidebar (#page-settings ~3250) uses the same div+onclick .dsb-nav-item links as the old dashboard nav — not keyboard-reachable; convert to <a>/<button> in U7.
 - [ ] TODO U12 (from ux) Global `.inp` is 14px → iOS Safari zooms on focus in every form outside auth (fixed for auth only in U2); bump to 16px under 640px app-wide.
 - [ ] TODO U11 (from ux) Dark theme: white text on `.btn-p` (--green #10B981) is ~2.5:1 — app-wide primary buttons fail AA in dark; darken dark --green for button fills (e.g. #059669) or use dark text.
 - [ ] TODO U9 (from qa) `#pricing` is hidden in nav (PRICING_HIDDEN) but still renders "Simple, flat pricing." plans when the hash is typed directly — while beta is free, route #pricing to #landing (or show a beta note). Repro: https://parcel-iq-nine.vercel.app/#pricing logged out.
 - [ ] TODO U13 (from screening; moved from Screening lane, was a duplicate U10 id) Frontend amber chip `Contamination nearby` (index.html ~5428) fires on any `contamination_sites` entry; sites with `approximate: true` (EPA location undocumented, not scored) should read "Possible Superfund record — verify" instead.
 - [ ] TODO U10 (from ux) Global `.bulk-bar` and other app chrome sit in the DOM on every screen; audit offscreen/hidden controls app-wide for tab-order leaks (fixed bulk-bar in U1).
 - [x] DONE eb6b491 (agent/ux-polisher/auth-polish) U2 Auth screens
-- [ ] IN PROGRESS (ux-polisher, 2026-10-20) U3 Dashboard
+- [ ] IN REVIEW (agent/ux-polisher/dashboard-polish) U3 Dashboard
 - [ ] TODO U4 Results table · U5 Deal Review · U6 Land Leads · U7 Settings/Admin · U8 Mobile pass
 - [x] DONE (2026-10-20, merged 0a6c513; agent/ux-polisher/landing-polish) U1 Landing page
 
