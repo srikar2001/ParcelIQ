@@ -179,7 +179,7 @@ async def _weekly_usage(user_id: str) -> int:
 _FLOOD_DEFAULT     = {"zone": "ERROR", "sfha": False, "source": "FEMA NFHL"}
 _WETLANDS_DEFAULT  = {"wetland_on_parcel": None, "wetland_nearby": None, "wetland_type": None, "wetland_code": None, "source": "USFWS NWI", "error": True}
 _HABITAT_DEFAULT   = {"habitat_found": False, "species": [], "source": "USFWS Critical Habitat", "data_available": False}
-_EPA_DEFAULT       = {"contamination_found": False, "sites": [], "source": "EPA ECHO Superfund"}
+_EPA_DEFAULT       = {"contamination_found": False, "sites": [], "error": True, "source": "EPA Superfund (SEMS)"}
 _ROADS_DEFAULT     = {"road_found": None, "road_surface": "error", "road_type": None, "road_name": None, "road_distance_m": None, "road_private": None, "road_nearest_lat": None, "road_nearest_lng": None, "source": "US Census TIGER"}
 _PARCEL_DEFAULT    = {"found": False, "source": "FL DOR Cadastral", "geometry": []}
 _WATERWAYS_DEFAULT = {"waterway_nearby": False, "waterway_type": None, "waterway_nearest_lat": None, "waterway_nearest_lng": None, "source": "OpenStreetMap"}
@@ -330,7 +330,7 @@ async def _collect_all(lat: float, lng: float) -> tuple:
         _safe(lambda: get_critical_habitat(lat, lng), _HABITAT_DEFAULT, _SEM_USFWS,
               timeout=16.0, retry_if=lambda r: r.get("data_available") is False, name="habitat"),
         _safe(lambda: get_epa_superfund(lat, lng), _EPA_DEFAULT, _SEM_EPA,
-              timeout=16.0, name="epa"),
+              timeout=16.0, retry_if=lambda r: r.get("error") is True, name="epa"),
         _safe(lambda: get_parcel_data(lat, lng), _PARCEL_DEFAULT, _SEM_FLDOR,
               timeout=16.0, retry_if=lambda r: not r.get("found"), name="parcel"),
         _safe(lambda: get_road_access(lat, lng), _ROADS_DEFAULT, _SEM_TIGER,
