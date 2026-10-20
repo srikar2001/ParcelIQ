@@ -653,6 +653,16 @@ body.on-results .detail-panel{top:0}
 .ll-back{display:inline-block;font-size:13px;font-weight:600;color:var(--green);text-decoration:none;margin-bottom:10px}
 .ll-back:hover{text-decoration:underline}
 /* U11: white on #10B981 is ~2.5:1 in dark — use the deeper emerald fill */
+:root{color-scheme:dark}
+[data-theme='light'],#page-landing{color-scheme:light}
+html{background:var(--bg)}
+:root:not([data-theme='light']) *{scrollbar-color:#334155 transparent}
+:root:not([data-theme='light']) ::-webkit-scrollbar{width:10px;height:10px}
+:root:not([data-theme='light']) ::-webkit-scrollbar-track{background:transparent}
+:root:not([data-theme='light']) ::-webkit-scrollbar-thumb{background:#334155;border-radius:99px;border:2px solid transparent;background-clip:padding-box}
+/* Dark street tiles (satellite untouched; landing stays light) */
+:root:not([data-theme='light']) .piq-street{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.6)}
+#page-landing .piq-street{filter:none!important}
 :root:not([data-theme='light']) .btn-p{background:#047857}
 :root:not([data-theme='light']) .btn-p:hover{background:#065F46}
 /* U12: <16px inputs make iOS Safari zoom on focus */
@@ -2084,7 +2094,7 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
         // Clean, labeled STREET basemap (CARTO Voyager) — the exact same
         // real-map style as the in-app Deal Review. Not satellite.
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-          { maxZoom: 19, subdomains: 'abc', attribution: '© OpenStreetMap' }).addTo(_lpDrMap);
+          { className: 'piq-street', maxZoom: 19, subdomains: 'abc', attribution: '© OpenStreetMap' }).addTo(_lpDrMap);
         // FEMA NFHL flood zones overlay (real data; parcel sits outside Zone X).
         try {
           var _Flood = L.GridLayer.extend({ createTile: function(coords, done) {
@@ -4434,13 +4444,6 @@ window.addEventListener('hashchange', () => {
 // back/forward and defaulted unknown hashes to page-results with no data —
 // that's what broke back-then-forward navigation. hashchange alone covers
 // every hash transition, including history buttons.
-
-// Page scroll must not be hijacked by a map: the wheel zooms only after the
-// user clicks into it, and stops again once the pointer leaves.
-function _wheelAfterClick(m) {
-  m.on('click focus', () => m.scrollWheelZoom.enable());
-  m.on('mouseout', () => m.scrollWheelZoom.disable());
-}
 
 async function _loadMostRecentBatch() {
   if (!sb || !currentUser) { goTo('landing'); return; }
@@ -8810,11 +8813,10 @@ function initParcelMap(r) {
   if (controls)    controls.style.display = 'flex';
   if (expBtn)      expBtn.style.display = '';
 
-  _map = L.map('parcel-map', { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], 14);
-  _wheelAfterClick(_map);
+  _map = L.map('parcel-map', { zoomControl: true }).setView([lat, lng], 14);
   window._parcelMap = _map;
 
-  _mapLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  _mapLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { className: 'piq-street',
     attribution: '© OpenStreetMap', maxZoom: 19
   }).addTo(_map);
 
@@ -8987,7 +8989,7 @@ function expandMap() {
   _modalMap = L.map('mapModalMap', { zoomControl: true }).setView([lat, lng], 14);
   window._modalMap = _modalMap;
 
-  _modalLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  _modalLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { className: 'piq-street',
     attribution: '© OpenStreetMap', maxZoom: 19
   }).addTo(_modalMap);
   _modalLayers['_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -12129,10 +12131,9 @@ function _svInitMap(r) {
   _svActiveFilters = new Set();
   const pi = r.parcel_info || {};
   const lat = r._lat || 28.0, lng = r._lng || -81.5;
-  _svMap = L.map('svMap', { zoomControl: false, scrollWheelZoom: false }).setView([lat, lng], 15);
-  _wheelAfterClick(_svMap);
+  _svMap = L.map('svMap', { zoomControl: false }).setView([lat, lng], 15);
   L.control.zoom({ position: 'topright' }).addTo(_svMap);
-  _svLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_svMap);
+  _svLayers['_osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { className: 'piq-street', attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(_svMap);
   _svLayers['_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri', maxZoom: 19 });
   const coords = extractPolygonCoords(pi.geometry);
   // Acreage label drawn directly on the parcel, real county acreage data —
@@ -12162,6 +12163,7 @@ function _svInitMap(r) {
   // does nothing and the subject parcel itself is a no-op. Owner-only (the
   // /explore endpoints need auth) — off in the public shared view.
   _svNeighborLayer = null;
+  _svNbBounds = null;
   if (!window._sharedViewOnly) {
     _svMap.on('moveend', _svDrawNeighbors);
     _svDrawNeighbors();
@@ -12177,23 +12179,38 @@ function _svInitMap(r) {
 // ── Deal Review click-to-explore (mini Map Comps, in place) ──────────────────
 // Nearby parcel outlines + click-to-open. Explored parcels are never written
 // into batch state, so this can't corrupt the loaded batch.
-async function _svDrawNeighbors() {
+// Neighbour outlines: debounced, stale requests aborted, and fetched for a
+// padded area so small pans/zooms reuse what is already drawn.
+let _svNbBounds = null, _svNbTimer = null, _svNbCtl = null;
+function _svDrawNeighbors() { clearTimeout(_svNbTimer); _svNbTimer = setTimeout(_svDrawNeighborsNow, 180); }
+async function _svDrawNeighborsNow() {
   if (!_svMap || window._sharedViewOnly) return;
-  if (_svMap.getZoom() < 16) { if (_svNeighborLayer) { _svMap.removeLayer(_svNeighborLayer); _svNeighborLayer = null; } return; }
-  const b = _svMap.getBounds();
+  if (_svMap.getZoom() < 16) { if (_svNeighborLayer) { _svMap.removeLayer(_svNeighborLayer); _svNeighborLayer = null; } _svNbBounds = null; return; }
+  const view = _svMap.getBounds();
+  if (_svNbBounds && _svNeighborLayer && _svNbBounds.contains(view)) return;
+  const b = view.pad(0.25);
   try {
     const hdrs = {};
     if (currentSession?.access_token) hdrs['Authorization'] = 'Bearer ' + currentSession.access_token;
-    const r = await fetch(API + '/api/explore/parcels?w=' + b.getWest() + '&s=' + b.getSouth() + '&e=' + b.getEast() + '&n=' + b.getNorth(), { headers: hdrs });
+    if (_svNbCtl) _svNbCtl.abort();
+    _svNbCtl = new AbortController();
+    const r = await fetch(API + '/api/explore/parcels?w=' + b.getWest() + '&s=' + b.getSouth() + '&e=' + b.getEast() + '&n=' + b.getNorth(), { headers: hdrs, signal: _svNbCtl.signal });
     const d = await r.json();
+    if (!_svMap) return;
+    _svNbBounds = (d.capped || d.too_large) ? null : b;
     if (_svNeighborLayer) { _svMap.removeLayer(_svNeighborLayer); _svNeighborLayer = null; }
     if (!d.parcels || !d.parcels.length) return;
     const grp = L.layerGroup();
-    d.parcels.forEach(function (p) {
-      if (!(p.ring && p.ring.length > 2)) return;
-      const poly = L.polygon(p.ring, { color: '#64748B', weight: 1, opacity: 0.55, fill: true, fillColor: '#64748B', fillOpacity: 0.03 });
-      poly.on('mouseover', function () { poly.setStyle({ fillOpacity: 0.2, weight: 2.5, color: '#22C55E' }); });
-      poly.on('mouseout', function () { poly.setStyle({ fillOpacity: 0.03, weight: 1, color: '#64748B' }); });
+    // Biggest first so small lots (triangles, slivers) sit on top and win the
+    // hover instead of a large neighbour that overlaps them.
+    const _ringArea = r => { let a = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][1] + r[i][1]) * (r[j][0] - r[i][0]); return Math.abs(a); };
+    d.parcels.filter(p => p.ring && p.ring.length > 2 && p.parcel_id)
+      .sort((x, y) => _ringArea(y.ring) - _ringArea(x.ring))
+      .forEach(function (p) {
+      const NB = { color: '#2563EB', weight: 1.5, opacity: 0.85, fill: true, fillColor: '#3B82F6', fillOpacity: 0.06 };
+      const poly = L.polygon(p.ring, NB);
+      poly.on('mouseover', function () { poly.setStyle({ fillOpacity: 0.22, weight: 2.5, color: '#16A34A', fillColor: '#22C55E' }); });
+      poly.on('mouseout', function () { poly.setStyle(NB); });
       poly.on('click', function (e) { svExploreParcel(e.latlng.lat, e.latlng.lng); });
       // Hover tooltip — what this neighbouring parcel is and what it last sold
       // for, so you can sweep the map and read every neighbour's comp at a glance.
@@ -12967,7 +12984,7 @@ function _buildParcelNavigator() {
   const topBar =
     '<div class="rsb-top" style="border-bottom:1px solid var(--b);padding-bottom:14px">' +
       '<div style="display:flex;align-items:center;gap:6px">' +
-        '<span class="rsb-brand" onclick="window.location.reload()" style="cursor:pointer" title="Reload"><span class="piq-mark" aria-hidden="true"></span>Parcel<span style="color:var(--green)">iQ</span></span>' +
+        '<span class="rsb-brand" onclick="goHome()" role="link" tabindex="0" style="cursor:pointer" title="Home"><span class="piq-mark" aria-hidden="true"></span>Parcel<span style="color:var(--green)">iQ</span></span>' +
         '<button id="rsbModeToggle" class="rsb-toggle-btn" onclick="toggleMode()" title="Toggle theme" style="font-size:14px;padding:3px 5px;line-height:1"><span id="rsbModeIcon">' + themeIcon + '</span></button>' +
       '</div>' +
       '<button id="svSidebarToggle" class="rsb-toggle-btn" onclick="_svToggleSidebar()" title="Hide sidebar"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>' +
@@ -13502,7 +13519,7 @@ function _initLeadsMap() {
     _leadsMap = L.map(el, { zoomControl: true, attributionControl: true });
     // Light street basemap (visible, "white") the user works over.
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { maxZoom: 19, subdomains: 'abc', attribution: '© OpenStreetMap' }).addTo(_leadsMap);
+      { className: 'piq-street', maxZoom: 19, subdomains: 'abc', attribution: '© OpenStreetMap' }).addTo(_leadsMap);
     _leadMarkers = L.layerGroup().addTo(_leadsMap);
     _leadPoiMarkers = L.layerGroup().addTo(_leadsMap);
     // Start focused on Florida (the only state we cover) + keep panning near it.

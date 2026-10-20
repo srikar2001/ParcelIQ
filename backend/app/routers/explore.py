@@ -17,7 +17,7 @@ from app.core.http import pooled_client
 from fastapi import APIRouter, Header, Query
 from fastapi.responses import JSONResponse
 
-from app.collectors.parcel_fl import get_parcel_data, URL as _PARCEL_URL, _CO_NO_TO_COUNTY
+from app.collectors.parcel_fl import get_parcel_data, URL as _PARCEL_URL, _CO_NO_TO_COUNTY, _is_placeholder
 from app.collectors.geocodio import geocode as _geocode
 from app.routers.batch import _user_id_from_token, _AuthUnavailable, _screen_coordinate
 
@@ -167,6 +167,8 @@ async def parcels_in_bbox(
         "spatialRel": "esriSpatialRelIntersects",
         "outFields": "PARCEL_ID,OWN_NAME,DOR_UC,JV,LND_SQFOOT,PHY_ADDR1,SALE_PRC1,SALE_YR1",
         "returnGeometry": "true",
+        # ~10 cm precision is plenty for outlines and shrinks the payload a lot
+        "geometryPrecision": "6",
         "resultRecordCount": str(_BBOX_CAP),
         "f": "json",
     }
@@ -180,6 +182,10 @@ async def parcels_in_bbox(
         out = []
         for feat in data.get("features", []):
             attrs = feat.get("attributes", {})
+            # Blank / 'REFERENCE ONLY' placeholder shapes overlap real lots;
+            # hovering a lot would light up the placeholder's rectangle instead.
+            if _is_placeholder(attrs):
+                continue
             ring = _rings_to_latlng((feat.get("geometry") or {}).get("rings"))
             if len(ring) < 3:
                 continue
