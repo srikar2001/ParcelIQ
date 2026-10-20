@@ -10,7 +10,7 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [ ] TODO S4 (UNBLOCKED — 2026-10-20 /health: available=true, 2630 MB) When `/health` shows geostore available=true on Railway, re-run `scripts/validate_geostore.py` against prod numbers and log it.
 - [ ] TODO S5 (from qa) Outage verdicts: even with flood+wetlands+habitat ALL unavailable a parcel still gets PURSUE (score ~70-96). No REVIEW tier by design, so decide how a parcel with failed fatal-flaw checks should surface (cap score? badge?). Repro: run tests/golden_run.py --only 7 without a geostore (Miami Beach → PURSUE).
 - [ ] TODO S1 Narrative model: `core/narrative.py` uses retired `gemini-1.5-flash`, so it likely always falls back to paid Claude. Move to a current free Gemini model; verify output.
-- [ ] TODO S2 Measure per-collector success rate + latency on a 20-parcel batch (direct `_screen_coordinate` calls); fix the worst failure/timeout (audit_report.md §3-4: timeout inversion, dead USGS EPQS fallback).
+- [ ] IN PROGRESS (screening-engineer, 2026-10-20) S2 Measure per-collector success rate + latency on a 20-parcel batch (direct `_screen_coordinate` calls); fix the worst failure/timeout (audit_report.md §3-4: timeout inversion, dead USGS EPQS fallback).
 - [ ] TODO S3 Geocode accuracy: confirm low-accuracy matches (place/street-level) are flagged to the user, never silently scored (audit §3.3, §5).
 
 ## Land Leads (leads-engineer)
