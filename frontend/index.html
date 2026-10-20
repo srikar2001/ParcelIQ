@@ -10289,7 +10289,9 @@ document.addEventListener('click', function(e) {
   if (!modal || modal.style.display === 'none') return;
   if (e.target === modal) closeMapModal();
 });
-document.addEventListener('DOMContentLoaded', () => closeDetailPanel());
+// Skip when the URL is a parcel deep link: with a warm cache the parcel is
+// restored before DOMContentLoaded, and closing here undid it.
+document.addEventListener('DOMContentLoaded', () => { if (!/\/parcel\//.test(window.location.hash)) closeDetailPanel(); });
 // iOS Safari: an empty touchstart listener makes taps on elements that carry a
 // :hover style register as a click on the FIRST tap instead of only applying
 // the hover state (the "have to tap twice" bug on phones).
