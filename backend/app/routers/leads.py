@@ -45,7 +45,7 @@ from app.collectors.flood import get_flood_zone
 from app.collectors.geocodio import reverse_geocode_batch
 from app.routers.batch import _screen_coordinate, _user_id_from_token, _AuthUnavailable
 from app.core.cache import get_cached_result, save_cached_result
-from app.core.lead_inventory import inv_query, inv_upsert
+from app.core.lead_inventory import inv_query, inv_upsert, sale_cutoff_ym
 
 router = APIRouter(prefix="/api/leads")
 
@@ -138,8 +138,8 @@ class LeadFilters(BaseModel):
     poi_types: Optional[list] = None       # subset of _POI_SEL keys
     poi_radius_mi: Optional[float] = None   # required nearness radius (miles)
     limit: Optional[int] = None             # how many leads to generate (1..50)
-    mobile_home_zone: Optional[bool] = None  # True = only mobile home eligible, False = exclude
-    sold_within_months: Optional[int] = None # N = properties sold within N months
+    mobile_home_zone: Optional[bool] = None  # ignored: no statewide zoning source (old clients send it)
+    sold_within_months: Optional[int] = None # only lots whose last DOR-recorded sale is within N months
 
 
 async def _require_auth(authorization: Optional[str]) -> Optional[JSONResponse]:
@@ -230,6 +230,19 @@ def _clean_city(city) -> Optional[str]:
     so a row reads '17900 SW 174 ST' instead of '..., Unincorporated County'."""
     c = (city or "").strip()
     return None if (not c or c.upper() in _CITY_JUNK) else _pretty_addr(c)
+
+
+def _sale_ym(a: dict) -> Optional[str]:
+    """Last recorded sale month from DOR SALE_YR1/SALE_MO1 as 'YYYY-MM'
+    (SALE_YR1 0 / SALE_MO1 blank = no sale on this roll)."""
+    try:
+        y = int(a.get("SALE_YR1") or 0)
+        m = int(str(a.get("SALE_MO1") or "").strip() or 0)
+    except (TypeError, ValueError):
+        return None
+    if y < 1900 or not 1 <= m <= 12:
+        return None
+    return f"{y:04d}-{m:02d}"
 
 
 def _codes_for(land_types) -> set:
@@ -383,6 +396,9 @@ def _uc_where(codes: set, f: "LeadFilters | None") -> str:
             where += f" AND JV >= {int(f.value_min)}"
         if f.value_max:
             where += f" AND JV <= {int(f.value_max)}"
+        if f.sold_within_months:
+            # Year-level push-down (SALE_YR1 is numeric); the month is checked in _match.
+            where += f" AND SALE_YR1 >= {sale_cutoff_ym(f.sold_within_months)[:4]}"
     return where
 
 
@@ -395,7 +411,7 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set,
         "geometry": f"{w},{s},{e},{n}", "geometryType": "esriGeometryEnvelope",
         "inSR": "4326", "outSR": "4326", "spatialRel": "esriSpatialRelIntersects",
         "outFields": ("PARCEL_ID,CO_NO,OWN_NAME,OWN_ADDR1,OWN_ADDR2,OWN_CITY,OWN_STATE,OWN_ZIPCD,"
-                      "PHY_ADDR1,PHY_CITY,DOR_UC,JV,LND_SQFOOT"),
+                      "PHY_ADDR1,PHY_CITY,DOR_UC,JV,LND_SQFOOT,SALE_PRC1,SALE_YR1,SALE_MO1"),
         # 2000-row pages so a bbox returns the real matching set, not the first
         # 500 records (which under the old unfiltered scan were almost all houses).
         "returnGeometry": "true", "resultRecordCount": "2000", "f": "json",
@@ -447,6 +463,8 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set,
             **owner_mailing(a),
             "acreage": round(sq / 43560, 4) if sq else None,
             "just_value": a.get("JV"),
+            "last_sale_date": _sale_ym(a),
+            "last_sale_price": a.get("SALE_PRC1") if _sale_ym(a) else None,
         })
     return out
 
@@ -475,6 +493,10 @@ def _match(c: dict, f: LeadFilters) -> bool:
         return False
     if f.out_of_state and (c.get("owner_state") in (None, "FL", "")):
         return False
+    if f.sold_within_months:
+        sd = c.get("last_sale_date")
+        if not sd or sd < sale_cutoff_ym(f.sold_within_months):
+            return False
     return True
 
 
@@ -628,6 +650,14 @@ async def _screen_candidate(cand: dict, budget: dict) -> Optional[dict]:
         pi["assessed_value"] = pi.get("assessed_value") or cand["just_value"]
     if cand.get("geometry"):
         pi["geometry"] = cand["geometry"]
+    if "last_sale_date" in cand:
+        # The SELECTED parcel's own DOR sale (the centroid re-screen can report a
+        # neighbor's). Top-level copy is what the inventory sold-within filter reads.
+        sd = cand.get("last_sale_date")
+        pi["last_sale_date"] = sd
+        pi["last_sale_year"] = int(sd[:4]) if sd else None
+        pi["last_sale_price"] = cand.get("last_sale_price")
+        res["last_sale_date"] = sd
     if cand.get("address"):
         full = cand["address"] + (", " + cand["city"] if cand.get("city") else "")
         pi["county_address_on_file"] = full
@@ -673,6 +703,7 @@ def _cand_stub(cand: dict) -> dict:
         "owner_name2": cand.get("owner_name2"), "owner_mailing": cand.get("owner_mailing"),
         "owner_mailing_address": cand.get("owner_mailing_address"),
         "just_value": cand.get("just_value"), "geometry": cand.get("geometry"),
+        "last_sale_date": cand.get("last_sale_date"), "last_sale_price": cand.get("last_sale_price"),
     }
     res = {"verdict": None, "score": None, "flags": [], "positives": [], "sources": [],
            "parcel_info": pi, "_lat": cand["lat"], "_lng": cand["lng"], "_folio": cand.get("parcel_id")}
@@ -943,7 +974,6 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
                 value_min=f.value_min, value_max=f.value_max,
                 owner_type=owner_type, out_of_state=f.out_of_state,
                 road_access=f.road_access,
-                mobile_home_zone=f.mobile_home_zone,
                 sold_within_months=f.sold_within_months)
         except Exception:
             inv_served = []
@@ -991,11 +1021,16 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
 
     # Fetch every sample bbox concurrently with the tight server-side filter,
     # then dedupe + filter to candidates.
+    sale_seen = {"raw": 0, "max": None}   # newest DOR sale month in the fetched rows
     async def _gather(use_filter: bool):
         got = await asyncio.gather(*[_fetch_bbox_parcels(p[0], p[1], codes, f, use_filter) for p in points])
         ids, cs = set(), []
         for parcels in got:
             for c in parcels:
+                sale_seen["raw"] += 1
+                sd = c.get("last_sale_date")
+                if sd and (sale_seen["max"] is None or sd > sale_seen["max"]):
+                    sale_seen["max"] = sd
                 pid = c.get("parcel_id")
                 if pid in ids or pid in served_ids:   # skip lots the inventory already served
                     continue
@@ -1009,8 +1044,11 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     # whole search (e.g. a county whose DOR_UC codes are zero-padded differently),
     # fall back once to the unfiltered scan + client-side filtering. Guarantees a
     # search never silently returns empty because of a where-clause mismatch.
-    if not cands:
+    # (Not for sold-within when rows DID come back: they matched, just none sold
+    # recently enough — an unfiltered re-scan would only hammer the cadastral.)
+    if not cands and not (f.sold_within_months and sale_seen["raw"]):
         cands = await _gather(False)
+    sale_through = sale_seen["max"] if f.sold_within_months else None
     # Rank the parcels we'll screen. For pure vacant-land searches, screen the most
     # buildable-looking first (a real situs address + healthy $/acre correlate with
     # dry, road-accessible land; swamp/wetland is near-worthless + unaddressed). But
@@ -1035,7 +1073,8 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
         _log_search(f, 0, 0, merged, None)
         return {"leads": merged, "screened": 0, "candidates": len(inv_served),
                 "poi_degraded": False, "poi_points": {}, "degraded": None,
-                "source": ("inventory" if inv_served else None)}
+                "source": ("inventory" if inv_served else None),
+                "sale_data_through": sale_through}
 
     # De-flood pre-filter. The screen budget is small (~24 parcels), so SPEND IT ON
     # DRY LAND. The flood layer is in-house (fast), so cheaply check the top
@@ -1169,4 +1208,5 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     return {"leads": merged, "screened": max_screen - budget["n"],
             "candidates": len(cands), "poi_degraded": poi_degraded,
             "poi_points": poi_points, "degraded": degraded,
-            "source": ("inventory" if inv_served else None)}
+            "source": ("inventory" if inv_served else None),
+            "sale_data_through": sale_through}

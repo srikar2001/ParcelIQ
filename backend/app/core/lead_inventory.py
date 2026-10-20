@@ -8,6 +8,7 @@ the report cache uses. See backend/sql/lead_inventory.sql for the schema.
 import json
 import os
 import random
+from datetime import date
 
 import httpx
 
@@ -27,6 +28,13 @@ _ARCHIVED_COL = True
 
 POOL_MIN = 80   # keep screening a county live until its pool is at least this big,
                 # so served results have real variety (not the same N every time)
+
+
+def sale_cutoff_ym(months: int, today=None) -> str:
+    """'YYYY-MM' of the calendar month `months` before today (inclusive cutoff)."""
+    d = today or date.today()
+    n = d.year * 12 + (d.month - 1) - int(months)
+    return f"{n // 12:04d}-{n % 12 + 1:02d}"
 
 
 def _inlist(vals) -> str:
@@ -60,19 +68,12 @@ def _filters(counties, land_types, exclude_kills, acres_min, acres_max,
         q.append(("owner_state", "neq.FL"))
     if road_access:
         q.append(("has_road", "is.true"))
-    # Mobile Home zone filter - checks lead_json for mobile home eligibility
-    if mobile_home_zone is not None:
-        # Assuming lead_json has a field 'mobile_home_zone' that is boolean or text
-        # Adjust the field name and value as needed for your data structure
-        q.append(("lead_json->>mobile_home_zone", f"eq.{str(mobile_home_zone).lower()}"))
-    # Sold within filter - checks lead_json for recent sale date
-    if sold_within_months is not None and sold_within_months > 0:
-        # Calculate cutoff date (N months ago)
-        from datetime import datetime, timedelta
-        cutoff_date = (datetime.now() - timedelta(days=30 * sold_within_months)).strftime('%Y-%m-%d')
-        # Assuming lead_json has a field 'last_sale_date' in ISO format (YYYY-MM-DD)
-        # Adjust the field name as needed for your data structure
-        q.append(("lead_json->>last_sale_date", f"gte.{cutoff_date}"))
+    # mobile_home_zone is accepted for old clients but ignored: there is no
+    # statewide zoning source, so nothing can honestly be filtered on it.
+    if sold_within_months:
+        # Banked leads carry the SELECTED parcel's DOR sale month as "YYYY-MM"
+        # (string compare = date compare). Rows without one never match.
+        q.append(("lead_json->>last_sale_date", f"gte.{sale_cutoff_ym(sold_within_months)}"))
     # Exclude archived leads (only when the optional `archived` column exists).
     if _ARCHIVED_COL:
         q.append(("archived", "eq.false"))

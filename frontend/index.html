@@ -3592,9 +3592,9 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
           <option value="24">Past 2 years</option>
         </select>
         <div class="lr-val" id="leadSoldWithinVal" style="margin-top:6px;display:none">Any time</div>
+        <div class="ll-hint" style="margin-top:6px;font-size:12px;color:var(--t3)">Last recorded sale on the county tax roll (FL DOR, updated yearly — recent months may not be in yet).</div>
       </div>
       <div class="leads-toggles">
-        <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Mobile Home Zone Eligible</div></div><input type="checkbox" id="leadMobileHome"><span class="lt-sw"></span></label>
         <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Out-of-state owners</div></div><input type="checkbox" id="leadOutState"><span class="lt-sw"></span></label>
         <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Road access confirmed</div></div><input type="checkbox" id="leadRoadAccess"><span class="lt-sw"></span></label>
         <label class="leads-toggle"><div class="lt-info"><div class="lt-txt">Exclude auto-kills</div></div><input type="checkbox" id="leadExcludeKills" checked><span class="lt-sw"></span></label>
@@ -11374,7 +11374,8 @@ function _svDataPanelHtml(r) {
     fact('Land Value', escHtml(fmt$(pi.land_value)));
   }
   if (pi.last_sale_price != null && pi.last_sale_price > 0 && pi.last_sale_year != null) {
-    fact('Last Sale', escHtml(fmt$(pi.last_sale_price) + ' (' + pi.last_sale_year + ')'), pi.sale_price_likely_market_value === false ? 'Likely non-market transfer' : null);
+    const _saleWhen = (pi.last_sale_date && /^\d{4}-\d{2}$/.test(pi.last_sale_date)) ? new Date(pi.last_sale_date + '-15').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : pi.last_sale_year;
+    fact('Last Sale', escHtml(fmt$(pi.last_sale_price) + ' (' + _saleWhen + ')'), pi.sale_price_likely_market_value === false ? 'Likely non-market transfer' : null);
   }
   if (pi.elevation_ft != null) fact('Elevation', escHtml(pi.elevation_ft + ' ft'));
   const fz = getFloodText(r);
@@ -13479,7 +13480,6 @@ function _leadBodyFromForm() {
     poi_types: poiTypes,
     poi_radius_mi: poiTypes.length ? +g('leadPoiRad').value : null,
     limit: _leadCountN,
-    mobile_home_zone: g('leadMobileHome').checked ? true : null,
     sold_within_months: g('leadSoldWithin').value ? +g('leadSoldWithin').value : null,
   };
   return { body, avoid };
@@ -13547,6 +13547,11 @@ async function runLeadSearch() {
     const data = await resp.json();
     let leads = _leadApplyAvoid(data.leads || [], avoid);
     if (data.error && !leads.length) { if (status) status.textContent = data.error; return; }
+    if (!leads.length && body.sold_within_months) {
+      const _thr = data.sale_data_through ? new Date(data.sale_data_through + '-15').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null;
+      if (status) status.textContent = 'No matching lots sold in that window.' + (_thr ? ' County sale records currently run through ' + _thr + '.' : '') + ' Try a longer “Sold Within” range.';
+      return;
+    }
     if (!leads.length) {
       if (status) status.textContent = 'No matching leads found' + (data.candidates ? ' (checked ' + (data.screened || 0) + ' of ' + data.candidates + ')' : '') + '. Widen your filters, loosen “Avoid”, or pick another county.';
       return;
@@ -13799,7 +13804,6 @@ function _hunterName(body) {
   if (body.owner_type && body.owner_type !== 'any') parts.push(body.owner_type === 'business' ? 'LLC owners' : 'individuals');
   if (body.out_of_state) parts.push('out-of-state');
   if (body.road_access) parts.push('road access');
-  if (body.mobile_home_zone) parts.push('mobile-home OK');
   return parts.join(' · ');
 }
 function _hunterAgo(ts) {
