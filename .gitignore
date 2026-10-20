@@ -26,3 +26,4 @@ venv/
 
 # Claude Code local config
 .claude/
+backend/data/geostore.sqlite*

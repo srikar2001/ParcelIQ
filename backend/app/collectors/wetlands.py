@@ -11,6 +11,7 @@ import os
 
 import httpx
 
+from app.core import geostore
 from app.core.http import pooled_client
 
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -31,10 +32,14 @@ def _one(payload) -> dict:
 
 async def get_wetlands(lat: float, lng: float) -> dict:
     try:
-        async with pooled_client(timeout=15.0, headers=_HEADERS) as client:
-            resp = await client.post(f"{_RPC}/wetland_near", json={"in_lat": lat, "in_lng": lng})
-            resp.raise_for_status()
-            row = _one(resp.json())
+        local = await geostore.query("wetland_near", lat, lng)
+        if local is not None:
+            row = _one(local)
+        else:
+            async with pooled_client(timeout=15.0, headers=_HEADERS) as client:
+                resp = await client.post(f"{_RPC}/wetland_near", json={"in_lat": lat, "in_lng": lng})
+                resp.raise_for_status()
+                row = _one(resp.json())
         return {
             "wetland_on_parcel": bool(row.get("on_parcel")),
             "wetland_nearby":    bool(row.get("nearby")),

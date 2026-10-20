@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
+from app.core import geostore
 from app.core.http import close_shared_client
 from app.routers import narrative, report, search, batch, share, admin, explore, leads
 
@@ -54,6 +55,14 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
 
+@app.on_event("startup")
+async def _fetch_geostore():
+    # Downloads the Florida layer file on a fresh volume (no-op otherwise);
+    # lookups fall back to Supabase until it's in place.
+    import asyncio
+    asyncio.create_task(geostore.ensure_downloaded())
+
+
 @app.on_event("shutdown")
 async def _close_http_pool():
     await close_shared_client()
@@ -86,4 +95,4 @@ async def serve_frontend():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "geostore": geostore.status()}

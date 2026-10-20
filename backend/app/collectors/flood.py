@@ -11,6 +11,7 @@ import os
 
 import httpx
 
+from app.core import geostore
 from app.core.http import pooled_client
 
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -28,10 +29,12 @@ _SFHA_ZONES = {"AE", "VE", "V", "AO", "AH", "A"}
 
 async def get_flood_zone(lat: float, lng: float) -> dict:
     try:
-        async with pooled_client(timeout=15.0, headers=_HEADERS) as client:
-            resp = await client.post(f"{_RPC}/flood_zone_at", json={"in_lat": lat, "in_lng": lng})
-            resp.raise_for_status()
-            rows = resp.json()
+        rows = await geostore.query("flood_zone_at", lat, lng)
+        if rows is None:
+            async with pooled_client(timeout=15.0, headers=_HEADERS) as client:
+                resp = await client.post(f"{_RPC}/flood_zone_at", json={"in_lat": lat, "in_lng": lng})
+                resp.raise_for_status()
+                rows = resp.json()
         if not rows:                       # no flood polygon contains the point
             return dict(NOT_MAPPED)
         row = rows[0] if isinstance(rows, list) else rows

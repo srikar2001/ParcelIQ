@@ -14,6 +14,7 @@ import os
 
 import httpx
 
+from app.core import geostore
 from app.core.http import pooled_client
 
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -43,14 +44,18 @@ def _one(payload) -> dict:
 async def get_osm_bundle(lat: float, lng: float) -> dict:
     """Returns {"_error": bool, "waterways": {...}, "powerlines": {...}}."""
     try:
-        async with pooled_client(timeout=15.0, headers=_HEADERS) as client:
-            wr, pr = None, None
-            resp = await client.post(f"{_RPC}/waterway_near", json={"in_lat": lat, "in_lng": lng})
-            resp.raise_for_status()
-            wr = _one(resp.json())
-            resp = await client.post(f"{_RPC}/power_near", json={"in_lat": lat, "in_lng": lng})
-            resp.raise_for_status()
-            pr = _one(resp.json())
+        wr = await geostore.query("waterway_near", lat, lng)
+        pr = await geostore.query("power_near", lat, lng)
+        if wr is not None and pr is not None:
+            wr, pr = _one(wr), _one(pr)
+        else:
+            async with pooled_client(timeout=15.0, headers=_HEADERS) as client:
+                resp = await client.post(f"{_RPC}/waterway_near", json={"in_lat": lat, "in_lng": lng})
+                resp.raise_for_status()
+                wr = _one(resp.json())
+                resp = await client.post(f"{_RPC}/power_near", json={"in_lat": lat, "in_lng": lng})
+                resp.raise_for_status()
+                pr = _one(resp.json())
 
         if wr.get("nearby"):
             waterways = {
