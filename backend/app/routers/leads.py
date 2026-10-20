@@ -288,7 +288,47 @@ async def _geo_full(q: str):
     return None
 
 
-def _grid_points(gf: dict) -> list:
+def _pt_in_rings(lng: float, lat: float, rings: list) -> bool:
+    """Even-odd ray cast over [lng,lat] rings (holes handled by parity)."""
+    inside = False
+    for r in rings:
+        j = len(r) - 1
+        for i in range(len(r)):
+            xi, yi = r[i][0], r[i][1]
+            xj, yj = r[j][0], r[j][1]
+            if (yi > lat) != (yj > lat) and lng < (xj - xi) * (lat - yi) / ((yj - yi) or 1e-12) + xi:
+                inside = not inside
+            j = i
+    return inside
+
+
+def _window_touches(poly: dict, lat: float, lng: float) -> bool:
+    """True if a sample window (center ± _BBOX_HALF) overlaps the county polygon,
+    tested on the center, the 4 corners and the 4 edge midpoints."""
+    rings = poly["c"] if poly["t"] == "Polygon" else [r for mp in poly["c"] for r in mp]
+    h = _BBOX_HALF
+    for dy in (0, -h, h):
+        for dx in (0, -h, h):
+            if _pt_in_rings(lng + dx, lat + dy, rings):
+                return True
+    return False
+
+
+def _county_grid(poly: dict) -> list:
+    """Grid windows across a county that actually overlap it. Irregular counties
+    (Lake, Citrus, coastal ones) waste up to half their bbox grid on neighbors or
+    open water, so densify the grid until ~36 windows land inside."""
+    bbox, clat, clng = _poly_bbox_center(poly)
+    gf = {"lat": clat, "lng": clng, "bbox": bbox}
+    pts = []
+    for n in (6, 8, 10):
+        pts = [p for p in _grid_points(gf, n) if _window_touches(poly, p[0], p[1])]
+        if len(pts) >= 30:
+            break
+    return pts or _grid_points(gf)
+
+
+def _grid_points(gf: dict, size: int = 6) -> list:
     """Sample a dense grid of centers across a county's bounding box so we cover
     the RURAL parts (where vacant land is), not just the developed county seat.
     Falls back to the single center when no bbox is available."""
@@ -301,7 +341,7 @@ def _grid_points(gf: dict) -> list:
     # 6x6 = 36 cells across the county so we surface FAR more candidates (a leaner,
     # coastal county like Bay only yielded ~200 candidates at 5x5 — not enough to
     # pull 50 PURSUE). Jitter each cell so two searches explore DIFFERENT areas.
-    grid = (0.1, 0.26, 0.42, 0.58, 0.74, 0.9)   # 6x6 = 36 cells — broad coverage
+    grid = tuple(0.1 + 0.8 * i / (size - 1) for i in range(size)) if size > 1 else (0.5,)
     # Small ±4% jitter: enough that the exact windows move run-to-run (variety),
     # but not so much that a cell over the productive interior drifts out into
     # the water/Everglades (which made one run hit the coast → 0, the next hit
@@ -387,9 +427,14 @@ def _uc_where(codes: set, f: "LeadFilters | None") -> str:
 
 
 async def _fetch_bbox_parcels(lat: float, lng: float, codes: set,
-                              f: "LeadFilters | None" = None, use_filter: bool = True) -> list:
+                              f: "LeadFilters | None" = None, use_filter: bool = True,
+                              co_nos: "set | None" = None) -> list:
     w, s, e, n = lng - _BBOX_HALF, lat - _BBOX_HALF, lng + _BBOX_HALF, lat + _BBOX_HALF
     where = _uc_where(codes, f) if use_filter else "1=1"
+    # A sample window near a county line also covers the NEIGHBOR county (a Lake
+    # search was 46% Marion/Seminole parcels). CO_NO pins it to the selected ones.
+    if co_nos:
+        where += " AND CO_NO IN (" + ",".join(str(c) for c in sorted(co_nos)) + ")"
     params = {
         "where": where,
         "geometry": f"{w},{s},{e},{n}", "geometryType": "esriGeometryEnvelope",
@@ -974,14 +1019,17 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     for c in sel_counties:
         poly = _FL_COUNTY_POLYS.get(str(c))
         if poly:
-            bbox, clat, clng = _poly_bbox_center(poly)
-            points.extend(_grid_points({"lat": clat, "lng": clng, "bbox": bbox}))
+            points.extend(_county_grid(poly))
         else:
             gf = await _geo_full(str(c) + " County, FL")
             if gf:
                 points.extend(_grid_points(gf))
     if not points:
         return {"leads": [], "error": "Pick a county (or type an area) to search."}
+    # County searches stay inside the selected counties (a typed area does not).
+    _name_to_no = {v.lower(): k for k, v in _CO_NO_TO_COUNTY.items()}
+    co_nos = None if f.location else (
+        {_name_to_no[str(c).lower()] for c in sel_counties if str(c).lower() in _name_to_no} or None)
     random.shuffle(points)
     # Cap total bbox fetches for a bounded runtime. Wider than before (a single
     # county now uses up to ~16 windows, not ~8) so the search is VAST — it covers
@@ -992,7 +1040,8 @@ async def search(f: LeadFilters, authorization: Optional[str] = Header(None)):
     # Fetch every sample bbox concurrently with the tight server-side filter,
     # then dedupe + filter to candidates.
     async def _gather(use_filter: bool):
-        got = await asyncio.gather(*[_fetch_bbox_parcels(p[0], p[1], codes, f, use_filter) for p in points])
+        got = await asyncio.gather(*[_fetch_bbox_parcels(p[0], p[1], codes, f, use_filter, co_nos)
+                                     for p in points])
         ids, cs = set(), []
         for parcels in got:
             for c in parcels:
