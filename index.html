@@ -155,14 +155,37 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .lfooter span:last-child{color:var(--t3)}
 
 /* ══════════════════ AUTH ══════════════════ */
-.auth-wrap{width:100%;max-width:400px;padding:16px}
-.auth-card{background:var(--card);border:1px solid var(--b);border-radius:16px;padding:36px}
-.auth-logo{font-size:20px;font-weight:800;text-align:center;margin-bottom:28px;letter-spacing:-.3px}
+.auth-wrap{width:100%;max-width:420px;padding:24px 16px}
+.auth-card{background:var(--card);border:1px solid var(--b);border-radius:16px;padding:36px;box-shadow:var(--sh)}
+.auth-logo{display:flex;align-items:center;justify-content:center;width:max-content;margin:0 auto 26px;font-size:20px;font-weight:800;letter-spacing:-.3px;color:var(--t1);text-decoration:none;border-radius:8px}
 .auth-logo .iq{color:var(--green)}
-.auth-title{font-size:22px;font-weight:800;margin-bottom:6px;letter-spacing:-.02em}
-.auth-sub{font-size:14px;color:var(--t2);margin-bottom:24px}
-.auth-err{font-size:13px;color:var(--red);background:var(--rbg);border:1px solid rgba(239,68,68,.2);padding:10px 14px;border-radius:var(--rs);margin-bottom:14px;display:none}
+.auth-title{font-size:22px;font-weight:800;margin:0 0 6px;letter-spacing:-.02em;text-align:center;color:var(--t1);line-height:1.25}
+.auth-sub{font-size:14px;color:var(--t2);margin-bottom:24px;text-align:center;line-height:1.5}
+.auth-err{font-size:13px;line-height:1.45;color:var(--red);background:var(--rbg);border:1px solid rgba(239,68,68,.25);padding:10px 14px;border-radius:var(--rs);margin-bottom:14px;display:none}
 .auth-err.show{display:block}
+.auth-ok{font-size:13px;line-height:1.5;color:var(--green);background:var(--gbg);border:1px solid rgba(5,150,105,.28);border-radius:var(--rs);padding:10px 14px;margin-bottom:14px}
+[data-theme='light'] .auth-ok{color:#047857}
+[data-theme='light'] .auth-err{color:#B91C1C}
+.auth-forgot{text-align:right;margin-top:8px}
+.auth-aside{font-size:12.5px;font-weight:500;color:var(--green);text-decoration:none;border-radius:4px}
+.auth-aside:hover{text-decoration:underline}
+.auth-hint{font-size:12px;color:var(--t2);margin-top:6px}
+.pw-wrap{position:relative}
+.pw-wrap .inp{padding-right:68px}
+.pw-toggle{position:absolute;top:50%;right:6px;transform:translateY(-50%);min-width:52px;height:32px;padding:0 10px;border:none;border-radius:6px;background:transparent;color:var(--t2);font:600 12.5px 'Inter',sans-serif;cursor:pointer}
+.pw-toggle:hover{background:var(--card-h);color:var(--t1)}
+.auth-submit{padding:12px 18px;font-size:15px}
+.auth-legal{font-size:12px;color:var(--t2);text-align:center;margin-top:12px;line-height:1.55}
+.auth-legal a{color:var(--green);text-decoration:underline;text-underline-offset:2px}
+.auth-card a:focus-visible,.auth-card button:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.auth-card .inp:focus-visible{outline:none}
+@media(max-width:640px){
+  .auth-wrap{padding:16px 12px}
+  .auth-card{padding:28px 20px;border-radius:14px}
+  .auth-logo{margin-bottom:20px}
+  .auth-card .inp{font-size:16px} /* <16px makes iOS Safari zoom the page on focus */
+  .auth-submit,.btn-google{min-height:48px}
+}
 .upgrade-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:300;align-items:center;justify-content:center;padding:24px}
 .upgrade-overlay.show{display:flex}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:301;align-items:center;justify-content:center;padding:24px}
@@ -192,9 +215,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .auth-lbl{display:block;font-size:11px;font-weight:600;color:var(--t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
 .auth-div{display:flex;align-items:center;gap:12px;margin:14px 0}
 .auth-div::before,.auth-div::after{content:"";flex:1;height:1px;background:var(--b)}
-.auth-div span{font-size:12px;color:var(--t3)}
-.auth-link{text-align:center;font-size:13px;color:var(--t2);margin-top:14px}
-.auth-link a{color:var(--green);cursor:pointer}
+.auth-div span{font-size:12px;color:var(--t2)}
+.auth-link{text-align:center;font-size:13.5px;color:var(--t2);margin-top:22px;padding-top:18px;border-top:1px solid var(--b)}
+.auth-link a{color:var(--green);cursor:pointer;font-weight:600;text-decoration:none;border-radius:4px}
 .auth-link a:hover{text-decoration:underline}
 .btn-google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:11px 16px;background:#fff;color:#3c4043;border:1px solid #dadce0;border-radius:var(--rp);font-size:14px;font-weight:500;cursor:pointer;transition:background .15s}
 .btn-google:hover{background:#f8f9fa}
@@ -2350,23 +2373,27 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
 <div id="page-login" class="screen">
   <div class="auth-wrap">
     <div class="auth-card">
-      <div class="auth-logo"><span class="piq-mark" aria-hidden="true"></span>Parcel<span class="iq">iQ</span></div>
-      <div class="auth-title">Welcome back</div>
-      <div class="auth-sub">Sign in to your account</div>
-      <button class="btn-google" onclick="signInWithGoogle()">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18">
+      <a class="auth-logo" href="#landing" aria-label="ParceliQ home"><span class="piq-mark" aria-hidden="true"></span>Parcel<span class="iq">iQ</span></a>
+      <h1 class="auth-title">Welcome back</h1>
+      <div class="auth-sub">Log in to your ParceliQ account</div>
+      <button type="button" class="btn-google" onclick="signInWithGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="">
         Continue with Google
       </button>
-      <div class="auth-div"><span>or continue with email</span></div>
-      <div class="auth-err" id="loginErr"></div>
-      <div class="auth-fields">
-        <div><label class="auth-lbl">Email</label><input class="inp" type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email"></div>
-        <div><label class="auth-lbl">Password</label><input class="inp" type="password" id="loginPw" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
-        <div style="text-align:right;margin-top:-4px"><a onclick="goTo('forgot')" style="font-size:12px;color:var(--t3);cursor:pointer">Forgot password?</a></div>
-      </div>
-      <button class="btn-p btn-full" id="loginBtn" onclick="doLogin()">Log in</button>
-      <div class="auth-div"><span>or</span></div>
-      <div class="auth-link">No account? <a onclick="window.location.hash='#signup'">Sign up →</a></div>
+      <div class="auth-div"><span>or with email</span></div>
+      <form class="auth-form" onsubmit="event.preventDefault();doLogin()" novalidate>
+        <div class="auth-err" id="loginErr" role="alert" aria-live="assertive"></div>
+        <div class="auth-fields">
+          <div><label class="auth-lbl" for="loginEmail">Email</label><input class="inp" type="email" id="loginEmail" name="email" placeholder="you@example.com" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required></div>
+          <div>
+            <label class="auth-lbl" for="loginPw">Password</label>
+            <div class="pw-wrap"><input class="inp" type="password" id="loginPw" name="password" autocomplete="current-password" required><button type="button" class="pw-toggle" onclick="togglePw(this)" aria-controls="loginPw" aria-pressed="false">Show</button></div>
+            <div class="auth-forgot"><a class="auth-aside" href="#forgot">Forgot password?</a></div>
+          </div>
+        </div>
+        <button type="submit" class="btn-p btn-full auth-submit" id="loginBtn">Log in</button>
+      </form>
+      <div class="auth-link">New to ParceliQ? <a href="#signup">Create a free account</a></div>
     </div>
   </div>
 </div>
@@ -2375,24 +2402,29 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
 <div id="page-signup" class="screen">
   <div class="auth-wrap">
     <div class="auth-card">
-      <div class="auth-logo"><span class="piq-mark" aria-hidden="true"></span>Parcel<span class="iq">iQ</span></div>
-      <div class="auth-title">Create your account</div>
+      <a class="auth-logo" href="#landing" aria-label="ParceliQ home"><span class="piq-mark" aria-hidden="true"></span>Parcel<span class="iq">iQ</span></a>
+      <h1 class="auth-title">Create your account</h1>
       <div class="auth-sub">Free during beta · No credit card required</div>
-      <button class="btn-google" onclick="signInWithGoogle()">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18">
+      <button type="button" class="btn-google" onclick="signInWithGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="">
         Continue with Google
       </button>
-      <div class="auth-div"><span>or continue with email</span></div>
-      <div class="auth-err" id="signupErr"></div>
-      <div class="auth-fields">
-        <div><label class="auth-lbl">Email</label><input class="inp" type="email" id="signupEmail" placeholder="you@example.com" autocomplete="email"></div>
-        <div><label class="auth-lbl">Password</label><input class="inp" type="password" id="signupPw" placeholder="Min 8 characters" autocomplete="new-password"></div>
-        <div><label class="auth-lbl">Confirm Password</label><input class="inp" type="password" id="signupConfirm" placeholder="Repeat password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignup()"></div>
-      </div>
-      <button class="btn-p btn-full" id="signupBtn" onclick="doSignup()">Create account →</button>
-      <div style="font-size:11.5px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.5">By creating an account, you agree to our <a onclick="window.location.hash='#terms'" style="color:var(--green);cursor:pointer">Terms of Service</a> and <a onclick="window.location.hash='#privacy'" style="color:var(--green);cursor:pointer">Privacy Policy</a>.</div>
-      <div class="auth-div"><span>or</span></div>
-      <div class="auth-link">Already have an account? <a onclick="window.location.hash='#login'">Log in →</a></div>
+      <div class="auth-div"><span>or with email</span></div>
+      <form class="auth-form" onsubmit="event.preventDefault();doSignup()" novalidate>
+        <div class="auth-err" id="signupErr" role="alert" aria-live="assertive"></div>
+        <div class="auth-fields">
+          <div><label class="auth-lbl" for="signupEmail">Email</label><input class="inp" type="email" id="signupEmail" name="email" placeholder="you@example.com" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required></div>
+          <div>
+            <label class="auth-lbl" for="signupPw">Password</label>
+            <div class="pw-wrap"><input class="inp" type="password" id="signupPw" name="new-password" autocomplete="new-password" minlength="8" aria-describedby="signupPwHint" required><button type="button" class="pw-toggle" onclick="togglePw(this)" aria-controls="signupPw" aria-pressed="false">Show</button></div>
+            <div class="auth-hint" id="signupPwHint">At least 8 characters</div>
+          </div>
+          <div><label class="auth-lbl" for="signupConfirm">Confirm password</label><input class="inp" type="password" id="signupConfirm" name="confirm-password" autocomplete="new-password" required></div>
+        </div>
+        <button type="submit" class="btn-p btn-full auth-submit" id="signupBtn">Create account →</button>
+      </form>
+      <div class="auth-legal">By creating an account, you agree to our <a href="#terms">Terms of Service</a> and <a href="#privacy">Privacy Policy</a>.</div>
+      <div class="auth-link">Already have an account? <a href="#login">Log in</a></div>
     </div>
   </div>
 </div>
@@ -2401,17 +2433,18 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
 <div id="page-forgot" class="screen">
   <div class="auth-wrap">
     <div class="auth-card">
-      <div class="auth-logo"><span class="piq-mark" aria-hidden="true"></span>Parcel<span class="iq">iQ</span></div>
-      <div class="auth-title">Reset your password</div>
-      <div class="auth-sub">Enter your email and we'll send a reset link</div>
-      <div class="auth-err" id="forgotErr"></div>
-      <div id="forgotSuccess" style="display:none;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#4ade80;border-radius:var(--r);padding:10px 14px;font-size:13px;margin-bottom:12px;text-align:center">Check your email for a reset link</div>
-      <div class="auth-fields">
-        <div><label class="auth-lbl">Email</label><input class="inp" type="email" id="forgotEmail" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')doForgot()"></div>
-      </div>
-      <button class="btn-p btn-full" id="forgotBtn" onclick="doForgot()">Send reset link</button>
-      <div class="auth-div"><span>or</span></div>
-      <div class="auth-link"><a onclick="goTo('login')" style="cursor:pointer">← Back to login</a></div>
+      <a class="auth-logo" href="#landing" aria-label="ParceliQ home"><span class="piq-mark" aria-hidden="true"></span>Parcel<span class="iq">iQ</span></a>
+      <h1 class="auth-title">Reset your password</h1>
+      <div class="auth-sub">Enter the email you signed up with and we'll send you a reset link.</div>
+      <form class="auth-form" onsubmit="event.preventDefault();doForgot()" novalidate>
+        <div class="auth-err" id="forgotErr" role="alert" aria-live="assertive"></div>
+        <div class="auth-ok" id="forgotSuccess" role="status" style="display:none"><strong>Check your inbox.</strong> If an account exists for that email, a reset link is on its way. It can take a minute — check spam too.</div>
+        <div class="auth-fields">
+          <div><label class="auth-lbl" for="forgotEmail">Email</label><input class="inp" type="email" id="forgotEmail" name="email" placeholder="you@example.com" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required></div>
+        </div>
+        <button type="submit" class="btn-p btn-full auth-submit" id="forgotBtn">Send reset link</button>
+      </form>
+      <div class="auth-link"><a href="#login">← Back to log in</a></div>
     </div>
   </div>
 </div>
@@ -2420,16 +2453,23 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
 <div id="page-reset-password" class="screen">
   <div class="auth-wrap">
     <div class="auth-card">
-      <div class="auth-logo"><span class="piq-mark" aria-hidden="true"></span>Parcel<span class="iq">iQ</span></div>
-      <div class="auth-title">Set new password</div>
-      <div class="auth-sub">Choose a strong password for your account</div>
-      <div class="auth-err" id="resetErr"></div>
-      <div id="resetSuccess" style="display:none;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#4ade80;border-radius:var(--r);padding:10px 14px;font-size:13px;margin-bottom:12px;text-align:center">Password updated! Redirecting to login…</div>
-      <div class="auth-fields">
-        <div><label class="auth-lbl">New password</label><input class="inp" type="password" id="resetPw" placeholder="Min 8 characters" autocomplete="new-password"></div>
-        <div><label class="auth-lbl">Confirm new password</label><input class="inp" type="password" id="resetConfirm" placeholder="Repeat password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doResetPassword()"></div>
-      </div>
-      <button class="btn-p btn-full" id="resetBtn" onclick="doResetPassword()">Update password</button>
+      <a class="auth-logo" href="#landing" aria-label="ParceliQ home"><span class="piq-mark" aria-hidden="true"></span>Parcel<span class="iq">iQ</span></a>
+      <h1 class="auth-title">Set a new password</h1>
+      <div class="auth-sub">Choose a strong password you don't use elsewhere.</div>
+      <form class="auth-form" onsubmit="event.preventDefault();doResetPassword()" novalidate>
+        <div class="auth-err" id="resetErr" role="alert" aria-live="assertive"></div>
+        <div class="auth-ok" id="resetSuccess" role="status" style="display:none"><strong>Password updated.</strong> Taking you to log in…</div>
+        <div class="auth-fields">
+          <div>
+            <label class="auth-lbl" for="resetPw">New password</label>
+            <div class="pw-wrap"><input class="inp" type="password" id="resetPw" name="new-password" autocomplete="new-password" minlength="8" aria-describedby="resetPwHint" required><button type="button" class="pw-toggle" onclick="togglePw(this)" aria-controls="resetPw" aria-pressed="false">Show</button></div>
+            <div class="auth-hint" id="resetPwHint">At least 8 characters</div>
+          </div>
+          <div><label class="auth-lbl" for="resetConfirm">Confirm new password</label><input class="inp" type="password" id="resetConfirm" name="confirm-password" autocomplete="new-password" required></div>
+        </div>
+        <button type="submit" class="btn-p btn-full auth-submit" id="resetBtn">Update password</button>
+      </form>
+      <div class="auth-link"><a href="#login">← Back to log in</a></div>
     </div>
   </div>
 </div>
@@ -4441,6 +4481,16 @@ function updateLpNav() {
 }
 
 // ── AUTH
+// Show/hide toggle for password fields (button sits inside .pw-wrap next to its input)
+function togglePw(btn) {
+  const inp = btn.parentElement.querySelector('input');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? 'Hide' : 'Show';
+  btn.setAttribute('aria-pressed', String(show));
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+}
+
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const pw    = document.getElementById('loginPw').value;
