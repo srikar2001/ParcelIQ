@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ParceliQ">
+  <defs>
+    <linearGradient id="piqg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10B981"/>
+      <stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#piqg)"/>
+  <path d="M15 21.5 37 14l13 11.5-4 24.5-28-3.5z" fill="#fff" fill-opacity=".16" stroke="#fff" stroke-width="3.6" stroke-linejoin="round"/>
+  <path d="M23.5 33.5l6.5 6.5 12-13" fill="none" stroke="#fff" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

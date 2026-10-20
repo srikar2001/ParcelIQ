@@ -1,5 +1,7 @@
 import httpx
 
+from app.core.http import pooled_client
+
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 HEADERS = {"User-Agent": "ParcelIQ/1.0"}
 DEFAULT = {"waterway_nearby": False, "waterway_type": None, "distance_approx": None, "source": "OpenStreetMap"}
@@ -13,7 +15,7 @@ async def get_waterway_proximity(lat: float, lng: float) -> dict:
   relation(around:200,{lat},{lng})[waterway];
 );
 out tags;"""
-        async with httpx.AsyncClient(timeout=20.0, headers=HEADERS) as client:
+        async with pooled_client(timeout=20.0, headers=HEADERS) as client:
             resp = await client.post(OVERPASS_URL, data={"data": query})
             resp.raise_for_status()
             elements = resp.json().get("elements", [])

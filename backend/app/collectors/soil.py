@@ -1,5 +1,7 @@
 import httpx
 
+from app.core.http import pooled_client
+
 DEFAULT = {'soil_drainage': None, 'soil_name': None,
            'septic_suitable': None, 'source': 'USDA Web Soil Survey'}
 POOR = {'very poorly drained', 'poorly drained', 'somewhat poorly drained'}
@@ -18,7 +20,7 @@ async def get_soil_data(lat: float, lng: float) -> dict:
             f"'POINT({lng} {lat})')"
             ")"
         )
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with pooled_client(timeout=15.0) as client:
             resp = await client.post(
                 'https://sdmdataaccess.nrcs.usda.gov/tabular/post.rest',
                 data={'query': query, 'format': 'json+columnname'}

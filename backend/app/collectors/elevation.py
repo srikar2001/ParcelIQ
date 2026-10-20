@@ -1,5 +1,7 @@
 import httpx
 
+from app.core.http import pooled_client
+
 DEFAULT = {'elevation_ft': None, 'source': 'Open-Meteo (Copernicus DEM)'}
 
 # Open-Meteo's elevation API (Copernicus GLO-90 DEM) is free, needs no key, and
@@ -11,7 +13,7 @@ _M_TO_FT = 3.28084
 
 async def get_elevation(lat: float, lng: float) -> dict:
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with pooled_client(timeout=8.0) as client:
             resp = await client.get(_URL, params={'latitude': lat, 'longitude': lng})
             data = resp.json()
         vals = data.get('elevation')

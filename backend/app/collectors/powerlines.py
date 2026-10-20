@@ -1,5 +1,7 @@
 import httpx
 
+from app.core.http import pooled_client
+
 OVERPASS = 'https://overpass-api.de/api/interpreter'
 HEADERS = {'User-Agent': 'ParcelIQ/1.0'}
 DEFAULT = {'powerline_nearby': None, 'powerline_distance': None,
@@ -12,7 +14,7 @@ async def get_powerline_proximity(lat: float, lng: float) -> dict:
         (way(around:500,{lat},{lng})[power~"^(line|minor_line|cable)$"];
          node(around:500,{lat},{lng})[power~"^(tower|pole)$"];);
         out count;'''
-        async with httpx.AsyncClient(timeout=18.0, headers=HEADERS) as client:
+        async with pooled_client(timeout=18.0, headers=HEADERS) as client:
             r = await client.post(OVERPASS, data={'data': q500})
             data = r.json()
         count_el = next((e for e in data.get('elements', []) if e.get('type') == 'count'), None)
@@ -26,7 +28,7 @@ async def get_powerline_proximity(lat: float, lng: float) -> dict:
         q1600 = f'''[out:json][timeout:15];
         (way(around:1600,{lat},{lng})[power~"^(line|minor_line)$"];);
         out count;'''
-        async with httpx.AsyncClient(timeout=18.0, headers=HEADERS) as client:
+        async with pooled_client(timeout=18.0, headers=HEADERS) as client:
             r2 = await client.post(OVERPASS, data={'data': q1600})
             data2 = r2.json()
         count_el2 = next((e for e in data2.get('elements', []) if e.get('type') == 'count'), None)

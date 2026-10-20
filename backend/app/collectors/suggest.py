@@ -12,6 +12,8 @@ import re
 
 import httpx
 
+from app.core.http import pooled_client
+
 _ESRI_SUGGEST_URL = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/suggest"
 # Florida bounding box — keeps suggestions in-state
 _FL_EXTENT = "-87.63,24.40,-79.97,31.10"
@@ -35,7 +37,7 @@ async def suggest_addresses(q: str) -> list[str]:
         "category": "Point Address,Street Address,Street Name",
         "maxSuggestions": 15,
     }
-    async with httpx.AsyncClient(timeout=6.0) as client:
+    async with pooled_client(timeout=6.0) as client:
         resp = await client.get(_ESRI_SUGGEST_URL, params=params)
         resp.raise_for_status()
         data = resp.json()

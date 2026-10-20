@@ -11,6 +11,8 @@ from datetime import date
 
 import httpx
 
+from app.core.http import pooled_client
+
 from app.core.config import settings
 from app.models.schema import SourceEvidence
 
@@ -41,7 +43,7 @@ async def get_address_point(address: str | None) -> tuple[dict | None, SourceEvi
         "f": "json",
     }
 
-    async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
+    async with pooled_client(timeout=settings.http_timeout) as client:
         resp = await client.get(settings.address_point_url, params=params)
         resp.raise_for_status()
         data = resp.json()

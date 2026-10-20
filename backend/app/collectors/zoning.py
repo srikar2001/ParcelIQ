@@ -13,6 +13,8 @@ from typing import Optional
 
 import httpx
 
+from app.core.http import pooled_client
+
 from app.core.config import settings
 from app.models.schema import FutureLandUseInfo, SourceEvidence, ZoningInfo
 
@@ -59,7 +61,7 @@ async def get_zoning_info(
 ) -> tuple[ZoningInfo | None, SourceEvidence]:
     params, query_desc = _build_params(lat, lon, geometry, "nzone,nzone_desc,category")
 
-    async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
+    async with pooled_client(timeout=settings.http_timeout) as client:
         resp = await client.get(settings.zoning_url, params=params)
         resp.raise_for_status()
         data = resp.json()
@@ -104,7 +106,7 @@ async def get_future_land_use(
 ) -> tuple[FutureLandUseInfo | None, SourceEvidence]:
     params, query_desc = _build_params(lat, lon, geometry, "FLUE,FLU_DESC,JURISDICTION")
 
-    async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
+    async with pooled_client(timeout=settings.http_timeout) as client:
         resp = await client.get(settings.future_lu_url, params=params)
         resp.raise_for_status()
         data = resp.json()

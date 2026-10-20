@@ -1,11 +1,20 @@
 """24-hour parcel result cache backed by Supabase reports table."""
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 
 import httpx
 
+from app.core.http import pooled_client
+
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+def _addr_key(address: str) -> str:
+    # "1305 Grape Ave,  Interlachen" and "1305 grape ave, interlachen" are the
+    # same parcel — collapse case + whitespace so they share one cache row.
+    return re.sub(r"\s+", " ", address.strip().lower()).replace(" ,", ",")
+
+
 _SUPABASE_KEY = (
     os.environ.get("SUPABASE_ANON_KEY")
     or os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -18,8 +27,8 @@ async def get_cached_result(address: str) -> dict | None:
     try:
         # No TTL — a cached result is reused forever (repeats are always free /
         # instant). A re-screen sets skip_cache to force fresh data instead.
-        addr_key = address.strip().lower()
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        addr_key = _addr_key(address)
+        async with pooled_client(timeout=5.0) as client:
             resp = await client.get(
                 f"{_SUPABASE_URL}/rest/v1/reports",
                 params={
@@ -47,14 +56,14 @@ async def save_cached_result(address: str, result: dict) -> None:
     if not _SUPABASE_URL:
         return
     try:
-        addr_key = address.strip().lower()
+        addr_key = _addr_key(address)
         payload = {
             "address": addr_key,
             "folio": addr_key,
             "report_json": json.dumps(result) if isinstance(result, dict) else result,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with pooled_client(timeout=5.0) as client:
             await client.post(
                 f"{_SUPABASE_URL}/rest/v1/reports",
                 json=payload,

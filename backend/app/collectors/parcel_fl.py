@@ -1,4 +1,6 @@
 import httpx
+
+from app.core.http import pooled_client
 try:
     from pyproj import Transformer
     _transformer = Transformer.from_crs('EPSG:3086', 'EPSG:4326', always_xy=True)
@@ -30,7 +32,7 @@ async def get_parcel_geometry_by_id(parcel_id: str):
         "f": "json",
     }
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with pooled_client(timeout=10.0) as client:
             r = await client.get(URL, params=params)
             r.raise_for_status()
             data = r.json()
@@ -113,7 +115,7 @@ async def get_parcel_data(lat: float, lng: float) -> dict:
             "returnGeometry": "true",
             "f": "json",
         }
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with pooled_client(timeout=15.0) as client:
             resp = await client.get(URL, params=params)
             resp.raise_for_status()
             data = resp.json()

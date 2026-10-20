@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
+
+from app.core.http import pooled_client
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -33,7 +35,7 @@ async def create_share(req: ShareRequest):
     token = str(uuid.uuid4()).replace("-", "")[:16]
     expires = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with pooled_client(timeout=8.0) as client:
             resp = await client.post(
                 f"{_SUPABASE_URL}/rest/v1/shared_batches",
                 json={
@@ -89,7 +91,7 @@ async def create_parcel_share(req: ParcelShareRequest):
         "Prefer": "resolution=merge-duplicates,return=minimal",
     }
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with pooled_client(timeout=8.0) as client:
             resp = await client.post(f"{_SUPABASE_URL}/rest/v1/reports", json=payload, headers=headers)
         if resp.status_code not in (200, 201, 204):
             raise HTTPException(status_code=500, detail=f"Failed to save share link: {resp.text}")
@@ -107,7 +109,7 @@ async def get_parcel_share(token: str):
         return JSONResponse(status_code=503, content={"error": "Database not configured"})
     key = f"shareparcel:{token}"
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with pooled_client(timeout=8.0) as client:
             r = await client.get(
                 f"{_SUPABASE_URL}/rest/v1/reports",
                 params={"address": f"eq.{key}", "select": "report_json", "limit": "1"},
@@ -147,7 +149,7 @@ async def get_shared(token: str):
     if not _SUPABASE_URL:
         return JSONResponse(status_code=503, content={"error": "Database not configured"})
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with pooled_client(timeout=8.0) as client:
             r = await client.get(
                 f"{_SUPABASE_URL}/rest/v1/shared_batches",
                 params={"token": f"eq.{token}", "select": "batch_id,expires_at", "limit": "1"},
@@ -162,7 +164,7 @@ async def get_shared(token: str):
             return JSONResponse(status_code=404, content={"error": "Share link expired"})
         batch_id = row["batch_id"]
         # Load batch + results
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with pooled_client(timeout=8.0) as client:
             br = await client.get(
                 f"{_SUPABASE_URL}/rest/v1/batches",
                 params={"id": f"eq.{batch_id}", "select": "*", "limit": "1"},
@@ -212,7 +214,7 @@ async def contact(req: ContactRequest):
     headers = {"apikey": _SUPABASE_SVC, "Authorization": f"Bearer {_SUPABASE_SVC}",
                "Content-Type": "application/json", "Prefer": "return=minimal"}
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with pooled_client(timeout=8.0) as client:
             r = await client.post(f"{_SUPABASE_URL}/rest/v1/contact_submissions", json=row, headers=headers)
             if r.status_code in (200, 201, 204):
                 return {"ok": True}

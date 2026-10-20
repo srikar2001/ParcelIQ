@@ -1,5 +1,7 @@
 import httpx
 
+from app.core.http import pooled_client
+
 DEFAULT = {'evac_zone': None, 'evac_risk': None,
            'source': 'FL Division of Emergency Management'}
 
@@ -32,7 +34,7 @@ async def get_evacuation_zone(lat: float, lng: float) -> dict:
             'returnGeometry': 'false',
             'f': 'json',
         }
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with pooled_client(timeout=15.0) as client:
             resp = await client.get(_EVAC_URL, params=params)
             data = resp.json()
         features = data.get('features', [])

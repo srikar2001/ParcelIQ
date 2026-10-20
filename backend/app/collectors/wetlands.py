@@ -11,6 +11,8 @@ import os
 
 import httpx
 
+from app.core.http import pooled_client
+
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 _SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_KEY", "")
 _RPC = f"{_SUPABASE_URL}/rest/v1/rpc"
@@ -29,7 +31,7 @@ def _one(payload) -> dict:
 
 async def get_wetlands(lat: float, lng: float) -> dict:
     try:
-        async with httpx.AsyncClient(timeout=15.0, headers=_HEADERS) as client:
+        async with pooled_client(timeout=15.0, headers=_HEADERS) as client:
             resp = await client.post(f"{_RPC}/wetland_near", json={"in_lat": lat, "in_lng": lng})
             resp.raise_for_status()
             row = _one(resp.json())

@@ -11,6 +11,8 @@ import random
 
 import httpx
 
+from app.core.http import pooled_client
+
 _URL = os.environ.get("SUPABASE_URL", "")
 _KEY = (os.environ.get("SUPABASE_ANON_KEY")
         or os.environ.get("SUPABASE_SERVICE_KEY", ""))
@@ -72,7 +74,7 @@ def _filters(counties, land_types, exclude_kills, acres_min, acres_max,
 
 async def _get(params):
     try:
-        async with httpx.AsyncClient(timeout=6.0) as c:
+        async with pooled_client(timeout=6.0) as c:
             r = await c.get(_TABLE, params=params, headers=_H)
         if r.status_code == 200:
             return r.json(), r
@@ -93,7 +95,7 @@ async def inv_count(counties, land_types, exclude_kills=True,
                  value_min, value_max, owner_type, out_of_state, road_access,
                  mobile_home_zone, sold_within_months)
     try:
-        async with httpx.AsyncClient(timeout=6.0) as c:
+        async with pooled_client(timeout=6.0) as c:
             r = await c.get(_TABLE, params=params,
                             headers={**_H, "Prefer": "count=exact", "Range": "0-0"})
         cr = r.headers.get("content-range", "")   # "0-0/1234"
@@ -157,7 +159,7 @@ async def inv_upsert(rows):
     if not _URL or not rows:
         return
     try:
-        async with httpx.AsyncClient(timeout=10.0) as c:
+        async with pooled_client(timeout=10.0) as c:
             await c.post(_TABLE, json=rows, headers={
                 **_H, "Content-Type": "application/json",
                 "Prefer": "resolution=merge-duplicates,return=minimal"})

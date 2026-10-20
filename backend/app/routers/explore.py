@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
+
+from app.core.http import pooled_client
 from fastapi import APIRouter, Header, Query
 from fastapi.responses import JSONResponse
 
@@ -168,7 +170,7 @@ async def parcels_in_bbox(
         "f": "json",
     }
     try:
-        async with httpx.AsyncClient(timeout=25.0) as client:
+        async with pooled_client(timeout=25.0) as client:
             r = await client.get(_PARCEL_URL, params=params)
             r.raise_for_status()
             data = r.json()
@@ -232,7 +234,7 @@ async def comps(
     }
     subj_cat = _lu_category(land_use) if land_use is not None else None
     try:
-        async with httpx.AsyncClient(timeout=25.0) as client:
+        async with pooled_client(timeout=25.0) as client:
             r = await client.get(_PARCEL_URL, params=params)
             r.raise_for_status()
             data = r.json()

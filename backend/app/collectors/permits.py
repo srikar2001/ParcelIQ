@@ -14,6 +14,8 @@ from typing import Optional
 
 import httpx
 
+from app.core.http import pooled_client
+
 from app.core.config import settings
 from app.models.schema import PermitsSection, SourceEvidence
 
@@ -21,7 +23,7 @@ from app.models.schema import PermitsSection, SourceEvidence
 async def _query_permits(url: str, address: Optional[str], folio: Optional[str]) -> list[dict]:
     matches: list[dict] = []
 
-    async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
+    async with pooled_client(timeout=settings.http_timeout) as client:
         # Attempt 1: address-based LIKE
         if address:
             parts = address.strip().split()

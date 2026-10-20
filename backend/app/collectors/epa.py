@@ -1,5 +1,7 @@
 import httpx
 
+from app.core.http import pooled_client
+
 URL = "https://echodata.epa.gov/echo/rest/services/ECHO/Superfund_Sites_FRS/MapServer/0/query"
 DEFAULT = {"contamination_found": False, "sites": [], "source": "EPA ECHO Superfund"}
 
@@ -18,7 +20,7 @@ async def get_epa_superfund(lat: float, lng: float) -> dict:
             "returnGeometry": "false",
             "f": "json",
         }
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with pooled_client(timeout=15.0) as client:
             resp = await client.get(URL, params=params)
             resp.raise_for_status()
             data = resp.json()

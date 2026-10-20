@@ -3,6 +3,8 @@ import re
 
 import httpx
 
+from app.core.http import pooled_client
+
 # Street-type suffixes, directionals, unit words and state tokens that are NOT,
 # on their own, an actual street/place NAME. Used only to spot junk like
 # "232 street" (a number + a generic word, no real name) so we don't pay the
@@ -178,7 +180,7 @@ async def _geocode_raw(query: str) -> dict:
     """One Geocodio call + classification. No normalization."""
     try:
         api_key = os.environ['GEOCODIO_API_KEY']
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with pooled_client(timeout=8.0) as client:
             resp = await client.get(
                 "https://api.geocod.io/v1.7/geocode",
                 params={"q": query, "api_key": api_key, "limit": 5},
@@ -219,7 +221,7 @@ async def _batch_call(queries: list[str]) -> dict[str, dict]:
         return {}
     try:
         api_key = os.environ['GEOCODIO_API_KEY']
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with pooled_client(timeout=60.0) as client:
             resp = await client.post(
                 "https://api.geocod.io/v1.7/geocode",
                 params={"api_key": api_key, "limit": 5},
@@ -254,7 +256,7 @@ async def reverse_geocode_batch(coords: list) -> dict:
     for attempt in range(2):          # one retry — a single transient must not blank the batch
         try:
             api_key = os.environ['GEOCODIO_API_KEY']
-            async with httpx.AsyncClient(timeout=12.0) as client:
+            async with pooled_client(timeout=12.0) as client:
                 resp = await client.post(
                     "https://api.geocod.io/v1.7/reverse",
                     params={"api_key": api_key, "limit": 1},

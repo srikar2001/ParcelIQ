@@ -19,6 +19,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
+
+from app.core.http import pooled_client
 from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -70,7 +72,7 @@ async def _audit(actor: str, action: str, target: str = "", detail: dict | None 
     """Append-only audit trail of admin mutations, queryable in the portal."""
     ts = datetime.now(timezone.utc).isoformat()
     try:
-        async with httpx.AsyncClient(timeout=6.0) as client:
+        async with pooled_client(timeout=6.0) as client:
             await client.post(
                 f"{_SUPABASE_URL}/rest/v1/reports",
                 json={"address": f"admin:log:{ts}", "folio": f"admin:log:{ts}",
@@ -83,7 +85,7 @@ async def _audit(actor: str, action: str, target: str = "", detail: dict | None 
 
 
 async def _sb_get(path: str, params: dict | None = None, headers_extra: dict | None = None):
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with pooled_client(timeout=10.0) as client:
         r = await client.get(f"{_SUPABASE_URL}{path}", params=params or {},
                              headers={**_SB_HEADERS_SVC(), **(headers_extra or {})})
     return r
@@ -95,7 +97,7 @@ from app.routers.batch import get_user_override, _override_get_all, _bust_overri
 
 async def _override_set(key: str, data: dict) -> bool:
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with pooled_client(timeout=10.0) as client:
             r = await client.post(
                 f"{_SUPABASE_URL}/rest/v1/reports",
                 json={"address": key, "folio": key, "report_json": json.dumps(data)},
@@ -468,7 +470,7 @@ async def admin_delete_user(user_id: str, request: Request, authorization: Optio
         return JSONResponse(status_code=400, headers=_NO_STORE,
                             content={"error": "Admin accounts cannot be deleted from the portal."})
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with pooled_client(timeout=10.0) as client:
             for table, col in (("parcel_results", "user_id"), ("batches", "user_id"), ("profiles", "id")):
                 await client.delete(f"{_SUPABASE_URL}/rest/v1/{table}",
                                     params={col: f"eq.{user_id}"}, headers=_SB_HEADERS_SVC())

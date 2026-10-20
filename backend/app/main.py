@@ -11,8 +11,10 @@ load_dotenv()
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
+from app.core.http import close_shared_client
 from app.routers import narrative, report, search, batch, share, admin, explore, leads
 
 try:
@@ -46,6 +48,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Batch results / lead lists are large JSON; compress anything over 1 KB.
+# (Starlette skips text/event-stream, so the live batch stream is unaffected.)
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+
+
+@app.on_event("shutdown")
+async def _close_http_pool():
+    await close_shared_client()
+
 
 app.include_router(search.router)
 app.include_router(report.router)

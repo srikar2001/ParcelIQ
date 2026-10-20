@@ -22,6 +22,8 @@ import time
 from typing import Optional
 
 import httpx
+
+from app.core.http import pooled_client
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -267,7 +269,7 @@ async def _geo_full(q: str):
         return _county_center_cache[key]
     query = q if ("fl" in key or "florida" in key) else (q + ", Florida, USA")
     try:
-        async with httpx.AsyncClient(timeout=12.0, headers={"User-Agent": "ParcelIQ-Leads/1.0"}) as client:
+        async with pooled_client(timeout=12.0, headers={"User-Agent": "ParcelIQ-Leads/1.0"}) as client:
             r = await client.get("https://nominatim.openstreetmap.org/search",
                                   params={"q": query, "format": "json", "limit": "1", "countrycodes": "us"})
             arr = r.json()
@@ -397,7 +399,7 @@ async def _fetch_bbox_parcels(lat: float, lng: float, codes: set,
         "returnGeometry": "true", "resultRecordCount": "2000", "f": "json",
     }
     try:
-        async with httpx.AsyncClient(timeout=_FETCH_TIMEOUT) as client:
+        async with pooled_client(timeout=_FETCH_TIMEOUT) as client:
             r = await client.get(_CAD_URL, params=params)
             r.raise_for_status()
             data = r.json()
@@ -493,7 +495,7 @@ async def _photon_street(lat: float, lng: float):
     road a remote timber tract fronts, which Geocodio (nearest addressed point)
     reduces to just a town. Returns (street, city) or (None, None)."""
     try:
-        async with httpx.AsyncClient(timeout=6.0,
+        async with pooled_client(timeout=6.0,
                                      headers={"User-Agent": "ParcelIQ/1.0 (+leads)"}) as client:
             r = await client.get("https://photon.komoot.io/reverse",
                                   params={"lat": lat, "lon": lng, "lang": "en"})
@@ -750,7 +752,7 @@ async def _overpass_places(op_types: list, bbox: tuple):
     data = None
     for url in _OVERPASS_URLS:
         try:
-            async with httpx.AsyncClient(timeout=8.0, headers={"User-Agent": "curl/8.4.0"}) as client:
+            async with pooled_client(timeout=8.0, headers={"User-Agent": "curl/8.4.0"}) as client:
                 r = await client.post(url, data={"data": ql})
                 r.raise_for_status()
                 data = r.json()

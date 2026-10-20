@@ -11,6 +11,8 @@ from datetime import date
 
 import httpx
 
+from app.core.http import pooled_client
+
 from app.core.config import settings
 from app.models.schema import EvacZoneInfo, SourceEvidence
 
@@ -25,7 +27,7 @@ async def get_evac_zone_info(lat: float, lon: float) -> tuple[EvacZoneInfo, Sour
         "f": "json",
     }
 
-    async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
+    async with pooled_client(timeout=settings.http_timeout) as client:
         resp = await client.get(settings.evac_url, params=params)
         resp.raise_for_status()
         data = resp.json()

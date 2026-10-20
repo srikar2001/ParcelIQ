@@ -1,5 +1,7 @@
 import httpx
 
+from app.core.http import pooled_client
+
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 HEADERS = {"User-Agent": "ParcelIQ/1.0", "Accept": "*/*"}
 DEFAULT = {"road_found": False, "road_surface": "error", "road_type": None, "source": "OpenStreetMap"}
@@ -11,7 +13,7 @@ DIRT  = {"unpaved", "dirt", "gravel", "ground", "grass", "sand", "compacted"}
 async def get_road_type(lat: float, lng: float) -> dict:
     try:
         query = f"[out:json];way(around:100,{lat},{lng})[highway];out tags;"
-        async with httpx.AsyncClient(timeout=20.0, headers=HEADERS) as client:
+        async with pooled_client(timeout=20.0, headers=HEADERS) as client:
             resp = await client.post(OVERPASS_URL, data={"data": query})
             resp.raise_for_status()
             elements = resp.json().get("elements", [])

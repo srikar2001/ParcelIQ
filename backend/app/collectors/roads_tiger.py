@@ -11,6 +11,8 @@ import math
 
 import httpx
 
+from app.core.http import pooled_client
+
 _BASE = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer"
 _LAYERS = [8, 6, 2]          # local roads first, then secondary, then primary
 SEARCH_RADIUS_M = 150
@@ -130,7 +132,7 @@ async def _query_radius(client: httpx.AsyncClient, lat: float, lng: float,
 
 async def get_road_access(lat: float, lng: float) -> dict:
     try:
-        async with httpx.AsyncClient(timeout=12.0) as client:
+        async with pooled_client(timeout=12.0) as client:
             for radius_m in _SEARCH_RADII_M:
                 found = await _query_radius(client, lat, lng, radius_m)
                 if found is not None:

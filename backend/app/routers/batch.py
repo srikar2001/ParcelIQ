@@ -6,6 +6,8 @@ from typing import Optional
 from uuid import uuid4
 
 import httpx
+
+from app.core.http import pooled_client
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
@@ -93,7 +95,7 @@ async def _user_id_from_token(token: str) -> Optional[tuple[str, str]]:
     if not _SUPABASE_URL or not (_SUPABASE_KEY or _SUPABASE_SVC_KEY):
         raise _AuthUnavailable("Supabase URL/key env vars not configured")
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with pooled_client(timeout=5.0) as client:
             r = await client.get(
                 f'{_SUPABASE_URL}/auth/v1/user',
                 headers={'Authorization': f'Bearer {token}',
@@ -123,7 +125,7 @@ _user_override_cache: dict = {"ts": 0.0, "data": {}}
 
 async def _override_get_all(prefix: str) -> dict:
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with pooled_client(timeout=8.0) as client:
             r = await client.get(
                 f"{_SUPABASE_URL}/rest/v1/reports",
                 params={"select": "address,report_json", "address": f"like.{prefix}%", "limit": "2000"},
@@ -156,7 +158,7 @@ async def _weekly_usage(user_id: str) -> int:
     try:
         now = datetime.now(timezone.utc)
         since = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with pooled_client(timeout=5.0) as client:
             r = await client.get(
                 f'{_SUPABASE_URL}/rest/v1/parcel_results',
                 params={'select': 'id', 'user_id': f'eq.{user_id}', 'created_at': f'gte.{since}'},
@@ -202,7 +204,7 @@ async def _job_create(job_id: str, total: int, name: str | None = None) -> None:
     base = {"id": job_id, "status": "queued", "progress": 0, "total": total,
             "results": [], "created_at": datetime.now(timezone.utc).isoformat()}
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with pooled_client(timeout=5.0) as client:
             if name:
                 # best effort: include the display name if the column exists
                 r = await client.post(f"{_SUPABASE_URL}/rest/v1/{_JOBS_TABLE}",
@@ -224,7 +226,7 @@ async def _job_update(job_id: str, status: str, progress: int, results: list | N
         payload: dict = {"status": status, "progress": progress}
         if results is not None:  # only write results array on final update
             payload["results"] = results
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with pooled_client(timeout=8.0) as client:
             await client.patch(
                 f"{_SUPABASE_URL}/rest/v1/{_JOBS_TABLE}",
                 params={"id": f"eq.{job_id}"},
@@ -239,7 +241,7 @@ async def _job_read(job_id: str) -> dict | None:
     if not _SUPABASE_URL:
         return None
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with pooled_client(timeout=5.0) as client:
             r = await client.get(
                 f"{_SUPABASE_URL}/rest/v1/{_JOBS_TABLE}",
                 params={"id": f"eq.{job_id}", "select": "*", "limit": "1"},
@@ -844,8 +846,7 @@ async def search_parcel(q: str):
                 "returnGeometry": "true",
                 "f": "json",
             }
-            import httpx as _httpx
-            async with _httpx.AsyncClient(timeout=15.0) as client:
+            async with pooled_client(timeout=15.0) as client:
                 resp = await client.get(PARCEL_URL, params=params)
                 data = resp.json()
             features = data.get("features", [])

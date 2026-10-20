@@ -17,6 +17,8 @@ from typing import Optional
 
 import httpx
 
+from app.core.http import pooled_client
+
 from app.core.config import settings
 from app.models.schema import ParcelCandidate, PropertySummary, SourceEvidence
 
@@ -72,7 +74,7 @@ async def search_parcels(query: str) -> list[ParcelCandidate]:
     }
 
     last_exc: Exception = RuntimeError("no attempts made")
-    async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
+    async with pooled_client(timeout=settings.http_timeout) as client:
         for attempt in range(3):
             if attempt:
                 await asyncio.sleep(1.0 * attempt)
@@ -115,7 +117,7 @@ async def get_parcel_attributes(folio: str) -> tuple[Optional[PropertySummary], 
         "f": "json",
     }
 
-    async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
+    async with pooled_client(timeout=settings.http_timeout) as client:
         resp = await client.get(settings.hcpa_parcel_url, params=params)
         resp.raise_for_status()
         data = resp.json()
@@ -181,7 +183,7 @@ async def get_parcel_geometry(folio: str) -> tuple[Optional[dict], Optional[dict
         "f": "json",
     }
 
-    async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
+    async with pooled_client(timeout=settings.http_timeout) as client:
         resp = await client.get(settings.hcpa_parcel_url, params=params)
         resp.raise_for_status()
         data = resp.json()
