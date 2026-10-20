@@ -27,7 +27,7 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [x] DONE (2026-10-20, merged 4c2513c; agent/product-builder/3d-land-view) B1 3D land view: free 3D terrain + satellite toggle on the Deal Review map and Land Leads map (e.g. MapLibre GL JS + free terrain-RGB tiles such as AWS Terrain Tiles "terrarium", Esri World Imagery with attribution). Parcel outline draped on terrain, tilt/rotate, works on mobile.
 - [ ] IN REVIEW (agent/product-builder/lead-hunter) B2 Lead Hunter (phase 1: in-app, localStorage buy boxes, daily re-check on app open): saved "buy box" searches that re-run nightly and surface NEW matching PURSUE lots in-app (badge + list). Email later (needs a free provider — owner decision).
 - [ ] TODO B2b (after B2) Lead Hunter phase 2: move buy boxes to a Supabase `lead_hunts` table (owner applies migration) so they sync across devices, and re-run them nightly server-side (Railway worker/cron) so new lots are waiting even if the app is not opened; email digest later (free provider — owner decision).
-- [ ] TODO B5 Due-diligence checklist per county for PURSUE lots (who to call for zoning/permits/septic, what to ask).
+- [ ] IN PROGRESS (product-builder, 2026-10-20) B5 Due-diligence checklist per county for PURSUE lots (who to call for zoning/permits/septic, what to ask).
 - [ ] TODO B3 (needs LLM key — after S7+S1 and owner key) Deal Analyst: per-parcel Q&A in Deal Review grounded ONLY in that parcel's screening data, with sources; per-user daily cap.
 - [ ] TODO B4 (after L3) Offer helper: suggested offer range from nearby sales (`/api/explore/comps`) + downloadable offer letter (needs L3 mailing address).
 - Ideas inbox (any agent may add; builder/chief promote): 
