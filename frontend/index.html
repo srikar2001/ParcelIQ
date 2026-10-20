@@ -4121,6 +4121,11 @@ async function checkWeeklyLimit(count = 1) {
 
 // FIX 6: router is async — calls initAuth() before allowing protected pages
 async function router() {
+  // Shared links (#shared/<token>, #p/<token>) are only handled at boot (see
+  // the "Handle shared route BEFORE auth check" block). Pasting one into a tab
+  // that already has the app loaded is a same-document hash change, so without
+  // this it fell through to landing/dashboard. Reload to take the boot path.
+  if (/^#(shared|p)\//.test(window.location.hash)) { window.location.reload(); return; }
   closeDetailPanel(true);
   // Legacy alias: the batch table is now the Dashboard
   if (_baseHash(window.location.hash) === '#results') { window.location.replace('#dashboard'); return; }
@@ -4245,6 +4250,9 @@ window.addEventListener('hashchange', router);
 // Persist the hash so a refresh (or a session restored from a bare bookmarked
 // URL with no hash) can land back where the user left off — see initApp().
 window.addEventListener('hashchange', () => {
+  // Never remember a shared link as "last view" — a later bare-URL open would
+  // restore it and drop the user into someone else's shared batch/parcel.
+  if (/^#(shared|p)\//.test(window.location.hash)) return;
   try { sessionStorage.setItem('piq_hash', window.location.hash); } catch(e) {}
 });
 // NOTE: there was a second popstate handler here that raced the router on
