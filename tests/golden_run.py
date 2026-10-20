@@ -7,6 +7,10 @@ tests/golden.json to catch verdict/score drift.
   backend/venv/bin/python tests/golden_run.py --snapshot # (re)write golden.json
   backend/venv/bin/python tests/golden_run.py --only 3,7 # subset by index
 
+Needs a local geostore (the flood/wetland/habitat layers only live there):
+download the two parts of GitHub release geodata-2026-10-19, `cat` them into
+one geostore.sqlite and point GEOSTORE_PATH at it.
+
 Exit code 1 when any point drifts (verdict change, |score delta| > SCORE_TOL,
 parcel_id change) so it can gate a run. Source outages (sources_ok drop) are
 reported separately: they explain drift but are not drift themselves.
