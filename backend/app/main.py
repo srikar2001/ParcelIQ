@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from app.core import geostore
 from app.core.http import close_shared_client
-from app.routers import narrative, report, search, batch, share, admin, explore, leads
+from app.routers import narrative, report, search, batch, share, admin, explore, leads, checklist
 
 try:
     from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -76,6 +76,7 @@ app.include_router(share.router)
 app.include_router(admin.router)
 app.include_router(explore.router)
 app.include_router(leads.router)
+app.include_router(checklist.router)
 
 
 @app.get("/", include_in_schema=False)

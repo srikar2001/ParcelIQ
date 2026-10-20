@@ -843,6 +843,36 @@ body.on-results .detail-panel{top:0}
 .sv-comps-wrap{border:1px solid var(--b);border-radius:14px;overflow:hidden;margin-bottom:18px;background:var(--bg)}
 .sv-comps-wrap .ex-comp:last-child{border-bottom:none}
 .sv-comps-msg{padding:14px 16px;color:var(--t3);font-size:12.5px}
+/* Section F — due-diligence checklist: who to call in this county + what to
+   ask, built from this parcel's own findings. Ticks persist per parcel. */
+.sv-dd-wrap{border:1px solid var(--b);border-radius:14px;overflow:hidden;margin-bottom:18px;background:var(--bg)}
+.sv-dd-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--b);flex-wrap:wrap}
+.sv-dd-head .sv-dd-county{font-size:13px;font-weight:700;color:var(--t1)}
+.sv-dd-head .sv-dd-prog{font-size:11.5px;color:var(--t2);font-weight:600}
+.sv-dd-bar{flex-basis:100%;height:4px;border-radius:99px;background:var(--b);overflow:hidden}
+.sv-dd-bar>span{display:block;height:100%;background:var(--green);border-radius:99px;transition:width .2s ease}
+.sv-dd-copy{margin-left:auto;padding:5px 12px;border-radius:99px;border:1px solid var(--b);background:var(--card);color:var(--t2);font-size:11.5px;font-weight:700;cursor:pointer}
+.sv-dd-copy:hover{border-color:var(--bh);color:var(--t1)}
+.sv-dd-group{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);padding:12px 14px 4px}
+.sv-dd-item{display:flex;gap:10px;padding:9px 14px;border-bottom:1px solid var(--b);align-items:flex-start}
+.sv-dd-item:last-child{border-bottom:none}
+.sv-dd-item input{width:17px;height:17px;margin-top:1px;accent-color:var(--green);flex-shrink:0;cursor:pointer}
+.sv-dd-item.done .sv-dd-title{color:var(--t3);text-decoration:line-through}
+.sv-dd-item.done .sv-dd-ask,.sv-dd-item.done .sv-dd-why{opacity:.55}
+.sv-dd-body{min-width:0;flex:1}
+.sv-dd-title{font-size:12.5px;font-weight:700;color:var(--t1);line-height:1.35;cursor:pointer}
+.sv-dd-hi{display:inline-block;margin-left:6px;font-size:9px;font-weight:800;letter-spacing:.6px;padding:1px 6px;border-radius:99px;background:var(--abg);color:var(--amber);vertical-align:1px;text-transform:uppercase}
+.sv-dd-ask{font-size:12px;color:var(--t2);line-height:1.5;margin-top:2px}
+.sv-dd-why{font-size:11px;color:var(--t3);margin-top:3px;line-height:1.45}
+.sv-dd-links{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.sv-dd-link{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--green);background:var(--gbg);border-radius:99px;padding:3px 9px;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-dd-link:hover{text-decoration:underline}
+.sv-dd-link.search{color:var(--t2);background:var(--card-h)}
+.sv-dd-offices{border-top:1px solid var(--b);padding:4px 0 6px}
+.sv-dd-office{display:flex;justify-content:space-between;gap:10px;padding:7px 14px;align-items:center}
+.sv-dd-office .nm{font-size:12px;font-weight:700;color:var(--t1)}
+.sv-dd-office .hd{font-size:11px;color:var(--t3);line-height:1.4}
+.sv-dd-note{padding:10px 14px 12px;font-size:10.5px;color:var(--t3);line-height:1.5;border-top:1px solid var(--b)}
 .ex-comp.sv-comp-hover{background:var(--card-h);box-shadow:inset 3px 0 0 var(--green)}
 .leaflet-tooltip.sv-nb-tip{background:#0F1420;color:#E5E7EB;border:1px solid #2A3346;box-shadow:0 4px 14px rgba(0,0,0,.5);font-size:12px;line-height:1.55;padding:7px 11px;border-radius:8px;white-space:nowrap}
 .leaflet-tooltip.sv-nb-tip::before{border-top-color:#2A3346}
@@ -11310,6 +11340,9 @@ function _svDataPanelHtml(r) {
     '</div>' +
     '<div class="sv-cats">' + catsHtml + '</div>' +
 
+    '<div class="sv-sec-title" style="margin-top:2px">Due-Diligence Checklist</div>' +
+    '<div id="svDDSlot" class="sv-dd-wrap"><div class="sv-comps-msg">Building the county checklist…</div></div>' +
+
     '<div class="sv-sec-title" style="margin-top:2px">Nearby Comparable Sales</div>' +
     (window._sharedViewOnly
       ? '<div class="sv-comps-wrap"><div class="sv-comps-msg">Create a free account to see recent comparable sales.</div></div>'
@@ -11405,6 +11438,7 @@ function renderStoryView(r) {
   _svInitMap(r);
   document.getElementById('svMapOverlay').innerHTML = _svMapOverlayHtml(r);
   svFetchComps(r);
+  svFetchChecklist(r);
 }
 
 // Re-screen refresh: same parcel, same location, only the scoring/checks
@@ -11425,6 +11459,7 @@ function _svRefreshAfterRescreen(r) {
   const overlay = document.getElementById('svMapOverlay');
   if (overlay) overlay.innerHTML = _svMapOverlayHtml(r);
   svFetchComps(r);
+  svFetchChecklist(r);
 }
 
 
@@ -12063,6 +12098,129 @@ async function svFetchComps(r) {
   } catch (e) {
     const s = document.getElementById('svCompsSlot'); if (s) s.innerHTML = '<div class="sv-comps-msg">Could not load comps.</div>';
   }
+}
+
+// ── Due-diligence checklist (B5) ─────────────────────────────────────────
+// The backend turns this parcel's findings into county-specific calls to
+// make (zoning, septic, wetlands permits, taxes, title) with verified office
+// links. Ticks are a per-viewer convenience kept in localStorage per parcel.
+let _svDD = null;            // { key, data }
+const _svDDCache = {};       // parcel key -> checklist response
+function _svDDKey(r) {
+  const pi = (r && r.parcel_info) || {};
+  return String(pi.parcel_id || pi.apn || r.address || '').trim().toLowerCase();
+}
+function _svDDLoadTicks(key) {
+  try { return JSON.parse(localStorage.getItem('piq_dd_' + key) || '{}') || {}; } catch (e) { return {}; }
+}
+function _svDDSaveTicks(key, ticks) {
+  try {
+    if (Object.keys(ticks).length) localStorage.setItem('piq_dd_' + key, JSON.stringify(ticks));
+    else localStorage.removeItem('piq_dd_' + key);
+  } catch (e) {}
+}
+async function svFetchChecklist(r) {
+  const slot = document.getElementById('svDDSlot');
+  if (!slot || !r) return;
+  const key = _svDDKey(r);
+  const pi = r.parcel_info || {};
+  if (!pi.county) { slot.innerHTML = '<div class="sv-comps-msg">County unknown for this parcel, so there is no county checklist.</div>'; return; }
+  // Re-screens change the findings, so the cache is keyed on them too.
+  const sig = key + '|' + (r.score != null ? r.score : '') + '|' + (r.flags || []).length;
+  if (_svDDCache[sig]) { _svDD = { key: key, data: _svDDCache[sig] }; _svRenderChecklist(); return; }
+  const piLite = Object.assign({}, pi); delete piLite.geometry;
+  try {
+    const res = await fetch(API + '/api/checklist', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: r.address, verdict: r.verdict, flags: r.flags || [], positives: r.positives || [], parcel_info: piLite }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    _svDDCache[sig] = d;
+    // The viewer may have moved to another parcel while this was in flight.
+    if (!_openParcel || _svDDKey(_openParcel) === key || _openParcel === r) { _svDD = { key: key, data: d }; _svRenderChecklist(); }
+  } catch (e) {
+    const sl = document.getElementById('svDDSlot');
+    if (sl) sl.innerHTML = '<div class="sv-comps-msg">Could not load the checklist. <a href="#" onclick="svFetchChecklist(_openParcel);return false" style="color:var(--green);font-weight:700">Retry</a></div>';
+  }
+}
+function _svDDLinkHtml(o) {
+  if (!o) return '';
+  return '<a class="sv-dd-link' + (o.verified ? '' : ' search') + '" href="' + escHtml(o.url) + '" target="_blank" rel="noopener noreferrer">' +
+    (o.verified ? '' : '🔍 ') + escHtml(o.name) + ' ↗</a>';
+}
+function _svRenderChecklist() {
+  const slot = document.getElementById('svDDSlot');
+  if (!slot || !_svDD) return;
+  const d = _svDD.data || {};
+  const items = d.items || [];
+  if (!d.county || !items.length) { slot.innerHTML = '<div class="sv-comps-msg">' + escHtml(d.note || 'No checklist for this parcel.') + '</div>'; return; }
+  const ticks = _svDDLoadTicks(_svDD.key);
+  const offices = {}; (d.offices || []).forEach(o => { offices[o.key] = o; });
+  const done = items.filter(i => ticks[i.id]).length;
+  const pct = Math.round(done / items.length * 100);
+  const groups = [];
+  items.forEach(i => { let g = groups.find(x => x.name === i.group); if (!g) { g = { name: i.group, items: [] }; groups.push(g); } g.items.push(i); });
+  const ORDER = ['Title & taxes', 'Zoning & building', 'Septic & water', 'Environmental', 'Access & utilities'];
+  groups.sort((a, b) => (ORDER.indexOf(a.name) + 99) % 99 - (ORDER.indexOf(b.name) + 99) % 99);
+  const body = groups.map(g =>
+    '<div class="sv-dd-group">' + escHtml(g.name) + '</div>' +
+    g.items.map(i => {
+      const on = !!ticks[i.id];
+      const cid = 'svdd_' + i.id.replace(/[^a-z0-9_]/gi, '_');
+      return '<div class="sv-dd-item' + (on ? ' done' : '') + '">' +
+        '<input type="checkbox" id="' + cid + '"' + (on ? ' checked' : '') + ' onchange="svToggleDD(\'' + escHtml(i.id) + '\', this.checked)" aria-label="Mark done: ' + escHtml(i.title) + '">' +
+        '<div class="sv-dd-body">' +
+          '<label class="sv-dd-title" for="' + cid + '">' + escHtml(i.title) + (i.priority === 'high' ? '<span class="sv-dd-hi">Must check</span>' : '') + '</label>' +
+          '<div class="sv-dd-ask">' + escHtml(i.ask) + '</div>' +
+          (i.why ? '<div class="sv-dd-why">' + escHtml(i.why) + '</div>' : '') +
+          '<div class="sv-dd-links">' + _svDDLinkHtml(offices[i.office]) +
+            (i.link ? '<a class="sv-dd-link search" href="' + escHtml(i.link) + '" target="_blank" rel="noopener noreferrer">State guidance ↗</a>' : '') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('')
+  ).join('');
+  const officesHtml = (d.offices || []).map(o =>
+    '<div class="sv-dd-office"><div style="min-width:0"><div class="nm">' + escHtml(o.name) + '</div><div class="hd">' + escHtml(o.handles || '') + '</div></div>' +
+    '<a class="sv-dd-link' + (o.verified ? '' : ' search') + '" href="' + escHtml(o.url) + '" target="_blank" rel="noopener noreferrer" style="flex-shrink:0">' + (o.verified ? 'Website ↗' : '🔍 Search') + '</a></div>'
+  ).join('');
+  slot.innerHTML =
+    '<div class="sv-dd-head">' +
+      '<span class="sv-dd-county">' + escHtml(d.county) + ' County' + (d.high_count ? ' · <span style="color:var(--amber)">' + d.high_count + ' must-check</span>' : '') + '</span>' +
+      '<span class="sv-dd-prog">' + done + ' / ' + items.length + ' done</span>' +
+      '<button class="sv-dd-copy" onclick="svCopyChecklist()">Copy list</button>' +
+      '<div class="sv-dd-bar"><span style="width:' + pct + '%"></span></div>' +
+    '</div>' + body +
+    '<div class="sv-dd-group">Who to call in ' + escHtml(d.county) + ' County</div>' +
+    '<div class="sv-dd-offices">' + officesHtml + '</div>' +
+    '<div class="sv-dd-note">Built from this parcel\'s screening data. Offices change phone numbers and rules — confirm with the office before you rely on an answer. 🔍 = no verified website on file, opens a search.</div>';
+}
+function svToggleDD(id, on) {
+  if (!_svDD) return;
+  const ticks = _svDDLoadTicks(_svDD.key);
+  if (on) ticks[id] = 1; else delete ticks[id];
+  _svDDSaveTicks(_svDD.key, ticks);
+  _svRenderChecklist();
+  const cb = document.getElementById('svdd_' + id.replace(/[^a-z0-9_]/gi, '_')); if (cb) cb.focus();
+}
+function svCopyChecklist() {
+  if (!_svDD || !_svDD.data) return;
+  const d = _svDD.data, ticks = _svDDLoadTicks(_svDD.key);
+  const offices = {}; (d.offices || []).forEach(o => { offices[o.key] = o; });
+  const r = _openParcel || {};
+  const lines = ['Due-diligence checklist — ' + (r.address || '') + ' (' + d.county + ' County, FL)', ''];
+  (d.items || []).forEach(i => {
+    const o = offices[i.office];
+    lines.push((ticks[i.id] ? '[x] ' : '[ ] ') + i.title + (i.priority === 'high' ? ' (MUST CHECK)' : ''));
+    lines.push('    Ask: ' + i.ask);
+    if (i.why) lines.push('    Why: ' + i.why);
+    if (o) lines.push('    Who: ' + o.name + ' — ' + o.url);
+  });
+  const txt = lines.join('\n');
+  const ok = () => toast('Checklist copied');
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, () => toast('Could not copy'));
+  else toast('Could not copy');
 }
 
 // Numbered comp pin — amber normally, larger + green when hovered/active so the
