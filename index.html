@@ -866,6 +866,23 @@ body.on-results .detail-panel{top:0}
 /* Section F — due-diligence checklist: who to call in this county + what to
    ask, built from this parcel's own findings. Ticks persist per parcel. */
 .sv-dd-wrap{border:1px solid var(--b);border-radius:14px;overflow:hidden;margin-bottom:18px;background:var(--bg)}
+/* Buildable area: parcel minus mapped wetlands + FEMA SFHA flood zones. */
+.sv-bld-head{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;flex-wrap:wrap}
+.sv-bld-big{font-size:13px;color:var(--t2);min-width:0}
+.sv-bld-big b{font-size:22px;font-weight:800;color:var(--t1);letter-spacing:-.3px;margin-right:4px}
+.sv-bld-pct{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:800;color:#fff;background:var(--bc,var(--green));vertical-align:2px}
+.sv-bld-map.on{background:var(--green);border-color:var(--green);color:#fff}
+.sv-bld-bar{display:flex;height:10px;margin:0 14px 12px;border-radius:99px;overflow:hidden;background:var(--b)}
+.sv-bld-bar>span{display:block;height:100%}
+.sv-bld-sw{width:12px;height:12px;border-radius:3px;flex-shrink:0;margin-top:2px}
+.sv-bld-c{background:var(--green)}
+.sv-bld-f{background:#D97706;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.35) 0 2px,transparent 2px 5px)}
+.sv-bld-w{background:#0E7490;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.35) 0 2px,transparent 2px 5px)}
+.sv-bld-row{display:flex;gap:10px;padding:9px 14px;border-top:1px solid var(--b);align-items:flex-start}
+.sv-bld-row .nm{font-size:12.5px;font-weight:700;color:var(--t1)}
+.sv-bld-row .sub{font-size:11.5px;color:var(--t2);line-height:1.45;margin-top:2px}
+.sv-bld-row .val{margin-left:auto;text-align:right;font-size:12.5px;font-weight:800;color:var(--t1);white-space:nowrap;padding-left:8px}
+.sv-bld-row .val small{display:block;font-size:11px;font-weight:600;color:var(--t3)}
 .sv-dd-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--b);flex-wrap:wrap}
 .sv-dd-head .sv-dd-county{font-size:13px;font-weight:700;color:var(--t1)}
 .sv-dd-head .sv-dd-prog{font-size:11.5px;color:var(--t2);font-weight:600}
@@ -8660,7 +8677,13 @@ function extractPolygonCoords(geometry) {
   // firstRing[0] is [number, number] — correct format
   if (Array.isArray(firstRing[0]) && typeof firstRing[0][0] === 'number'
       && typeof firstRing[0][1] === 'number') {
-    return firstRing;
+    // Multipart parcels: ring 0 can be a slivered remnant (seen: a 0-ac
+    // 6-point ring ahead of the real 236-ac one), so draw the largest ring.
+    if (geometry.length < 2) return firstRing;
+    const area = r => { let a = 0; for (let i = 0, n = r.length; i < n; i++) { const p = r[i], q = r[(i + 1) % n]; a += p[1] * q[0] - q[1] * p[0]; } return Math.abs(a); };
+    let best = firstRing, bestA = area(firstRing);
+    geometry.forEach(r => { if (Array.isArray(r) && r.length > 2 && Array.isArray(r[0])) { const a = area(r); if (a > bestA) { best = r; bestA = a; } } });
+    return best;
   }
   // Already a flat coordinate pair
   if (typeof firstRing[0] === 'number') return geometry;
@@ -11405,6 +11428,9 @@ function _svDataPanelHtml(r) {
 
     (facts.length ? '<div class="sv-sec-title">Parcel Facts</div><div class="sv-card-sec sv-fact-grid">' + facts.join('') + '</div>' : '') +
 
+    '<div class="sv-sec-title" style="margin-top:2px">Buildable Area</div>' +
+    '<div id="svBldSlot" class="sv-dd-wrap"><div class="sv-comps-msg">Measuring wetlands and flood zones on this parcel…</div></div>' +
+
     '<div class="sv-sec-title" style="margin-top:2px">What Each Check Found</div>' +
     '<div class="sv-checks-filter">' +
       '<button class="active" data-filter="all" onclick="svFilterChecks(\'all\')">All</button>' +
@@ -11495,6 +11521,7 @@ function renderStoryView(r) {
             '<button class="sv-map-btn active" data-svlayer="parcel" onclick="svToggleLayer(this)">Parcel</button>' +
             '<button class="sv-map-btn" data-svlayer="flood" onclick="svToggleLayer(this)">Flood Zones</button>' +
             '<button class="sv-map-btn" data-svlayer="wetlands" onclick="svToggleLayer(this)">Wetlands</button>' +
+            '<button class="sv-map-btn" data-svlayer="buildable" onclick="svToggleLayer(this)" title="Wetland + flood-zone parts of this parcel">Buildable</button>' +
             '<button class="sv-map-btn" data-svlayer="satellite" onclick="svToggleLayer(this)">Satellite</button>' +
             '<button class="sv-map-btn" data-svlayer="3d" onclick="svToggleLayer(this)">3D</button>' +
           '</div>' +
@@ -11512,6 +11539,7 @@ function renderStoryView(r) {
   document.getElementById('svMapOverlay').innerHTML = _svMapOverlayHtml(r);
   svFetchComps(r);
   svFetchChecklist(r);
+  svFetchBuildable(r);
 }
 
 // Re-screen refresh: same parcel, same location, only the scoring/checks
@@ -11533,6 +11561,7 @@ function _svRefreshAfterRescreen(r) {
   if (overlay) overlay.innerHTML = _svMapOverlayHtml(r);
   svFetchComps(r);
   svFetchChecklist(r);
+  svFetchBuildable(r);
 }
 
 
@@ -12296,6 +12325,129 @@ function svCopyChecklist() {
   else toast('Could not copy');
 }
 
+// ── Buildable area ───────────────────────────────────────────────────────────
+// Parcel boundary ∩ mapped wetlands (NWI) + FEMA SFHA flood polygons, measured
+// server-side from the geostore. Overlay polygons come back with the numbers,
+// so the "Buildable" map layer needs no extra request.
+const _svBldCache = {};
+let _svBld = null;          // { key, data }
+const _BLD_WET = '#0E7490', _BLD_FLOOD = '#D97706';
+// While the overlay is up the parcel goes outline-only so wet/flood parts read.
+function _svBldParcelFill(on) {
+  const p = _svLayers['parcel'];
+  if (p && p.setStyle && p.getLatLngs) { try { p.setStyle({ fillOpacity: on ? 0 : 0.15 }); } catch (e) {} }
+}
+function _svBldFmt(ac) { return ac >= 100 ? Math.round(ac).toLocaleString() : ac >= 10 ? ac.toFixed(1) : ac.toFixed(2); }
+async function svFetchBuildable(r) {
+  const slot = document.getElementById('svBldSlot');
+  if (!slot || !r) return;
+  const key = _svDDKey(r);
+  const geom = (r.parcel_info || {}).geometry;
+  if (!extractPolygonCoords(geom)) {
+    _svBld = null; _svSyncBldLayer();
+    slot.innerHTML = '<div class="sv-comps-msg">No parcel boundary on file for this lot, so the buildable area can\'t be measured.</div>';
+    return;
+  }
+  if (_svBldCache[key]) { _svBld = { key: key, data: _svBldCache[key] }; _svRenderBuildable(); return; }
+  _svBld = null; _svSyncBldLayer();
+  try {
+    const res = await fetch(API + '/api/buildable', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ geometry: geom }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok && !(d && d.reason)) throw new Error('HTTP ' + res.status);
+    if (d.ok) _svBldCache[key] = d;
+    if (!_openParcel || _openParcel === r || _svDDKey(_openParcel) === key) { _svBld = { key: key, data: d }; _svRenderBuildable(); }
+  } catch (e) {
+    const sl = document.getElementById('svBldSlot');
+    if (sl) sl.innerHTML = '<div class="sv-comps-msg">Could not measure the buildable area. <a href="#" onclick="svFetchBuildable(_openParcel);return false" style="color:var(--green);font-weight:700">Retry</a></div>';
+  }
+}
+function _svRenderBuildable() {
+  const slot = document.getElementById('svBldSlot');
+  if (!slot || !_svBld) return;
+  const d = _svBld.data || {};
+  if (!d.ok) { slot.innerHTML = '<div class="sv-comps-msg">' + escHtml(d.message || 'Buildable area unavailable for this parcel.') + '</div>'; _svSyncBldLayer(); return; }
+  const tot = d.mapped_acres, pc = x => tot > 0 ? Math.round(1000 * x / tot) / 10 : 0;
+  const clr = d.clear_pct, bc = clr >= 70 ? 'var(--green)' : clr >= 35 ? 'var(--amber)' : 'var(--red)';
+  const zones = (d.flood_zones || []).map(z => z.label).join(', ');
+  const wtypes = (d.wetland_types || []).map(w => w.label + ' ' + _svBldFmt(w.acres) + ' ac').join(' · ');
+  const row = (cls, nm, sub, ac) =>
+    '<div class="sv-bld-row"><span class="sv-bld-sw ' + cls + '"></span><div style="min-width:0"><div class="nm">' + nm + '</div>' +
+    (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>' +
+    '<div class="val">' + _svBldFmt(ac) + ' ac<small>' + pc(ac) + '%</small></div></div>';
+  const county = getAcreage(_openParcel || {});
+  const mapOn = !!(_svMap && _svLayers['buildable'] && _svMap.hasLayer(_svLayers['buildable']));
+  const fOnly = d.flood_only_acres, wet = d.wetland_acres;
+  slot.innerHTML =
+    '<div class="sv-bld-head">' +
+      '<div class="sv-bld-big"><b>' + _svBldFmt(d.clear_acres) + ' ac</b>clear of ' + _svBldFmt(tot) + ' ac' +
+        '<span class="sv-bld-pct" style="--bc:' + bc + '">' + clr + '%</span></div>' +
+      ((fOnly + wet) > 0 ? '<button class="sv-dd-copy sv-bld-map' + (mapOn ? ' on' : '') + '" onclick="svToggleBuildableLayer(true)" aria-pressed="' + mapOn + '">' + (mapOn ? '✓ On map' : 'Show on map') + '</button>' : '') +
+    '</div>' +
+    '<div class="sv-bld-bar" role="img" aria-label="' + clr + '% clear, ' + pc(fOnly) + '% flood zone, ' + pc(wet) + '% wetland">' +
+      '<span class="sv-bld-c" style="width:' + pc(d.clear_acres) + '%"></span><span class="sv-bld-f" style="width:' + pc(fOnly) + '%"></span><span class="sv-bld-w" style="width:' + pc(wet) + '%"></span>' +
+    '</div>' +
+    row('sv-bld-c', 'Clear — upland, outside flood zone',
+      d.clear_acres > 0 && d.largest_clear_acres < d.clear_acres - 0.01 ? 'Largest single clear area: ' + _svBldFmt(d.largest_clear_acres) + ' ac' : '', d.clear_acres) +
+    row('sv-bld-f', 'Flood zone only' + (zones ? ' (' + escHtml(zones) + ')' : ''),
+      fOnly > 0
+        ? ((d.flood_zones || []).some(z => /^V/i.test(z.label))
+            ? 'Includes a coastal high-hazard (V) zone: homes there must sit on pilings above base flood elevation, and fill can\'t be used for support. Flood insurance required with a mortgage.'
+            : 'Usually buildable with fill or a slab raised above base flood elevation; flood insurance required with a mortgage.')
+        : 'No mapped Special Flood Hazard Area.', fOnly) +
+    row('sv-bld-w', 'Wetland',
+      wet > 0 ? escHtml(wtypes) + '. Filling generally needs a state ERP and possibly a federal 404 permit.' : 'No mapped wetlands.', wet) +
+    '<div class="sv-dd-note">Mapped boundary ' + _svBldFmt(tot) + ' ac' + (county != null && Math.abs(county - tot) / Math.max(tot, 0.01) > 0.1 ? ' (county record says ' + escHtml(String(county)) + ' ac)' : '') +
+      ', measured against USFWS National Wetlands Inventory and FEMA flood maps. Mapped wetlands are approximate — a wetland delineation is the final word.</div>';
+  _svSyncBldLayer();
+}
+// (Re)build the Leaflet overlay from the current data; keep it on if it was on.
+function _svSyncBldLayer() {
+  if (!_svMap) return;
+  const was = !!(_svLayers['buildable'] && _svMap.hasLayer(_svLayers['buildable']));
+  if (_svLayers['buildable']) { try { _svMap.removeLayer(_svLayers['buildable']); } catch (e) {} delete _svLayers['buildable']; }
+  const d = _svBld && _svBld.data;
+  const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="buildable"]');
+  const ov = d && d.ok && d.overlay;
+  if (!ov || !((ov.flood || []).length + (ov.wetland || []).length)) { if (btn) btn.classList.remove('active'); _svBldParcelFill(false); return; }
+  const grp = L.layerGroup();
+  const add = (polys, color, label) => (polys || []).forEach(p => {
+    if (!p || !p.length) return;
+    L.polygon(p, { color: color, weight: 1.5, opacity: 0.95, fillColor: color, fillOpacity: 0.5, interactive: true })
+      .bindTooltip(label, { sticky: true, direction: 'top', className: 'sv-nb-tip' }).addTo(grp);
+  });
+  add(d.overlay.flood, _BLD_FLOOD, 'Flood zone (SFHA) · ' + _svBldFmt(d.flood_only_acres) + ' ac');
+  add(d.overlay.wetland, _BLD_WET, 'Wetland · ' + _svBldFmt(d.wetland_acres) + ' ac');
+  _svLayers['buildable'] = grp;
+  if (was) { grp.addTo(_svMap); if (_svLayers['parcel'] && _svLayers['parcel'].bringToFront) try { _svLayers['parcel'].bringToFront(); } catch (e) {} }
+  if (btn) btn.classList.toggle('active', was);
+  _svBldParcelFill(was);
+}
+function svToggleBuildableLayer(fromCard) {
+  if (!_svMap) return;
+  const btn = document.querySelector('#storyView .sv-map-btn[data-svlayer="buildable"]');
+  const lyr = _svLayers['buildable'];
+  if (!lyr) {
+    toast(_svBld ? (_svBld.data && _svBld.data.ok ? 'No wetlands or flood zones mapped on this parcel' : 'Buildable area unavailable for this parcel') : 'Still measuring the buildable area…');
+    if (btn) btn.classList.remove('active');
+    return;
+  }
+  const on = !_svMap.hasLayer(lyr);
+  if (on) {
+    lyr.addTo(_svMap);
+    if (_svLayers['parcel'] && _svLayers['parcel'].bringToFront) { try { _svLayers['parcel'].bringToFront(); } catch (e) {} }
+    try { if (_svLayers['parcel'] && _svLayers['parcel'].getBounds) _svMap.fitBounds(_svLayers['parcel'].getBounds(), { padding: [40, 40], maxZoom: 18 }); } catch (e) {}
+  } else _svMap.removeLayer(lyr);
+  if (btn) btn.classList.toggle('active', on);
+  _svBldParcelFill(on);
+  const cb = document.querySelector('#svBldSlot .sv-bld-map');
+  if (cb) { cb.classList.toggle('on', on); cb.textContent = on ? '✓ On map' : 'Show on map'; cb.setAttribute('aria-pressed', String(on)); }
+  // Phones stack the map above the panel — bring it into view.
+  if (on && fromCard && window.innerWidth < 900) { const z = document.querySelector('#storyView .sv-map-zone'); if (z) z.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
+
 // Numbered comp pin — amber normally, larger + green when hovered/active so the
 // map<->list link is obvious.
 let _svCompMarkers = null;
@@ -12451,6 +12603,7 @@ function svToggleLayer(btn) {
     else { _svMap.removeLayer(_svLayers['_osm']); _svLayers['_sat'].addTo(_svMap); btn.classList.add('active'); }
     return;
   }
+  if (key === 'buildable') { svToggleBuildableLayer(); return; }
   if (!_svLayers[key]) return;
   if (_svMap.hasLayer(_svLayers[key])) { _svMap.removeLayer(_svLayers[key]); btn.classList.remove('active'); }
   else { _svMap.addLayer(_svLayers[key]); btn.classList.add('active'); }
