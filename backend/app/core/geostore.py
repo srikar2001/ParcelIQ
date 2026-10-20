@@ -57,6 +57,7 @@ def available() -> bool:
         if missing:
             _status.update(available=False, reason=f"layers missing: {missing}")
             return False
+        _status.pop("reason", None)
         _status.update(available=True, built_at=meta.get("built_at"),
                        size_mb=round(PATH.stat().st_size / 1e6))
         print(f"[GeoStore] using {PATH} (built {meta.get('built_at')})")
