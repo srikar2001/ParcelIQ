@@ -67,7 +67,8 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [ ] TODO U13 (from screening; moved from Screening lane, was a duplicate U10 id) Frontend amber chip `Contamination nearby` (index.html ~5428) fires on any `contamination_sites` entry; sites with `approximate: true` (EPA location undocumented, not scored) should read "Possible Superfund record — verify" instead.
 - [ ] TODO U10 (from ux) Global `.bulk-bar` and other app chrome sit in the DOM on every screen; audit offscreen/hidden controls app-wide for tab-order leaks (fixed bulk-bar in U1).
 - [x] DONE eb6b491 (agent/ux-polisher/auth-polish) U2 Auth screens
-- [ ] TODO U3 Dashboard · U4 Results table · U5 Deal Review · U6 Land Leads · U7 Settings/Admin · U8 Mobile pass
+- [ ] IN PROGRESS (ux-polisher, 2026-10-20) U3 Dashboard
+- [ ] TODO U4 Results table · U5 Deal Review · U6 Land Leads · U7 Settings/Admin · U8 Mobile pass
 - [x] DONE (2026-10-20, merged 0a6c513; agent/ux-polisher/landing-polish) U1 Landing page
 
 ## Growth (growth-analyst)
