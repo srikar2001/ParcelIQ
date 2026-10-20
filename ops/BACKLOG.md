@@ -59,7 +59,7 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [ ] TODO G1 Weekly aggregate report → `ops/reports/YYYY-MM-DD.md`: signups, activation (signed up → ran a batch), batches, leads searches, retention. Counts only, no personal data.
 - [ ] IN REVIEW (agent/growth-analyst/seo-meta) G2 SEO: meta description, Open Graph/Twitter tags + og:image with the logo, sitemap.xml, robots.txt.
 - [ ] TODO G3 County landing pages ("Vacant land due diligence in <County>, FL") generated from real data, linked from the landing page.
-- [ ] TODO G4 Marketing kit in `ops/marketing/`: positioning, landing copy tests, a launch video draft (brag/hyperframes skill), social post drafts. Drafts only — owner publishes.
+- [ ] IN PROGRESS (growth-analyst, 2026-10-20) G4 Marketing kit in `ops/marketing/`: positioning, landing copy tests, a launch video draft (brag/hyperframes skill), social post drafts. Drafts only — owner publishes.
 - [ ] TODO G5 (from growth) After G2 merges: submit sitemap to Google Search Console + Bing Webmaster (needs owner account — Blocked on owner); consider a custom domain, since *.vercel.app ranks/shares poorly.
 
 ## Blocked on owner (agents: don't attempt — remind in digest)
