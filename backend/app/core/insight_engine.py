@@ -28,7 +28,7 @@ def score_parcel(
         flood.get("source", "FEMA NFHL"),
         wetlands.get("source", "USFWS NWI"),
         habitat.get("source", "USFWS Critical Habitat"),
-        epa.get("source", "EPA ECHO Superfund"),
+        epa.get("source", "EPA Superfund (SEMS)"),
         roads.get("source", "OpenStreetMap"),
         parcel.get("source", "FL DOR Cadastral"),
     ]
@@ -115,6 +115,15 @@ def score_parcel(
     if epa.get("contamination_found"):
         score -= 25
         flags.append("Contamination record found nearby")
+    elif epa.get("sites"):
+        # Only EPA records with no documented location (see collectors/epa.py)
+        names = ", ".join(x.get("name", "") for x in epa["sites"][:2])
+        flags.append(f"Possible Superfund record nearby, EPA location approximate ({names}). Verify")
+    elif epa.get("error") is True:
+        # Not scored (contamination is a deduction, not a fatal flaw) — but
+        # never let a failed lookup read as "no contamination". Worded to stay
+        # out of the frontend Contamination filter / amber chip regexes.
+        flags.append("Hazardous-site records unavailable. Verify manually")
 
     # ── Road access (Census TIGERweb) — the #1 kill signal investors check.
     # "No road found" is a real finding now (reliable source), not a data gap.
@@ -294,12 +303,12 @@ def score_parcel(
 
     # ── Honest confidence: how many of the 12 checks returned real data.
     # Sources whose error shape is indistinguishable from a clean result
-    # (EPA/evac/easement) count as ok — they can't be told apart here.
+    # (evac/easement) count as ok — they can't be told apart here.
     checks = [
         flood_zone not in ("ERROR", "UNKNOWN"),                      # flood
         wetlands.get("error") is not True,                           # wetlands
         habitat.get("data_available") is not False,                  # wildlife
-        True,                                                        # epa
+        epa.get("error") is not True,                                # epa
         roads.get("road_surface") != "error" and roads.get("road_found") is not None,  # roads
         bool(parcel.get("found")),                                   # county parcel
         bool(waterways) and (powerlines or {}).get("powerline_nearby") is not None,    # waterways (shares the OSM call)

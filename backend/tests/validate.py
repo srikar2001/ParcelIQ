@@ -27,7 +27,7 @@ PARCELS = [
 _FLOOD_D    = {"zone": "UNKNOWN", "sfha": False, "source": "FEMA NFHL"}
 _WET_D      = {"wetland_on_parcel": False, "wetland_nearby": False, "wetland_type": None, "wetland_code": None, "source": "USFWS NWI"}
 _HAB_D      = {"habitat_found": False, "species": [], "source": "USFWS Critical Habitat"}
-_EPA_D      = {"contamination_found": False, "sites": [], "source": "EPA ECHO Superfund"}
+_EPA_D      = {"contamination_found": False, "sites": [], "error": True, "source": "EPA Superfund (SEMS)"}
 _ROAD_D     = {"road_found": False, "road_surface": "none", "road_type": None, "source": "OpenStreetMap"}
 _PARCEL_D   = {"found": False, "source": "FL DOR Cadastral"}
 
