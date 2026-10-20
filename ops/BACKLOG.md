@@ -7,7 +7,11 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [ ] TODO S1 Narrative model: `core/narrative.py` uses retired `gemini-1.5-flash`, so it likely always falls back to paid Claude. Move to a current free Gemini model; verify output.
 - [ ] TODO S2 Measure per-collector success rate + latency on a 20-parcel batch (direct `_screen_coordinate` calls); fix the worst failure/timeout (audit_report.md §3-4: timeout inversion, dead USGS EPQS fallback).
 - [ ] TODO S3 Geocode accuracy: confirm low-accuracy matches (place/street-level) are flagged to the user, never silently scored (audit §3.3, §5).
-- [ ] TODO S4 When `/health` shows geostore available=true on Railway, re-run `scripts/validate_geostore.py` against prod numbers and log it.
+- [ ] TODO S4 (2026-10-19: /health now shows available=true, built 2026-10-20T02:19Z, 2630 MB — ready to run) When `/health` shows geostore available=true on Railway, re-run `scripts/validate_geostore.py` against prod numbers and log it.
+
+- [ ] TODO S5 (from qa) Outage verdicts: even with flood+wetlands+habitat ALL unavailable a parcel still gets PURSUE (score ~70-96). No REVIEW tier by design, so decide how a parcel with failed fatal-flaw checks should surface (cap score? badge?). Repro: run tests/golden_run.py --only 7 without a geostore (Miami Beach → PURSUE).
+- [ ] TODO S6 (from qa) EPA ECHO Superfund endpoint returns HTTP 404 (echodata.epa.gov .../Superfund_Sites_FRS/MapServer/0/query) — contamination check is silently dead, and EPA always counts as an OK source.
+- [ ] TODO S7 (from qa) Security/cost: /api/narrative/{folio}, /api/report/{folio}, /api/autocomplete, /api/suggest and /api/cache/test (writes a cache row per hit) are unauthenticated on prod. Narrative is currently 503 (no GOOGLE_API_KEY/ANTHROPIC_API_KEY on Railway) — before a key is set, require auth or it's an open LLM-spend endpoint.
 
 ## Land Leads (leads-engineer)
 - [ ] TODO L1 Quality audit: run `/api/leads/search` logic directly for 10 counties × land types; score yield vs requested, KILL leakage, junk/duplicate addresses, variety between runs. Fix the worst.
@@ -23,9 +27,10 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - Ideas inbox (any agent may add; builder/chief promote): 
 
 ## QA (qa-bugfixer)
-- [ ] IN PROGRESS (qa-bugfixer, 2026-10-19) Q1 Golden set: snapshot ~40 diverse FL coordinates' current verdict+score into `tests/golden.json`; each run compare and investigate any drift.
+- [ ] IN REVIEW (agent/qa-bugfixer/golden-set) Q1 Golden set: snapshot ~40 diverse FL coordinates' current verdict+score into `tests/golden.json`; each run compare and investigate any drift.
 - [ ] TODO Q2 Logged-out live sweep: landing, signup/login pages, shared links, mobile; console errors; broken links.
-- [ ] TODO Q3 Check frontend/index.html == index.html on every run.
+- [ ] TODO Q3 Check frontend/index.html == index.html on every run. (2026-10-19: identical)
+- [ ] TODO Q4 Golden baseline needs a LOCAL geostore: Supabase fl_* RPCs (flood_zone_at, wetland_near, habitat_near, easement_near, waterway_near) now 404, so off-Railway every screen runs in outage mode (6-7/12 sources, all 42 points PURSUE). Get geostore.sqlite locally (GitHub release geodata-2026-10-19 or build_geostore.py) at GEOSTORE_PATH, then `tests/golden_run.py --snapshot` and commit tests/golden.json.
 
 ## UX (ux-polisher) — rotate through, one per run
 - [ ] TODO U1 Landing page · U2 Auth screens · U3 Dashboard · U4 Results table · U5 Deal Review · U6 Land Leads · U7 Settings/Admin · U8 Mobile pass
@@ -42,3 +47,4 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [ ] Turn off the idle Railway worker service (skeleton, does no work).
 - [ ] Connect Sentry / Supabase / Railway connectors in Claude.
 - [ ] Provide Florida test address list with expected verdicts.
+- [ ] Narrative (Deal Review AI summary) is dead in prod: /api/narrative returns 503 "set GOOGLE_API_KEY or ANTHROPIC_API_KEY" — add a key on Railway (after S1 + S7).
