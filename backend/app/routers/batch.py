@@ -419,6 +419,8 @@ async def _screen_coordinate(address: str, geo: dict, lat: float, lng: float) ->
             "acreage": parcel_data.get("acreage"),
             "building_count": parcel_data.get("building_count"),
             "owner": parcel_data.get("owner"),
+            "owner_name2": parcel_data.get("owner_name2"),
+            "owner_mailing": parcel_data.get("owner_mailing"),
             "owner_mailing_address": parcel_data.get("owner_mailing_address"),
             "county_address_on_file": parcel_data.get("county_address_on_file"),
             "land_use_code": parcel_data.get("land_use_code"),

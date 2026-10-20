@@ -1,3 +1,5 @@
+import re
+
 import httpx
 
 from app.core.http import pooled_client
@@ -11,6 +13,105 @@ except Exception:
 
 URL = "https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/query"
 DEFAULT = {"found": False, "source": "FL DOR Cadastral", "geometry": []}
+
+# DOR truncates multi-owner names at the field width, leaving a dangling
+# "SMITH JOHN &" or "WOODS HAZEL &JTWRS" (the co-owner never fits). The layer
+# has no OWN_NAME2 field (schema verified) — overflow lands in OWN_ADDR1 instead.
+_CO_OWNER_TAIL = re.compile(
+    r"\s*&\s*(JTWRS|JTRS|JT|WROS|ETAL|ET AL|ETUX|ET UX|ETVIR|ET VIR|TIC|TBE|H/W|HW)?\.?\s*$", re.I)
+# An OWN_ADDR1 that is really a second owner/care-of line, not a street.
+_NAME_LINE = re.compile(
+    r"^(ATTN\b|ATTENTION\b|C/O\b|%|\(|TRUSTEES?\b|ESTATE OF\b|ET ?AL\b|ET ?UX\b|JTWRS\b|LIFE EST)", re.I)
+_BOX_LINE = re.compile(r"^(P\.?\s*O\.?\s*(BOX|DRAWER)|BOX\b|DRAWER\b|RR\b|HC\b|RT\b|ROUTE\b|GENERAL DELIVERY)", re.I)
+
+
+def clean_owner_name(name):
+    """'REED CURTIS L(ENH LE) &' -> 'REED CURTIS L (ENH LE) (co-owned)'."""
+    o = " ".join(str(name or "").split())
+    if not o:
+        return None
+    if not o.endswith("(co-owned)"):
+        m = _CO_OWNER_TAIL.search(o)
+        if m and m.start() > 0:
+            o = o[:m.start()].rstrip(" ,&") + " (co-owned)"
+    return re.sub(r"(\S)\(", r"\1 (", o) or None
+
+
+def _is_name_line(s: str) -> bool:
+    if not s or _BOX_LINE.match(s):
+        return False
+    return bool(_NAME_LINE.match(s)) or not re.search(r"\d", s)
+
+
+_JUNK_LINE = re.compile(r"^(NO ADDRESS|ADDRESS UNKNOWN|UNKNOWN|NONE|N/A|NA)$", re.I)
+# States whose ZIPs start with 0 — DOR stores ZIPCD as a number, so 2134 is 02134.
+_ZERO_ZIP_STATES = {"CT", "MA", "ME", "NH", "NJ", "PR", "RI", "VT", "VI"}
+
+
+def _zip5(z, state=""):
+    try:
+        z = int(str(z).strip().split("-")[0])
+    except (TypeError, ValueError):
+        return None
+    if 10000 <= z < 100000:
+        return f"{z:05d}"
+    if 0 < z < 10000 and state in _ZERO_ZIP_STATES:
+        return f"{z:05d}"
+    return None   # 0 = missing; a short number elsewhere is bad data
+
+
+def owner_mailing(attrs: dict) -> dict:
+    """OWN_ADDR1/2 + OWN_CITY/STATE/ZIPCD -> owner_name2 (care-of / name
+    overflow line), a structured mailing address for mail-merge, and the
+    one-line 'street, CITY, ST 12345' form. ZIP 0 means missing in DOR."""
+    def _s(k):
+        v = attrs.get(k)
+        return " ".join(str(v).split()) if v not in (None, 0) else ""
+    city, state = _s("OWN_CITY"), _s("OWN_STATE").upper()
+    zipc = _zip5(attrs.get("OWN_ZIPCD"), state)
+    lines = [x.strip() for k in ("OWN_ADDR1", "OWN_ADDR2") for x in _s(k).split(",")
+             if x.strip() and not _JUNK_LINE.match(x.strip())]
+    # Peel care-of / name-overflow lines off the front while a street remains
+    # (a lone line only when it is unmistakably one, e.g. "(ENH LE)" / "C/O X").
+    names = []
+    while lines and _is_name_line(lines[0]) and (len(lines) > 1 or _NAME_LINE.match(lines[0])):
+        names.append(lines.pop(0))
+    name2 = ", ".join(names) or None
+    street = ", ".join(lines) or None
+    st_zip = " ".join(x for x in (state, zipc) if x)
+    full = ", ".join(x for x in (street, city, st_zip) if x) or None
+    mailing = ({"street": street, "city": city or None, "state": state or None, "zip": zipc}
+               if (street or city) else None)
+    return {"owner_name2": name2, "owner_mailing": mailing, "owner_mailing_address": full}
+
+
+def normalize_owner_fields(pi: dict) -> dict:
+    """Bring an already-stored parcel_info (cached screen / banked lead, which
+    only has the old 'ADDR1, ADDR2, CITY, ST, ZIP' string) to the same shape."""
+    if not isinstance(pi, dict):
+        return pi
+    if pi.get("owner"):
+        pi["owner"] = clean_owner_name(pi["owner"])
+    raw = pi.get("owner_mailing_address")
+    if raw and not pi.get("owner_mailing"):
+        segs = [x.strip() for x in str(raw).split(",") if x.strip()]
+        attrs = {}
+        if segs and re.fullmatch(r"\d{5}(-\d{4})?", segs[-1]):
+            attrs["OWN_ZIPCD"] = segs.pop()
+        elif segs and re.fullmatch(r"[A-Z]{2} \d{5}(-\d{4})?", segs[-1]):
+            st, z = segs.pop().split(" ")
+            attrs["OWN_STATE"], attrs["OWN_ZIPCD"] = st, z
+        if segs and "OWN_STATE" not in attrs and re.fullmatch(r"[A-Za-z]{2}", segs[-1]):
+            attrs["OWN_STATE"] = segs.pop()
+        if len(segs) >= 2 or (segs and not re.search(r"\d", segs[-1])):
+            attrs["OWN_CITY"] = segs.pop()
+        attrs["OWN_ADDR1"] = ", ".join(segs)
+        om = owner_mailing(attrs)
+        pi["owner_mailing"] = om["owner_mailing"]
+        pi["owner_mailing_address"] = om["owner_mailing_address"]
+        if om["owner_name2"] and not pi.get("owner_name2"):
+            pi["owner_name2"] = om["owner_name2"]
+    return pi
 
 
 async def get_parcel_geometry_by_id(parcel_id: str):
@@ -141,11 +242,8 @@ async def get_parcel_data(lat: float, lng: float) -> dict:
         co_no = attrs.get("CO_NO")
         county = _CO_NO_TO_COUNTY.get(int(co_no)) if co_no is not None else None
 
-        # DOR truncates multi-owner names, leaving a dangling "SMITH JOHN &" —
-        # the layer has no OWN_NAME2 field (schema verified), so clean it up
-        owner = (attrs.get("OWN_NAME") or "").strip()
-        if owner.endswith("&"):
-            owner = owner.rstrip("& ").strip() + " (co-owned)"
+        owner = clean_owner_name(attrs.get("OWN_NAME"))
+        mail = owner_mailing(attrs)
 
         def _addr_line(*parts):
             vals = [str(p).strip() for p in parts if p not in (None, "", 0) and str(p).strip()]
@@ -155,10 +253,10 @@ async def get_parcel_data(lat: float, lng: float) -> dict:
             "found": True,
             "county": county,
             "parcel_id": attrs.get("PARCEL_ID"),
-            "owner": owner or None,
-            "owner_mailing_address": _addr_line(
-                attrs.get("OWN_ADDR1"), attrs.get("OWN_ADDR2"), attrs.get("OWN_CITY"),
-                attrs.get("OWN_STATE"), attrs.get("OWN_ZIPCD")),
+            "owner": owner,
+            "owner_name2": mail["owner_name2"],
+            "owner_mailing": mail["owner_mailing"],
+            "owner_mailing_address": mail["owner_mailing_address"],
             "county_address_on_file": _addr_line(
                 attrs.get("PHY_ADDR1"), attrs.get("PHY_CITY"), attrs.get("PHY_ZIPCD")),
             "acreage": acreage,
