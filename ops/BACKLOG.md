@@ -4,6 +4,7 @@ Status: TODO · IN PROGRESS (agent, date) · DONE (date, commit) · BLOCKED (why
 Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 
 ## Screening (screening-engineer)
+- [ ] TODO S8 (from qa) No-parcel on road/water points: FL DOR cadastral is queried with point-intersects only, so a geocode landing on a ROW/centerline/canal gets found=False (no owner/acreage/land use, 11/12 sources). 16/42 golden points (downtown Orlando/Tampa/Tallahassee/Jax, Miami Beach, Key West, Alachua rural…) hit this, yet a ~45 m envelope finds 2-4 parcels at each. Consider nearest-parcel fallback within ~30 m (flag it as 'nearest parcel'). Repro: cadastral query geometry=-81.3792,28.5383 → features:[]; tests/golden.json idx with parcel_id null.
 - [ ] TODO S7 (from qa) Security/cost: /api/narrative/{folio}, /api/report/{folio}, /api/autocomplete, /api/suggest and /api/cache/test (writes a cache row per hit) are unauthenticated on prod. Narrative is currently 503 (no GOOGLE_API_KEY/ANTHROPIC_API_KEY on Railway) — before a key is set, require auth or it's an open LLM-spend endpoint.
 - [ ] TODO S6 (from qa) EPA ECHO Superfund endpoint returns HTTP 404 (echodata.epa.gov .../Superfund_Sites_FRS/MapServer/0/query) — contamination check is silently dead, and EPA always counts as an OK source.
 - [ ] TODO S4 (UNBLOCKED — 2026-10-20 /health: available=true, 2630 MB) When `/health` shows geostore available=true on Railway, re-run `scripts/validate_geostore.py` against prod numbers and log it.
@@ -27,9 +28,9 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 
 ## QA (qa-bugfixer)
 - [ ] IN REVIEW (agent/qa-bugfixer/golden-set) Q1 Golden set: snapshot ~40 diverse FL coordinates' current verdict+score into `tests/golden.json`; each run compare and investigate any drift.
-- [ ] IN PROGRESS (qa-bugfixer, 2026-10-20) Q4 (do first; pairs with S4, same geostore file) Golden baseline needs a LOCAL geostore: Supabase fl_* RPCs (flood_zone_at, wetland_near, habitat_near, easement_near, waterway_near) now 404, so off-Railway every screen runs in outage mode (6-7/12 sources, all 42 points PURSUE). Get geostore.sqlite locally (GitHub release geodata-2026-10-19 or build_geostore.py) at GEOSTORE_PATH, then `tests/golden_run.py --snapshot` and commit tests/golden.json.
+- [ ] IN REVIEW (agent/qa-bugfixer/golden-baseline, stacked on golden-set) Q4 (do first; pairs with S4, same geostore file) Golden baseline needs a LOCAL geostore: Supabase fl_* RPCs (flood_zone_at, wetland_near, habitat_near, easement_near, waterway_near) now 404, so off-Railway every screen runs in outage mode (6-7/12 sources, all 42 points PURSUE). Get geostore.sqlite locally (GitHub release geodata-2026-10-19 or build_geostore.py) at GEOSTORE_PATH, then `tests/golden_run.py --snapshot` and commit tests/golden.json.
 - [ ] TODO Q2 Logged-out live sweep: landing, signup/login pages, shared links, mobile; console errors; broken links.
-- [ ] TODO Q3 Check frontend/index.html == index.html on every run. (2026-10-19: identical)
+- [ ] TODO Q3 Check frontend/index.html == index.html on every run. (2026-10-19, 2026-10-20: identical)
 
 ## UX (ux-polisher) — rotate through, one per run
 - [ ] TODO U1 Landing page · U2 Auth screens · U3 Dashboard · U4 Results table · U5 Deal Review · U6 Land Leads · U7 Settings/Admin · U8 Mobile pass
