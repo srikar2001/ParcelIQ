@@ -69,3 +69,13 @@ Code goes on a branch + pull request. Coordination files live on the shared bran
 - Logged-in UI: don't sign in; test those screens by rendering them locally with fixture data, and test the API via
   backend functions directly (`backend/venv` at `/Users/saisrikar/Downloads/parceliq_backend (1)/backend/venv/bin/python`,
   load env with `load_dotenv(<backend>/.env)` explicitly — a bare load_dotenv() silently loads nothing).
+
+## Token budget (the owner's usage is shared by all agents — be frugal)
+
+- Aim for a run under ~15 minutes. If the item is bigger, split it and ship the first slice.
+- NEVER read `frontend/index.html` whole (13k+ lines). `grep -n` for the function/CSS you need, then read only that range (`sed -n 'A,Bp'` or Read with offset/limit).
+- Read only the memory files relevant to your item, not all of them. Read the board with `git show`, not by checking out.
+- Prefer `curl`/`get_page_text`/`read_page` over screenshots; take screenshots only for the final before/after of visual changes, at reduced scale.
+- Don't re-run full benchmarks/golden sets unless your change can affect them; use `--only` subsets while iterating.
+- Keep tool output short (`| tail`, `| head`, `grep`); never dump large JSON or logs.
+- If there's nothing worthwhile in your lane, log "idle — nothing high-value" and stop immediately.
