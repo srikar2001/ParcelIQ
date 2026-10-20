@@ -24,7 +24,8 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [ ] TODO L4 (from L1) Owner action: `lead_inventory.archived` column does NOT exist in Supabase (README_FIX_APPLIED.md in the owner checkout says it was applied — it wasn't). L1 makes the code tolerate that; apply FINAL_FIX.sql (owner) if 30-day archiving is still wanted.
 - [ ] TODO L5 (from L1) Mobile-home-zone + sold-within filters are no-ops: nothing in the backend sets `mobile_home_zone` / `last_sale_date`; the live path ignores both filters and the inventory filter checks `lead_json->>mobile_home_zone` (top level) so ticking "Mobile home zone" serves 0 from inventory and unfiltered live lots. Needs a real data source (county zoning / DOR SALE_YR1+SALE_MO1) before the UI promises it.
 - [ ] TODO L6 (from L1) Baker Agricultural inventory rows carry old "<N>-acre lot" labels (1-2/25) and repeated street labels (3/25) — re-resolve addresses for banked rows whose address still contains "-acre lot".
-- [ ] IN PROGRESS (leads-engineer, 2026-10-20) L3 Pull owner name line 2 + owner mailing address (OWN_NAME2, OWN_ADDR1/CITY/STATE/ZIPCD) into parcel_info, leads table and exports. Unblocks B4.
+- [ ] IN REVIEW (agent/leads-engineer/l3-owner-mailing) L3 Pull owner name line 2 + owner mailing address (OWN_NAME2, OWN_ADDR1/CITY/STATE/ZIPCD) into parcel_info, leads table and exports. Unblocks B4.
+- [ ] TODO L7 (from L3) Exports for batches saved BEFORE L3 have blank Mail Street/City/State/ZIP columns (only the one-line address); if mail-merge on old batches matters, parse `owner_mailing_address` client-side in exportCSV/exportExcel (same rules as parcel_fl.normalize_owner_fields).
 - [ ] TODO L2 Background top-up of `lead_inventory` for warm counties (the "v2" in memory project_land_leads_v3).
 
 ## Build (product-builder)
