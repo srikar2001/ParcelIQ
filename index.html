@@ -12124,12 +12124,12 @@ function _svInitMap(r) {
   const acreLabel = svAcreage != null ? (Math.round(svAcreage * 10) / 10) + ' ac' : null;
   _sv3dSrc = { coords: coords, lat: lat, lng: lng, acreLabel: acreLabel };
   if (coords && coords.length > 2) {
-    const poly = L.polygon(coords, { color: '#38BDF8', weight: 3, fillColor: '#38BDF8', fillOpacity: 0.15 }).addTo(_svMap);
+    const poly = L.polygon(coords, { color: '#059669', weight: 4, fillColor: '#10B981', fillOpacity: 0.32 }).addTo(_svMap);
     _svLayers['parcel'] = poly;
     if (acreLabel) poly.bindTooltip(acreLabel, { permanent: true, direction: 'center', className: 'sv-map-acres-label' });
-    try { _svMap.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 17 }); } catch(e) {}
+    try { _svMap.fitBounds(poly.getBounds(), { padding: [60, 60], maxZoom: 18 }); } catch(e) {}
   } else {
-    const marker = L.circleMarker([lat, lng], { radius: 14, color: '#38BDF8', weight: 2, fillColor: '#38BDF8', fillOpacity: 0.25 }).addTo(_svMap);
+    const marker = L.circleMarker([lat, lng], { radius: 14, color: '#059669', weight: 3, fillColor: '#10B981', fillOpacity: 0.3 }).addTo(_svMap);
     _svLayers['parcel'] = marker;
     if (acreLabel) marker.bindTooltip(acreLabel, { permanent: true, direction: 'top', offset: [0, -10], className: 'sv-map-acres-label' });
   }
@@ -12174,9 +12174,9 @@ async function _svDrawNeighbors() {
     const grp = L.layerGroup();
     d.parcels.forEach(function (p) {
       if (!(p.ring && p.ring.length > 2)) return;
-      const poly = L.polygon(p.ring, { color: '#1D4ED8', weight: 2, opacity: 0.9, fill: true, fillColor: '#3B82F6', fillOpacity: 0.06 });
+      const poly = L.polygon(p.ring, { color: '#64748B', weight: 1, opacity: 0.55, fill: true, fillColor: '#64748B', fillOpacity: 0.03 });
       poly.on('mouseover', function () { poly.setStyle({ fillOpacity: 0.2, weight: 2.5, color: '#22C55E' }); });
-      poly.on('mouseout', function () { poly.setStyle({ fillOpacity: 0.06, weight: 2, color: '#1D4ED8' }); });
+      poly.on('mouseout', function () { poly.setStyle({ fillOpacity: 0.03, weight: 1, color: '#64748B' }); });
       poly.on('click', function (e) { svExploreParcel(e.latlng.lat, e.latlng.lng); });
       // Hover tooltip — what this neighbouring parcel is and what it last sold
       // for, so you can sweep the map and read every neighbour's comp at a glance.
@@ -12195,6 +12195,7 @@ async function _svDrawNeighbors() {
       poly.addTo(grp);
     });
     _svNeighborLayer = grp.addTo(_svMap);
+    if (_svLayers['parcel'] && _svLayers['parcel'].bringToFront) _svLayers['parcel'].bringToFront();
     if (_svLayers['parcel'] && _svLayers['parcel'].bringToFront) { try { _svLayers['parcel'].bringToFront(); } catch (e) {} }
   } catch (e) {}
 }
