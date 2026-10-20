@@ -15,7 +15,7 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [ ] TODO L3 Pull owner name line 2 + owner mailing address (OWN_NAME2, OWN_ADDR1/CITY/STATE/ZIPCD) into parcel_info, leads table and exports.
 
 ## Build (product-builder)
-- [ ] TODO B1 3D land view: free 3D terrain + satellite toggle on the Deal Review map and Land Leads map (e.g. MapLibre GL JS + free terrain-RGB tiles such as AWS Terrain Tiles "terrarium", Esri World Imagery with attribution). Parcel outline draped on terrain, tilt/rotate, works on mobile.
+- [ ] IN PROGRESS (product-builder, 2026-10-19) B1 3D land view: free 3D terrain + satellite toggle on the Deal Review map and Land Leads map (e.g. MapLibre GL JS + free terrain-RGB tiles such as AWS Terrain Tiles "terrarium", Esri World Imagery with attribution). Parcel outline draped on terrain, tilt/rotate, works on mobile.
 - [ ] TODO B2 Lead Hunter: saved "buy box" searches that re-run nightly and surface NEW matching PURSUE lots in-app (badge + list). Email later (needs a free provider — owner decision).
 - [ ] TODO B3 Deal Analyst: per-parcel Q&A in Deal Review grounded ONLY in that parcel's screening data, with sources; per-user daily cap.
 - [ ] TODO B4 Offer helper: suggested offer range from nearby sales (`/api/explore/comps`) + downloadable offer letter (needs L3 mailing address).
