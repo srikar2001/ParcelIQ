@@ -12574,14 +12574,10 @@ function _svRenderComps(comps) {
   }).join('');
   if (grp && _svMap) {
     _svCompMarkers = grp.addTo(_svMap);
-    // Frame the subject + its NEAR comps so the neighbours are actually visible
-    // (they were mostly off-screen at the subject-only zoom) without zooming out
-    // to catch a far sale.
-    try {
-      const b = L.latLngBounds(nearPts.length ? nearPts : _svCompMarkerList.filter(Boolean).map(m => [m.lat, m.lng]));
-      if (_svLayers['parcel'] && _svLayers['parcel'].getBounds) b.extend(_svLayers['parcel'].getBounds());
-      if (b.isValid()) _svMap.fitBounds(b, { padding: [45, 45], maxZoom: 16 });
-    } catch (e) {}
+    // No auto-refit here: comps load late, and zooming out to frame them made
+    // the subject parcel unreadable. The parcel stays the focus; comp markers
+    // are on the map and appear as the user zooms out.
+    void nearPts;
   }
 }
 
