@@ -145,6 +145,15 @@ def score_parcel(
         score -= 15
         flags.append(f"Agricultural land use code ({land_use})")
 
+    # A failed kill-check is a data gap, same -5 as road/county gaps — so an
+    # outage of the fatal-flaw sources can't produce a near-perfect PURSUE.
+    if flood_zone == "ERROR":
+        score -= 5
+    if wetlands.get("error") is True:
+        score -= 5
+    if habitat.get("data_available") is False:
+        score -= 5
+
     # FIX 2 — Data gap is not the same as a bad parcel
     if not parcel.get("found"):
         score -= 5
@@ -244,7 +253,9 @@ def score_parcel(
         score += 5
         positives.append("Flood Zone X, minimal flood hazard")
 
-    if not wetlands.get("wetland_on_parcel") and not wetlands.get("wetland_nearby"):
+    if (wetlands.get("error") is not True
+            and wetlands.get("wetland_on_parcel") is False
+            and wetlands.get("wetland_nearby") is False):
         score += 5
         positives.append("No wetlands on parcel or nearby")
 
