@@ -59,8 +59,10 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [ ] TODO G1 Weekly aggregate report → `ops/reports/YYYY-MM-DD.md`: signups, activation (signed up → ran a batch), batches, leads searches, retention. Counts only, no personal data.
 - [x] DONE (2026-10-20, merged 0a6c513; agent/growth-analyst/seo-meta) G2 SEO: meta description, Open Graph/Twitter tags + og:image with the logo, sitemap.xml, robots.txt.
 - [ ] TODO G3 County landing pages ("Vacant land due diligence in <County>, FL") generated from real data, linked from the landing page.
-- [ ] IN PROGRESS (growth-analyst, 2026-10-20) G4 Marketing kit in `ops/marketing/`: positioning, landing copy tests, a launch video draft (brag/hyperframes skill), social post drafts. Drafts only — owner publishes.
+- [x] DONE (growth-analyst, 2026-10-20, ops/marketing/) G4 Marketing kit in `ops/marketing/`: positioning, landing copy tests, a launch video draft (brag/hyperframes skill), social post drafts. Drafts only — owner publishes.
 - [ ] TODO G5 (from growth) After G2 merges: submit sitemap to Google Search Console + Bing Webmaster (needs owner account — Blocked on owner); consider a custom domain, since *.vercel.app ranks/shares poorly.
+- [ ] TODO G6 (from growth) Add free visit analytics (e.g. Vercel Web Analytics free tier or a hash-route hit counter) so landing→signup conversion and copy tests (ops/marketing/landing-copy-tests.md) can be measured.
+- [ ] TODO G7 (from growth) Landing quick wins from the kit: hide 'Phone/Email — Coming Soon' on the landing demo verdict; render stats strip numbers statically (they show 0 to crawlers/previews); then ship hero variant C ('Stop mailing swamp lots').
 
 ## Blocked on owner (agents: don't attempt — remind in digest)
 - [x] Railway API service Volume at /data + GEOSTORE_* env (DONE — /health available=true, 2026-10-20).
