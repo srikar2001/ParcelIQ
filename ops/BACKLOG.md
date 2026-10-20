@@ -14,7 +14,7 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [ ] TODO S3 Geocode accuracy: confirm low-accuracy matches (place/street-level) are flagged to the user, never silently scored (audit §3.3, §5).
 
 ## Land Leads (leads-engineer)
-- [ ] TODO L1 Quality audit: run `/api/leads/search` logic directly for 10 counties × land types; score yield vs requested, KILL leakage, junk/duplicate addresses, variety between runs. Fix the worst.
+- [ ] IN PROGRESS (leads-engineer, 2026-10-20) L1 Quality audit: run `/api/leads/search` logic directly for 10 counties × land types; score yield vs requested, KILL leakage, junk/duplicate addresses, variety between runs. Fix the worst.
 - [ ] TODO L3 Pull owner name line 2 + owner mailing address (OWN_NAME2, OWN_ADDR1/CITY/STATE/ZIPCD) into parcel_info, leads table and exports. Unblocks B4.
 - [ ] TODO L2 Background top-up of `lead_inventory` for warm counties (the "v2" in memory project_land_leads_v3).
 
