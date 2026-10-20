@@ -27,7 +27,7 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 
 ## QA (qa-bugfixer)
 - [ ] IN REVIEW (agent/qa-bugfixer/golden-set) Q1 Golden set: snapshot ~40 diverse FL coordinates' current verdict+score into `tests/golden.json`; each run compare and investigate any drift.
-- [ ] TODO Q4 (do first; pairs with S4, same geostore file) Golden baseline needs a LOCAL geostore: Supabase fl_* RPCs (flood_zone_at, wetland_near, habitat_near, easement_near, waterway_near) now 404, so off-Railway every screen runs in outage mode (6-7/12 sources, all 42 points PURSUE). Get geostore.sqlite locally (GitHub release geodata-2026-10-19 or build_geostore.py) at GEOSTORE_PATH, then `tests/golden_run.py --snapshot` and commit tests/golden.json.
+- [ ] IN PROGRESS (qa-bugfixer, 2026-10-20) Q4 (do first; pairs with S4, same geostore file) Golden baseline needs a LOCAL geostore: Supabase fl_* RPCs (flood_zone_at, wetland_near, habitat_near, easement_near, waterway_near) now 404, so off-Railway every screen runs in outage mode (6-7/12 sources, all 42 points PURSUE). Get geostore.sqlite locally (GitHub release geodata-2026-10-19 or build_geostore.py) at GEOSTORE_PATH, then `tests/golden_run.py --snapshot` and commit tests/golden.json.
 - [ ] TODO Q2 Logged-out live sweep: landing, signup/login pages, shared links, mobile; console errors; broken links.
 - [ ] TODO Q3 Check frontend/index.html == index.html on every run. (2026-10-19: identical)
 
