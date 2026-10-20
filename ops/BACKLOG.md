@@ -29,10 +29,11 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 ## QA (qa-bugfixer)
 - [x] DONE (2026-10-20, merged 4c2513c; agent/qa-bugfixer/golden-set) Q1 Golden set: snapshot ~40 diverse FL coordinates' current verdict+score into `tests/golden.json`; each run compare and investigate any drift.
 - [x] DONE (2026-10-20, merged 4c2513c; agent/qa-bugfixer/golden-baseline, stacked on golden-set) Q4 (do first; pairs with S4, same geostore file) Golden baseline needs a LOCAL geostore: Supabase fl_* RPCs (flood_zone_at, wetland_near, habitat_near, easement_near, waterway_near) now 404, so off-Railway every screen runs in outage mode (6-7/12 sources, all 42 points PURSUE). Get geostore.sqlite locally (GitHub release geodata-2026-10-19 or build_geostore.py) at GEOSTORE_PATH, then `tests/golden_run.py --snapshot` and commit tests/golden.json.
-- [ ] IN PROGRESS (qa-bugfixer, 2026-10-20) Q2 Logged-out live sweep: landing, signup/login pages, shared links, mobile; console errors; broken links.
-- [ ] TODO Q3 Check frontend/index.html == index.html on every run. (2026-10-19, 2026-10-20: identical)
+- [ ] IN REVIEW (agent/qa-bugfixer/shared-parcel-blank) Q2 Logged-out live sweep: landing, signup/login pages, shared links, mobile; console errors; broken links.
+- [ ] TODO Q3 Check frontend/index.html == index.html on every run. (2026-10-19, 2026-10-20 x2: identical)
 
 ## UX (ux-polisher) — rotate through, one per run
+- [ ] TODO U9 (from qa) `#pricing` is hidden in nav (PRICING_HIDDEN) but still renders "Simple, flat pricing." plans when the hash is typed directly — while beta is free, route #pricing to #landing (or show a beta note). Repro: https://parcel-iq-nine.vercel.app/#pricing logged out.
 - [ ] TODO U1 Landing page · U2 Auth screens · U3 Dashboard · U4 Results table · U5 Deal Review · U6 Land Leads · U7 Settings/Admin · U8 Mobile pass
 
 ## Growth (growth-analyst)
