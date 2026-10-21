@@ -90,7 +90,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);line-he
 .inp:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(5,150,105,.14)}
 
 /* VERDICT BADGES */
-.verdict-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:.5px;padding:3px 10px;border-radius:var(--rp)}
+.verdict-badge{display:inline-flex;align-items:center;white-space:nowrap;font-size:11px;font-weight:700;letter-spacing:.5px;padding:3px 10px;border-radius:var(--rp)}
 .vb-kill{background:var(--rbg);color:var(--red);border:1px solid rgba(239,68,68,.2)}
 .vb-review{background:var(--abg);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
 .vb-pursue{background:var(--gbg);color:var(--green);border:1px solid rgba(34,197,94,.2)}
@@ -613,7 +613,7 @@ body.on-results .detail-panel{top:0}
 .dp-pos-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;border-bottom:1px solid rgba(42,45,58,.5)}
 .dp-pos-row:last-child{border-bottom:none}
 .sumchip:hover{border-color:var(--bh);color:var(--t1)}
-.sumchip.on{background:var(--t1);color:#fff;border-color:var(--t1)}
+.sumchip.on{background:var(--t1);color:var(--bg);border-color:var(--t1)}
 /* Active verdict chips use SATURATED fills (not the theme's text-red, which is a
    light salmon in dark mode) so the white label keeps strong contrast in both
    themes — the dark-mode "Kill" was washing out to near-white. */
@@ -669,7 +669,7 @@ html{background:var(--bg)}
 @media(max-width:640px){.inp,input[type=text],input[type=email],input[type=search],input[type=number],select,textarea{font-size:16px}}
 .res-trow.expanded{background:var(--card-h)}
 .res-trow td{padding:11px 14px;vertical-align:middle}
-.tbl-parcel{font-size:13px;font-weight:600;color:var(--t1);max-width:200px;position:relative}
+.tbl-parcel{font-size:13px;font-weight:600;color:var(--t1);min-width:220px;max-width:340px;position:relative}
 .tbl-apn{font-size:11px;color:var(--t3);font-weight:400;margin-top:2px}
 .tbl-score-cell{font-size:18px;font-weight:800;white-space:nowrap}
 .tbl-flags-cell{max-width:200px;vertical-align:top;padding-top:10px!important}
@@ -981,8 +981,8 @@ html{background:var(--bg)}
 .leaflet-container{border-radius:var(--rs)}
 .dp-sources{padding:12px 16px;border-top:1px solid var(--b);font-size:11px;color:var(--t3);line-height:1.6}
 .dp-actions{padding:14px 16px;border-top:1px solid var(--b);display:flex;gap:8px;flex-shrink:0}
-.rescreen-icon{opacity:0;transition:opacity .15s,transform .15s;background:none;border:1px solid var(--b);border-radius:50%;width:26px;height:26px;cursor:pointer;color:var(--t2);font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;line-height:1}
-.res-trow:hover .rescreen-icon{opacity:1}
+.rescreen-icon{opacity:.7;transition:opacity .15s,transform .15s;background:none;border:1px solid var(--b);border-radius:50%;width:26px;height:26px;cursor:pointer;color:var(--t2);font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;line-height:1}
+.res-trow:hover .rescreen-icon,.rescreen-icon:focus-visible{opacity:1}
 .rescreen-icon:hover{color:var(--green);border-color:var(--green)}
 .rescreen-icon.spinning{animation:spin360 1s linear infinite;opacity:1}
 @keyframes spin360{to{transform:rotate(360deg)}}
@@ -1030,12 +1030,12 @@ html{background:var(--bg)}
 .cmp-pick-btn:hover{background:rgba(255,200,0,.2)}
 
 /* ══ ROW CHECKBOX */
-.row-cb{width:15px;height:15px;border:1.5px solid var(--bh);border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--green);vertical-align:middle;opacity:0;transition:opacity .12s}
+.row-cb{width:15px;height:15px;border:1.5px solid var(--bh);border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--green);vertical-align:middle;opacity:1}
 .res-trow:hover .row-cb,.row-cb:checked{opacity:1}
 #selAllCb{opacity:0;transition:opacity .12s}
 thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
-.row-star{background:none;border:none;cursor:pointer;font-size:13px;padding:0 0 0 4px;line-height:1;opacity:0;transition:opacity .12s;vertical-align:middle;flex-shrink:0}
-.res-trow:hover .row-star,.row-star-on{opacity:1}
+.row-star{background:none;border:none;cursor:pointer;font-size:13px;padding:0 0 0 4px;line-height:1;opacity:.6;transition:opacity .12s;vertical-align:middle;flex-shrink:0}
+.res-trow:hover .row-star,.row-star:focus-visible,.row-star-on{opacity:1}
 .row-star-off{color:var(--t3)}
 .row-star-on{color:var(--amber)}
 .res-trow.selected{background:rgba(34,197,94,.05)}
@@ -1057,7 +1057,8 @@ thead tr:hover #selAllCb,#selAllCb:checked{opacity:1}
 /* ══ SORT HOVER */
 .th-sortable:hover{color:var(--t2)}
 .sort-arrow{color:var(--t3);font-size:9px}
-.col-sort-btn{display:inline-flex;align-items:center;gap:3px;cursor:pointer;user-select:none}
+.col-sort-btn{display:inline-flex;align-items:center;gap:3px;cursor:pointer;user-select:none;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;border-radius:4px}
+.col-sort-btn:focus-visible,.tbl-addr-link:focus-visible,.row-cb:focus-visible,.rescreen-icon:focus-visible,.row-star:focus-visible,.tbl-landuse-filter-btn:focus-visible{outline:2px solid var(--green);outline-offset:2px}
 .col-sort-btn .arrow{font-size:13px;color:var(--t3);transition:color .15s}
 .col-sort-btn:hover .arrow{color:var(--t2)}
 .col-sort-btn.active .arrow{color:var(--green);font-size:13px}
@@ -1172,13 +1173,16 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
   .res-trow td{display:block;padding:0!important;border:none!important;white-space:normal!important;background:none!important}
   .res-trow>td:first-child{display:none}                 /* checkbox */
   .res-trow>td:last-child{grid-area:decision;justify-self:end}
-  .tbl-parcel{grid-area:addr;font-size:15px;font-weight:700;line-height:1.3}
+  .tbl-parcel{grid-area:addr;font-size:15px;font-weight:700;line-height:1.3;min-width:0;max-width:none}
   .tbl-landuse{grid-area:landuse;font-size:12.5px;color:var(--t2)}
   .tbl-size{grid-area:size;font-size:12px;color:var(--t3);margin-top:2px}
   .tbl-signals{grid-area:signals;margin-top:5px;display:flex;flex-wrap:wrap;gap:5px;max-height:none}
   .tbl-score-cell{grid-area:score;font-size:26px;font-weight:800;text-align:right;line-height:1}
   .res-trow.row-error>td[colspan]{grid-column:1/-1}
   .reRunHint{display:none}
+  .res-title-row{flex-wrap:wrap;align-items:baseline!important;column-gap:6px!important;row-gap:0!important}
+  .res-title-row .res-title{font-size:21px;line-height:1.25}
+  .res-filter-row .res-search-row{flex:1 1 100%;order:3;min-width:0!important;max-width:none!important;margin:0!important}
 }
 @media(max-width:768px){
   .nav{padding:0 16px}
@@ -2763,10 +2767,10 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
         <div style="display:flex;align-items:center;gap:10px">
           <button id="sidebarOpenBtn" onclick="toggleResultsSidebar()" title="Show sidebar" style="display:none;background:none;border:1px solid var(--b);cursor:pointer;color:var(--t2);padding:5px 7px;border-radius:6px;align-items:center"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="16" height="14" rx="2"/><line x1="6.5" y1="1.5" x2="6.5" y2="14.5"/></svg></button>
           <div>
-            <div style="display:flex;align-items:center;gap:6px">
+            <div class="res-title-row" style="display:flex;align-items:center;gap:6px">
               <div class="res-title" id="resTitleCount" style="cursor:text" title="Click to rename" onclick="inlineEditBatchTitle(this)">Dashboard</div>
               <div class="res-title" id="resCountSuffix" style="color:var(--t3);font-weight:600"></div>
-              <button onclick="inlineEditBatchTitle(document.getElementById('resTitleCount'))" title="Rename batch" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:1px 4px;opacity:.3;transition:opacity .15s" id="batchTitleEditBtn">✎</button>
+              <button onclick="inlineEditBatchTitle(document.getElementById('resTitleCount'))" title="Rename batch" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;padding:1px 4px;opacity:.65;transition:opacity .15s" id="batchTitleEditBtn" aria-label="Rename batch">✎</button>
             </div>
             <div class="res-meta-txt" id="resMeta"></div>
           </div>
@@ -2785,9 +2789,9 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
         </div>
         <div class="res-search-row" style="margin:0 0 0 auto;min-width:200px;max-width:340px">
           <div class="res-search-box">
-            <input type="text" id="tableSearchInput" class="res-search-input" placeholder="Search address or APN..." oninput="_tableSearchInput(this.value)">
-            <button class="res-search-clear" id="tableSearchClear" style="display:none" onclick="_tableSearchClear()" title="Clear search">✕</button>
-            <button class="res-search-btn" title="Search" onclick="document.getElementById('tableSearchInput').focus()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+            <input type="text" id="tableSearchInput" class="res-search-input" aria-label="Search parcels by address or APN" placeholder="Search address or APN..." oninput="_tableSearchInput(this.value)">
+            <button class="res-search-clear" id="tableSearchClear" style="display:none" onclick="_tableSearchClear()" title="Clear search" aria-label="Clear search">✕</button>
+            <button class="res-search-btn" title="Search" aria-label="Search" onclick="document.getElementById('tableSearchInput').focus()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
           </div>
           <span class="res-search-count" id="tableSearchCount" style="display:none"></span>
         </div>
@@ -2845,13 +2849,13 @@ button, a, [onclick], label, input, select, .res-trow, .batch-card, .rsb-item,
         <table class="res-table">
           <thead>
             <tr>
-              <th style="width:32px"><input type="checkbox" class="row-cb" id="selAllCb" onchange="toggleSelectAll()" style="margin:0"></th>
-              <th>ADDRESS <span class="reRunHint" style="font-size:10px;color:var(--t2);font-weight:400;letter-spacing:0">· hover ↻ to re-run</span></th>
-              <th onclick="sortBy('landuse')" style="cursor:pointer"><span class="col-sort-btn" id="sort-landuse">TYPE OF LAND <span class="arrow">↕</span></span><button type="button" class="tbl-landuse-filter-btn" onclick="event.stopPropagation();openLandTypeFilter()" title="Filter by type of land">▾</button></th>
-              <th onclick="sortBy('size')" style="cursor:pointer"><span class="col-sort-btn" id="sort-size">SIZE <span class="arrow">↕</span></span></th>
+              <th style="width:32px"><input type="checkbox" class="row-cb" id="selAllCb" aria-label="Select all parcels" onchange="toggleSelectAll()" style="margin:0"></th>
+              <th>ADDRESS</th>
+              <th onclick="sortBy('landuse')" style="cursor:pointer"><button type="button" class="col-sort-btn" id="sort-landuse" aria-label="Sort by type of land">TYPE OF LAND <span class="arrow" aria-hidden="true">↕</span></button><button type="button" class="tbl-landuse-filter-btn" onclick="event.stopPropagation();openLandTypeFilter()" title="Filter by type of land" aria-label="Filter by type of land">▾</button></th>
+              <th onclick="sortBy('size')" style="cursor:pointer"><button type="button" class="col-sort-btn" id="sort-size" aria-label="Sort by size">SIZE <span class="arrow" aria-hidden="true">↕</span></button></th>
               <th>SIGNALS</th>
-              <th onclick="sortBy('score')" style="cursor:pointer"><span class="col-sort-btn" id="sort-score">SCORE <span class="arrow">↕</span></span></th>
-              <th onclick="sortBy('decision')" style="cursor:pointer"><span class="col-sort-btn" id="sort-decision">DECISION <span class="arrow">↕</span></span></th>
+              <th onclick="sortBy('score')" style="cursor:pointer"><button type="button" class="col-sort-btn" id="sort-score" aria-label="Sort by score">SCORE <span class="arrow" aria-hidden="true">↕</span></button></th>
+              <th onclick="sortBy('decision')" style="cursor:pointer"><button type="button" class="col-sort-btn" id="sort-decision" aria-label="Sort by decision">DECISION <span class="arrow" aria-hidden="true">↕</span></button></th>
             </tr>
           </thead>
           <tbody id="resTableBody"></tbody>
@@ -7556,6 +7560,8 @@ function updateSortButtons() {
     const btn = document.getElementById('sort-' + col);
     if (!btn) return;
     const arrow = btn.querySelector('.arrow');
+    const th = btn.closest('th');
+    if (th) th.setAttribute('aria-sort', col === batchState.sortCol ? (batchState.sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
     if (col === batchState.sortCol) {
       btn.classList.add('active');
       if (arrow) arrow.textContent = batchState.sortDir === 'asc' ? '↑' : '↓';
@@ -7585,9 +7591,9 @@ function _refreshTable() {
     sorted = defaultSort(batchState.results);
   } else if (batchState.sortCol === 'score') {
     sorted = [...batchState.results].sort((a, b) => {
-      const sa = a.score ?? 101;
-      const sb = b.score ?? 101;
-      return batchState.sortDir === 'asc' ? sa - sb : sb - sa;
+      // Unscored rows (errors / outside FL) sink to the bottom in both directions.
+      if (a.score == null || b.score == null) return (a.score == null) - (b.score == null);
+      return batchState.sortDir === 'asc' ? a.score - b.score : b.score - a.score;
     });
   } else if (batchState.sortCol === 'decision') {
     sorted = [...batchState.results].sort((a, b) => {
@@ -7876,14 +7882,27 @@ function getAcreage(result) {
   return null;
 }
 
+function _resShowAll() {
+  try { _tableSearchClear(); } catch (e) {}
+  try { clearAllFilters(); } catch (e) {}
+  filterResults('all', document.querySelector('.filter-pills .sumchip.all'));
+}
+
 function renderTable(results, offset) {
   const tbody = document.getElementById('resTableBody');
   if (!tbody) return;
   if (!results.length) {
-    const msg = batchState.results.length
-      ? 'No results match this filter.'
-      : 'No batch selected — upload addresses to get started.';
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--t3)">' + msg + '</td></tr>';
+    tbody.innerHTML = batchState.results.length
+      ? '<tr class="res-empty-row"><td colspan="7" style="text-align:center;padding:44px 20px">' +
+          '<div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:4px">No parcels match these filters</div>' +
+          '<div style="font-size:13px;color:var(--t2);margin-bottom:16px">' + batchState.results.length + ' parcel' + (batchState.results.length === 1 ? ' is' : 's are') + ' hidden by the current search or filters.</div>' +
+          '<button class="btn-o btn-sm" onclick="_resShowAll()">Show all parcels</button>' +
+        '</td></tr>'
+      : '<tr class="res-empty-row"><td colspan="7" style="text-align:center;padding:52px 20px">' +
+          '<div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:4px">No batch open</div>' +
+          '<div style="font-size:13px;color:var(--t2);margin-bottom:16px">Paste or upload Florida addresses to screen them.</div>' +
+          '<button class="btn-p btn-sm" onclick="openUploadModal()">↑ Paste addresses</button>' +
+        '</td></tr>';
     return;
   }
   tbody.innerHTML = results.map((r, i) => {
@@ -7902,14 +7921,14 @@ function renderTable(results, offset) {
     const { street, city } = splitAddress(r.address || '');
     const noteIcon = r._note ? ' <span title="Has note" style="opacity:.7;font-size:11px">📝</span>' : '';
     const starBtn = (!isOutside && !isError)
-      ? '<button class="row-star ' + (r._starred ? 'row-star-on' : 'row-star-off') + '" onclick="_toggleStar(' + absIdx + ',event)" title="' + (r._starred ? 'Remove from My Picks' : 'Add to My Picks') + '">' + (r._starred ? '⭐' : '☆') + '</button>'
+      ? '<button class="row-star ' + (r._starred ? 'row-star-on' : 'row-star-off') + '" onclick="_toggleStar(' + absIdx + ',event)" title="' + (r._starred ? 'Remove from My Picks' : 'Add to My Picks') + '" aria-label="' + (r._starred ? 'Remove from My Picks' : 'Add to My Picks') + '" aria-pressed="' + (r._starred ? 'true' : 'false') + '">' + (r._starred ? '⭐' : '☆') + '</button>'
       : '';
     const rescreenBtn = (!isOutside && !isError)
-      ? '<button class="rescreen-icon" onclick="rescreenRow(event,' + absIdx + ')" title="Re-screen with fresh data">↻</button>'
+      ? '<button class="rescreen-icon" onclick="rescreenRow(event,' + absIdx + ')" title="Re-screen with fresh data" aria-label="Re-screen ' + escHtml(street) + '">↻</button>'
       : '';
     const addrClickable = !isOutside && !isError;
     const streetHtml = addrClickable
-      ? '<span class="tbl-addr-link" onclick="event.stopPropagation();openDetailPanel(' + absIdx + ',null);openStoryView()" title="Open Deal Review">' + escHtml(street) + '</span>'
+      ? '<span class="tbl-addr-link" role="link" tabindex="0" onclick="event.stopPropagation();openDetailPanel(' + absIdx + ',null);openStoryView()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" title="Open Deal Review">' + escHtml(street) + '</span>'
       : escHtml(street);
     const addrHtml = '<div style="display:flex;align-items:center;gap:8px">' +
       '<div style="flex:1">' +
@@ -7958,7 +7977,7 @@ function renderTable(results, offset) {
     if (isError) {
       return '<tr class="' + rowClass + '" id="trow-' + absIdx + '" onclick="openDetailPanel(' + absIdx + ',event)">' +
         '<td onclick="event.stopPropagation()" style="padding:8px 12px;width:32px">' +
-          '<input type="checkbox" class="row-cb"' + (isSelected ? ' checked' : '') + ' onchange="toggleRowSelect(' + absIdx + ',event)">' +
+          '<input type="checkbox" class="row-cb"' + (isSelected ? ' checked' : '') + ' aria-label="Select ' + escHtml(street) + '" onchange="toggleRowSelect(' + absIdx + ',event)">' +
         '</td>' +
         '<td class="tbl-parcel tbl-parcel-err">' + addrHtml + '</td>' +
         '<td colspan="3" class="tbl-err-cell">' + errCell + '</td>' +
@@ -7968,7 +7987,7 @@ function renderTable(results, offset) {
     }
     return '<tr class="' + rowClass + '" id="trow-' + absIdx + '" onclick="openDetailPanel(' + absIdx + ',event)">' +
       '<td onclick="event.stopPropagation()" style="padding:8px 12px;width:32px">' +
-        '<input type="checkbox" class="row-cb"' + (isSelected ? ' checked' : '') + ' onchange="toggleRowSelect(' + absIdx + ',event)">' +
+        '<input type="checkbox" class="row-cb"' + (isSelected ? ' checked' : '') + ' aria-label="Select ' + escHtml(street) + '" onchange="toggleRowSelect(' + absIdx + ',event)">' +
       '</td>' +
       '<td class="tbl-parcel">' + addrHtml + autoKillChip + rescreenedLabel + '</td>' +
       '<td class="tbl-landuse"' + (landType === 'Unknown' ? ' style="color:var(--t3)"' : '') + '>' + escHtml(landType) + '</td>' +
