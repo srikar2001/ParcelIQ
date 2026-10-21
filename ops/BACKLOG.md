@@ -68,7 +68,7 @@ Chief-of-staff keeps each lane ordered by impact. Agents add findings here.
 - [x] DONE (2026-10-20, merged 0a6c513; agent/qa-bugfixer/shared-link-open-tab) Q5 Shared links (#p/<token>, #shared/<token>) opened in a tab where the app is already loaded (paste into address bar / in-app link) show the landing page or dashboard instead of the shared view — boot-only routing; router() treats them as unknown hashes.
 
 ## UX (ux-polisher) — rotate through, one per run
-- [ ] TODO U16 TOP PRIORITY (owner 2026-10-20, landing-designer agent owns it) Landing page full redesign — owner: 'looks made in 1998', wants super cool/modern/premium. Branch agent/landing-designer/redesign, iterated overnight. ux-polisher: don't touch #page-landing while U16 is open.
+- [ ] IN PROGRESS (landing-designer, 2026-10-21) U16 TOP PRIORITY (owner 2026-10-20, landing-designer agent owns it) Landing page full redesign — owner: 'looks made in 1998', wants super cool/modern/premium. Branch agent/landing-designer/redesign, iterated overnight. ux-polisher: don't touch #page-landing while U16 is open.
 - [ ] TODO U14 (owner ideas 2026-10-20) Results table: tiny parcel-shape thumbnail per row + sticky header; empty-state illustration with 'Paste addresses' CTA.
 - [ ] TODO U15 (owner 2026-10-20) Perf: lazy-load Leaflet/MapLibre/xlsx only on the screens that need them; measure first paint before/after (Lighthouse).
 - [ ] TODO U14 (from ux) Settings sidebar (#page-settings ~3250) uses the same div+onclick .dsb-nav-item links as the old dashboard nav — not keyboard-reachable; convert to <a>/<button> in U7.
